@@ -1,7 +1,7 @@
 # AI Asset Hub 产品定位与方向
 
 > Date: 2026-09-04
-> Updated: 2026-09-04（v1.4：M6 补 CHANGELOG/runbook；v1.3 生命周期补扫描态；v1.2 出口标准+三层一表）
+> Updated: 2026-09-07（v1.5：M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
 > Status: Draft（设计阶段，未动代码）
 > Scope: 全新开源项目 —— AI 资产注册中心与市场（多类型 AI 可复用资产）
 
@@ -90,7 +90,7 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | 里程碑 | 内容 | 状态 |
 |--------|------|------|
 | M0 | 项目骨架：repo/license/README/docs 体系 | ✅ 本次 |
-| M1 | 平台底座：schema/用户认证(本地+SSO 适配)/命名空间/对象存储/审计 | ⬜ |
+| M1 | 平台底座：schema/用户认证(本地+SSO 适配)/命名空间/对象存储/审计 | 🟡 阶段一 platform-core ✅（monorepo + protocol 三族 zod + db 全表迁移/种子 + 本地认证/Session/RBAC/LDAP 通道）；阶段二（命名空间 HTTP API / 对象存储 / OIDC / Device Flow / Token 签发 / 审计浏览面）待另立 plan |
 | M2 | 资产域：skill/mcp/agent 三类 + 族协议文档 + 校验器 | ⬜ |
 | M3 | 治理管线：发布/版本/审核/标签/搜索/下载/统计 | ⬜ |
 | M4 | 前端：市场门户（类型化浏览/搜索/详情）+ 管理后台 | ⬜ |
@@ -145,3 +145,4 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | v1.2 | 2026-09-04 | sunxuewen-rush | §5 里程碑出口标准；§7 文档体系三层一表（规范/设计/计划 + 追踪表） |
 | v1.3 | 2026-09-04 | sunxuewen-rush | §2.2 生命周期补扫描态全序（SCANNING/SCAN_FAILED/UPLOADED），指向 08 |
 | v1.4 | 2026-09-04 | sunxuewen-rush | §5 M6 补 CHANGELOG.md 与 runbook 事故手册惯例（对标 OpenWork 运维文档借鉴） |
+| v1.5 | 2026-09-07 | sunxuewen-rush | §5 M1 状态注记：阶段一 platform-core ✅（M1-plan 执行至 T24），阶段二后置另立 plan |
