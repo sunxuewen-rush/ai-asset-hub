@@ -98,5 +98,4 @@ agent 是声明型（行为 + 模型偏好 + 技能引用，无执行代码）�
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：OpenSkills 兼容的 skill 包协议 |
-| v1.1 | 2026-09-04 | sunxuewen-rush | §6 措辞对齐类型三件套（worker→agent） |
+| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：OpenSkills 兼容的 skill 包协议（含与其他资产类型的差异对照） |

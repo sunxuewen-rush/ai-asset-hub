@@ -9,7 +9,8 @@
 
 `mcp` 资产 = 可被 AI agent 连接的 MCP（Model Context Protocol）服务器。双形态：
 
-- **远程型**：纯配置——MCP 服务器已在远端运行，包内只含连接信息（url/headers）
+- **远程型**：纯配置——MCP 服务器已在远端运行，包内只含连接信息
+  （url/headers；`http` 与 `sse` 传输同用此组字段）
 - **本地型**：含实现——服务器以 stdio 方式本地启动，包内含启动声明与实现脚本
 
 平台内 server 条目 schema 对齐主流 MCP 运行时（基于 MCP 官方传输规范演进的实际

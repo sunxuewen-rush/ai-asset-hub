@@ -68,7 +68,7 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 ### 3.3 坐标与命名
 
 - 寻址：`@namespace/slug`，对所有类型一致
-- slug 规则：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，长度 2-64，不含连续 `--`
+- slug 规则：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，长度 1-64，不含连续 `--`
 - **slug 跨类型唯一**（同 namespace 下 skill 与 mcp 不得同名）：安装目录以目录名寻址，
   目录名冲突会造成客户端歧义；slug 语义与类型无关
 - 安装后目录名 = slug（不携带类型信息，类型差异体现在安装位置）
@@ -123,4 +123,4 @@ interface AssetValidator {
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：类型登记/包形态/投影/校验器插拔/兼容边界 |
-| v1.1 | 2026-09-04 | sunxuewen-rush | 类型三件套对齐 00 v1.1（worker→agent，agent 定义包）；演进路径中立化 |
+| v1.1 | 2026-09-04 | sunxuewen-rush | 类型体系对齐 00 v1.1（skill/mcp/agent）；演进路径中立化 |
