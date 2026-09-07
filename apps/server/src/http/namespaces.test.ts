@@ -137,20 +137,30 @@ beforeAll(async () => {
 const ORIGIN = { origin: 'http://localhost:3000' };
 
 function postJson(url: string, body: unknown, cookie?: string) {
+  return jsonRequest('POST', url, body, cookie);
+}
+
+function patchJson(url: string, body: unknown, cookie?: string) {
+  return jsonRequest('PATCH', url, body, cookie);
+}
+
+function jsonRequest(method: string, url: string, body: unknown, cookie?: string) {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
     ...ORIGIN,
     host: 'localhost:3000', // csrf 同源校验比对 Host（csrf.test 同款）
   };
   if (cookie) headers.cookie = cookie;
-  return buildApp().request(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  return buildApp().request(url, { method, headers, body: JSON.stringify(body) });
 }
 
 afterAll(async () => {
   const slugs = await db
     .select({ id: namespace.id })
     .from(namespace)
-    .where(or(like(namespace.slug, 't2-%'), like(namespace.slug, 't3-%')));
+    .where(
+      or(like(namespace.slug, 't2-%'), like(namespace.slug, 't3-%'), like(namespace.slug, 't4-%')),
+    );
   const ids = slugs.map((s) => s.id);
   if (ids.length > 0) {
     await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, ids));
@@ -335,5 +345,126 @@ describe('POST /api/namespaces（T3 创建，R2 平台角色）', () => {
     });
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ code: 'auth.csrf_failed' });
+  });
+});
+
+describe('GET/PATCH /api/namespaces/:id（T4 详情与更新）', () => {
+  let t4Space: number;
+  let t4Frozen: number;
+
+  beforeAll(async () => {
+    t4Space = await insertNs('t4-space');
+    await addMember(t4Space, assetAdmin, 'OWNER');
+    await addMember(t4Space, u1, 'ADMIN');
+    t4Frozen = await insertNs('t4-frozen', 'FROZEN');
+    await addMember(t4Frozen, assetAdmin, 'OWNER');
+    await addMember(t4Frozen, u1, 'ADMIN');
+  });
+
+  it('GET 详情：ACTIVE 全可见（非成员 u2 可看 t4-space）', async () => {
+    const res = await buildApp().request(`/api/namespaces/${t4Space}`, {
+      headers: { cookie: await cookieFor(u2) },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      namespace: { slug: string; memberCount: number; myRole: string | null };
+    };
+    expect(body.namespace.slug).toBe('t4-space');
+    expect(body.namespace.memberCount).toBe(2); // assetAdmin OWNER + u1 ADMIN
+    expect(body.namespace.myRole).toBeNull();
+  });
+
+  it('GET 详情：FROZEN 非成员 → 404（不泄露存在）；成员（ADMIN）→ 200', async () => {
+    const hidden = await buildApp().request(`/api/namespaces/${t4Frozen}`, {
+      headers: { cookie: await cookieFor(u2) },
+    });
+    expect(hidden.status).toBe(404);
+    expect(await hidden.json()).toMatchObject({ code: 'namespace.not_found' });
+    const visible = await buildApp().request(`/api/namespaces/${t4Frozen}`, {
+      headers: { cookie: await cookieFor(u1) },
+    });
+    expect(visible.status).toBe(200);
+    const body = (await visible.json()) as { namespace: { myRole: string } };
+    expect(body.namespace.myRole).toBe('ADMIN');
+  });
+
+  it('GET 不存在的 id → 404；非法 id → 400', async () => {
+    const res = await buildApp().request('/api/namespaces/999999', {
+      headers: { cookie: await cookieFor(u1) },
+    });
+    expect(res.status).toBe(404);
+    const bad = await buildApp().request('/api/namespaces/abc', {
+      headers: { cookie: await cookieFor(u1) },
+    });
+    expect(bad.status).toBe(400);
+  });
+
+  it('PATCH：OWNER（assetAdmin）改名 t4-space → 200 落库 + description 置空清除', async () => {
+    const res = await patchJson(
+      `/api/namespaces/${t4Space}`,
+      { displayName: 'T4 Space Renamed', description: null },
+      await cookieFor(assetAdmin),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      namespace: { displayName: string; description: string | null };
+    };
+    expect(body.namespace.displayName).toBe('T4 Space Renamed');
+    expect(body.namespace.description).toBeNull();
+    const row = await db.select().from(namespace).where(eq(namespace.id, t4Space));
+    expect(row[0]?.displayName).toBe('T4 Space Renamed');
+    expect(row[0]?.description).toBeNull();
+  });
+
+  it('PATCH：ADMIN（u1）改名 ACTIVE 空间 t4-space → 200（namespace:manage = OWNER/ADMIN）', async () => {
+    const res = await patchJson(
+      `/api/namespaces/${t4Space}`,
+      { displayName: 'T4 Space By Admin' },
+      await cookieFor(u1),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('PATCH：FROZEN 空间内 ADMIN 改名 → 403（FROZEN 拒写，05 §6.3 第 6 步 + WRITE_PERMISSIONS）', async () => {
+    const res = await patchJson(
+      `/api/namespaces/${t4Frozen}`,
+      { displayName: 'nope' },
+      await cookieFor(u1),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('PATCH：可见但无管理权（u2 非成员对 t4-space）→ 403', async () => {
+    const res = await patchJson(
+      `/api/namespaces/${t4Space}`,
+      { displayName: 'nope' },
+      await cookieFor(u2),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'auth.forbidden' });
+  });
+
+  it('PATCH：FROZEN 非成员（u2 未加入）→ 404；加为 MEMBER 后可见 → 403（MEMBER 无 namespace:manage）', async () => {
+    const hidden = await patchJson(
+      `/api/namespaces/${t4Frozen}`,
+      { displayName: 'nope' },
+      await cookieFor(u2),
+    );
+    expect(hidden.status).toBe(404);
+    await addMember(t4Frozen, u2, 'MEMBER');
+    const forbidden = await patchJson(
+      `/api/namespaces/${t4Frozen}`,
+      { displayName: 'nope' },
+      await cookieFor(u2),
+    );
+    expect(forbidden.status).toBe(403);
+  });
+
+  it('PATCH：空 body / 空 displayName → 400', async () => {
+    const cookie = await cookieFor(assetAdmin);
+    const empty = await patchJson(`/api/namespaces/${t4Space}`, {}, cookie);
+    expect(empty.status).toBe(400);
+    const blank = await patchJson(`/api/namespaces/${t4Space}`, { displayName: '' }, cookie);
+    expect(blank.status).toBe(400);
   });
 });
