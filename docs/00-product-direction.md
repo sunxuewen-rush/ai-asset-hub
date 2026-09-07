@@ -1,7 +1,7 @@
 # AI Asset Hub 产品定位与方向
 
 > Date: 2026-09-04
-> Updated: 2026-09-04（v1.2：里程碑出口标准；文档体系三层一表）
+> Updated: 2026-09-04（v1.3：生命周期补扫描态全序，指向 08；v1.2 里程碑出口标准；文档体系三层一表）
 > Status: Draft（设计阶段，未动代码）
 > Scope: 全新开源项目 —— AI 资产注册中心与市场（多类型 AI 可复用资产）
 
@@ -50,7 +50,9 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 - 命名空间坐标 `@namespace/slug`：团队空间 + 全局空间，slug 跨类型唯一
 - **开放协作**：任何人可向任意资产提交更新；非 owner 提交走 `PENDING_REVIEW` 审核；
   owner/空间管理员审核；全局空间由平台管理员治理 —— Git 式协作，非 owner 独占
-- 生命周期：draft → PENDING_REVIEW → PUBLISHED → 下线/归档；版本化 + 标签通道（latest 只读，回滚走自定义标签）
+- 生命周期：版本全序含扫描态（DRAFT → SCANNING → SCAN_FAILED → UPLOADED →
+  PENDING_REVIEW → PUBLISHED，详见 08 §7）；资产状态 ACTIVE/HIDDEN/ARCHIVED；
+  版本化 + 标签通道（latest 只读，回滚走自定义标签）
 - 安全：发布前置校验器（按 type 插拔）+ 安全扫描扩展点 + 全链路审计
 
 ### 2.3 消费与兼容
@@ -141,3 +143,4 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：项目定位与方向定稿（决定板 D1-D9） |
 | v1.1 | 2026-09-04 | sunxuewen-rush | 类型三件套定稿（skill/mcp/agent）；演进路径中立化；内部语境清理 |
 | v1.2 | 2026-09-04 | sunxuewen-rush | §5 里程碑出口标准；§7 文档体系三层一表（规范/设计/计划 + 追踪表） |
+| v1.3 | 2026-09-04 | sunxuewen-rush | §2.2 生命周期补扫描态全序（SCANNING/SCAN_FAILED/UPLOADED），指向 08 |

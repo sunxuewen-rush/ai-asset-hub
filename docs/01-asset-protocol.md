@@ -1,7 +1,7 @@
 # 资产协议总纲
 
 > Date: 2026-09-04
-> Updated: 2026-09-04（v1.1：类型三件套对齐 00 v1.1 —— skill/mcp/agent；演进路径中立化）
+> Updated: 2026-09-04（v1.2：生命周期同步扫描态全序，资产状态独立化；v1.1 类型三件套对齐）
 > Status: Draft（族协议 02/03/04 待细化，未动代码）
 > Scope: AI Asset Hub 可分发资产的公共协议层 —— 类型登记、包形态、元数据投影、校验器插拔
 
@@ -76,7 +76,9 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 ## 4. 版本与生命周期
 
 - 版本号：semver（族协议可附加限定）
-- 生命周期对所有类型一致：`draft → PENDING_REVIEW → PUBLISHED` → 下线/归档
+- 生命周期对所有类型一致：版本全序含扫描态（DRAFT → SCANNING → SCAN_FAILED →
+  UPLOADED → PENDING_REVIEW → PUBLISHED，表结构详见 `08` §7）
+- 资产状态独立于版本：ACTIVE / HIDDEN / ARCHIVED
 - 标签通道：`latest` 只读跟随最新 PUBLISHED；`stable`/`beta` 等自定义标签做通道管理
 - 治理（hidden/报告/归档/审计）与类型无关，全部复用
 
@@ -124,3 +126,4 @@ interface AssetValidator {
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：类型登记/包形态/投影/校验器插拔/兼容边界 |
 | v1.1 | 2026-09-04 | sunxuewen-rush | 类型体系对齐 00 v1.1（skill/mcp/agent）；演进路径中立化 |
+| v1.2 | 2026-09-04 | sunxuewen-rush | §4 生命周期补扫描态全序；资产状态独立于版本（指向 08 §7） |
