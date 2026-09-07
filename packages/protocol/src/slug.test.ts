@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { slugSchema } from './slug.js';
 
-const valid = [
-  'a',
-  'my-skill',
-  'a1',
-  'x'.repeat(64),
-  'github-mcp',
-  'code-reviewer',
-];
+const valid = ['a', 'my-skill', 'a1', 'x'.repeat(64), 'github-mcp', 'code-reviewer'];
 const invalid = [
   ['A', 'uppercase'],
   ['', 'empty'],

@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import {
   bigint,
   bigserial,
@@ -11,6 +10,7 @@ import {
   unique,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 import { namespace } from './namespaces.js';
 import { userAccount } from './users.js';
 

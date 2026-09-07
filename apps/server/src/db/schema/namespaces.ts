@@ -1,13 +1,5 @@
+import { bigserial, index, pgTable, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import {
-  bigserial,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  varchar,
-} from 'drizzle-orm/pg-core';
 import { userAccount } from './users.js';
 
 /**

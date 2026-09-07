@@ -19,7 +19,11 @@ const serverEntrySchema = z
     /** 是否启用（03 §3.2）：必填 */
     enabled: z.boolean({ required_error: 'enabled_required' }),
     /** stdio：可执行命令，非空、不含反斜杠；`./` 或 `scripts/` 开头 = 包内引用 */
-    command: z.string().min(1).refine((v) => !v.includes('\\'), 'command_backslash').optional(),
+    command: z
+      .string()
+      .min(1)
+      .refine((v) => !v.includes('\\'), 'command_backslash')
+      .optional(),
     /** stdio：命令参数 */
     args: z.array(z.string()).optional(),
     /** stdio：环境变量（值只收字符串） */

@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import {
   bigserial,
@@ -13,6 +12,7 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 import { asset, assetVersion } from './assets.js';
 import { namespace } from './namespaces.js';
 import { userAccount } from './users.js';

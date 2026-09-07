@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import {
   bigserial,
   boolean,
@@ -11,6 +10,7 @@ import {
   unique,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 
 /**
  * 用户域（08 §3 v1.1）：user_account / identity_binding / local_credential / api_token
