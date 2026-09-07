@@ -1,9 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { AUDIT_ACTIONS, type AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
-import { identityBinding, localCredential, userAccount } from '../db/schema/index.js';
+import { localCredential } from '../db/schema/index.js';
 import { AuthError } from './errors.js';
 import type { LdapChannel } from './ldap.js';
+import { provisionExternalUser } from './provision.js';
 import { normalizeUsername, type UserService } from './users.js';
 
 /**
@@ -161,37 +162,19 @@ export class AuthService {
   }
 
   /**
-   * LDAP 建号（05 §3.1 第 5 步）：userId = LDAP_USER_ID_ATTR 映射值；
-   * 已存在 → 同步 displayName；不存在 → 建号 + identity_binding(provider=ldap) 防重复绑定。
+   * LDAP 建号（05 §3.1 第 5 步）：委托公共 provisionExternalUser（T26）——
+   * binding(ldap, 工号) 复用 + 建号事务 + displayName 同步；userId = LDAP 映射值。
    */
   private async provisionOrSyncLdapUser(
     userId: string,
     displayName: string,
   ): Promise<AuthSessionUser> {
-    const existing = await this.db
-      .select({ id: userAccount.id, displayName: userAccount.displayName })
-      .from(userAccount)
-      .where(eq(userAccount.id, userId));
-
-    if (existing.length > 0) {
-      if (existing[0]!.displayName !== displayName) {
-        await this.db.update(userAccount).set({ displayName }).where(eq(userAccount.id, userId));
-      }
-      return { id: userId, displayName: existing[0]!.displayName };
-    }
-
-    await this.db.transaction(async (tx) => {
-      await tx.insert(userAccount).values({
-        id: userId,
-        displayName,
-        status: 'ACTIVE', // 目录身份可信（05 §3.1），无平台角色
-      });
-      await tx.insert(identityBinding).values({
-        provider: 'ldap',
-        providerSubject: userId,
-        userId,
-      });
+    const user = await provisionExternalUser(this.db, {
+      provider: 'ldap',
+      providerSubject: userId,
+      userId,
+      displayName,
     });
-    return { id: userId, displayName };
+    return { id: user.id, displayName: user.displayName };
   }
 }
