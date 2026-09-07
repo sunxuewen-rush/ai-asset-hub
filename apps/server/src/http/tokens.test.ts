@@ -14,7 +14,7 @@ import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, userAccount } from '../db/schema/index.js';
+import { apiToken, type RoleCode, role, userAccount, userRoleBinding } from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 
@@ -22,11 +22,24 @@ let db: Db;
 let sessions: SessionManager;
 let rbac: RbacService;
 let u1: string; // 普通 ACTIVE 用户（无平台角色——签发本人 token 不需权限码）
+let superAdmin: string;
 
 async function makeUser(displayName: string): Promise<string> {
   const id = `usr_${randomUUID()}`;
   await db.insert(userAccount).values({ id, displayName, status: 'ACTIVE' });
   return id;
+}
+
+async function ensureRole(roleCode: RoleCode) {
+  await db
+    .insert(role)
+    .values({ code: roleCode, name: `role-${roleCode}`, isSystem: true })
+    .onConflictDoNothing();
+}
+
+async function bindRole(userId: string, roleCode: RoleCode) {
+  const rows = await db.select().from(role).where(eq(role.code, roleCode));
+  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
 }
 
 async function cookieFor(userId: string): Promise<string> {
@@ -71,6 +84,9 @@ beforeAll(async () => {
   rbac = new RbacService(db);
   sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
   u1 = await makeUser('tok-u1');
+  await ensureRole('SUPER_ADMIN');
+  superAdmin = await makeUser('tok-super-admin');
+  await bindRole(superAdmin, 'SUPER_ADMIN');
 });
 
 afterAll(async () => {
@@ -80,6 +96,7 @@ afterAll(async () => {
     .where(like(userAccount.displayName, 'tok-%'));
   for (const u of users) {
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
+    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();
@@ -216,5 +233,70 @@ describe('GET /api/tokens（T15 列表）', () => {
     // 清理 u2（含其 token 行）
     await db.delete(apiToken).where(eq(apiToken.userId, u2));
     await db.delete(userAccount).where(eq(userAccount.id, u2));
+  });
+});
+
+describe('DELETE /api/tokens/:id（T16 吊销）', () => {
+  function deleteReq(url: string, cookie?: string, withOrigin = true) {
+    const headers: Record<string, string> = {};
+    if (cookie) headers.cookie = cookie;
+    if (withOrigin) {
+      headers.origin = ORIGIN.origin;
+      headers.host = 'localhost:3000';
+    }
+    return buildApp().request(url, { method: 'DELETE', headers });
+  }
+
+  async function mintFor(userId: string): Promise<number> {
+    const [row] = await db
+      .insert(apiToken)
+      .values({ userId, tokenHash: hashToken(`aih_${randomUUID()}`), scope: '' })
+      .returning({ id: apiToken.id });
+    return row!.id;
+  }
+
+  it('匿名 DELETE → 401（同源无 cookie）', async () => {
+    const res = await deleteReq('/api/tokens/1');
+    expect(res.status).toBe(401);
+  });
+
+  it('本人吊销 → 204 + revokedAt 落库；重复吊销幂等 204', async () => {
+    const id = await mintFor(u1);
+    const cookie = await cookieFor(u1);
+    const res = await deleteReq(`/api/tokens/${id}`, cookie);
+    expect(res.status).toBe(204);
+    const [row] = await db.select().from(apiToken).where(eq(apiToken.id, id));
+    expect(row!.revokedAt).not.toBeNull();
+    // 幂等
+    const again = await deleteReq(`/api/tokens/${id}`, cookie);
+    expect(again.status).toBe(204);
+  });
+
+  it('吊销他人 token（普通用户）→ 404 防枚举', async () => {
+    const id = await mintFor(u1);
+    const u2 = await makeUser('tok-u2');
+    const cookie = await cookieFor(u2);
+    const res = await deleteReq(`/api/tokens/${id}`, cookie);
+    expect(res.status).toBe(404);
+    const [row] = await db.select().from(apiToken).where(eq(apiToken.id, id));
+    expect(row!.revokedAt).toBeNull(); // 未被吊销
+    await db.delete(apiToken).where(eq(apiToken.userId, u2));
+    await db.delete(userAccount).where(eq(userAccount.id, u2));
+  });
+
+  it('SUPER_ADMIN 吊销他人 token → 204（超管治理面）', async () => {
+    const id = await mintFor(u1);
+    const cookie = await cookieFor(superAdmin);
+    const res = await deleteReq(`/api/tokens/${id}`, cookie);
+    expect(res.status).toBe(204);
+    const [row] = await db.select().from(apiToken).where(eq(apiToken.id, id));
+    expect(row!.revokedAt).not.toBeNull();
+  });
+
+  it('不存在 id → 404；非法 id → 400；无 Origin 的 DELETE → 403 csrf（cookie 通道面）', async () => {
+    const cookie = await cookieFor(u1);
+    expect((await deleteReq('/api/tokens/999999', cookie)).status).toBe(404);
+    expect((await deleteReq('/api/tokens/abc', cookie)).status).toBe(400);
+    expect((await deleteReq('/api/tokens/1', cookie, false)).status).toBe(403);
   });
 });

@@ -84,5 +84,37 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
     return c.json({ items: rows });
   });
 
+  // DELETE /api/tokens/:id（T16：吊销——本人或 SUPER_ADMIN；幂等 204；他人 token 视同 404 防枚举）
+  app.delete('/:id', async (c) => {
+    const principal = c.get('principal');
+    if (!principal) throw new Error('requireAuth guard violated: principal missing');
+    const raw = c.req.param('id');
+    if (!/^\d+$/.test(raw)) {
+      return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
+    }
+    const id = Number(raw);
+    const [token] = await db
+      .select({ userId: apiToken.userId, revokedAt: apiToken.revokedAt })
+      .from(apiToken)
+      .where(eq(apiToken.id, id));
+    if (!token) return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
+
+    const isOwner = token.userId === principal.userId;
+    let isSuperAdmin = false;
+    if (!isOwner) {
+      const rbac = c.get('rbac');
+      if (!rbac) throw new Error('rbac not injected via rbacContext (app assembly error)');
+      const roles = await rbac.platformRolesOf(principal.userId);
+      isSuperAdmin = roles.includes('SUPER_ADMIN');
+    }
+    if (!isOwner && !isSuperAdmin) {
+      // 防枚举：他人 token 视同不存在
+      return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
+    }
+    if (token.revokedAt) return c.body(null, 204); // 幂等：已吊销
+    await db.update(apiToken).set({ revokedAt: new Date() }).where(eq(apiToken.id, id));
+    return c.body(null, 204);
+  });
+
   return app;
 }
