@@ -1,6 +1,7 @@
 # 标签与分类设计
 
 > Date: 2026-09-04
+> Updated: 2026-09-04（v1.1：§5.3 API 路径前缀统一 /api）
 > Status: Draft（未动代码）
 > Scope: AI Asset Hub 的 label 体系 —— 定义/多语言/两级分类/挂载/筛选语义/权限
 > 设计来源：企业实战验证的 label 方案（Phase 1 基础 + Phase 2 两级分类，设计决策继承，命名资产化）

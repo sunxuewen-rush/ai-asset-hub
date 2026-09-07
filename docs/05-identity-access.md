@@ -1,7 +1,7 @@
 # 用户与权限设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-04（v1.1：补 §3.1 LDAP/AD 认证企业通道）
+> Updated: 2026-09-04（v1.2：§6.4 防自审/namespace:manage；§3 图注 LDAP；v1.1 补 §3.1 LDAP 企业通道）
 > Status: Draft（未动代码）
 > Scope: AI Asset Hub 的身份、准入、会话凭证与 RBAC 授权体系
 > 设计来源：企业实战验证的注册中心认证方案（设计决策继承，命名与实现中立化/资产化）
