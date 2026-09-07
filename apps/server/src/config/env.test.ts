@@ -16,6 +16,8 @@ describe('parseEnv', () => {
     expect(env.ACCESS_POLICY).toBe('open');
     expect(env.STORAGE_DRIVER).toBe('local');
     expect(env.STORAGE_DIR).toBe('./storage');
+    expect(env.OIDC_ENABLED).toBe(false);
+    expect(env.PUBLIC_BASE_URL).toBe('http://localhost:3000');
     expect(env.LDAP_ENABLED).toBe(false);
     expect(env.LDAP_USER_ID_ATTR).toBe('sAMAccountName');
   });
@@ -61,5 +63,56 @@ describe('parseEnv', () => {
 
   it('rejects unknown storage driver value', () => {
     expect(() => parseEnv({ ...baseEnv, STORAGE_DRIVER: 'ftp' })).toThrow();
+  });
+
+  it('OIDC disabled 全缺 OK（独立部署不受影响）', () => {
+    const env = parseEnv(baseEnv);
+    expect(env.OIDC_ENABLED).toBe(false);
+    expect(env.OIDC_DISCOVERY_URL).toBe('');
+    expect(env.PUBLIC_BASE_URL).toBe('http://localhost:3000');
+  });
+
+  it('OIDC enabled 缺 discovery/clientId → 拒启（配置完整性）', () => {
+    expect(() => parseEnv({ ...baseEnv, OIDC_ENABLED: 'true' })).toThrow(
+      /OIDC_DISCOVERY_URL and OIDC_CLIENT_ID/,
+    );
+    expect(() =>
+      parseEnv({
+        ...baseEnv,
+        OIDC_ENABLED: 'true',
+        OIDC_DISCOVERY_URL: 'https://issuer.example.com',
+      }),
+    ).toThrow(/OIDC_CLIENT_ID/);
+  });
+
+  it('OIDC enabled + 完整配置通过；OIDC_REDIRECT_URL 可缺省', () => {
+    const env = parseEnv({
+      ...baseEnv,
+      OIDC_ENABLED: 'true',
+      OIDC_DISCOVERY_URL: 'https://issuer.example.com/.well-known/openid-configuration',
+      OIDC_CLIENT_ID: 'aih',
+      OIDC_CLIENT_SECRET: 's3cret',
+    });
+    expect(env.OIDC_ENABLED).toBe(true);
+    expect(env.OIDC_REDIRECT_URL).toBeUndefined();
+  });
+
+  it('discovery 非 https 且非 localhost → 拒启（防降级窃听 P6）', () => {
+    expect(() =>
+      parseEnv({
+        ...baseEnv,
+        OIDC_ENABLED: 'true',
+        OIDC_DISCOVERY_URL: 'http://issuer.example.com/oidc',
+        OIDC_CLIENT_ID: 'aih',
+      }),
+    ).toThrow(/https/);
+    // localhost http 开发例外放行
+    const env = parseEnv({
+      ...baseEnv,
+      OIDC_ENABLED: 'true',
+      OIDC_DISCOVERY_URL: 'http://localhost:9000/oidc',
+      OIDC_CLIENT_ID: 'aih',
+    });
+    expect(env.OIDC_ENABLED).toBe(true);
   });
 });

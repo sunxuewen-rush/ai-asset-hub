@@ -39,6 +39,17 @@ const envSchema = z.object({
   STORAGE_DRIVER: storageDriverSchema.default('local'),
   STORAGE_DIR: z.string().default('./storage'),
 
+  // 对外基址（OIDC 回调 / Device Flow verificationUri 推导）
+  PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
+
+  // OIDC 授权码流（05 §3/§5：单 Provider 配置化，R6；默认关闭独立部署不受影响）
+  OIDC_ENABLED: boolFromString.default('false'),
+  OIDC_DISCOVERY_URL: z.string().default(''),
+  OIDC_CLIENT_ID: z.string().default(''),
+  OIDC_CLIENT_SECRET: z.string().default(''),
+  /** 可选：缺省运行时以 PUBLIC_BASE_URL 推导 /api/auth/oidc/callback */
+  OIDC_REDIRECT_URL: z.string().url().optional(),
+
   // LDAP 企业通道（05 §3.1：默认关闭，独立部署不受影响）
   LDAP_ENABLED: boolFromString.default('false'),
   /** 逗号分隔多 DC（故障转移） */
@@ -71,6 +82,21 @@ export function parseEnv(source: Record<string, string | undefined> = process.en
   // 存储驱动非 local（M1 未实现）→ 拒绝启动，防静默误配（R4）
   if (env.STORAGE_DRIVER !== 'local') {
     throw new Error(`STORAGE_DRIVER=${env.STORAGE_DRIVER} is not implemented in M1 (only 'local')`);
+  }
+  // OIDC 启用但缺必填 → 拒绝（05 §3.1 配置完整性，同 LDAP 模式）
+  if (
+    env.OIDC_ENABLED &&
+    (env.OIDC_DISCOVERY_URL.trim() === '' || env.OIDC_CLIENT_ID.trim() === '')
+  ) {
+    throw new Error('OIDC_ENABLED=true requires OIDC_DISCOVERY_URL and OIDC_CLIENT_ID');
+  }
+  // OIDC discovery 仅接受 https（localhost 开发例外）——防降级窃听（P6）
+  if (env.OIDC_DISCOVERY_URL.trim() !== '') {
+    const url = new URL(env.OIDC_DISCOVERY_URL);
+    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    if (url.protocol !== 'https:' && !isLocalhost) {
+      throw new Error('OIDC_DISCOVERY_URL must use https (localhost allowed for development)');
+    }
   }
   return env;
 }
