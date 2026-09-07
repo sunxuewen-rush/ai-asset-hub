@@ -39,6 +39,7 @@ export async function queryAudit(
   const where = conds.length > 0 ? and(...conds) : undefined;
 
   const [totalRow] = await db.select({ total: count() }).from(auditLog).where(where);
+  const total = totalRow?.total ?? 0;
   const items = await db
     .select()
     .from(auditLog)
@@ -47,5 +48,5 @@ export async function queryAudit(
     .orderBy(desc(auditLog.createdAt), desc(auditLog.id))
     .limit(q.limit)
     .offset(q.offset);
-  return { items, total: totalRow!.total };
+  return { items, total };
 }

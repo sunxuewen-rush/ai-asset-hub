@@ -11,6 +11,7 @@ import type { SessionManager } from './auth/session.js';
 import { sessionMiddleware } from './auth/session-middleware.js';
 import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
+import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { requestContextMiddleware } from './http/request-context.js';
@@ -80,6 +81,7 @@ export function createApp(deps: AppDeps): Hono {
 
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
+  app.route('/api/audit', createAuditRoutes({ db: deps.db }));
 
   return app;
 }
