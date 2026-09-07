@@ -2,6 +2,9 @@ import { Hono } from 'hono';
 import type { DevicePendingStore } from '../auth/device-store.js';
 import { AuthError } from '../auth/errors.js';
 import type { RateLimiter } from '../auth/rate-limit.js';
+import { generateTokenSecret, hashToken } from '../auth/tokens.js';
+import type { Db } from '../db/client.js';
+import { apiToken } from '../db/schema/index.js';
 import { requireAuth } from './auth-middleware.js';
 
 /**
@@ -13,6 +16,7 @@ import { requireAuth } from './auth-middleware.js';
  */
 
 export interface DeviceRoutesDeps {
+  db: Db;
   store: DevicePendingStore;
   rateLimiter: RateLimiter;
   /** verificationUri 前缀（PUBLIC_BASE_URL） */
@@ -22,8 +26,11 @@ export interface DeviceRoutesDeps {
 /** 授权请求匿名低频（按 clientIp 防 pending 耗尽——独立限流实例，阈值 10/分钟） */
 export const REQUEST_LIMIT = { windowMs: 60_000, max: 10 } as const;
 
+/** 轮询产出 token 有效期（RFC 8628 access token；1h） */
+export const DEVICE_TOKEN_TTL_SEC = 3600;
+
 export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
-  const { store, rateLimiter } = deps;
+  const { db, store, rateLimiter } = deps;
   const base = deps.publicBaseUrl.replace(/\/$/, '');
   const app = new Hono();
 
@@ -65,6 +72,51 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
     const ok = await store.approve(pending.deviceCode, principal.userId);
     if (!ok) throw new AuthError('auth.device_code_invalid');
     return c.json({ status: 'approved' });
+  });
+
+  // POST /api/auth/device/token（T32：CLI 轮询——pending→400 / approved→签 API Token
+  // （scope=cli）/ expired→401 / unknown→404；一次性：签发后清 pending）
+  app.post('/token', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { deviceCode?: unknown } | null;
+    const deviceCode = typeof body?.deviceCode === 'string' ? body.deviceCode.trim() : '';
+    if (deviceCode.length === 0) {
+      return c.json({ code: 'request.invalid', message: 'deviceCode is required' }, 400);
+    }
+    const raw = store.peek(deviceCode);
+    if (!raw) throw new AuthError('auth.device_code_invalid'); // 错码（防探测）
+    const now = Date.now();
+    if (raw.expiresAt <= now) {
+      await store.reject(deviceCode);
+      throw new AuthError('auth.device_expired');
+    }
+    if (raw.userId === null) {
+      // RFC 8628：未确认 → 400 authorization_pending + retry-after=interval
+      return c.json(
+        { code: 'auth.authorization_pending', message: 'auth.authorization_pending' },
+        400,
+        {
+          'retry-after': '5',
+        },
+      );
+    }
+    // 已 approve：签 API Token（scope=cli，T14 签发面复用；一次性消费）
+    const plain = generateTokenSecret();
+    const [row] = await db
+      .insert(apiToken)
+      .values({
+        userId: raw.userId,
+        tokenHash: hashToken(plain),
+        scope: 'cli',
+        expiresAt: new Date(now + DEVICE_TOKEN_TTL_SEC * 1000),
+      })
+      .returning({ id: apiToken.id });
+    await store.reject(deviceCode);
+    if (!row) throw new Error('api token insert returned no row');
+    return c.json({
+      accessToken: plain,
+      tokenType: 'Bearer',
+      expiresIn: DEVICE_TOKEN_TTL_SEC,
+    });
   });
 
   return app;

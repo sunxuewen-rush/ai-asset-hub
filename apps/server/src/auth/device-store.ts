@@ -66,6 +66,11 @@ export class DevicePendingStore {
     return pending;
   }
 
+  /** 不过期过滤的裸查（T32：区分 expired 401 与 unknown 404——轮询端点语义需要） */
+  peek(deviceCode: string): DevicePending | undefined {
+    return this.pendings.get(deviceCode);
+  }
+
   /** user_code 查（大小写不敏感——用户手动输入；T33） */
   async getByUser(userCode: string, now: number = Date.now()): Promise<DevicePending | null> {
     const normalized = userCode.trim().toUpperCase();

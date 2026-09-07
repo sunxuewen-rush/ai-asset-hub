@@ -15,10 +15,12 @@ import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
-import { userAccount } from '../db/schema/index.js';
+import { apiToken, userAccount } from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
-import { createDeviceRoutes, REQUEST_LIMIT } from './device-routes.js';
+import { createDeviceRoutes, DEVICE_TOKEN_TTL_SEC, REQUEST_LIMIT } from './device-routes.js';
 import { requestContextMiddleware } from './request-context.js';
+import { tokenAuthMiddleware } from './token-middleware.js';
+import { createTokenRoutes } from './tokens.js';
 
 /**
  * T30/T31 集成测试：device 匿名端点 CSRF 豁免 + approve cookie 通道保护——
@@ -40,6 +42,7 @@ function buildApp(store?: DevicePendingStore): Hono {
   const app = new Hono();
   app.use('*', requestContextMiddleware());
   app.use('*', rbacContext(rbac));
+  app.use('*', tokenAuthMiddleware(db));
   app.use('*', sessionMiddleware(sessions));
   // 镜像 app.ts：匿名 device 端点豁免；approve 保护
   app.use('*', csrfProtection({ exemptPaths: ['/api/auth/device', '/api/auth/device/token'] }));
@@ -55,11 +58,14 @@ function buildApp(store?: DevicePendingStore): Hono {
   app.route(
     '/api/auth/device',
     createDeviceRoutes({
+      db,
       store: store ?? new DevicePendingStore(),
       rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
       publicBaseUrl: 'http://localhost:3000',
     }),
   );
+  // Bearer 验证面（T32：轮询所得 token 可走既有 token 通道）
+  app.route('/api/tokens', createTokenRoutes({ db }));
   return app;
 }
 
@@ -77,6 +83,7 @@ afterAll(async () => {
     .from(userAccount)
     .where(like(userAccount.displayName, 'dev-%'));
   for (const u of users) {
+    await db.delete(apiToken).where(eq(apiToken.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();
@@ -188,5 +195,98 @@ describe('POST /api/auth/device/approve（T31 用户确认）', () => {
       body: JSON.stringify({ userCode: 'ZZZZZZZZ' }),
     });
     expect(noOrigin.status).toBe(403);
+  });
+});
+
+describe('POST /api/auth/device/token（T32 CLI 轮询签发）', () => {
+  /** 请求授权 → 返回 {deviceCode,userCode} */
+  async function requestCodes(app: Hono): Promise<{ deviceCode: string; userCode: string }> {
+    return (await (await app.request('/api/auth/device', { method: 'POST' })).json()) as {
+      deviceCode: string;
+      userCode: string;
+    };
+  }
+
+  async function approve(app: Hono, userCode: string, cookie: string) {
+    const res = await app.request('/api/auth/device/approve', {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: 'http://localhost:3000',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ userCode }),
+    });
+    expect(res.status).toBe(200);
+  }
+
+  it('未 approve → 400 authorization_pending + retry-after', async () => {
+    const app = buildApp();
+    const { deviceCode } = await requestCodes(app);
+    const res = await app.request('/api/auth/device/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCode }),
+    });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('auth.authorization_pending');
+    expect(res.headers.get('retry-after')).toBe('5');
+  });
+
+  it('approve 后轮询 → token 可 Bearer 调 /api/tokens（200 本人列表）', async () => {
+    const app = buildApp();
+    const cookie = await cookieFor(u1);
+    const { deviceCode, userCode } = await requestCodes(app);
+    await approve(app, userCode, cookie);
+    const res = await app.request('/api/auth/device/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCode }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      accessToken: string;
+      tokenType: string;
+      expiresIn: number;
+    };
+    expect(body.accessToken.startsWith('aih_')).toBe(true);
+    expect(body.tokenType).toBe('Bearer');
+    expect(body.expiresIn).toBe(DEVICE_TOKEN_TTL_SEC);
+    // token 落库 scope=cli 且属 approve 用户
+    const me = await app.request('/api/tokens', {
+      headers: { authorization: `Bearer ${body.accessToken}` },
+    });
+    expect(me.status).toBe(200);
+    // 一次性：再轮询同 deviceCode → 404（已消费）
+    const again = await app.request('/api/auth/device/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCode }),
+    });
+    expect(again.status).toBe(404);
+  });
+
+  it('过期 pending → 401 auth.device_expired；错码 → 404', async () => {
+    const app = buildApp();
+    const store = new DevicePendingStore();
+    const p = await store.create();
+    // 变异引用模拟过期（对象存于 Map，直接推进时间戳）
+    p.expiresAt = Date.now() - 1;
+    const app2 = buildApp(store);
+    const expired = await app2.request('/api/auth/device/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCode: p.deviceCode }),
+    });
+    expect(expired.status).toBe(401);
+    expect(((await expired.json()) as { code: string }).code).toBe('auth.device_expired');
+    // 错码
+    const bad = await app.request('/api/auth/device/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCode: 'no-such-device-code' }),
+    });
+    expect(bad.status).toBe(404);
   });
 });

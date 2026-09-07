@@ -20,6 +20,9 @@ export const authErrorCodes = {
   oidcStateMismatch: 'auth.oidc_state_mismatch',
   oidcDenied: 'auth.oidc_denied',
   deviceCodeInvalid: 'auth.device_code_invalid',
+  /** RFC 8628：用户尚未确认（轮询继续） */
+  authorizationPending: 'auth.authorization_pending',
+  deviceExpired: 'auth.device_expired',
 } as const;
 
 export type AuthErrorCode = (typeof authErrorCodes)[keyof typeof authErrorCodes];
@@ -32,9 +35,11 @@ export function httpStatusFor(code: AuthErrorCode): number {
     case 'auth.user_pending':
     case 'auth.user_locked':
     case 'auth.session_expired':
+    case 'auth.device_expired':
       return 401;
     case 'auth.username_invalid':
     case 'auth.password_too_weak':
+    case 'auth.authorization_pending':
       return 400;
     case 'auth.device_code_invalid':
       return 404;

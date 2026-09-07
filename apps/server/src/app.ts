@@ -102,6 +102,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route(
     '/api/auth/device',
     createDeviceRoutes({
+      db: deps.db,
       store: deviceStore,
       // 匿名请求独立限流实例（10/分钟，不与登录共享 key 空间）
       rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
