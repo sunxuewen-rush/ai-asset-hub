@@ -14,11 +14,11 @@ let db: Db;
 beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
-  // 幂等：清上次运行残留（重复 run 会重插同 subject，先清后插）
+  // 幂等：清上次运行残留——按 id 前缀（usr_prov-%；displayName 由外部身份源决定不可作键）
   const staleUsers = await db
     .select({ id: userAccount.id })
     .from(userAccount)
-    .where(like(userAccount.displayName, 'prov-%'));
+    .where(like(userAccount.id, 'usr_prov-%'));
   for (const u of staleUsers) {
     await db.delete(identityBinding).where(eq(identityBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
@@ -29,7 +29,7 @@ afterAll(async () => {
   const users = await db
     .select({ id: userAccount.id })
     .from(userAccount)
-    .where(like(userAccount.displayName, 'prov-%'));
+    .where(like(userAccount.id, 'usr_prov-%'));
   for (const u of users) {
     await db.delete(identityBinding).where(eq(identityBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
@@ -141,10 +141,10 @@ describe('provisionExternalUser（T26：公共建号/binding 复用）', () => {
   });
 
   it('账号已存在但无 binding → 补 binding 复用（不重复建号）', async () => {
-    // 预置本地风格账号（无 binding）
+    // 预置本地风格账号（无 binding）；displayName 必须匹配 prov-% 清理前缀（跨 run 防残留）
     await db
       .insert(userAccount)
-      .values({ id: 'usr_prov-existing', displayName: 'Existing', status: 'ACTIVE' });
+      .values({ id: 'usr_prov-existing', displayName: 'prov-existing', status: 'ACTIVE' });
     const user = await provisionExternalUser(db, {
       provider: 'oidc',
       providerSubject: 'sub-existing',
