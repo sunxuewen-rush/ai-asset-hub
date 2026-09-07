@@ -1,20 +1,46 @@
 import { eq } from 'drizzle-orm';
-import { getDb } from './client.js';
-import { localCredential, namespace, permission, role, rolePermission, userAccount, userRoleBinding } from './schema/index.js';
 import { hashPassword } from '../auth/password.js';
-import { ALL_PERMISSIONS, PERMISSION_GROUPS, PERMISSION_NAMES, PERMISSIONS } from '../auth/permissions.js';
+import {
+  ALL_PERMISSIONS,
+  PERMISSION_GROUPS,
+  PERMISSION_NAMES,
+  PERMISSIONS,
+} from '../auth/permissions.js';
+import { createClient } from './client.js';
+import {
+  localCredential,
+  namespace,
+  permission,
+  role,
+  rolePermission,
+  userAccount,
+  userRoleBinding,
+} from './schema/index.js';
 
 /**
  * 种子（幂等 upsert）：四平台角色（05 §6.1）+ 权限码十枚（05 §6.4）+ global 空间（08 §4）
  * + SEED_ADMIN（可选，R6）。role/permission 按 code、namespace 按 slug upsert。
+ * db 运维脚本只需 DATABASE_URL，不走全量 env。
  */
-
-const db = getDb();
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL is required');
+  process.exit(1);
+}
+const db = createClient(connectionString);
 
 const ROLES = [
   { code: 'SUPER_ADMIN', name: '超级管理员', description: '拥有所有权限（硬判定短路 05 §6.3）' },
-  { code: 'ASSET_ADMIN', name: '资产管理员', description: '全局空间审核、提升审核、隐藏/恢复资产、撤回已发布版本' },
-  { code: 'USER_ADMIN', name: '用户管理员', description: '准入审批、封禁/解封、角色分配（不可分配 SUPER_ADMIN）' },
+  {
+    code: 'ASSET_ADMIN',
+    name: '资产管理员',
+    description: '全局空间审核、提升审核、隐藏/恢复资产、撤回已发布版本',
+  },
+  {
+    code: 'USER_ADMIN',
+    name: '用户管理员',
+    description: '准入审批、封禁/解封、角色分配（不可分配 SUPER_ADMIN）',
+  },
   { code: 'AUDITOR', name: '审计员', description: '审计日志只读' },
 ] as const;
 
@@ -59,10 +85,7 @@ async function seedRolesAndPermissions(): Promise<void> {
     for (const permCode of permCodes) {
       const permissionId = permissionIdByCode.get(permCode);
       if (permissionId === undefined) throw new Error(`seed: permission ${permCode} not found`);
-      await db
-        .insert(rolePermission)
-        .values({ roleId, permissionId })
-        .onConflictDoNothing();
+      await db.insert(rolePermission).values({ roleId, permissionId }).onConflictDoNothing();
     }
   }
 }
@@ -97,9 +120,7 @@ async function seedAdmin(): Promise<void> {
 
   const adminId = `usr_${crypto.randomUUID()}`;
   await db.transaction(async (tx) => {
-    await tx
-      .insert(userAccount)
-      .values({ id: adminId, displayName: username, status: 'ACTIVE' });
+    await tx.insert(userAccount).values({ id: adminId, displayName: username, status: 'ACTIVE' });
     await tx.insert(localCredential).values({
       userId: adminId,
       username: username.toLowerCase().trim(),
