@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, inArray, like } from 'drizzle-orm';
+import { eq, inArray, like, or } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -7,11 +7,19 @@ process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_tes
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { Hono } from 'hono';
+import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
 import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { createClient, type Db } from '../db/client.js';
-import { namespace, namespaceMember, userAccount } from '../db/schema/index.js';
+import {
+  namespace,
+  namespaceMember,
+  type RoleCode,
+  role,
+  userAccount,
+  userRoleBinding,
+} from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
 import { createNamespaceRoutes } from './namespaces.js';
 
@@ -20,6 +28,8 @@ let sessions: SessionManager;
 let rbac: RbacService;
 let u1: string; // 成员视角
 let u2: string; // 非成员视角
+let assetAdmin: string;
+let superAdmin: string;
 
 /** 列表响应形状（res.json() 返回 unknown，断言时收窄） */
 interface ListBody {
@@ -59,6 +69,18 @@ async function addMember(nsId: number, userId: string, role: 'OWNER' | 'ADMIN' |
   await db.insert(namespaceMember).values({ namespaceId: nsId, userId, role });
 }
 
+async function ensureRole(roleCode: RoleCode) {
+  await db
+    .insert(role)
+    .values({ code: roleCode, name: `role-${roleCode}`, isSystem: true })
+    .onConflictDoNothing();
+}
+
+async function bindRole(userId: string, roleCode: RoleCode) {
+  const rows = await db.select().from(role).where(eq(role.code, roleCode));
+  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+}
+
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'ns-test');
   return `aih_session=${sid}`;
@@ -68,6 +90,7 @@ function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
   app.use('*', requireSessionMiddleware());
+  app.use('*', csrfProtection({})); // 与 app.ts 生产装配同款（POST 需同源 Origin）
   app.onError((err, c) => {
     if (err instanceof AuthError) {
       return c.json(
@@ -95,6 +118,12 @@ beforeAll(async () => {
   sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
   u1 = await makeUser('ns-u1');
   u2 = await makeUser('ns-u2');
+  await ensureRole('ASSET_ADMIN');
+  await ensureRole('SUPER_ADMIN');
+  assetAdmin = await makeUser('ns-asset-admin');
+  superAdmin = await makeUser('ns-super-admin');
+  await bindRole(assetAdmin, 'ASSET_ADMIN');
+  await bindRole(superAdmin, 'SUPER_ADMIN');
   const nsActive = await insertNs('t2-active-team');
   const nsOpen = await insertNs('t2-open-team');
   const nsFrozen = await insertNs('t2-frozen-team', 'FROZEN');
@@ -105,18 +134,42 @@ beforeAll(async () => {
   await addMember(nsGlobal, u2, 'OWNER');
 });
 
+const ORIGIN = { origin: 'http://localhost:3000' };
+
+function postJson(url: string, body: unknown, cookie?: string) {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    ...ORIGIN,
+    host: 'localhost:3000', // csrf 同源校验比对 Host（csrf.test 同款）
+  };
+  if (cookie) headers.cookie = cookie;
+  return buildApp().request(url, { method: 'POST', headers, body: JSON.stringify(body) });
+}
+
 afterAll(async () => {
   const slugs = await db
     .select({ id: namespace.id })
     .from(namespace)
-    .where(like(namespace.slug, 't2-%'));
+    .where(or(like(namespace.slug, 't2-%'), like(namespace.slug, 't3-%')));
   const ids = slugs.map((s) => s.id);
   if (ids.length > 0) {
     await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, ids));
     await db.delete(namespace).where(inArray(namespace.id, ids));
   }
-  await db.delete(userAccount).where(eq(userAccount.displayName, 'ns-u1'));
-  await db.delete(userAccount).where(eq(userAccount.displayName, 'ns-u2'));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(
+      or(
+        like(userAccount.displayName, 'ns-u%'),
+        like(userAccount.displayName, 'ns-asset-admin'),
+        like(userAccount.displayName, 'ns-super-admin'),
+      ),
+    );
+  for (const u of users) {
+    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
+    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+  }
   await db.$client.end();
 });
 
@@ -200,5 +253,87 @@ describe('GET /api/namespaces（T2 列表）', () => {
       expect(res.status).toBe(400);
       expect(await res.json()).toMatchObject({ code: 'request.invalid' });
     }
+  });
+});
+
+describe('POST /api/namespaces（T3 创建，R2 平台角色）', () => {
+  it('普通 ACTIVE 用户建 TEAM → 403（R2 对齐 skillhub）', async () => {
+    const res = await postJson(
+      '/api/namespaces',
+      { slug: 't3-plain', displayName: 'plain' },
+      await cookieFor(u1),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'auth.forbidden' });
+  });
+
+  it('ASSET_ADMIN 建 TEAM → 201 + 空间行 + OWNER 成员行（事务双写）', async () => {
+    const cookie = await cookieFor(assetAdmin);
+    const res = await postJson(
+      '/api/namespaces',
+      { slug: 't3-team', displayName: 'Team Space', description: 'desc' },
+      cookie,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      namespace: { id: number; slug: string; type: string; myRole: string; memberCount: number };
+    };
+    expect(body.namespace.slug).toBe('t3-team');
+    expect(body.namespace.type).toBe('TEAM');
+    expect(body.namespace.myRole).toBe('OWNER');
+    expect(body.namespace.memberCount).toBe(1);
+    // 库内事务双行
+    const nsRow = await db.select().from(namespace).where(eq(namespace.id, body.namespace.id));
+    expect(nsRow[0]?.createdBy).toBe(assetAdmin);
+    const memberRows = await db
+      .select()
+      .from(namespaceMember)
+      .where(eq(namespaceMember.namespaceId, body.namespace.id));
+    expect(memberRows).toHaveLength(1);
+    expect(memberRows[0]).toMatchObject({ userId: assetAdmin, role: 'OWNER' });
+  });
+
+  it('slug 重复 → 409 namespace.slug_taken（唯一约束实测）', async () => {
+    const cookie = await cookieFor(assetAdmin);
+    const res = await postJson('/api/namespaces', { slug: 't3-team', displayName: 'dup' }, cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'namespace.slug_taken' });
+  });
+
+  it('slug 非法（大写/符号/空）→ 400 request.invalid（protocol slugSchema 单源）', async () => {
+    const cookie = await cookieFor(assetAdmin);
+    for (const slug of ['Bad_Slug', 'UPPER', '', 'a--b', 'a'.repeat(65)]) {
+      const res = await postJson('/api/namespaces', { slug, displayName: 'bad' }, cookie);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ code: 'request.invalid' });
+    }
+  });
+
+  it('ASSET_ADMIN 建 GLOBAL → 403；SUPER_ADMIN 建 GLOBAL → 201（R2 分级）', async () => {
+    const adminRes = await postJson(
+      '/api/namespaces',
+      { slug: 't3-global-by-asset', displayName: 'g', type: 'GLOBAL' },
+      await cookieFor(assetAdmin),
+    );
+    expect(adminRes.status).toBe(403);
+    const suRes = await postJson(
+      '/api/namespaces',
+      { slug: 't3-global', displayName: 'Global Space', type: 'GLOBAL' },
+      await cookieFor(superAdmin),
+    );
+    expect(suRes.status).toBe(201);
+    const body = (await suRes.json()) as { namespace: { type: string; myRole: string } };
+    expect(body.namespace.type).toBe('GLOBAL');
+    expect(body.namespace.myRole).toBe('OWNER');
+  });
+
+  it('POST 无 Origin → 403 csrf（cookie 通道 CSRF 面在测试内生效）', async () => {
+    const res = await buildApp().request('/api/namespaces', {
+      method: 'POST',
+      headers: { cookie: await cookieFor(assetAdmin), 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: 't3-noorigin', displayName: 'x' }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'auth.csrf_failed' });
   });
 });
