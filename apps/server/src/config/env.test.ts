@@ -14,6 +14,8 @@ describe('parseEnv', () => {
     expect(env.SESSION_TTL_HOURS).toBe(8);
     expect(env.REGISTRATION_ENABLED).toBe(true);
     expect(env.ACCESS_POLICY).toBe('open');
+    expect(env.STORAGE_DRIVER).toBe('local');
+    expect(env.STORAGE_DIR).toBe('./storage');
     expect(env.LDAP_ENABLED).toBe(false);
     expect(env.LDAP_USER_ID_ATTR).toBe('sAMAccountName');
   });
@@ -45,5 +47,19 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...baseEnv, ACCESS_POLICY: 'email_domain' })).toThrow(
       /not implemented/,
     );
+  });
+
+  it('accepts explicit storage driver and dir', () => {
+    const env = parseEnv({ ...baseEnv, STORAGE_DRIVER: 'local', STORAGE_DIR: '/data/objects' });
+    expect(env.STORAGE_DRIVER).toBe('local');
+    expect(env.STORAGE_DIR).toBe('/data/objects');
+  });
+
+  it('rejects STORAGE_DRIVER=s3 not implemented in M1 (防静默误配)', () => {
+    expect(() => parseEnv({ ...baseEnv, STORAGE_DRIVER: 's3' })).toThrow(/not implemented/);
+  });
+
+  it('rejects unknown storage driver value', () => {
+    expect(() => parseEnv({ ...baseEnv, STORAGE_DRIVER: 'ftp' })).toThrow();
   });
 });

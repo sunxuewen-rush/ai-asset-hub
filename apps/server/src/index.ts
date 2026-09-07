@@ -7,6 +7,7 @@ import { InMemoryRateLimiter } from './auth/rate-limit.js';
 import { InMemorySessionStore, SessionManager } from './auth/session.js';
 import { getEnv } from './config/env.js';
 import { getDb } from './db/client.js';
+import { createStorage } from './storage/index.js';
 
 const env = getEnv();
 const db = getDb();
@@ -15,6 +16,7 @@ const sessions = new SessionManager(
 );
 const audit = createAuditWriter(db);
 const rateLimiter = new InMemoryRateLimiter(15 * 60 * 1000, 20);
+const storage = createStorage({ driver: env.STORAGE_DRIVER, dir: env.STORAGE_DIR });
 // LDAP 通道默认关闭（05 §3.1：LDAP_ENABLED=false 独立部署不受影响）
 const ldap = env.LDAP_ENABLED
   ? new LdapChannel({
@@ -38,6 +40,7 @@ const app = createApp({
   sessions,
   audit,
   rateLimiter,
+  storage,
   ldap,
   registrationEnabled: env.REGISTRATION_ENABLED,
   sessionTtlHours: env.SESSION_TTL_HOURS,

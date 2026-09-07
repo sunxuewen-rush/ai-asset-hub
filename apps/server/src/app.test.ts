@@ -15,6 +15,7 @@ import { InMemoryRateLimiter } from './auth/rate-limit.js';
 import { InMemorySessionStore, SessionManager } from './auth/session.js';
 import { createClient, type Db } from './db/client.js';
 import { auditLog, identityBinding, localCredential, userAccount } from './db/schema/index.js';
+import { createLocalStorage } from './storage/local.js';
 
 let db: Db;
 // 跨用例共享：session manager + audit writer（同一进程内 cookie 语义连续）
@@ -51,6 +52,7 @@ function makeApp(depsOverrides?: Partial<AppDeps>): Hono {
     audit: shared.audit,
     rateLimiter: new InMemoryRateLimiter(60_000, 5),
     ldap: null,
+    storage: createLocalStorage('./storage-test'),
     registrationEnabled: true,
     sessionTtlHours: 8,
     cookieSecure: false,

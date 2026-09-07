@@ -18,6 +18,10 @@ export const accessPolicySchema = z.enum([
   'subject_whitelist',
 ]);
 
+/** 存储驱动（R4：M1 只实现 local；s3 后置 M3——取值接受但启动拒绝，防静默误配） */
+export const storageDriverSchema = z.enum(['local', 's3']);
+export type StorageDriver = z.infer<typeof storageDriverSchema>;
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -30,6 +34,10 @@ const envSchema = z.object({
   // 注册与准入
   REGISTRATION_ENABLED: boolFromString.default('true'),
   ACCESS_POLICY: accessPolicySchema.default('open'),
+
+  // 对象存储（08 §5.3；M1 Local 实现，S3 后置 M3）
+  STORAGE_DRIVER: storageDriverSchema.default('local'),
+  STORAGE_DIR: z.string().default('./storage'),
 
   // LDAP 企业通道（05 §3.1：默认关闭，独立部署不受影响）
   LDAP_ENABLED: boolFromString.default('false'),
@@ -59,6 +67,10 @@ export function parseEnv(source: Record<string, string | undefined> = process.en
   // LDAP 启用但未配 URLS → 拒绝（05 §3.1 配置完整性）
   if (env.LDAP_ENABLED && env.LDAP_URLS.trim() === '') {
     throw new Error('LDAP_ENABLED=true requires LDAP_URLS (comma-separated DC list)');
+  }
+  // 存储驱动非 local（M1 未实现）→ 拒绝启动，防静默误配（R4）
+  if (env.STORAGE_DRIVER !== 'local') {
+    throw new Error(`STORAGE_DRIVER=${env.STORAGE_DRIVER} is not implemented in M1 (only 'local')`);
   }
   return env;
 }

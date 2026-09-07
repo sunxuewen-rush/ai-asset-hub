@@ -14,6 +14,7 @@ import type { Db } from './db/client.js';
 import { rbacContext } from './http/auth-middleware.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { requestContextMiddleware } from './http/request-context.js';
+import type { ObjectStorage } from './storage/types.js';
 
 /**
  * Hono app 工厂——依赖注入便于测试（真实 PG + 内存 session + fake LDAP）。
@@ -24,6 +25,7 @@ export interface AppDeps {
   audit: AuditWriter;
   rateLimiter: RateLimiter;
   ldap: LdapChannel | null;
+  storage: ObjectStorage;
   registrationEnabled: boolean;
   sessionTtlHours: number;
   cookieSecure: boolean;
