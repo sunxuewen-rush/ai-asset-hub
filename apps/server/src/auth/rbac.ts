@@ -53,7 +53,8 @@ export interface CanContext {
 export class RbacService {
   constructor(private readonly db: Db) {}
 
-  private async accountStatus(userId: string): Promise<'PENDING' | 'ACTIVE' | 'DISABLED' | null> {
+  /** 账号状态查询（05 §4.1；requireAuth 组合判定用） */
+  async getAccountStatus(userId: string): Promise<'PENDING' | 'ACTIVE' | 'DISABLED' | null> {
     const rows = await this.db
       .select({ status: userAccount.status })
       .from(userAccount)
@@ -81,10 +82,16 @@ export class RbacService {
     return { roles, permissions: perms };
   }
 
+  /** 平台角色 codes（T1/T3 requirePlatformRole 判定；skillhub 平台角色判定同构） */
+  async platformRolesOf(userId: string): Promise<string[]> {
+    const { roles } = await this.platformGrants(userId);
+    return [...roles];
+  }
+
   /** 判定链（05 §6.3 1-7 步） */
   async can(userId: string, requiredPermission: string, ctx: CanContext = {}): Promise<boolean> {
     // 1-2：账号状态
-    const status = await this.accountStatus(userId);
+    const status = await this.getAccountStatus(userId);
     if (status !== 'ACTIVE') return false; // DISABLED/PENDING/不存在 → 拒绝全部
 
     // 3：平台角色权限

@@ -16,6 +16,7 @@ export const authErrorCodes = {
   rateLimited: 'auth.rate_limited',
   csrfFailed: 'auth.csrf_failed',
   sessionExpired: 'auth.session_expired',
+  forbidden: 'auth.forbidden',
 } as const;
 
 export type AuthErrorCode = (typeof authErrorCodes)[keyof typeof authErrorCodes];
@@ -37,6 +38,7 @@ export function httpStatusFor(code: AuthErrorCode): number {
     case 'auth.registration_disabled':
     case 'auth.ldap_denied':
     case 'auth.csrf_failed':
+    case 'auth.forbidden':
       return 403;
     case 'auth.rate_limited':
       return 429;

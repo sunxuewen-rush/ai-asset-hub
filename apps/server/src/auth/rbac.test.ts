@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -100,9 +100,16 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.delete(userRoleBinding);
-  await db.delete(namespaceMember);
-  await db.delete(userAccount).where(eq(userAccount.displayName, 'rbac-'));
+  // 精确清理（displayName like 前缀；勿全表删 userRoleBinding/namespaceMember——与其他测试文件并行互踩）
+  const mine = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.displayName, 'rbac-%'));
+  for (const u of mine) {
+    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
+    await db.delete(namespaceMember).where(eq(namespaceMember.userId, u.id));
+    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+  }
   await db.delete(namespace).where(eq(namespace.id, nsId));
   await db.$client.end();
 });
