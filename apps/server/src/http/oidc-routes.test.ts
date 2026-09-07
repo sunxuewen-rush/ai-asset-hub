@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { Configuration } from 'openid-client';
+import { AuthError } from '../auth/errors.js';
 import { resetOidcClientCache } from '../auth/oidc.js';
+import type { SessionManager } from '../auth/session.js';
 import { resetEnvCache } from '../config/env.js';
+import type { Db } from '../db/client.js';
 import {
   clearOidcStateCookie,
   createOidcRoutes,
@@ -17,10 +20,26 @@ import {
  */
 
 function makeApp(deps?: { provider?: () => Promise<Configuration | null> }): Hono {
-  return createOidcRoutes({
+  const app = createOidcRoutes({
     cookieSecure: false,
     oidcProvider: deps?.provider,
+    // authorize/disabled/state 分支不触 db/sessions——测试 stub（callback 成功路径
+    // 依赖 code exchange 真实网络，由 T28 fake issuer 冒烟覆盖）
+    db: {} as unknown as Db,
+    sessions: {} as unknown as SessionManager,
+    sessionTtlHours: 8,
   });
+  // 镜像 app.ts 统一错误出口（AuthError → 结构化响应）
+  app.onError((err, c) => {
+    if (err instanceof AuthError) {
+      return c.json(
+        { code: err.code, message: err.message },
+        err.status as 400 | 401 | 403 | 409 | 429,
+      );
+    }
+    throw err;
+  });
+  return app;
 }
 
 /** 离线 Configuration：仅含 authorize 所需 metadata，构造不发任何请求 */
@@ -113,4 +132,36 @@ describe('GET /api/auth/oidc/authorize（T24）', () => {
     const res = await app.request('/clear');
     expect(res.headers.get('set-cookie')).toContain(`${OIDC_STATE_COOKIE}=;`);
   });
+});
+
+describe('GET /api/auth/oidc/callback（T25 state 校验面）', () => {
+  it('OIDC disabled → 404 oidc.not_configured', async () => {
+    withBaseEnv();
+    resetEnvCache();
+    resetOidcClientCache();
+    const app = makeApp();
+    const res = await app.request('/callback?code=x&state=y');
+    expect(res.status).toBe(404);
+  });
+
+  it('state cookie 缺失/不匹配 → 403 auth.oidc_state_mismatch（防 CSRF 式回放）', async () => {
+    const app = makeApp({ provider: async () => offlineClient() });
+    // 无 cookie
+    const noCookie = await app.request('/callback?code=x&state=anything');
+    expect(noCookie.status).toBe(403);
+    const body = (await noCookie.json()) as { code: string };
+    expect(body.code).toBe('auth.oidc_state_mismatch');
+    // 有 cookie 但 state 不匹配
+    const good = await app.request('/authorize');
+    const setCookie = good.headers.get('set-cookie')!;
+    const cookiePart = setCookie.split(';')[0]!;
+    const mismatch = await app.request('/callback?code=x&state=not-the-same', {
+      headers: { cookie: cookiePart },
+    });
+    expect(mismatch.status).toBe(403);
+    // 成功后 cookie 被清除（防重放）
+    expect(mismatch.headers.get('set-cookie')).toContain(`${OIDC_STATE_COOKIE}=;`);
+  });
+  // 成功路径（claims → provision → 自动登录 → 302）依赖 code exchange 真实网络 →
+  // T28 fake issuer 冒烟覆盖（文件头诚实标注）
 });

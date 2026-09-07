@@ -1,14 +1,21 @@
+import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import {
+  authorizationCodeGrant,
   buildAuthorizationUrl,
   calculatePKCECodeChallenge,
   randomNonce,
   randomPKCECodeVerifier,
   randomState,
 } from 'openid-client';
+import { AuthError } from '../auth/errors.js';
 import type { OidcClient } from '../auth/oidc.js';
 import { getOidcClient } from '../auth/oidc.js';
+import { provisionExternalUser } from '../auth/provision.js';
+import type { SessionManager } from '../auth/session.js';
+import { attachSessionCookie } from '../auth/session-middleware.js';
+import type { Db } from '../db/client.js';
 
 /**
  * /api/auth/oidc 路由组（T24-T25，05 §3 OIDC 授权码流）：
@@ -52,6 +59,11 @@ export interface OidcRoutesDeps {
   /** 可注入（测试离线 Configuration；缺省走 env 惰性单例） */
   oidcProvider?: () => Promise<OidcClient | null>;
   cookieSecure: boolean;
+  db: Db;
+  sessions: SessionManager;
+  sessionTtlHours: number;
+  /** 回调成功 302 落地（缺省 getEnv().PUBLIC_BASE_URL） */
+  publicBaseUrl?: string;
 }
 
 export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
@@ -84,6 +96,66 @@ export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
       scope: 'openid profile email',
     });
     return c.redirect(authUrl.toString(), 302);
+  });
+
+  // GET /api/auth/oidc/callback（T25：state 比对 → code exchange（v6 内建验签/nonce/PKCE）
+  // → claims → provision（T26）→ 自动登录 → 302 PUBLIC_BASE_URL/?oidc=success）
+  app.get('/callback', async (c) => {
+    const client = await provider();
+    if (!client) {
+      return c.json({ code: 'oidc.not_configured', message: 'oidc.not_configured' }, 404);
+    }
+    const stored = readOidcState(c);
+    const url = new URL(c.req.url);
+    const returnedState = url.searchParams.get('state');
+    // state 与 oidc_state cookie 比对（缺失/不匹配 → 403；比对后清除 cookie 防重放）
+    if (!stored || stored.state !== returnedState) {
+      clearOidcStateCookie(c);
+      throw new AuthError('auth.oidc_state_mismatch');
+    }
+    clearOidcStateCookie(c);
+
+    let tokens: Awaited<ReturnType<typeof authorizationCodeGrant>> | undefined;
+    try {
+      tokens = await authorizationCodeGrant(client, url, {
+        expectedState: stored.state,
+        expectedNonce: stored.nonce,
+        pkceCodeVerifier: stored.codeVerifier,
+        idTokenExpected: true,
+      });
+    } catch (err) {
+      // 授权被拒（error 参数）或 code exchange 校验失败（state 已在库校验、此处为
+      // nonce/iss/aud/exp/签名/PKCE 面失败）→ 结构化 403
+      throw new AuthError('auth.oidc_denied');
+    }
+    // IDToken 自定义 claims 为宽 union，逐字段窄化到 string/boolean
+    const claims = tokens?.claims?.();
+    if (!claims) throw new AuthError('auth.oidc_denied');
+    const sub = typeof claims.sub === 'string' ? claims.sub : undefined;
+    if (!sub) throw new AuthError('auth.oidc_denied');
+    const name = typeof claims.name === 'string' ? claims.name.trim() : undefined;
+    const email = typeof claims.email === 'string' ? claims.email : undefined;
+    const emailVerified = claims.email_verified === true;
+    // 建号字段（T26/T27）：id 生成 usr_oidc_<uuid>（不与任何 provider 的 sub 冲突）；
+    // displayName 回退链 name → email 前缀 → sub；email 仅 email_verified 才同步（防未验证冒用）
+    const displayName = name || email?.split('@')[0] || sub;
+    const provisioned = await provisionExternalUser(deps.db, {
+      provider: 'oidc',
+      providerSubject: sub,
+      userId: `usr_oidc_${randomUUID()}`,
+      displayName,
+      email: emailVerified ? (email ?? null) : undefined,
+    });
+
+    // 自动登录：签发 session（与本地登录同通道）
+    const sessionId = await deps.sessions.createSession(provisioned.id, provisioned.displayName);
+    attachSessionCookie(c, sessionId, {
+      secure: deps.cookieSecure,
+      sameSite: 'lax',
+      maxAgeSec: deps.sessionTtlHours * 3600,
+    });
+    const base = deps.publicBaseUrl?.replace(/\/$/, '') ?? 'http://localhost:3000';
+    return c.redirect(`${base}/?oidc=success`, 302);
   });
 
   return app;

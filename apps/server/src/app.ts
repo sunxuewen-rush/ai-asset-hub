@@ -84,7 +84,15 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // OIDC 授权码流（T24/T25；authorize/callback 为访客端点——无 requireAuth，走独立 state cookie）
-  app.route('/api/auth/oidc', createOidcRoutes({ cookieSecure: deps.cookieSecure }));
+  app.route(
+    '/api/auth/oidc',
+    createOidcRoutes({
+      db: deps.db,
+      sessions: deps.sessions,
+      cookieSecure: deps.cookieSecure,
+      sessionTtlHours: deps.sessionTtlHours,
+    }),
+  );
 
   return app;
 }
