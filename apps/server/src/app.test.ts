@@ -1,8 +1,8 @@
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import type { Hono } from 'hono';
 import ldap from 'ldapjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // 集成测试：真实 PG（ai_asset_hub_test）+ 真实 HTTP 全链路（app.request）
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';

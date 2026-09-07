@@ -33,13 +33,13 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 
 | 任务 | 命令 |
 |------|------|
-| 依赖安装 | `pnpm install`（pnpm 11 构建脚本白名单在 `pnpm-workspace.yaml` 的 `allowBuilds`） |
-| 全仓校验 | `pnpm typecheck` / `pnpm test` / `pnpm lint` / `pnpm build`（turbo 按包并行） |
-| 单包操作 | `pnpm --filter <pkg> <script>`（包：`@ai-asset-hub/protocol` / `server` / `web` / `cli`） |
+| 依赖安装 | `bun install`（workspace 定义在根 package.json `workspaces`；构建脚本白名单在 `bunfig.toml` `trustedDependencies`） |
+| 全仓校验 | `bun run typecheck` / `bun run test` / `bun run lint` / `bun run build`（turbo 按包并行；测试 = bun test） |
+| 单包操作 | `bun run --filter=<pkg> <script>`（包：`@ai-asset-hub/protocol` / `server` / `web` / `cli`） |
 | 起 dev 数据库 | `docker compose up -d db`（postgres，宿主端口 5433，连接串样例见 `.env.example`） |
-| 迁移 | `pnpm db:migrate`（forward-only；drizzle-kit 生成，迁移文件入库） |
-| 种子 | `pnpm db:seed`（幂等：四角色/十权限/global 空间；设 `SEED_ADMIN_USERNAME`/`SEED_ADMIN_PASSWORD` 建首管理员） |
-| 起本地服务 | `pnpm --filter @ai-asset-hub/server dev`（先按 `.env.example` 建 `.env`：`DATABASE_URL`/`SESSION_SECRET` 必填） |
+| 迁移 | `bun run db:migrate`（forward-only；drizzle-kit 生成，迁移文件入库） |
+| 种子 | `bun run db:seed`（幂等：四角色/十权限/global 空间；设 `SEED_ADMIN_USERNAME`/`SEED_ADMIN_PASSWORD` 建首管理员） |
+| 起本地服务 | `bun run --filter=@ai-asset-hub/server dev`（先按 `.env.example` 建 `.env`：`DATABASE_URL`/`SESSION_SECRET` 必填） |
 
 注：db 运维脚本（migrate/seed）只需 `DATABASE_URL` 环境变量，不走全量 env。
 

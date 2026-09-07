@@ -1,5 +1,5 @@
+import { describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
-import { describe, expect, it } from 'vitest';
 import { csrfProtection } from './csrf.js';
 import { InMemorySessionStore, SessionManager } from './session.js';
 import { sessionMiddleware } from './session-middleware.js';

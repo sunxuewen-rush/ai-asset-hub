@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "bun test src/",
     "build": "tsc -p tsconfig.build.json",
     "lint": "biome check ."
   },
@@ -16,6 +16,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@types/bun": "^1.4.1",
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"

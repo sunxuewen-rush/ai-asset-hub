@@ -1,5 +1,5 @@
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import ldap from 'ldapjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isAccountDisabledMessage, LdapChannel } from './ldap.js';
 
 /**

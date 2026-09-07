@@ -1,6 +1,6 @@
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // db 集成测试：连 ai_asset_hub_test 库（惰性 getEnv——模块 import 时不会触发）
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
@@ -39,7 +39,8 @@ async function expectAuthError(promise: Promise<unknown>, code: string): Promise
     expect.unreachable(`expected AuthError ${code}`);
   } catch (err) {
     expect(err).toBeInstanceOf(AuthError);
-    expect((err as AuthError).code).toBe(code);
+    // bun:test 类型比 vitest 严格（union vs string）——字符串化后比较
+    expect(`${(err as AuthError).code}`).toBe(code);
   }
 }
 

@@ -1,7 +1,0 @@
-packages:
-  - "apps/*"
-  - "packages/*"
-
-# pnpm 11 依赖构建白名单（替代 pnpm 10 的 onlyBuiltDependencies）
-allowBuilds:
-  esbuild: true

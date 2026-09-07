@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { AgentManifestSchema } from './manifest.js';
 
 // 示例即契约（01 §6）：04 §3.1 示例同源，真实可读值

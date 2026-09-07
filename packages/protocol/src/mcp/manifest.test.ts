@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { McpManifestSchema } from './manifest.js';
 
 // 示例即契约（01 §6）：mcp.json 真实可读值（03 §3 示例同源）

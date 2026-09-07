@@ -1,0 +1,7 @@
+# bun 配置（2026-09-07：工具链迁移 bun——pnpm → bun install/test/dev）
+[install]
+# 依赖构建脚本白名单（原 pnpm-workspace.yaml allowBuilds 对应物；仅 esbuild 有 postinstall）
+trustedDependencies = ["esbuild"]
+
+[test]
+# bun test 默认行为：并行文件（各测试文件已按 displayName 前缀精确清理，DB 共享安全）

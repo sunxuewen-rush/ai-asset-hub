@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { SkillManifestSchema } from './manifest.js';
 
 // 示例即契约（01 §6）：真实可读 frontmatter 值

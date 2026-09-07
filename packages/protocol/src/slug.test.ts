@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { slugSchema } from './slug.js';
 
 const valid = ['a', 'my-skill', 'a1', 'x'.repeat(64), 'github-mcp', 'code-reviewer'];
