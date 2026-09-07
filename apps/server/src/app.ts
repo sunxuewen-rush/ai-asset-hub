@@ -14,6 +14,7 @@ import type { Db } from './db/client.js';
 import { rbacContext } from './http/auth-middleware.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { requestContextMiddleware } from './http/request-context.js';
+import { createTokenRoutes } from './http/tokens.js';
 import type { ObjectStorage } from './storage/types.js';
 
 /**
@@ -75,6 +76,7 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
+  app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
 
   return app;
 }
