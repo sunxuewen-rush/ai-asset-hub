@@ -7,10 +7,17 @@ import type { Context, Next } from 'hono';
  *   两者都缺失 → 拒绝（安全默认；非浏览器客户端须显式带 Origin 或走无 cookie 通道/白名单）
  * - API Token/Device Flow 通道豁免 = 白名单配置（后续实现）
  */
-export function csrfProtection(opts: { allowedOrigins?: string[] } = {}) {
+export function csrfProtection(opts: { allowedOrigins?: string[]; exemptPaths?: string[] } = {}) {
   return async (c: Context, next: Next) => {
     const method = c.req.method;
     if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+      await next();
+      return;
+    }
+
+    // T30：无 cookie 认证的显式端点豁免（Device authorize/token——CLI 匿名通道，
+    // 无 cookie 被劫持面）；approve（cookie 通道）不豁免，仍在保护内
+    if (opts.exemptPaths?.some((p) => c.req.path === p || c.req.path.startsWith(`${p}/`))) {
       await next();
       return;
     }

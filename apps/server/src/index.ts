@@ -45,6 +45,7 @@ const app = createApp({
   registrationEnabled: env.REGISTRATION_ENABLED,
   sessionTtlHours: env.SESSION_TTL_HOURS,
   cookieSecure: env.NODE_ENV === 'production',
+  publicBaseUrl: env.PUBLIC_BASE_URL,
 });
 
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {

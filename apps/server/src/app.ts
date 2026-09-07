@@ -2,9 +2,11 @@ import { Hono } from 'hono';
 import type { AuditWriter } from './audit/audit.js';
 import { AuthService } from './auth/auth-service.js';
 import { csrfProtection } from './auth/csrf.js';
+import { DevicePendingStore } from './auth/device-store.js';
 import { AuthError } from './auth/errors.js';
 import type { LdapChannel } from './auth/ldap.js';
 import type { RateLimiter } from './auth/rate-limit.js';
+import { InMemoryRateLimiter } from './auth/rate-limit.js';
 import { RbacService } from './auth/rbac.js';
 import { createAuthRoutes } from './auth/routes.js';
 import type { SessionManager } from './auth/session.js';
@@ -13,6 +15,7 @@ import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
+import { createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { requestContextMiddleware } from './http/request-context.js';
@@ -34,6 +37,8 @@ export interface AppDeps {
   sessionTtlHours: number;
   cookieSecure: boolean;
   csrfAllowedOrigins?: string[];
+  /** 对外基址（Device verificationUri / OIDC 302 推导；缺省 localhost:3000） */
+  publicBaseUrl?: string;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -45,6 +50,8 @@ export function createApp(deps: AppDeps): Hono {
     audit: deps.audit,
   });
   const rbac = new RbacService(deps.db);
+  // Device Flow 状态（app 级单例：pending 跨请求共享；TTL 惰性清理同 Session 模式）
+  const deviceStore = new DevicePendingStore();
 
   const app = new Hono();
   app.use('*', requestContextMiddleware());
@@ -52,7 +59,15 @@ export function createApp(deps: AppDeps): Hono {
   // 认证装配序（T17）：Bearer 显式优先 → 无则回退 session cookie（token → session）
   app.use('/api/*', tokenAuthMiddleware(deps.db));
   app.use('/api/*', sessionMiddleware(deps.sessions));
-  app.use('/api/*', csrfProtection({ allowedOrigins: deps.csrfAllowedOrigins }));
+  // T30：Device 匿名端点（/api/auth/device、/api/auth/device/token）CSRF 豁免——
+  // 无 cookie 认证面；approve（cookie 通道）不在豁免列表保持保护
+  app.use(
+    '/api/*',
+    csrfProtection({
+      allowedOrigins: deps.csrfAllowedOrigins,
+      exemptPaths: ['/api/auth/device', '/api/auth/device/token'],
+    }),
+  );
 
   // 统一错误出口：AuthError → 结构化 {code,message}；其余 500（T1 补全，防中间件异常裸 500）
   app.onError((err, c) => {
@@ -83,6 +98,16 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
+  // Device Flow（T30-T33；anonymous 端点豁免 CSRF——见装配；approve 走 cookie 通道）
+  app.route(
+    '/api/auth/device',
+    createDeviceRoutes({
+      store: deviceStore,
+      // 匿名请求独立限流实例（10/分钟，不与登录共享 key 空间）
+      rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
+      publicBaseUrl: deps.publicBaseUrl ?? 'http://localhost:3000',
+    }),
+  );
   // OIDC 授权码流（T24/T25；authorize/callback 为访客端点——无 requireAuth，走独立 state cookie）
   app.route(
     '/api/auth/oidc',
