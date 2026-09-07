@@ -1,4 +1,4 @@
-import { discovery } from 'openid-client';
+import { allowInsecureRequests, discovery } from 'openid-client';
 import { getEnv } from '../config/env.js';
 
 /**
@@ -21,10 +21,20 @@ export interface OidcClientConfig {
 
 export async function createOidcClient(config: OidcClientConfig) {
   // metadata 含 client_secret → 默认 ClientSecretPost 客户端认证（v6 doc 语义）
-  return discovery(new URL(config.discoveryUrl), config.clientId, {
-    client_secret: config.clientSecret,
-    redirect_uris: [config.redirectUrl],
-  });
+  const url = new URL(config.discoveryUrl);
+  // http 仅 localhost 开发例外（env 层已强制 https 或 localhost；此处放行库层
+  // checkProtocol——T28 fake issuer / 自托管本地 IdP 走同路）
+  const httpLocal = url.protocol === 'http:';
+  return discovery(
+    url,
+    config.clientId,
+    {
+      client_secret: config.clientSecret,
+      redirect_uris: [config.redirectUrl],
+    },
+    undefined,
+    httpLocal ? { execute: [allowInsecureRequests] } : undefined,
+  );
 }
 
 export type OidcClient = Awaited<ReturnType<typeof createOidcClient>>;
