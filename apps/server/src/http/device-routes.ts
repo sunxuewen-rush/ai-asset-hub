@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { DevicePendingStore } from '../auth/device-store.js';
+import { AuthError } from '../auth/errors.js';
 import type { RateLimiter } from '../auth/rate-limit.js';
+import { requireAuth } from './auth-middleware.js';
 
 /**
  * /api/auth/device 路由组（T30-T33，RFC 8628 Device Flow · 05 §5 CLI 通道）：
@@ -45,6 +47,24 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
       },
       201,
     );
+  });
+
+  // POST /api/auth/device/approve（T31：登录用户确认——cookie 通道，CSRF 保护内）
+  app.post('/approve', requireAuth(), async (c) => {
+    const principal = c.get('principal');
+    if (!principal) throw new Error('requireAuth guard violated: principal missing');
+    const body = (await c.req.json().catch(() => null)) as { userCode?: unknown } | null;
+    const userCode = typeof body?.userCode === 'string' ? body.userCode.trim() : '';
+    if (userCode.length === 0) {
+      return c.json({ code: 'request.invalid', message: 'userCode is required' }, 400);
+    }
+    const pending = await store.getByUser(userCode);
+    // 不存在/已过期 → 404 device_code_invalid（不泄露 pending 存在性）
+    if (!pending) throw new AuthError('auth.device_code_invalid');
+    // 幂等：已绑定同用户 → approved；已被他人 approve（理论不可达）→ 视同无效
+    const ok = await store.approve(pending.deviceCode, principal.userId);
+    if (!ok) throw new AuthError('auth.device_code_invalid');
+    return c.json({ status: 'approved' });
   });
 
   return app;

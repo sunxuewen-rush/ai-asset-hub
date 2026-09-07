@@ -16,8 +16,9 @@ export function csrfProtection(opts: { allowedOrigins?: string[]; exemptPaths?: 
     }
 
     // T30：无 cookie 认证的显式端点豁免（Device authorize/token——CLI 匿名通道，
-    // 无 cookie 被劫持面）；approve（cookie 通道）不豁免，仍在保护内
-    if (opts.exemptPaths?.some((p) => c.req.path === p || c.req.path.startsWith(`${p}/`))) {
+    // 无 cookie 被劫持面）；approve（cookie 通道）不豁免，仍在保护内。
+    // 精确匹配：前缀式匹配会把 /api/auth/device/approve 也吞掉（实证）
+    if (opts.exemptPaths?.includes(c.req.path)) {
       await next();
       return;
     }

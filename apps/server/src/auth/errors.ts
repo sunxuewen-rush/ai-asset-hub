@@ -19,6 +19,7 @@ export const authErrorCodes = {
   forbidden: 'auth.forbidden',
   oidcStateMismatch: 'auth.oidc_state_mismatch',
   oidcDenied: 'auth.oidc_denied',
+  deviceCodeInvalid: 'auth.device_code_invalid',
 } as const;
 
 export type AuthErrorCode = (typeof authErrorCodes)[keyof typeof authErrorCodes];
@@ -35,6 +36,8 @@ export function httpStatusFor(code: AuthErrorCode): number {
     case 'auth.username_invalid':
     case 'auth.password_too_weak':
       return 400;
+    case 'auth.device_code_invalid':
+      return 404;
     case 'auth.username_taken':
       return 409;
     case 'auth.registration_disabled':
