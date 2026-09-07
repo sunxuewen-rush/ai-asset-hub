@@ -11,4 +11,6 @@ coverage/
 .vscode/
 *.tsbuildinfo
 .turbo/
+# 本地对象存储目录（08 §5.3：STORAGE_DIR 默认 ./storage，不入库）
+storage/
 # 注：drizzle 迁移文件提交入库（forward-only 版本化），不在忽略列表
