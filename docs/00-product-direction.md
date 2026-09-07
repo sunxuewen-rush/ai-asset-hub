@@ -1,7 +1,7 @@
 # AI Asset Hub 产品定位与方向
 
 > Date: 2026-09-04
-> Updated: 2026-09-04（v1.1：类型三件套定为 skill/mcp/agent；文档中立化）
+> Updated: 2026-09-04（v1.2：里程碑出口标准；文档体系三层一表）
 > Status: Draft（设计阶段，未动代码）
 > Scope: 全新开源项目 —— AI 资产注册中心与市场（多类型 AI 可复用资产）
 
