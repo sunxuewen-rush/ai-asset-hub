@@ -15,6 +15,7 @@ import { getOidcClient } from '../auth/oidc.js';
 import { provisionExternalUser } from '../auth/provision.js';
 import type { SessionManager } from '../auth/session.js';
 import { attachSessionCookie } from '../auth/session-middleware.js';
+import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 
 /**
@@ -154,7 +155,9 @@ export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
       sameSite: 'lax',
       maxAgeSec: deps.sessionTtlHours * 3600,
     });
-    const base = deps.publicBaseUrl?.replace(/\/$/, '') ?? 'http://localhost:3000';
+    // 302 落地 = PUBLIC_BASE_URL（T25 冒烟实证：不接线则回退硬编码 3000 错位）
+    const base =
+      deps.publicBaseUrl?.replace(/\/$/, '') ?? getEnv().PUBLIC_BASE_URL.replace(/\/$/, '');
     return c.redirect(`${base}/?oidc=success`, 302);
   });
 
