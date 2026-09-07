@@ -1,3 +1,4 @@
+import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { generateTokenSecret, hashToken } from '../auth/tokens.js';
@@ -61,6 +62,26 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
       .returning({ id: apiToken.id });
     if (!row) throw new Error('api token insert returned no row');
     return c.json({ id: row.id, token: plain, expiresAt }, 201);
+  });
+
+  // GET /api/tokens（T15：仅本人 token 全量——本人量小，分页后置 R9）
+  // 标识面说明：库中仅 sha256 不可逆（T13），无法反推明文做掩码；
+  // 列表以 id/时间/状态识别，掩码形态只存在于明文持有方（签发响应 → CLI/M4 展示）
+  app.get('/', async (c) => {
+    const principal = c.get('principal');
+    if (!principal) throw new Error('requireAuth guard violated: principal missing');
+    const rows = await db
+      .select({
+        id: apiToken.id,
+        scope: apiToken.scope,
+        expiresAt: apiToken.expiresAt,
+        revokedAt: apiToken.revokedAt,
+        createdAt: apiToken.createdAt,
+      })
+      .from(apiToken)
+      .where(eq(apiToken.userId, principal.userId))
+      .orderBy(desc(apiToken.createdAt));
+    return c.json({ items: rows });
   });
 
   return app;

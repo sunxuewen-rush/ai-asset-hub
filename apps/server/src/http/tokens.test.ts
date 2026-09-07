@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, like } from 'drizzle-orm';
+import { count, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 
@@ -151,5 +151,70 @@ describe('POST /api/tokens（T14 签发）', () => {
     const cookie = await cookieFor(u1);
     const res = await postJson('/api/tokens', undefined, cookie);
     expect(res.status).toBe(201);
+  });
+});
+
+describe('GET /api/tokens（T15 列表）', () => {
+  it('匿名 → 401', async () => {
+    const res = await buildApp().request('/api/tokens');
+    expect(res.status).toBe(401);
+  });
+
+  it('仅返回本人 token；含过期/吊销/永不过期混合状态；倒序', async () => {
+    const cookie = await cookieFor(u1);
+    // u1 签三个：永不过期 / 30d / 吊销（模拟 T16 后状态：直改 revokedAt）
+    const mints = [
+      await postJson('/api/tokens', {}, cookie),
+      await postJson('/api/tokens', { expiresInDays: 30 }, cookie),
+    ];
+    expect(mints[0]!.status).toBe(201);
+    expect(mints[1]!.status).toBe(201);
+    const [never, withExpiry] = (await Promise.all(mints.map((m) => m.json()))) as Array<{
+      id: number;
+    }>;
+    const neverId = never!.id;
+    const withExpiryId = withExpiry!.id;
+    await db.update(apiToken).set({ revokedAt: new Date() }).where(eq(apiToken.id, neverId));
+
+    // 他人（u2 视角单独造一个 ACTIVE 用户）的 token 不入列表
+    const u2 = await makeUser('tok-u2');
+    const [u2Token] = await db
+      .insert(apiToken)
+      .values({ userId: u2, tokenHash: hashToken('aih_other-user-token-00000'), scope: '' })
+      .returning({ id: apiToken.id });
+
+    const res = await buildApp().request('/api/tokens', { headers: { cookie } });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      items: Array<{
+        id: number;
+        scope: string | null;
+        expiresAt: string | null;
+        revokedAt: string | null;
+        createdAt: string;
+      }>;
+    };
+    const ids = body.items.map((t) => t.id);
+    expect(ids).toContain(neverId);
+    expect(ids).toContain(withExpiryId);
+    expect(ids).not.toContain(u2Token!.id);
+    // 列表 = 本人全部 token（含 T14 同文件累计签发的，集合关系断言防并行/累计残留误判）
+    const [u1Count] = await db
+      .select({ total: count() })
+      .from(apiToken)
+      .where(eq(apiToken.userId, u1));
+    expect(body.items).toHaveLength(u1Count!.total);
+    // 状态可见：吊销项 revokedAt 非空
+    const revoked = body.items.find((t) => t.id === neverId);
+    expect(revoked!.revokedAt).not.toBeNull();
+    const active = body.items.find((t) => t.id === withExpiryId);
+    expect(active!.revokedAt).toBeNull();
+    expect(active!.expiresAt).not.toBeNull();
+    // 倒序：本用例后签的（withExpiry）在吊销的前面（createdAt desc）
+    expect(body.items[0]!.id).toBe(withExpiryId);
+
+    // 清理 u2（含其 token 行）
+    await db.delete(apiToken).where(eq(apiToken.userId, u2));
+    await db.delete(userAccount).where(eq(userAccount.id, u2));
   });
 });
