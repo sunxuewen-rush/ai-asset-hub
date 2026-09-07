@@ -14,6 +14,7 @@ import type { Db } from './db/client.js';
 import { rbacContext } from './http/auth-middleware.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { requestContextMiddleware } from './http/request-context.js';
+import { tokenAuthMiddleware } from './http/token-middleware.js';
 import { createTokenRoutes } from './http/tokens.js';
 import type { ObjectStorage } from './storage/types.js';
 
@@ -46,6 +47,8 @@ export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
   app.use('*', requestContextMiddleware());
   app.use('*', rbacContext(rbac));
+  // 认证装配序（T17）：Bearer 显式优先 → 无则回退 session cookie（token → session）
+  app.use('/api/*', tokenAuthMiddleware(deps.db));
   app.use('/api/*', sessionMiddleware(deps.sessions));
   app.use('/api/*', csrfProtection({ allowedOrigins: deps.csrfAllowedOrigins }));
 

@@ -14,6 +14,11 @@ declare module 'hono' {
 /** 读取 aih_session cookie → principal；无效/过期 → 匿名（不 401，由路由判定） */
 export function sessionMiddleware(sessions: SessionManager) {
   return async (c: Context, next: Next) => {
+    // T17：Bearer 显式通道在场 → cookie 会话不参与（含无效 Bearer 不降级，防凭证混淆）
+    if (c.get('authVia') === 'bearer') {
+      await next();
+      return;
+    }
     const sessionId = getCookie(c, SESSION_COOKIE);
     if (sessionId) {
       const session = await sessions.getSession(sessionId);

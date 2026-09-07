@@ -15,6 +15,13 @@ export function csrfProtection(opts: { allowedOrigins?: string[] } = {}) {
       return;
     }
 
+    // T17：Bearer 显式凭证通道在场 → CSRF 免验（跨站请求无法携带受害者的 Authorization
+    // 头，无 cookie 被劫持面；含无效 Bearer 亦然——cookie 会话已不参与）
+    if (c.get('authVia') === 'bearer') {
+      await next();
+      return;
+    }
+
     const host = c.req.header('host');
     const origin = c.req.header('origin');
     const referer = c.req.header('referer');
