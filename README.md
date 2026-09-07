@@ -17,7 +17,7 @@ AI Asset Hub 填补空白：**多类型资产（原生 type 设计）· TS 全�
 
 | 能力 | 说明 |
 |------|------|
-| 多类型资产 | `skill`（兼容 SKILL.md/OpenSkills）+ `mcp` + `worker` 原生类型，未来类型按「枚举 + 族协议文档」扩展 |
+| 多类型资产 | `skill`（兼容 SKILL.md/OpenSkills）+ `mcp` + `agent` 原生类型，演进路径按需扩展（cli/api-tool/python/连接类） |
 | 资产协议 | 每类资产一族协议（zip 布局 + manifest + 校验器插拔），协议即 schema（zod，前后端共用） |
 | 命名空间 | `@namespace/slug` 坐标，团队/全局空间治理边界 |
 | 开放协作 | 任何人可向任意资产提交更新，非 owner 提交走 `PENDING_REVIEW` 审核（Git 式协作） |

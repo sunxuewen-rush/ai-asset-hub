@@ -1,12 +1,13 @@
 # 资产协议总纲
 
 > Date: 2026-09-04
+> Updated: 2026-09-04（v1.1：类型三件套对齐 00 v1.1 —— skill/mcp/agent；演进路径中立化）
 > Status: Draft（族协议 02/03/04 待细化，未动代码）
 > Scope: AI Asset Hub 可分发资产的公共协议层 —— 类型登记、包形态、元数据投影、校验器插拔
 
 ## 1. 定位
 
-AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp）、Worker 执行体（worker）
+AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp）、Agent 定义（agent）
 等。本文档定义所有资产**共有的协议层**——类型如何登记、包长什么样、元数据如何投影、
 发布时如何校验；各类型的**族协议**在 02/03/04 中细化。
 
@@ -19,7 +20,7 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 |------|--------|--------|--------|---------|
 | `skill` | `02-skill-protocol.md` | `SKILL.md` | 文本指令包（markdown + 资源） | agent 技能目录（`.agents/skills` 等） |
 | `mcp` | `03-mcp-bundle-protocol.md`（待写） | `mcp.json` | 远程连接配置 / 本地 stdio 服务器包 | 客户端 MCP 配置区 |
-| `worker` | `04-worker-protocol.md`（待写） | `worker.json` | 执行体 bundle（入口 + 可加载技能） | Worker 运行时 |
+| `agent` | `04-agent-protocol.md`（待写） | `agent.md` | agent 定义包（声明型：行为 + 模型偏好 + 技能引用） | agent 运行时配置目录（客户端自定） |
 
 **类型扩展流程**（新类型只走一遍此流程）：
 
@@ -29,7 +30,8 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 4. 前端内容视图组件按 type 挂载（详情页插槽）
 5. CLI 安装目标按 type 落位
 
-预留类型位（不做实现）：`tool` / `agent` / `workflow`。
+演进路径（见 `00-product-direction.md` §2.1，按需扩展不提前实现）：
+`skill → mcp → agent → cli → api-tool → python → 连接类（V2）`
 
 ## 3. 通用包形态
 
@@ -37,7 +39,7 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 
 ```text
 <slug>/
-├── <主文件>      # root 级，族协议自定（SKILL.md / mcp.json / worker.json）
+├── <主文件>      # root 级，族协议自定（SKILL.md / mcp.json / agent.md）
 ├── README.md     # 可选，人类可读长说明
 └── <资源目录>    # 族协议自定（references/ scripts/ assets/ …）
 ```
@@ -58,10 +60,10 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 | `description` | 一句话描述（列表/搜索用） | 主文件 description 字段 |
 | `searchText` | 可索引文本 | name + description + 正文摘要（各族定义截断规则） |
 | `type` | 资产类型 | 显式声明（各族定义） |
-| `summary` 扩展 | 展示性摘要 | 族协议可选字段（如 mcp 的连接形态、worker 的技能数） |
+| `summary` 扩展 | 展示性摘要 | 族协议可选字段（如 mcp 的连接形态、agent 的模型偏好） |
 
 - 投影结果持久化于 DB 派生列；文件原文存对象存储
-- 解析器按 type 插拔（skill 解析 frontmatter；mcp/worker 解析 JSON manifest）
+- 解析器按 type 插拔（skill/agent 解析 frontmatter 文本；mcp 解析 JSON manifest）
 
 ### 3.3 坐标与命名
 
@@ -88,11 +90,11 @@ interface AssetValidator {
 }
 ```
 
-- 注册表 `type → validator`：skill 校验器（族协议 02 规则）、mcp/worker 校验器（03/04 规则）
+- 注册表 `type → validator`：skill 校验器（族协议 02 规则）、mcp/agent 校验器（03/04 规则）
 - 校验职责：zip 结构 / 主文件存在与格式 / 元数据必填 / 文件白名单与大小 / slug 冲突（跨类型）
 - 校验错误以结构化 code + message 返回（前端按 code 映射 i18n）
-- 安全扫描：发布审核期独立扩展点（后置接入，按 type 差异化规则——worker/mcp
-  含代码密度高于 skill，规则从严）
+- 安全扫描：发布审核期独立扩展点（后置接入，按 type 差异化规则——mcp 含代码/配置，
+  扫描规则比纯文本 skill/agent 从严）
 
 ## 6. 协议 schema 单源原则
 
@@ -105,9 +107,11 @@ interface AssetValidator {
 | 类型 | 兼容承诺 |
 |------|---------|
 | `skill` | OpenSkills/Claude 技能目录约定与 SKILL.md 格式互操作（族协议 02） |
-| `mcp`/`worker` | 平台原生协议；第三方格式（mcp-directory 等）只做导入适配器，非协议承诺 |
+| `mcp` | 遵循生态通用 MCP 配置形态（stdio/url），第三方格式经导入适配器（非协议承诺） |
+| `agent` | 遵循生态 agent 定义惯例（frontmatter 声明），平台原生扩展字段 `x-aih-` 前缀 |
 
 兼容承诺仅影响「安装后能否被第三方客户端识别」，不影响平台内治理与分发。
+平台不与任何特定客户端绑定，协议中立面向全部 agent 生态。
 
 ## 8. 文档与代码对应
 
@@ -119,3 +123,4 @@ interface AssetValidator {
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：类型登记/包形态/投影/校验器插拔/兼容边界 |
+| v1.1 | 2026-09-04 | sunxuewen-rush | 类型三件套对齐 00 v1.1（worker→agent，agent 定义包）；演进路径中立化 |
