@@ -14,7 +14,10 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "format": "biome format --write .",
-    "format:check": "biome format --check ."
+    "format:check": "biome format --check .",
+    "db:migrate": "pnpm --filter @ai-asset-hub/server db:migrate",
+    "db:seed": "pnpm --filter @ai-asset-hub/server db:seed",
+    "db:studio": "pnpm --filter @ai-asset-hub/server db:studio"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
