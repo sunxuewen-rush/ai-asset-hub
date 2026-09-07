@@ -1,8 +1,4 @@
-import {
-  randomBytes,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-} from 'node:crypto';
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 
 /**
  * 密码哈希（R3）：node:crypto scrypt，零 native 依赖。
