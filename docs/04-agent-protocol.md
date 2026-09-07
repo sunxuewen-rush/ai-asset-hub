@@ -1,7 +1,8 @@
 # Agent 族协议
 
 > Date: 2026-09-04
-> Status: Draft（未动代码）
+> Updated: 2026-09-07（v1.1：实现状态同步——M1 已按本文档落地 packages/protocol 的 agent manifest）
+> Status: 定稿（M1 已实现 packages/protocol 的 agent 族 zod schema，docs/01 §6 单源）
 > Scope: `agent` 类型资产的包协议 —— agent 定义包（声明型）
 
 ## 1. 定位与生态对齐
@@ -119,3 +120,4 @@ agent 与 skill **包格式同构**（markdown + frontmatter），语义差异�
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：agent 定义包协议（markdown + frontmatter，声明型） |
+| v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol agent manifest 落地（label/icon/color/category 可选项） |

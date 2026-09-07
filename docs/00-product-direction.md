@@ -1,8 +1,8 @@
 # AI Asset Hub 产品定位与方向
 
 > Date: 2026-09-04
-> Updated: 2026-09-07（v1.5：M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
-> Status: Draft（设计阶段，未动代码）
+> Updated: 2026-09-07（v1.6：Status 同步定稿；v1.5 M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
+> Status: 定稿（项目方向决定板；里程碑出口状态见 §5 追踪表）
 > Scope: 全新开源项目 —— AI 资产注册中心与市场（多类型 AI 可复用资产）
 
 ## 1. 定位
@@ -146,3 +146,4 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | v1.3 | 2026-09-04 | sunxuewen-rush | §2.2 生命周期补扫描态全序（SCANNING/SCAN_FAILED/UPLOADED），指向 08 |
 | v1.4 | 2026-09-04 | sunxuewen-rush | §5 M6 补 CHANGELOG.md 与 runbook 事故手册惯例（对标 OpenWork 运维文档借鉴） |
 | v1.5 | 2026-09-07 | sunxuewen-rush | §5 M1 状态注记：阶段一 platform-core ✅（M1-plan 执行至 T24），阶段二后置另立 plan |
+| v1.6 | 2026-09-07 | sunxuewen-rush | 元数据同步：Status 改定稿（M0 评审通过；方向决定板随里程碑演进，见 §5） |

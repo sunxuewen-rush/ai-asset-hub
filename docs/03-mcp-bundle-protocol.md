@@ -1,8 +1,8 @@
 # MCP 族协议
 
 > Date: 2026-09-04
-> Updated: 2026-09-04（v1.1：server 条目 schema 对齐主流 MCP 运行时配置契约 —— 顶层 `servers` 键、`type` 必填、补 `sse` 传输/`enabled`/`timeout`）
-> Status: Draft（未动代码）
+> Updated: 2026-09-07（v1.2：实现状态同步——M1 packages/protocol mcp manifest 落地；v1.1 server 条目 schema 对齐主流契约）
+> Status: 定稿（M1 已实现 packages/protocol 的 mcp 族 zod schema，docs/01 §6 单源）
 > Scope: `mcp` 类型资产的包协议 —— 双形态：远程连接配置 / 本地 stdio 服务器包
 
 ## 1. 定位与生态对齐
@@ -147,3 +147,4 @@ mcp 是**连接/执行语义**资产：可能含实现脚本（安全扫描从�
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：mcp 双形态包协议 + secret 不入包规则 |
 | v1.1 | 2026-09-04 | sunxuewen-rush | server 条目 schema 对齐主流 MCP 运行时契约：顶层 `servers` 键（兼容 mcpServers/mcp 导入）、`type` 必填（stdio/http/sse）、补 `enabled`/`timeout` 字段 |
+| v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol mcp manifest 落地（含敏感头 `${VAR}` 规则） |

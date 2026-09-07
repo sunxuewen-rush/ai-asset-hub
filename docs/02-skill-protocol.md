@@ -1,7 +1,8 @@
 # Skill 族协议
 
 > Date: 2026-09-04
-> Status: Draft（未动代码）
+> Updated: 2026-09-07（v1.1：实现状态同步——M1 已按本文档落地 packages/protocol 的 skill manifest）
+> Status: 定稿（M1 已实现 packages/protocol 的 skill 族 zod schema，docs/01 §6 单源）
 > Scope: `skill` 类型资产的包协议 —— 兼容 OpenSkills / Claude 技能生态
 
 ## 1. 定位与兼容承诺
@@ -99,3 +100,4 @@ agent 是声明型（行为 + 模型偏好 + 技能引用，无执行代码）�
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：OpenSkills 兼容的 skill 包协议（含与其他资产类型的差异对照） |
+| v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol skill manifest 落地（name/description/slug 规则） |

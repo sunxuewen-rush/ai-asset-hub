@@ -1,8 +1,8 @@
 # 数据模型设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-07（v1.1：schema 蓝图对齐实战模型增补——local_credential 登录名/失败锁定、role/permission 三表、audit_log 网络字段、review_task 部分唯一索引、状态列实现形态）
-> Status: Draft（未动代码；M1 drizzle schema 按其落地）
+> Updated: 2026-09-07（v1.2：实现状态同步——drizzle schema 全表落地；v1.1 schema 蓝图对齐实战模型增补）
+> Status: 定稿（M1 已按本文档 v1.1 落地 drizzle schema 四域全表迁移/种子）
 > Scope: AI Asset Hub 表结构蓝图 —— 用户/空间/资产/版本/文件/审核/label/审计
 > 设计来源：以企业实战验证的注册中心数据模型为基准（同构继承），按 00-07 规范资产化/中立化
 
@@ -177,3 +177,4 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后回 DRAFT/UPLOADED）
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：用户/空间/资产/版本/文件/治理域表结构 + 版本状态机全序 |
 | v1.1 | 2026-09-07 | sunxuewen-rush | §2 状态列实现形态（VARCHAR+应用层 zod 枚举）；§3 local_credential 补 username/failed_attempts/locked_until、user_account.id 生成注明、identity_binding subject 长度、role/permission/role_permission 三表模型；§6 audit_log 补 request_id/client_ip/user_agent、review_task 补 PENDING 部分唯一索引；§8 汇总表同步；§9 治理扩展表演进说明（对齐实战模型增补） |
+| v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 drizzle schema 四域全表落地（迁移/种子幂等，docs/01 §6 zod 单源消费） |
