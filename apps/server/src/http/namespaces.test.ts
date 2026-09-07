@@ -164,6 +164,7 @@ afterAll(async () => {
         like(namespace.slug, 't3-%'),
         like(namespace.slug, 't4-%'),
         like(namespace.slug, 't5-%'),
+        like(namespace.slug, 't6-%'),
       ),
     );
   const ids = slugs.map((s) => s.id);
@@ -174,13 +175,7 @@ afterAll(async () => {
   const users = await db
     .select({ id: userAccount.id })
     .from(userAccount)
-    .where(
-      or(
-        like(userAccount.displayName, 'ns-u%'),
-        like(userAccount.displayName, 'ns-asset-admin'),
-        like(userAccount.displayName, 'ns-super-admin'),
-      ),
-    );
+    .where(like(userAccount.displayName, 'ns-%'));
   for (const u of users) {
     await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
@@ -557,5 +552,127 @@ describe('PATCH /api/namespaces/:id/status（T5 状态治理，R3 仅 SUPER_ADMI
     expect(missing.status).toBe(404);
     const bad = await patchJson(`/api/namespaces/${t5Space}/status`, { status: 'BOGUS' }, cookie);
     expect(bad.status).toBe(400);
+  });
+});
+
+describe('GET/POST /api/namespaces/:id/members（T6 成员管理）', () => {
+  let t6Space: number;
+  let ux: string; // 动态新成员
+
+  beforeAll(async () => {
+    t6Space = await insertNs('t6-space');
+    await addMember(t6Space, assetAdmin, 'OWNER');
+    await addMember(t6Space, u1, 'ADMIN');
+    ux = await makeUser('ns-ux');
+  });
+
+  it('GET 成员列表：可见空间可浏览（u2 非成员看 ACTIVE 空间成员，含 displayName 排序）', async () => {
+    const res = await buildApp().request(`/api/namespaces/${t6Space}/members`, {
+      headers: { cookie: await cookieFor(u2) },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      items: Array<{ userId: string; role: string; displayName: string }>;
+      total: number;
+    };
+    expect(body.total).toBe(2);
+    expect(body.items.some((m) => m.role === 'OWNER' && m.displayName === 'ns-asset-admin')).toBe(
+      true,
+    );
+    expect(body.items.some((m) => m.role === 'ADMIN' && m.displayName === 'ns-u1')).toBe(true);
+  });
+
+  it('GET 成员列表：FROZEN 空间非成员 → 404', async () => {
+    const frozen = await insertNs('t6-frozen', 'FROZEN');
+    await addMember(frozen, assetAdmin, 'OWNER');
+    const res = await buildApp().request(`/api/namespaces/${frozen}/members`, {
+      headers: { cookie: await cookieFor(u2) },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('POST：ADMIN（u1）设 MEMBER 成功 201；重复添加 → 409 member_exists', async () => {
+    const res = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: u2, role: 'MEMBER' },
+      await cookieFor(u1),
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { member: { userId: string; role: string } };
+    expect(body.member).toMatchObject({ userId: u2, role: 'MEMBER' });
+    const dup = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: u2, role: 'MEMBER' },
+      await cookieFor(u1),
+    );
+    expect(dup.status).toBe(409);
+    expect(await dup.json()).toMatchObject({ code: 'namespace.member_exists' });
+  });
+
+  it('POST：ADMIN 设 ADMIN → 403（分配链：ADMIN 仅可设 MEMBER）', async () => {
+    const res = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: ux, role: 'ADMIN' },
+      await cookieFor(u1),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'auth.forbidden' });
+  });
+
+  it('POST：OWNER（assetAdmin）设 ADMIN → 201；设 OWNER → 400 transfer_deferred（转让后置 M2）', async () => {
+    const admin = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: ux, role: 'ADMIN' },
+      await cookieFor(assetAdmin),
+    );
+    expect(admin.status).toBe(201);
+    const owner = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: u2, role: 'OWNER' },
+      await cookieFor(assetAdmin),
+    );
+    expect(owner.status).toBe(400);
+    expect(await owner.json()).toMatchObject({ code: 'namespace.transfer_deferred' });
+  });
+
+  it('POST：SUPER_ADMIN 设 OWNER 亦 400（转让约束不因超管豁免）；设 ADMIN 成功', async () => {
+    const owner = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: u1, role: 'OWNER' },
+      await cookieFor(superAdmin),
+    );
+    expect(owner.status).toBe(400);
+    expect(await owner.json()).toMatchObject({ code: 'namespace.transfer_deferred' });
+  });
+
+  it('POST：目标用户非 ACTIVE → 400 user_not_active；MEMBER（u2）无管理权 → 403', async () => {
+    const disabled = await makeUser('ns-disabled-member');
+    await db.update(userAccount).set({ status: 'DISABLED' }).where(eq(userAccount.id, disabled));
+    const badTarget = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: disabled, role: 'MEMBER' },
+      await cookieFor(assetAdmin),
+    );
+    expect(badTarget.status).toBe(400);
+    expect(await badTarget.json()).toMatchObject({ code: 'namespace.user_not_active' });
+    const noRight = await postJson(
+      `/api/namespaces/${t6Space}/members`,
+      { userId: disabled, role: 'MEMBER' },
+      await cookieFor(u2),
+    );
+    expect(noRight.status).toBe(403);
+  });
+
+  it('GET 成员列表：添加后 total 增长且新成员可见（u2 MEMBER / ux ADMIN）', async () => {
+    const res = await buildApp().request(`/api/namespaces/${t6Space}/members`, {
+      headers: { cookie: await cookieFor(u1) },
+    });
+    const body = (await res.json()) as {
+      items: Array<{ userId: string; role: string }>;
+      total: number;
+    };
+    expect(body.total).toBe(4);
+    expect(body.items.find((m) => m.userId === u2)?.role).toBe('MEMBER');
+    expect(body.items.find((m) => m.userId === ux)?.role).toBe('ADMIN');
   });
 });

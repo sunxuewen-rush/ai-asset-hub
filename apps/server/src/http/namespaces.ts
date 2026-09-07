@@ -5,7 +5,12 @@ import { z } from 'zod';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
 import type { Db } from '../db/client.js';
-import { namespace, namespaceMember, namespaceTypeSchema } from '../db/schema/index.js';
+import {
+  namespace,
+  namespaceMember,
+  namespaceTypeSchema,
+  userAccount,
+} from '../db/schema/index.js';
 import { requireAuth, requirePlatformRole } from './auth-middleware.js';
 
 /**
@@ -45,6 +50,12 @@ const updateBodySchema = z
 /** PATCH /:id/status body（T5：状态治理，05 §6.2 三态） */
 const statusBodySchema = z.object({
   status: z.enum(['ACTIVE', 'FROZEN', 'ARCHIVED']),
+});
+
+/** POST /:id/members body（T6：成员添加；role 放宽含 OWNER 以返回专用 transfer_deferred 码——转让后置 M2） */
+const addMemberBodySchema = z.object({
+  userId: z.string().min(1).max(128),
+  role: z.enum(['OWNER', 'ADMIN', 'MEMBER']),
 });
 
 /** PG 唯一约束冲突码（slug 重复） */
@@ -329,6 +340,110 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     const row = updated[0]!;
     const summary = await memberSummary(db, id, principal.userId);
     return c.json({ namespace: namespaceItem(row, summary.count, summary.myRole) });
+  });
+
+  // GET /api/namespaces/:id/members（T6：成员列表；可见空间可浏览成员，带 displayName）
+  app.get('/:id/members', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const id = parseNamespaceId(c.req.param('id'));
+    if (id === null) return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
+    const nsRows = await db
+      .select({ id: namespace.id })
+      .from(namespace)
+      .where(and(eq(namespace.id, id), visibleWhere(db, principal.userId)));
+    if (nsRows.length === 0) {
+      return c.json({ code: 'namespace.not_found', message: 'namespace.not_found' }, 404);
+    }
+    const members = await db
+      .select({
+        userId: namespaceMember.userId,
+        role: namespaceMember.role,
+        joinedAt: namespaceMember.createdAt,
+        displayName: userAccount.displayName,
+      })
+      .from(namespaceMember)
+      .innerJoin(userAccount, eq(namespaceMember.userId, userAccount.id))
+      .where(eq(namespaceMember.namespaceId, id))
+      .orderBy(userAccount.displayName);
+    return c.json({ items: members, total: members.length });
+  });
+
+  // POST /api/namespaces/:id/members（T6：添加成员/角色分配链——OWNER 可设 ADMIN/MEMBER，ADMIN 仅 MEMBER，
+  // OWNER 不可经添加产生（转让后置 M2）；目标用户须 ACTIVE；防重复）
+  app.post('/:id/members', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const id = parseNamespaceId(c.req.param('id'));
+    if (id === null) return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
+    let payload: unknown;
+    try {
+      payload = await c.req.json();
+    } catch {
+      return c.json({ code: 'request.invalid', message: 'request body must be valid json' }, 400);
+    }
+    const parsed = addMemberBodySchema.safeParse(payload);
+    if (!parsed.success) {
+      return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
+    }
+    const { userId: targetId, role } = parsed.data;
+
+    const rbac = c.get('rbac')!;
+    const allowed = await rbac.can(principal.userId, PERMISSIONS.namespaceManage, {
+      namespaceId: id,
+    });
+    if (!allowed) throw new AuthError('auth.forbidden');
+
+    // 目标用户须 ACTIVE（DISABLED/PENDING 不可入空间）
+    const targetRows = await db
+      .select({ status: userAccount.status })
+      .from(userAccount)
+      .where(eq(userAccount.id, targetId));
+    if (targetRows[0]?.status !== 'ACTIVE') {
+      return c.json(
+        { code: 'namespace.user_not_active', message: 'namespace.user_not_active' },
+        400,
+      );
+    }
+
+    // 角色分配链（05 §6.4：空间角色管理权——OWNER/ADMIN 分级）
+    const callerMember = await db
+      .select({ role: namespaceMember.role })
+      .from(namespaceMember)
+      .where(
+        and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, principal.userId)),
+      );
+    const callerRole = callerMember[0]?.role;
+    const callerRoles = await rbac.platformRolesOf(principal.userId);
+    const isSuperAdmin = callerRoles.includes('SUPER_ADMIN');
+    // OWNER 角色不可经添加产生（转让后置 M2；超管亦走此约束——转让端点后置）
+    if (parsed.data.role === 'OWNER') {
+      return c.json(
+        { code: 'namespace.transfer_deferred', message: 'namespace.transfer_deferred' },
+        400,
+      );
+    }
+    // ADMIN 仅可设 MEMBER（OWNER 级 = OWNER 角色或 SUPER_ADMIN 可设 ADMIN）
+    if (!isSuperAdmin && callerRole === 'ADMIN' && role === 'ADMIN') {
+      throw new AuthError('auth.forbidden');
+    }
+
+    try {
+      const [member] = await db
+        .insert(namespaceMember)
+        .values({ namespaceId: id, userId: targetId, role })
+        .returning({
+          userId: namespaceMember.userId,
+          role: namespaceMember.role,
+          joinedAt: namespaceMember.createdAt,
+        });
+      return c.json({ member }, 201);
+    } catch (err) {
+      const pgCode =
+        (err as { cause?: { code?: string } }).cause?.code ?? (err as { code?: string }).code;
+      if (pgCode === PG_UNIQUE_VIOLATION) {
+        return c.json({ code: 'namespace.member_exists', message: 'namespace.member_exists' }, 409);
+      }
+      throw err;
+    }
   });
 
   return app;
