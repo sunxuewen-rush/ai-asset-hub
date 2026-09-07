@@ -12,6 +12,7 @@ import { sessionMiddleware } from './auth/session-middleware.js';
 import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
 import { rbacContext } from './http/auth-middleware.js';
+import { createNamespaceRoutes } from './http/namespaces.js';
 import { requestContextMiddleware } from './http/request-context.js';
 
 /**
@@ -70,6 +71,8 @@ export function createApp(deps: AppDeps): Hono {
       cookieSecure: deps.cookieSecure,
     }),
   );
+
+  app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
 
   return app;
 }
