@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, like } from 'drizzle-orm';
+import { eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 
@@ -14,8 +14,17 @@ import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, userAccount } from '../db/schema/index.js';
+import {
+  apiToken,
+  namespace,
+  namespaceMember,
+  type RoleCode,
+  role,
+  userAccount,
+  userRoleBinding,
+} from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
+import { createNamespaceRoutes } from './namespaces.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 
@@ -30,6 +39,18 @@ async function makeUser(
   const id = `usr_${randomUUID()}`;
   await db.insert(userAccount).values({ id, displayName, status });
   return id;
+}
+
+async function ensureRole(roleCode: RoleCode) {
+  await db
+    .insert(role)
+    .values({ code: roleCode, name: `role-${roleCode}`, isSystem: true })
+    .onConflictDoNothing();
+}
+
+async function bindRole(userId: string, roleCode: RoleCode) {
+  const rows = await db.select().from(role).where(eq(role.code, roleCode));
+  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
 }
 
 async function mintToken(
@@ -66,6 +87,7 @@ function buildApp(): Hono {
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/tokens', createTokenRoutes({ db }));
+  app.route('/api/namespaces', createNamespaceRoutes({ db }));
   return app;
 }
 
@@ -77,12 +99,22 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  const nss = await db
+    .select({ id: namespace.id })
+    .from(namespace)
+    .where(like(namespace.slug, 't18-%'));
+  const nsIds = nss.map((n) => n.id);
+  if (nsIds.length > 0) {
+    await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, nsIds));
+    await db.delete(namespace).where(inArray(namespace.id, nsIds));
+  }
   const users = await db
     .select({ id: userAccount.id })
     .from(userAccount)
     .where(like(userAccount.displayName, 'bearer-%'));
   for (const u of users) {
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
+    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();
@@ -173,5 +205,40 @@ describe('Bearer token 认证中间件（T17）', () => {
       body: '{}',
     });
     expect(res.status).toBe(201);
+  });
+
+  it('T18：Bearer 与 session 通道走同一 requirePermission（RBAC 同判）', async () => {
+    await ensureRole('ASSET_ADMIN');
+    const admin = await makeUser('bearer-rbac-admin');
+    const plainUser = await makeUser('bearer-rbac-plain');
+    await bindRole(admin, 'ASSET_ADMIN');
+    const adminToken = await mintToken(admin);
+    const plainToken = await mintToken(plainUser);
+
+    const origin = { origin: 'http://localhost:3000', host: 'localhost:3000' };
+    // ASSET_ADMIN + Bearer → 201（session 通道同权限已在 namespaces.test 覆盖，此处对照同判）
+    const ok = await buildApp().request('/api/namespaces', {
+      method: 'POST',
+      headers: {
+        ...origin,
+        authorization: `Bearer ${adminToken.plain}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ slug: 't18-bearer-admin', displayName: 't18 bearer admin' }),
+    });
+    expect(ok.status).toBe(201);
+    // 普通用户 + Bearer → 403 forbidden（与 session 通道同一 403 码）
+    const denied = await buildApp().request('/api/namespaces', {
+      method: 'POST',
+      headers: {
+        ...origin,
+        authorization: `Bearer ${plainToken.plain}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ slug: 't18-bearer-plain', displayName: 't18 bearer plain' }),
+    });
+    expect(denied.status).toBe(403);
+    const body = (await denied.json()) as { code: string };
+    expect(body.code).toBe('auth.forbidden');
   });
 });
