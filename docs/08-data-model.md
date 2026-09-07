@@ -61,6 +61,8 @@ asset                 id · namespace_id → namespace · type(skill/mcp/agent)
                       · slug · owner_id → user_account（主要维护人）
                       · latest_version_id → asset_version（冗余指针，免 join）
                       · visibility(PUBLIC/NAMESPACE_ONLY/PRIVATE) DEFAULT PUBLIC
+                        -- PUBLIC=全站可见/匿名浏览（默认，00 §2.3）
+                        -- NAMESPACE_ONLY=空间成员可见 · PRIVATE=owner+空间 ADMIN（内部分发）
                       · status(ACTIVE/HIDDEN/ARCHIVED)
                       · download_count BIGINT
                       · created_by/created_at/updated_by/updated_at
