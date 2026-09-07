@@ -14,6 +14,7 @@ import type { Db } from './db/client.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
+import { createOidcRoutes } from './http/oidc-routes.js';
 import { requestContextMiddleware } from './http/request-context.js';
 import { tokenAuthMiddleware } from './http/token-middleware.js';
 import { createTokenRoutes } from './http/tokens.js';
@@ -82,6 +83,8 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
+  // OIDC 授权码流（T24/T25；authorize/callback 为访客端点——无 requireAuth，走独立 state cookie）
+  app.route('/api/auth/oidc', createOidcRoutes({ cookieSecure: deps.cookieSecure }));
 
   return app;
 }
