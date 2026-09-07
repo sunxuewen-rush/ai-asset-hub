@@ -42,6 +42,11 @@ const updateBodySchema = z
     message: 'nothing to update',
   });
 
+/** PATCH /:id/status body（T5：状态治理，05 §6.2 三态） */
+const statusBodySchema = z.object({
+  status: z.enum(['ACTIVE', 'FROZEN', 'ARCHIVED']),
+});
+
 /** PG 唯一约束冲突码（slug 重复） */
 const PG_UNIQUE_VIOLATION = '23505';
 
@@ -283,6 +288,42 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     const updated = await db
       .update(namespace)
       .set({ ...patch, updatedAt: new Date() })
+      .where(eq(namespace.id, id))
+      .returning(namespaceItemColumns);
+    const row = updated[0]!;
+    const summary = await memberSummary(db, id, principal.userId);
+    return c.json({ namespace: namespaceItem(row, summary.count, summary.myRole) });
+  });
+
+  // PATCH /api/namespaces/:id/status（T5：状态治理——ACTIVE/FROZEN/ARCHIVED，R3 仅 SUPER_ADMIN；
+  // 05 §6.2 三态：FROZEN 只读拒写 / ARCHIVED 对外不可见；互转无限制，治理可逆，幂等同态 200）
+  app.patch('/:id/status', requireAuth(), requirePlatformRole(['SUPER_ADMIN']), async (c) => {
+    const id = parseNamespaceId(c.req.param('id'));
+    if (id === null) return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
+    let payload: unknown;
+    try {
+      payload = await c.req.json();
+    } catch {
+      return c.json({ code: 'request.invalid', message: 'request body must be valid json' }, 400);
+    }
+    const parsed = statusBodySchema.safeParse(payload);
+    if (!parsed.success) {
+      return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
+    }
+    const principal = c.get('principal')!;
+    const rows = await db.select(namespaceItemColumns).from(namespace).where(eq(namespace.id, id));
+    const existing = rows[0];
+    if (!existing) {
+      return c.json({ code: 'namespace.not_found', message: 'namespace.not_found' }, 404);
+    }
+    if (existing.status === parsed.data.status) {
+      // 幂等同态：返回现状
+      const summary = await memberSummary(db, id, principal.userId);
+      return c.json({ namespace: namespaceItem(existing, summary.count, summary.myRole) });
+    }
+    const updated = await db
+      .update(namespace)
+      .set({ status: parsed.data.status, updatedAt: new Date() })
       .where(eq(namespace.id, id))
       .returning(namespaceItemColumns);
     const row = updated[0]!;

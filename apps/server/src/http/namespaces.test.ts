@@ -159,7 +159,12 @@ afterAll(async () => {
     .select({ id: namespace.id })
     .from(namespace)
     .where(
-      or(like(namespace.slug, 't2-%'), like(namespace.slug, 't3-%'), like(namespace.slug, 't4-%')),
+      or(
+        like(namespace.slug, 't2-%'),
+        like(namespace.slug, 't3-%'),
+        like(namespace.slug, 't4-%'),
+        like(namespace.slug, 't5-%'),
+      ),
     );
   const ids = slugs.map((s) => s.id);
   if (ids.length > 0) {
@@ -466,5 +471,91 @@ describe('GET/PATCH /api/namespaces/:id（T4 详情与更新）', () => {
     expect(empty.status).toBe(400);
     const blank = await patchJson(`/api/namespaces/${t4Space}`, { displayName: '' }, cookie);
     expect(blank.status).toBe(400);
+  });
+});
+
+describe('PATCH /api/namespaces/:id/status（T5 状态治理，R3 仅 SUPER_ADMIN）', () => {
+  let t5Space: number;
+
+  beforeAll(async () => {
+    t5Space = await insertNs('t5-status');
+    await addMember(t5Space, assetAdmin, 'OWNER');
+  });
+
+  it('非超管（ASSET_ADMIN/OWNER）改状态 → 403（R3 治理最严）', async () => {
+    const res = await patchJson(
+      `/api/namespaces/${t5Space}/status`,
+      { status: 'FROZEN' },
+      await cookieFor(assetAdmin),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'auth.forbidden' });
+  });
+
+  it('SUPER_ADMIN：ACTIVE→FROZEN 200 落库，且 FROZEN 后非成员列表不可见（联动）', async () => {
+    const cookie = await cookieFor(superAdmin);
+    const res = await patchJson(`/api/namespaces/${t5Space}/status`, { status: 'FROZEN' }, cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { namespace: { status: string } };
+    expect(body.namespace.status).toBe('FROZEN');
+    const row = await db.select().from(namespace).where(eq(namespace.id, t5Space));
+    expect(row[0]?.status).toBe('FROZEN');
+    // 联动：非成员 u2 列表里不再出现（成员 assetAdmin 仍可见）
+    const u2List = (await (
+      await buildApp().request('/api/namespaces', { headers: { cookie: await cookieFor(u2) } })
+    ).json()) as ListBody;
+    expect(u2List.items.some((i) => i.slug === 't5-status')).toBe(false);
+    const ownerList = (await (
+      await buildApp().request('/api/namespaces', {
+        headers: { cookie: await cookieFor(assetAdmin) },
+      })
+    ).json()) as ListBody;
+    expect(ownerList.items.some((i) => i.slug === 't5-status')).toBe(true);
+  });
+
+  it('幂等同态：FROZEN→FROZEN → 200 返回现状', async () => {
+    const res = await patchJson(
+      `/api/namespaces/${t5Space}/status`,
+      { status: 'FROZEN' },
+      await cookieFor(superAdmin),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { namespace: { status: string } };
+    expect(body.namespace.status).toBe('FROZEN');
+  });
+
+  it('SUPER_ADMIN：FROZEN→ACTIVE 解冻 + ARCHIVED→ACTIVE 恢复（治理可逆）', async () => {
+    const cookie = await cookieFor(superAdmin);
+    const thaw = await patchJson(`/api/namespaces/${t5Space}/status`, { status: 'ACTIVE' }, cookie);
+    expect(thaw.status).toBe(200);
+    const archive = await patchJson(
+      `/api/namespaces/${t5Space}/status`,
+      { status: 'ARCHIVED' },
+      cookie,
+    );
+    expect(archive.status).toBe(200);
+    // ARCHIVED 非成员详情 → 404（对外不可见）
+    const hidden = await buildApp().request(`/api/namespaces/${t5Space}`, {
+      headers: { cookie: await cookieFor(u2) },
+    });
+    expect(hidden.status).toBe(404);
+    const restore = await patchJson(
+      `/api/namespaces/${t5Space}/status`,
+      { status: 'ACTIVE' },
+      cookie,
+    );
+    expect(restore.status).toBe(200);
+    const visible = await buildApp().request(`/api/namespaces/${t5Space}`, {
+      headers: { cookie: await cookieFor(u2) },
+    });
+    expect(visible.status).toBe(200);
+  });
+
+  it('不存在 id → 404；非法 status → 400', async () => {
+    const cookie = await cookieFor(superAdmin);
+    const missing = await patchJson('/api/namespaces/999999/status', { status: 'FROZEN' }, cookie);
+    expect(missing.status).toBe(404);
+    const bad = await patchJson(`/api/namespaces/${t5Space}/status`, { status: 'BOGUS' }, cookie);
+    expect(bad.status).toBe(400);
   });
 });
