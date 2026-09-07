@@ -106,8 +106,10 @@ label 定义 CRUD + 批量排序：
 
 ### 5.3 资产 label API（owner/空间管理员）
 
-挂载/移除：`PUT/DELETE /assets/{namespace}/{slug}/labels/{labelSlug}` —— 按 §3 权限校验，
+挂载/移除：`PUT/DELETE /api/assets/{namespace}/{slug}/labels/{labelSlug}` —— 按 §3 权限校验，
 层级无关。查询响应含 `parentId`（该 label 定义侧的层级归属，`null` = 一级）。
+
+> API 路径前缀统一 `/api`（版本化前缀 `v1` 待 API 设计文档定）；§5 各路径为资源级示意。
 
 ## 6. 与相邻文档关系
 
@@ -120,3 +122,4 @@ label 定义 CRUD + 批量排序：
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：label 三表/两级树/多语言/挂载筛选语义/权限矩阵 |
+| v1.1 | 2026-09-04 | sunxuewen-rush | §5.3 API 路径前缀统一 /api |

@@ -28,7 +28,7 @@
   │
   ▼
 ┌────────────────────────────┐
-│ Layer 1: OIDC/本地登录      │  授权码模式；本地账号密码兜底
+│ Layer 1: OIDC/本地登录      │  授权码模式；本地账号密码兜底（密码通道可接 LDAP，见 §3.1）
 └─────────────┬──────────────┘
               │ 身份 claims / 本地凭据
               ▼
@@ -153,12 +153,16 @@
 | 管理资产（归档/版本） | `asset:manage` | 空间 ADMIN 以上，或 owner 本人 |
 | 空间间提升（如到全局） | `asset:promote` | 空间 ADMIN 以上，或 owner 本人 |
 | 审核发布 | `review:approve` | 空间 ADMIN/OWNER，或 ASSET_ADMIN/SUPER_ADMIN |
+| 管理空间成员/角色 | `namespace:manage` | 空间 OWNER / ADMIN |
 | 审核提升申请 | `promotion:approve` | ASSET_ADMIN / SUPER_ADMIN |
 | 隐藏/恢复资产 | `asset:manage` | 仅 SUPER_ADMIN（治理面最严） |
 | 撤回已发布版本 | `asset:manage` | ASSET_ADMIN / SUPER_ADMIN |
 | 管理用户角色 | `user:manage` | USER_ADMIN / SUPER_ADMIN |
 | 审批用户准入 | `user:approve` | USER_ADMIN / SUPER_ADMIN |
 | 查看审计日志 | `audit:read` | AUDITOR / SUPER_ADMIN |
+
+**防自审规则**（开放协作核心）：审核人不得是提交人本人；本人提交的 review task
+仅 `SUPER_ADMIN` 可审核自己——从机制上杜绝「自提自审」。
 
 ### 6.5 权限主轴与离职场景
 
@@ -177,3 +181,4 @@
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：身份约束/五层认证/准入/凭证/RBAC 双轴矩阵 |
 | v1.1 | 2026-09-04 | sunxuewen-rush | 补 §3.1 LDAP/AD 认证企业通道（三重 bind/故障转移/自动建号/逃生/回退，默认关闭） |
+| v1.2 | 2026-09-04 | sunxuewen-rush | §6.4 补防自审规则与 namespace:manage；§3 图注 LDAP 通道 |
