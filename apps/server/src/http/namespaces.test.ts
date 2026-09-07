@@ -154,6 +154,13 @@ function jsonRequest(method: string, url: string, body: unknown, cookie?: string
   return buildApp().request(url, { method, headers, body: JSON.stringify(body) });
 }
 
+function deleteReq(url: string, cookie: string) {
+  return buildApp().request(url, {
+    method: 'DELETE',
+    headers: { ...ORIGIN, host: 'localhost:3000', cookie },
+  });
+}
+
 afterAll(async () => {
   const slugs = await db
     .select({ id: namespace.id })
@@ -165,6 +172,7 @@ afterAll(async () => {
         like(namespace.slug, 't4-%'),
         like(namespace.slug, 't5-%'),
         like(namespace.slug, 't6-%'),
+        like(namespace.slug, 't7-%'),
       ),
     );
   const ids = slugs.map((s) => s.id);
@@ -674,5 +682,79 @@ describe('GET/POST /api/namespaces/:id/members（T6 成员管理）', () => {
     expect(body.total).toBe(4);
     expect(body.items.find((m) => m.userId === u2)?.role).toBe('MEMBER');
     expect(body.items.find((m) => m.userId === ux)?.role).toBe('ADMIN');
+  });
+});
+
+describe('DELETE /api/namespaces/:id/members/:userId（T7 移除成员）', () => {
+  let t7Space: number;
+
+  beforeAll(async () => {
+    t7Space = await insertNs('t7-space');
+    await addMember(t7Space, assetAdmin, 'OWNER');
+    await addMember(t7Space, u1, 'ADMIN');
+    await addMember(t7Space, u2, 'MEMBER');
+  });
+
+  it('OWNER 移除 MEMBER（u2）→ 204 + 列表联动', async () => {
+    const res = await deleteReq(
+      `/api/namespaces/${t7Space}/members/${u2}`,
+      await cookieFor(assetAdmin),
+    );
+    expect(res.status).toBe(204);
+    const list = (await (
+      await buildApp().request(`/api/namespaces/${t7Space}/members`, {
+        headers: { cookie: await cookieFor(assetAdmin) },
+      })
+    ).json()) as { items: Array<{ userId: string }>; total: number };
+    expect(list.items.some((m) => m.userId === u2)).toBe(false);
+  });
+
+  it('MEMBER 无管理权移除 → 403', async () => {
+    await addMember(t7Space, u2, 'MEMBER');
+    const res = await deleteReq(`/api/namespaces/${t7Space}/members/${u1}`, await cookieFor(u2));
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'auth.forbidden' });
+  });
+
+  it('移除 OWNER 行 → 400 transfer_deferred（OWNER 不可移除 = 转让后置；超管亦约束）', async () => {
+    const byAdmin = await deleteReq(
+      `/api/namespaces/${t7Space}/members/${assetAdmin}`,
+      await cookieFor(u1),
+    );
+    expect(byAdmin.status).toBe(400);
+    expect(await byAdmin.json()).toMatchObject({ code: 'namespace.transfer_deferred' });
+    const bySuper = await deleteReq(
+      `/api/namespaces/${t7Space}/members/${assetAdmin}`,
+      await cookieFor(superAdmin),
+    );
+    expect(bySuper.status).toBe(400);
+  });
+
+  it('ADMIN 移除 ADMIN（同级）→ 403；ADMIN 自移 → 403；OWNER 移除 ADMIN → 204', async () => {
+    const uxId = await makeUser('ns-t7-ux');
+    await addMember(t7Space, uxId, 'ADMIN');
+    const cross = await deleteReq(
+      `/api/namespaces/${t7Space}/members/${uxId}`,
+      await cookieFor(u1),
+    );
+    expect(cross.status).toBe(403);
+    const self = await deleteReq(`/api/namespaces/${t7Space}/members/${u1}`, await cookieFor(u1));
+    expect(self.status).toBe(403);
+    const byOwner = await deleteReq(
+      `/api/namespaces/${t7Space}/members/${uxId}`,
+      await cookieFor(assetAdmin),
+    );
+    expect(byOwner.status).toBe(204);
+  });
+
+  it('移除非成员 → 404 member_not_found；非法 id → 400', async () => {
+    const missing = await deleteReq(
+      `/api/namespaces/${t7Space}/members/usr_ghost`,
+      await cookieFor(assetAdmin),
+    );
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toMatchObject({ code: 'namespace.member_not_found' });
+    const bad = await deleteReq(`/api/namespaces/abc/members/usr_x`, await cookieFor(assetAdmin));
+    expect(bad.status).toBe(400);
   });
 });

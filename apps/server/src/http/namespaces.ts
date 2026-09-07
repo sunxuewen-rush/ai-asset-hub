@@ -446,5 +446,57 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     }
   });
 
+  // DELETE /api/namespaces/:id/members/:userId（T7：移除成员——OWNER 级可移 ADMIN/MEMBER，
+  // ADMIN 仅移 MEMBER（同级不可互删）；OWNER 行不可移除（= 转让，后置 M2）；目标非成员 404）
+  app.delete('/:id/members/:userId', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const id = parseNamespaceId(c.req.param('id'));
+    if (id === null) return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
+    const targetId = c.req.param('userId');
+
+    const rbac = c.get('rbac')!;
+    const allowed = await rbac.can(principal.userId, PERMISSIONS.namespaceManage, {
+      namespaceId: id,
+    });
+    if (!allowed) throw new AuthError('auth.forbidden');
+
+    const targetRows = await db
+      .select({ role: namespaceMember.role })
+      .from(namespaceMember)
+      .where(and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, targetId ?? '')));
+    const target = targetRows[0];
+    if (!target) {
+      return c.json(
+        { code: 'namespace.member_not_found', message: 'namespace.member_not_found' },
+        404,
+      );
+    }
+    // OWNER 行不可移除（= 移除持有者，语义等同转让——后置 M2；超管亦走此约束）
+    if (target.role === 'OWNER') {
+      return c.json(
+        { code: 'namespace.transfer_deferred', message: 'namespace.transfer_deferred' },
+        400,
+      );
+    }
+    const callerMember = await db
+      .select({ role: namespaceMember.role })
+      .from(namespaceMember)
+      .where(
+        and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, principal.userId)),
+      );
+    const callerRole = callerMember[0]?.role;
+    const callerRoles = await rbac.platformRolesOf(principal.userId);
+    const isSuperAdmin = callerRoles.includes('SUPER_ADMIN');
+    // ADMIN 仅可移 MEMBER（同级 ADMIN 不可互删——对称添加链；自移亦覆盖）
+    if (!isSuperAdmin && callerRole === 'ADMIN' && target.role === 'ADMIN') {
+      throw new AuthError('auth.forbidden');
+    }
+
+    await db
+      .delete(namespaceMember)
+      .where(and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, targetId ?? '')));
+    return c.body(null, 204);
+  });
+
   return app;
 }
