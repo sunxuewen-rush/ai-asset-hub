@@ -61,7 +61,7 @@ skillhub AccountMerge 同构——OIDC 与本地同 email 双账号是预期行�
 
 ## 3. 技术基线（引用 M1-platform §3，2026-09-07 本机核实）
 
-- Node v22.23.1 / pnpm 11.20.0 / Docker 29.7.2+compose v5.4.0；dev PG 宿主 5433
+- bun 1.3.14（运行时/安装/测试——2026-09-07 工具链从 pnpm 11.20.0/vitest/tsx 迁移）/ Node v22.23.1（tsc 编译）/ Docker 29.7.2+compose v5.4.0；dev PG 宿主 5433
 - 包结构：apps/{server,web,cli} + packages/protocol；turbo 全仓 typecheck/test/lint/build 绿
 - apps/server：Hono `createApp(deps)` 工厂（db/sessions/audit/rateLimiter/ldap 注入）+ `sessionMiddleware`/`csrfProtection`/`requestContextMiddleware` 装配 + `/api/auth` 路由组 + `RbacService.can` 判定链（SUPER_ADMIN 短路/平台权限/空间角色/空间状态）
 - 新增依赖预估：E 板块 `openid-client`（R5）；B 板块无新增（node:fs）；其余复用
@@ -235,7 +235,7 @@ skillhub AccountMerge 同构——OIDC 与本地同 email 双账号是预期行�
 
 #### T23 OIDC 客户端工厂
 - **Files**
-  - 依赖：`pnpm --filter @ai-asset-hub/server add openid-client`
+  - 依赖：`bun add openid-client`（apps/server 内执行）
   - Create: `apps/server/src/auth/oidc.ts`——`createOidcClient(oidcConfig)`（**工厂参数化：config 含 discoveryUrl/clientId/clientSecret/redirectUrl——多 provider 即多实例，注册表后置（S6）**）：基于 discovery URL 的 `Issuer.discover` + Client（R5）；导出 `getOidcClient()`（惰性单例，disabled → null）
   - Test: 工厂分支测试（disabled → null；enabled → client 构造——discovery 需网络：该分支单测跳过，冒烟覆盖——**诚实标注：discovery 为真实网络依赖，单测覆盖 disabled 分支与参数校验，enabled 路径冒烟用本地 fake issuer（自签 jwks）手动清单**）
 - **Assert**：disabled → null 不触网；参数校验（非法 URL 拒启）
@@ -348,7 +348,7 @@ skillhub AccountMerge 同构——OIDC 与本地同 email 双账号是预期行�
 
 ## 5. 验收总断言（plan 全绿定义）
 
-- 全仓 `pnpm typecheck` 0 error；`pnpm test` 0 failed；`pnpm lint` 0 error；`pnpm build` 成功
+- 全仓 `bun run typecheck` 0 error；`bun run test` 0 failed（bun test）；`bun run lint` 0 error；`bun run build` 成功
 - 板块 A：命名空间 CRUD/成员管理集成测试全绿；RBAC 负例（普通用户建空间 403（R2）/MEMBER 管理 403 / 非成员 404）
 - 板块 B：storage SPI + Local roundtrip 测试全绿；越界 key 拒；`.gitignore` 含 storage/
 - 板块 C：token 签发明文一次 + 哈希落库 + Bearer 全链（签发→使用→吊销→401）测试全绿
@@ -365,3 +365,4 @@ skillhub AccountMerge 同构——OIDC 与本地同 email 双账号是预期行�
 | v1.1 | 2026-09-07 | sunxuewen-rush | 自检 P1-P7：T6 角色分配链（OWNER 不可经添加产生/转让后置）、T14 过期语义（省略=不过期）、T24 state 改独立 HttpOnly cookie（访客无 session）、T25 provision 引用 T26+执行序、§5 断言顺序 A→B→C→D→E→F、T22 discovery https-only（防降级窃听）、T14 明文不落日志断言、T30 CSRF 豁免表述定稿、草稿残留清零 |
 | v1.2 | 2026-09-07 | sunxuewen-rush | R1-R9 skillhub 源码对标（§1.1 S1-S8）：R2 用户拍板对齐 skillhub（TEAM 建空间权 = ASSET_ADMIN/SUPER_ADMIN，T1 补 requirePlatformRole、T3 权限与断言更新）；T9 SPI 补 deleteMany/presignedGetUrl（S2）；T19/T20 审计过滤补 requestId/clientIp（S4）；§5 板块 A 断言补建空间 403；再审修复：R1 执行顺序收敛为 §4 编号序（A→B→C→D→E→F）、T1 引用修正（platformGrants 在 rbac.ts 非 T23）、T23 工厂参数化显式化（S6 落地） |
 | v1.3 | 2026-09-07 | sunxuewen-rush | 评审定稿：R1-R9 全部采纳推荐值（R2 对齐 skillhub）；§1.1 补 S9/S10（token 永不过期同构、账号合并后置——OIDC 同 email 双账号为预期行为）；后置清单补账号合并 |
+| v1.4 | 2026-09-07 | sunxuewen-rush | 工具链迁移同步：pnpm 11/vitest/tsx → bun 1.3.14（install/test/dev；tsc/turbo/biome 保留）；命令引用与 §3 技术基线更新 |
