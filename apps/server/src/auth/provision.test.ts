@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { and, eq, like } from 'drizzle-orm';
+import { and, count, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
@@ -14,6 +14,15 @@ let db: Db;
 beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
+  // 幂等：清上次运行残留（重复 run 会重插同 subject，先清后插）
+  const staleUsers = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.displayName, 'prov-%'));
+  for (const u of staleUsers) {
+    await db.delete(identityBinding).where(eq(identityBinding.userId, u.id));
+    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+  }
 });
 
 afterAll(async () => {
@@ -165,5 +174,49 @@ describe('provisionExternalUser（T26：公共建号/binding 复用）', () => {
     expect(user.id).toBe('E10086');
     // LDAP 调用不带 email → 账号 email 为 null 且保持
     expect(user.email).toBeNull();
+  });
+
+  it('T27：OIDC 重复登录（同 subject 两轮完整 provision）→ 账号与 binding 恒 1 条', async () => {
+    // 模拟同一 OIDC 用户两次回调（M1 ACCESS_POLICY=open 直通 ACTIVE，env 层已拒非 open）
+    for (let i = 0; i < 2; i += 1) {
+      await provisionExternalUser(db, {
+        provider: 'oidc',
+        providerSubject: 'sub-repeat',
+        userId: `usr_prov-oidc-repeat-${i}`,
+        displayName: 'Repeat User',
+      });
+    }
+    const [acctCount] = await db
+      .select({ total: count() })
+      .from(userAccount)
+      .where(eq(userAccount.id, 'usr_prov-oidc-repeat-0'));
+    expect(acctCount!.total).toBe(1);
+    const [bindCount] = await db
+      .select({ total: count() })
+      .from(identityBinding)
+      .where(
+        and(
+          eq(identityBinding.provider, 'oidc'),
+          eq(identityBinding.providerSubject, 'sub-repeat'),
+        ),
+      );
+    expect(bindCount!.total).toBe(1);
+    // binding 归属首轮 id（非第二轮参数）
+    const [binding] = await db
+      .select({ userId: identityBinding.userId })
+      .from(identityBinding)
+      .where(
+        and(
+          eq(identityBinding.provider, 'oidc'),
+          eq(identityBinding.providerSubject, 'sub-repeat'),
+        ),
+      );
+    expect(binding!.userId).toBe('usr_prov-oidc-repeat-0');
+    // 第二轮建的孤儿账号不应存在
+    const [orphan] = await db
+      .select({ id: userAccount.id })
+      .from(userAccount)
+      .where(eq(userAccount.id, 'usr_prov-oidc-repeat-1'));
+    expect(orphan).toBeUndefined();
   });
 });
