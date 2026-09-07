@@ -17,7 +17,12 @@ import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
 import { apiToken, userAccount } from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
-import { createDeviceRoutes, DEVICE_TOKEN_TTL_SEC, REQUEST_LIMIT } from './device-routes.js';
+import {
+  APPROVE_LIMIT,
+  createDeviceRoutes,
+  DEVICE_TOKEN_TTL_SEC,
+  REQUEST_LIMIT,
+} from './device-routes.js';
 import { requestContextMiddleware } from './request-context.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
 import { createTokenRoutes } from './tokens.js';
@@ -61,6 +66,7 @@ function buildApp(store?: DevicePendingStore): Hono {
       db,
       store: store ?? new DevicePendingStore(),
       rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
+      approveRateLimiter: new InMemoryRateLimiter(APPROVE_LIMIT.windowMs, APPROVE_LIMIT.max),
       publicBaseUrl: 'http://localhost:3000',
     }),
   );
@@ -195,6 +201,60 @@ describe('POST /api/auth/device/approve（T31 用户确认）', () => {
       body: JSON.stringify({ userCode: 'ZZZZZZZZ' }),
     });
     expect(noOrigin.status).toBe(403);
+  });
+
+  it('T33：同 user_code 错码连续 5 次（第 6 次）→ 429 auth.rate_limited', async () => {
+    const app = buildApp();
+    const cookie = await cookieFor(u1);
+    const headers = {
+      cookie,
+      origin: 'http://localhost:3000',
+      host: 'localhost:3000',
+      'content-type': 'application/json',
+    };
+    for (let i = 0; i < APPROVE_LIMIT.max; i += 1) {
+      const res = await app.request('/api/auth/device/approve', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ userCode: 'AAAAAAAA' }),
+      });
+      expect(res.status).toBe(404);
+    }
+    const blocked = await app.request('/api/auth/device/approve', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userCode: 'AAAAAAAA' }),
+    });
+    expect(blocked.status).toBe(429);
+    expect(((await blocked.json()) as { code: string }).code).toBe('auth.rate_limited');
+    expect(blocked.headers.get('retry-after')).toBeTruthy();
+  });
+
+  it('T33：userCode 大小写不敏感（小写输入 approve 成功）', async () => {
+    const app = buildApp();
+    const cookie = await cookieFor(u1);
+    const auth = (await (await app.request('/api/auth/device', { method: 'POST' })).json()) as {
+      deviceCode: string;
+      userCode: string;
+    };
+    const res = await app.request('/api/auth/device/approve', {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: 'http://localhost:3000',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ userCode: auth.userCode.toLowerCase() }),
+    });
+    expect(res.status).toBe(200);
+    // 绑定生效：轮询可取 token
+    const token = await app.request('/api/auth/device/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ deviceCode: auth.deviceCode }),
+    });
+    expect(token.status).toBe(200);
   });
 });
 

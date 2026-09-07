@@ -15,7 +15,7 @@ import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
-import { createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
+import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { requestContextMiddleware } from './http/request-context.js';
@@ -106,6 +106,8 @@ export function createApp(deps: AppDeps): Hono {
       store: deviceStore,
       // 匿名请求独立限流实例（10/分钟，不与登录共享 key 空间）
       rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
+      // approve 尝试限流（T33：每 user_code 5 次/分钟）
+      approveRateLimiter: new InMemoryRateLimiter(APPROVE_LIMIT.windowMs, APPROVE_LIMIT.max),
       publicBaseUrl: deps.publicBaseUrl ?? 'http://localhost:3000',
     }),
   );

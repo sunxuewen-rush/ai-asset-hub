@@ -19,6 +19,8 @@ export interface DeviceRoutesDeps {
   db: Db;
   store: DevicePendingStore;
   rateLimiter: RateLimiter;
+  /** approve 尝试限流（T33：每 user_code 5 次/分钟防爆破） */
+  approveRateLimiter: RateLimiter;
   /** verificationUri 前缀（PUBLIC_BASE_URL） */
   publicBaseUrl: string;
 }
@@ -28,6 +30,9 @@ export const REQUEST_LIMIT = { windowMs: 60_000, max: 10 } as const;
 
 /** 轮询产出 token 有效期（RFC 8628 access token；1h） */
 export const DEVICE_TOKEN_TTL_SEC = 3600;
+
+/** approve 尝试限流（每 user_code 5 次/分钟） */
+export const APPROVE_LIMIT = { windowMs: 60_000, max: 5 } as const;
 
 export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
   const { db, store, rateLimiter } = deps;
@@ -56,7 +61,8 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
     );
   });
 
-  // POST /api/auth/device/approve（T31：登录用户确认——cookie 通道，CSRF 保护内）
+  // POST /api/auth/device/approve（T31：登录用户确认——cookie 通道，CSRF 保护内；
+  // T33：user_code 尝试限流 5/min 前置）
   app.post('/approve', requireAuth(), async (c) => {
     const principal = c.get('principal');
     if (!principal) throw new Error('requireAuth guard violated: principal missing');
@@ -64,6 +70,13 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
     const userCode = typeof body?.userCode === 'string' ? body.userCode.trim() : '';
     if (userCode.length === 0) {
       return c.json({ code: 'request.invalid', message: 'userCode is required' }, 400);
+    }
+    const normalized = userCode.toUpperCase();
+    const rl = deps.approveRateLimiter.hit(`device-approve:${normalized}`);
+    if (!rl.allowed) {
+      return c.json({ code: 'auth.rate_limited', message: 'auth.rate_limited' }, 429, {
+        'retry-after': String(rl.retryAfterSec),
+      });
     }
     const pending = await store.getByUser(userCode);
     // 不存在/已过期 → 404 device_code_invalid（不泄露 pending 存在性）
