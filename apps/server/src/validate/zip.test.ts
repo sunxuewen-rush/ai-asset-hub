@@ -108,9 +108,18 @@ describe('族 validator 骨架（root 级主文件契约）', () => {
 
   it('合法 skill 包 → ok（三族分发）', async () => {
     expect((await registry.skill.validate(buildSkillZip())).ok).toBe(true);
-    const mcpZip = buildZip([{ name: 'mcp.json', content: '{"servers":{}}' }]);
+    const mcpZip = buildZip([
+      {
+        name: 'mcp.json',
+        content: JSON.stringify({
+          name: 'demo',
+          description: 'demo mcp',
+          servers: { s: { type: 'http', url: 'https://example.com', enabled: true } },
+        }),
+      },
+    ]);
     expect((await registry.mcp.validate(mcpZip)).ok).toBe(true);
-    const agentZip = buildZip([{ name: 'agent.md', content: '---\nname: a\n---\n' }]);
+    const agentZip = buildZip([{ name: 'agent.md', content: '---\nname: a\ndescription: b\n---\nbody\n' }]);
     expect((await registry.agent.validate(agentZip)).ok).toBe(true);
   });
 

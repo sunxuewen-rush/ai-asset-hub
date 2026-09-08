@@ -9,7 +9,7 @@
  */
 import { protocolErrorCodes, SkillManifestSchema } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
-import { extensionOf, runFamilyValidation } from './base.js';
+import { extensionOf, runFamilyValidation, zodIssuesToValidation } from './base.js';
 import { parseFrontmatter } from './frontmatter.js';
 import type { AssetValidator, ValidationIssue } from './types.js';
 
@@ -53,9 +53,7 @@ export function createSkillValidator(): AssetValidator {
           const { data, body } = parsed.value;
           const schemaResult = SkillManifestSchema.safeParse(data);
           if (!schemaResult.success) {
-            for (const issue of schemaResult.error.issues) {
-              issues.push({ code: issue.message, path: main.path });
-            }
+            issues.push(...zodIssuesToValidation(schemaResult.error, main.path));
           }
           if (body.trim().length === 0) {
             issues.push({ code: protocolErrorCodes.missingBody, path: main.path });
