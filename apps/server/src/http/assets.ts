@@ -26,6 +26,7 @@ import {
 } from '../assets/service.js';
 import { canViewAsset } from '../assets/visibility.js';
 import { createVersion } from '../assets/versions.js';
+import { getVersion, listVersions } from '../assets/version-read.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
 import { getEnv } from '../config/env.js';
@@ -61,6 +62,12 @@ const listQuerySchema = z.object({
   nsSlug: z.string().trim().min(1).max(64).optional(),
   type: assetTypeSchema.optional(),
   visibility: visibilitySchema.optional(),
+});
+
+/** 版本列表分页（T14——独立小 schema：无 ns/type 过滤） */
+const versionListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
 });
 
 /** POST /api/assets body（注册；visibility 默认 PUBLIC 由服务层兜底） */
@@ -108,7 +115,7 @@ async function viewerContext(
   c: import('hono').Context,
   namespaceId: number,
 ): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean }> {
-  const principal = c.get('principal') ?? null;
+  const principal = c.get('principal');
   if (!principal) return { viewerId: null, namespaceRole: null, isSuperAdmin: false };
   const rbac = c.get('rbac')!;
   const roles = await rbac.getNamespaceRoles(principal.userId, namespaceId);
@@ -118,6 +125,38 @@ async function viewerContext(
     namespaceRole: (roles[0] as NamespaceRole | undefined) ?? null,
     isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
   };
+}
+
+/**
+ * 资产读面前置链（detail + versions 端点共用——403/404 分层语义单点，design §7）：
+ * SUPER_ADMIN 短路 → 非 ACTIVE 404（活跃面不存在）→ ns ARCHIVED 非成员 403
+ * namespace_archived → visibility 拒 403 access_denied。返回 viewer 上下文（授权者身份）。
+ */
+async function assertAssetReadable(
+  c: import('hono').Context,
+  ns: { id: number; status: string },
+  row: { status: string; visibility: string; ownerId: string },
+): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean }> {
+  const viewer = await viewerContext(c, ns.id);
+  if (viewer.isSuperAdmin) return viewer;
+  if (row.status !== 'ACTIVE') throw new AssetError(assetErrorCodes.notFound);
+  if (ns.status === 'ARCHIVED' && viewer.namespaceRole === null) {
+    throw new AssetError(assetErrorCodes.namespaceArchived);
+  }
+  if (
+    !canViewAsset({
+      nsStatus: ns.status,
+      assetStatus: row.status,
+      visibility: row.visibility,
+      ownerId: row.ownerId,
+      viewerId: viewer.viewerId,
+      namespaceRole: viewer.namespaceRole,
+      isSuperAdmin: false,
+    })
+  ) {
+    throw new AssetError(assetErrorCodes.accessDenied);
+  }
+  return viewer;
 }
 
 /** 坐标加载（管理端点共用：ns/asset 不存在 → 404 asset.not_found） */
@@ -232,31 +271,38 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const nsSlug = c.req.param('nsSlug');
     const slug = c.req.param('slug');
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
-
-    const { viewerId, namespaceRole, isSuperAdmin } = await viewerContext(c, ns.id);
-    // SUPER_ADMIN 短路（05 §6.3：HIDDEN/ARCHIVED 治理可见）
-    if (isSuperAdmin) return c.json(assetItem(row, nsSlug));
-    // 活跃面不存在：HIDDEN/ARCHIVED 资产对普通用户如不存在（resolveVisibleSkill 语义）
-    if (row.status !== 'ACTIVE') throw new AssetError(assetErrorCodes.notFound);
-    // 空间归档明示（skillhub error.namespace.archived）
-    if (ns.status === 'ARCHIVED' && namespaceRole === null) {
-      throw new AssetError(assetErrorCodes.namespaceArchived);
-    }
-    // visibility 拒 → 403 明示（存在但无权——skillhub error.skill.access.denied）
-    if (
-      !canViewAsset({
-        nsStatus: ns.status,
-        assetStatus: row.status,
-        visibility: row.visibility,
-        ownerId: row.ownerId,
-        viewerId,
-        namespaceRole,
-        isSuperAdmin: false,
-      })
-    ) {
-      throw new AssetError(assetErrorCodes.accessDenied);
-    }
+    await assertAssetReadable(c, ns, row); // 读面 403/404 分层（design §7）
     return c.json(assetItem(row, nsSlug)); // nsSlug 已过 slugSchema 校验（path 即坐标）
+  });
+
+  // GET /api/assets/{ns}/{slug}/versions（T14：版本列表——Q1 DRAFT 授权过滤）
+  // 资产读面前置（403/404 分层）→ 版本状态授权（DRAFT 仅 owner/上传者/空间 ADMIN+；
+  // 无权者列表过滤——不泄露 DRAFT 存在）
+  app.get('/:nsSlug/:slug/versions', async (c) => {
+    const nsSlug = c.req.param('nsSlug');
+    const slug = c.req.param('slug');
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const viewer = await assertAssetReadable(c, ns, row);
+    const query = versionListQuerySchema.safeParse(c.req.query());
+    if (!query.success) {
+      return c.json({ code: 'request.invalid', message: 'invalid pagination params' }, 400);
+    }
+    const { limit, offset } = query.data;
+    const { items, total } = await listVersions(db, row.id, row.ownerId, viewer, { limit, offset });
+    return c.json({ items, total, limit, offset });
+  });
+
+  // GET /api/assets/{ns}/{slug}/versions/{version}（T14：版本详情——Q1 同款授权）
+  // 详情含 manifest/投影/文件清单（sha256 可核对——design §6）；无权 → 404（不泄露）
+  app.get('/:nsSlug/:slug/versions/:version', async (c) => {
+    const nsSlug = c.req.param('nsSlug');
+    const slug = c.req.param('slug');
+    const version = c.req.param('version');
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const viewer = await assertAssetReadable(c, ns, row);
+    const detail = await getVersion(db, row.id, row.ownerId, version, viewer);
+    if (!detail) throw new AssetError(assetErrorCodes.notFound);
+    return c.json(detail);
   });
 
   // PATCH /api/assets/{ns}/{slug}（T4：visibility 修改——Q3；owner 或空间 ADMIN+）

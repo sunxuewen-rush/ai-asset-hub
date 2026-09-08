@@ -34,6 +34,7 @@ import {
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildZip } from '../test-utils/zip-builder.js';
+import { createVersion } from '../assets/versions.js';
 import { rbacContext } from './auth-middleware.js';
 import { createAssetRoutes } from './assets.js';
 
@@ -150,6 +151,7 @@ beforeAll(async () => {
   nsArch = await insertNs('ast-http-arch', 'ARCHIVED');
   await addMember(nsA, member, 'MEMBER');
   await addMember(nsA, assetAdmin, 'ADMIN');
+  await addMember(nsA, owner2, 'MEMBER'); // T14：非 owner 上传者视角（nsA 普通成员）
   await addMember(nsB, owner2, 'OWNER');
   await addMember(nsB, member, 'MEMBER');
   // 读面 seed：PUBLIC skill（member 传）/ PRIVATE mcp（member 传）/ HIDDEN / archived 空间 PUBLIC
@@ -157,6 +159,7 @@ beforeAll(async () => {
   await insertAsset('ast-priv-mcp', 'mcp', member, 'PRIVATE');
   await insertAsset('ast-hidden', 'agent', member, 'PUBLIC', nsA, 'HIDDEN');
   await insertAsset('ast-arch-ns-pub', 'skill', member, 'PUBLIC', nsArch);
+  await insertAsset('ast-vread', 'skill', member, 'PUBLIC'); // T14 版本读面专用（owner=member）
   // 管理面 seed：visibility PATCH 目标 / 删除目标（无版本、有 PUBLISHED、DRAFT+文件）
   await insertAsset('ast-vis-target', 'skill', member, 'PUBLIC');
   await insertAsset('ast-del-plain', 'skill', member, 'PUBLIC');
@@ -588,5 +591,95 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
     expect(fileRows).toHaveLength(0);
     // 存储文件已清理（deleteMany 后 key 不存在）
     expect(await storage.exists(draftSeedKey)).toBe(false);
+  });
+});
+
+describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
+  let vreadAssetId: number;
+  const vreadZip = (name: string) =>
+    buildZip([
+      { name: 'SKILL.md', content: `---\nname: ${name}\ndescription: vread\n---\nbody\n` },
+      { name: 'refs/a.md', content: 'a\n' },
+    ]);
+
+  beforeAll(async () => {
+    const [row] = await db.select({ id: asset.id }).from(asset).where(eq(asset.slug, 'ast-vread'));
+    vreadAssetId = row!.id;
+    // 三个 DRAFT：member(owner) 传 1.0.0 / owner2(非 owner 上传者) 传 2.0.0 / assetAdmin(ADMIN) 传 3.0.0
+    for (const [uploader, version] of [
+      [member, '1.0.0'],
+      [owner2, '2.0.0'],
+      [assetAdmin, '3.0.0'],
+    ] as const) {
+      await createVersion(db, storage, audit, {
+        asset: { id: vreadAssetId, namespaceId: nsA, type: 'skill' },
+        uploaderId: uploader,
+        file: vreadZip('ast-vread'),
+        version,
+      });
+    }
+  });
+
+  it('owner（member）看自己传的 DRAFT 详情 200（manifest/files 齐全）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0', await cookieFor(member));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string; files: Array<{ filePath: string }>; manifestJson: { name: string } };
+    expect(body.status).toBe('DRAFT');
+    expect(body.files.map((f) => f.filePath)).toContain('SKILL.md');
+    expect(body.manifestJson.name).toBe('ast-vread');
+  });
+
+  it('owner 看他人上传的 DRAFT（2.0.0 owner2 传）也 200（owner 面）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/2.0.0', await cookieFor(member));
+    expect(res.status).toBe(200);
+  });
+
+  it('上传者（owner2 非 owner 非 ADMIN）看自己 DRAFT 200', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/2.0.0', await cookieFor(owner2));
+    expect(res.status).toBe(200);
+  });
+
+  it('上传者看他人 DRAFT（1.0.0）→ 404（Q1：成员非 owner 非上传者不可见）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0', await cookieFor(owner2));
+    expect(res.status).toBe(404);
+  });
+
+  it('空间 ADMIN 看任意 DRAFT 200（管理面）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0', await cookieFor(assetAdmin));
+    expect(res.status).toBe(200);
+  });
+
+  it('空间外用户看 DRAFT → 404（PUBLIC 资产也 404——版本面不透）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0', await cookieFor(outsider));
+    expect(res.status).toBe(404);
+  });
+
+  it('匿名看 DRAFT → 404', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0');
+    expect(res.status).toBe(404);
+  });
+
+  it('SUPER_ADMIN 看 DRAFT 200（短路）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0', await cookieFor(superAdmin));
+    expect(res.status).toBe(200);
+  });
+
+  it('列表：owner 见全部 3 版本；上传者仅见自己的；outsider 空列表', async () => {
+    const ownerRes = await getReq('/api/assets/ast-http-ns/ast-vread/versions', await cookieFor(member));
+    const ownerBody = (await ownerRes.json()) as { items: Array<{ version: string }> };
+    expect(ownerBody.items.map((i) => i.version).sort()).toEqual(['1.0.0', '2.0.0', '3.0.0']);
+
+    const uploaderRes = await getReq('/api/assets/ast-http-ns/ast-vread/versions', await cookieFor(owner2));
+    const uploaderBody = (await uploaderRes.json()) as { items: Array<{ version: string }> };
+    expect(uploaderBody.items.map((i) => i.version)).toEqual(['2.0.0']);
+
+    const outsiderRes = await getReq('/api/assets/ast-http-ns/ast-vread/versions', await cookieFor(outsider));
+    expect(outsiderRes.status).toBe(200);
+    expect(((await outsiderRes.json()) as { items: unknown[] }).items).toEqual([]);
+  });
+
+  it('不存在版本 → 404', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/99.0.0', await cookieFor(member));
+    expect(res.status).toBe(404);
   });
 });

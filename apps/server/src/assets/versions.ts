@@ -10,7 +10,7 @@
  * 服务层收授权后输入。
  */
 import { createHash } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import { assetFile, assetVersion, type AssetType } from '../db/schema/index.js';
@@ -48,10 +48,11 @@ export async function createVersion(
   const { asset: target, uploaderId, file, version, changelog } = input;
 
   // 1. 版本冲突预检（业务层友好 409；并发兜底在插行 catch 23505）
+  // 注意：条件必须 and() 组合——eq(a) && eq(b) 求值为 eq(b)（drizzle 对象 truthy——T14 实证 bug）
   const existing = await db
     .select({ id: assetVersion.id })
     .from(assetVersion)
-    .where(eq(assetVersion.assetId, target.id) && eq(assetVersion.version, version));
+    .where(and(eq(assetVersion.assetId, target.id), eq(assetVersion.version, version)));
   if (existing.length > 0) throw new AssetError(assetErrorCodes.versionConflict);
 
   // 2. 族校验 + 解析（失败抛 UploadValidationError——issues 全量给端点 400）
