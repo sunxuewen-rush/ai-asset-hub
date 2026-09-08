@@ -31,7 +31,7 @@ export type AssetStatus = z.infer<typeof assetStatusSchema>;
 export const visibilitySchema = z.enum(['PUBLIC', 'NAMESPACE_ONLY', 'PRIVATE']);
 export type Visibility = z.infer<typeof visibilitySchema>;
 
-/** asset_version.status 六态全序（08 §7） */
+/** asset_version.status 八态全序（08 §7 六态 → M3 补全 REJECTED/YANKED——skillhub 八态同源） */
 export const versionStatusSchema = z.enum([
   'DRAFT',
   'SCANNING',
@@ -39,6 +39,8 @@ export const versionStatusSchema = z.enum([
   'UPLOADED',
   'PENDING_REVIEW',
   'PUBLISHED',
+  'REJECTED',
+  'YANKED',
 ]);
 export type VersionStatus = z.infer<typeof versionStatusSchema>;
 
@@ -80,7 +82,7 @@ export const assetVersion = pgTable(
       .notNull()
       .references(() => asset.id),
     version: varchar('version', { length: 64 }).notNull(),
-    /** 六态全序见 08 §7 */
+    /** 八态全序见 08 §7（M3 补全 REJECTED/YANKED——design §3.4/§4.1） */
     status: text('status').$type<VersionStatus>().notNull().default('DRAFT'),
     changelog: text('changelog'),
     /** 元数据投影（01 §3.2） */
@@ -90,6 +92,13 @@ export const assetVersion = pgTable(
     fileCount: integer('file_count').notNull().default(0),
     totalSize: bigint('total_size', { mode: 'number' }).notNull().default(0),
     publishedAt: timestamp('published_at', { withTimezone: true }),
+    /** yank 留痕（M3 §4.1——skillhub SkillVersion 同构：撤回留痕，reason 必填由调用方校验） */
+    yankedAt: timestamp('yanked_at', { withTimezone: true }),
+    yankedBy: varchar('yanked_by', { length: 128 }).references(() => userAccount.id),
+    yankReason: text('yank_reason'),
+    /** bundle 副本（M3 §7.1——上传原 zip 顺存；zip 整体 sha256 供双通道校验，08 §5.3） */
+    bundleStorageKey: varchar('bundle_storage_key', { length: 512 }),
+    bundleSha256: varchar('bundle_sha256', { length: 64 }),
     createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
