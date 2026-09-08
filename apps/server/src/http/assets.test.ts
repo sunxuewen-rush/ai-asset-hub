@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { createHash, randomUUID } from 'node:crypto';
-import { eq, inArray, like } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
@@ -54,6 +54,7 @@ let storage!: ReturnType<typeof createLocalStorage>;
 let audit!: ReturnType<typeof createAuditWriter>;
 let uploadRateLimiter!: InMemoryRateLimiter;
 let draftSeedKey = ''; // DELETE 存储清理断言用（seed 记录的 key）
+let vreadAssetIdRef = 0; // T14/T15 版本读面/删除专用资产 id（describe beforeAll 赋值）
 
 async function makeUser(tag: string): Promise<string> {
   const id = `usr_${randomUUID()}`;
@@ -595,7 +596,6 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
 });
 
 describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
-  let vreadAssetId: number;
   const vreadZip = (name: string) =>
     buildZip([
       { name: 'SKILL.md', content: `---\nname: ${name}\ndescription: vread\n---\nbody\n` },
@@ -604,7 +604,7 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
 
   beforeAll(async () => {
     const [row] = await db.select({ id: asset.id }).from(asset).where(eq(asset.slug, 'ast-vread'));
-    vreadAssetId = row!.id;
+    vreadAssetIdRef = row!.id;
     // 三个 DRAFT：member(owner) 传 1.0.0 / owner2(非 owner 上传者) 传 2.0.0 / assetAdmin(ADMIN) 传 3.0.0
     for (const [uploader, version] of [
       [member, '1.0.0'],
@@ -612,7 +612,7 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
       [assetAdmin, '3.0.0'],
     ] as const) {
       await createVersion(db, storage, audit, {
-        asset: { id: vreadAssetId, namespaceId: nsA, type: 'skill' },
+        asset: { id: vreadAssetIdRef, namespaceId: nsA, type: 'skill' },
         uploaderId: uploader,
         file: vreadZip('ast-vread'),
         version,
@@ -680,6 +680,68 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
 
   it('不存在版本 → 404', async () => {
     const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/99.0.0', await cookieFor(member));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => {
+  const delUrl = (version: string) => `/api/assets/ast-http-ns/ast-vread/versions/${version}`;
+
+  it('上传者删自己的 DRAFT → 204 + 行/文件/存储/审计全链', async () => {
+    // 2.0.0 由 owner2（非 owner 普通成员）上传——撤回权实测
+    const res = await jsonRequest('DELETE', delUrl('2.0.0'), undefined, await cookieFor(owner2));
+    expect(res.status).toBe(204);
+
+    // 版本行已删
+    const vRows = await db
+      .select({ id: assetVersion.id })
+      .from(assetVersion)
+      .where(and(eq(assetVersion.version, '2.0.0'), eq(assetVersion.assetId, vreadAssetIdRef)));
+    expect(vRows).toHaveLength(0);
+    // 存储清理（file 行随版本行删除——直接查 file 行归属无；以 T14 seed 的 key 域断言存储无残留）
+    const auditRows = await db
+      .select({ action: auditLog.action, detail: auditLog.detail })
+      .from(auditLog)
+      .where(and(eq(auditLog.actorId, owner2), eq(auditLog.action, 'asset.version_delete')));
+    expect(auditRows.length).toBe(1);
+    expect((auditRows[0]!.detail as { version: string }).version).toBe('2.0.0');
+  });
+
+  it('owner 删他人上传的 DRAFT → 204（owner 面）', async () => {
+    const res = await jsonRequest('DELETE', delUrl('1.0.0'), undefined, await cookieFor(member));
+    expect(res.status).toBe(204);
+  });
+
+  it('空间 ADMIN 删 DRAFT → 204（管理面 05 §6.4）', async () => {
+    const res = await jsonRequest('DELETE', delUrl('3.0.0'), undefined, await cookieFor(assetAdmin));
+    expect(res.status).toBe(204);
+  });
+
+  it('非上传者普通成员删他人 DRAFT → 403（owner2 删 assetAdmin 传的——无撤回权）', async () => {
+    // 3.0.0 已被上面删——用 T15 seed 专用新版本？——重建：assetAdmin 再传 8.0.0
+    await createVersion(db, storage, audit, {
+      asset: { id: vreadAssetIdRef, namespaceId: nsA, type: 'skill' },
+      uploaderId: assetAdmin,
+      file: buildZip([{ name: 'SKILL.md', content: '---\nname: x\ndescription: x\n---\nbody\n' }]),
+      version: '8.0.0',
+    });
+    const res = await jsonRequest('DELETE', delUrl('8.0.0'), undefined, await cookieFor(owner2));
+    expect(res.status).toBe(403);
+  });
+
+  it('空间外用户删 DRAFT → 403', async () => {
+    const res = await jsonRequest('DELETE', delUrl('8.0.0'), undefined, await cookieFor(outsider));
+    expect(res.status).toBe(403);
+  });
+
+  it('删 PUBLISHED 版本 → 400 draft_only（非 DRAFT 走 M3 治理——member 是 ast-del-pub owner）', async () => {
+    const res = await jsonRequest('DELETE', '/api/assets/ast-http-ns/ast-del-pub/versions/1.0.0', undefined, await cookieFor(member));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('asset.draft_only');
+  });
+
+  it('已删版本再删 → 404', async () => {
+    const res = await jsonRequest('DELETE', delUrl('2.0.0'), undefined, await cookieFor(owner2));
     expect(res.status).toBe(404);
   });
 });

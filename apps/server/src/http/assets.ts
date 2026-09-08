@@ -25,7 +25,7 @@ import {
   type AssetRow,
 } from '../assets/service.js';
 import { canViewAsset } from '../assets/visibility.js';
-import { createVersion } from '../assets/versions.js';
+import { createVersion, deleteVersion } from '../assets/versions.js';
 import { getVersion, listVersions } from '../assets/version-read.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
@@ -498,6 +498,53 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       }
       throw err;
     }
+  });
+
+  // DELETE /api/assets/{ns}/{slug}/versions/{version}（T15：DRAFT 删除——Q2 判定）
+  // 判定序：版本 404 → 空间写门（ACTIVE，owner/上传者亦不能绕过空间冻结）→ 授权
+  // （owner/空间 ADMIN+，或上传者本人撤回自己的 DRAFT——Q2 上传者例外）→
+  // 非 DRAFT 400 draft_only（UPLOADED+ 走 M3 治理面）。删除连带存储清理。
+  app.delete('/:nsSlug/:slug/versions/:version', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const version = c.req.param('version')!;
+    if (
+      !slugSchema.safeParse(nsSlug).success ||
+      !slugSchema.safeParse(slug).success ||
+      !versionFieldSchema.safeParse(version).success
+    ) {
+      throw new AssetError(assetErrorCodes.notFound);
+    }
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const [versionRow] = await db
+      .select({ id: assetVersion.id, status: assetVersion.status, createdBy: assetVersion.createdBy })
+      .from(assetVersion)
+      .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
+    if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
+
+    const viewer = await viewerContext(c, ns.id);
+    if (!viewer.isSuperAdmin) {
+      if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门（05 §6.3）
+      const manager = canManageAsset({
+        ownerId: row.ownerId,
+        viewerId: principal.userId,
+        namespaceRole: viewer.namespaceRole,
+        isSuperAdmin: false,
+      });
+      // Q2：owner/空间 ADMIN+ 全 DRAFT 可删；上传者本人仅撤回自己的 DRAFT
+      const uploaderRetract = versionRow.status === 'DRAFT' && versionRow.createdBy === principal.userId;
+      if (!manager && !uploaderRetract) throw new AuthError('auth.forbidden');
+    }
+    if (versionRow.status !== 'DRAFT') throw new AssetError(assetErrorCodes.draftOnly);
+
+    await deleteVersion(db, deps.storage, deps.audit, {
+      versionId: versionRow.id,
+      assetId: row.id,
+      actorId: principal.userId,
+      version,
+    });
+    return c.body(null, 204);
   });
 
   return app;

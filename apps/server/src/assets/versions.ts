@@ -158,3 +158,36 @@ function contentTypeFor(path: string): string {
       return 'application/octet-stream';
   }
 }
+
+/**
+ * 删除版本（M2 T15；Q2——DRAFT 撤回/治理）。判定在路由层完成（上传者本人/
+ * owner/空间 ADMIN+ + DRAFT 检查）——本服务执行清理：事务删 file 行 + 版本行，
+ * 事后存储 deleteMany（孤儿文件容忍——与 T4 资产删除同纪律）。
+ */
+export async function deleteVersion(
+  db: Db,
+  storage: ObjectStorage,
+  audit: AuditWriter,
+  input: { versionId: number; assetId: number; actorId: string; version: string },
+): Promise<void> {
+  const files = await db
+    .select({ storageKey: assetFile.storageKey })
+    .from(assetFile)
+    .where(eq(assetFile.versionId, input.versionId));
+
+  await db.transaction(async (tx) => {
+    await tx.delete(assetFile).where(eq(assetFile.versionId, input.versionId));
+    await tx.delete(assetVersion).where(eq(assetVersion.id, input.versionId));
+  });
+
+  if (files.length > 0) {
+    await storage.deleteMany(files.map((f) => f.storageKey));
+  }
+  await audit({
+    actorId: input.actorId,
+    action: 'asset.version_delete',
+    targetType: 'asset',
+    targetId: String(input.assetId),
+    detail: { version: input.version, fileCount: files.length },
+  });
+}
