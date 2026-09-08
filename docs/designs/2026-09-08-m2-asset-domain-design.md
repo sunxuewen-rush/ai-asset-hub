@@ -1,7 +1,7 @@
 # M2 资产域设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.3：读面拒绝语义对标 skillhub 修正（404 防枚举 → 403 明示分层）；v1.2：砍 warnings/confirmWarnings 机制——族协议契约纯 error、root 级布局语义补入；v1.1：grilling Q1-Q5 修复；v1.0：R1-R9 评审拍板落档初稿）
+> Updated: 2026-09-08（v1.4：管理面判定对齐 05 §6.4（状态治理 ADMIN+/owner，非仅超管）；v1.3：读面拒绝语义对标 skillhub 修正（404 防枚举 → 403 明示分层）；v1.2：砍 warnings/confirmWarnings 机制——族协议契约纯 error、root 级布局语义补入；v1.1：grilling Q1-Q5 修复；v1.0：R1-R9 评审拍板落档初稿）
 > Status: 定稿（评审拍板 2026-09-08：R1-R9 锁定 + grilling Q1-Q5 通过；8 维自检 ≥9）
 > Scope: M2 资产域（00 §5）——skill/mcp/agent 三类资产坐标注册 + 族协议校验器/解析器 + 版本上传（DRAFT）+ 版本管理 + 空间 OWNER 转让 + 审计补全
 > 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）SkillPublishController / ZipPackageExtractor / NamespaceController.transferOwnership / TokenController 源码级核对
@@ -87,10 +87,10 @@ protocol 三族 manifest zod schema、对象存储 SPI + Local 实现（M1）均
 ## 7. 权限与治理判定（M2 对齐项落地）
 
 - **asset:manage 同码细分**（M1 design §6.7 对齐项③，业务层实现，不可只查 can）：
-  a) 资产管理面（visibility 修改、资产删除——Q3/Q5）——owner 或空间 ADMIN+；
-  b) 状态治理（status ACTIVE/HIDDEN/ARCHIVED 归档/隐藏/恢复）——仅 SUPER_ADMIN
-  （05 §6.4 治理最严先例对称）；
-  c) 撤回/下线已发布版本——随 M3 治理（本 design 不含）。
+  a) 资产管理面（visibility 修改、资产删除、状态治理——Q3/Q5）——判定 = `canManageAsset`
+  （owner 或空间 ADMIN+，05 §6.4 明文「空间 ADMIN 以上，或 owner 本人」；SUPER_ADMIN 短路；
+  空间非 ACTIVE 拒写——FROZEN 只读/ARCHIVED 归档，05 §6.3 判定链第 6 步对齐）；
+  b) 撤回/下线已发布版本——随 M3 治理（本 design 不含）。
 - **资产删除（Q5，纠错非治理）**：DELETE /api/assets/{ns}/{slug}——owner 或空间 ADMIN+；
   **仅当资产无 PUBLISHED 版本**（无版本/全 DRAFT）可删（连带版本行 + 存储清理）；
   有 PUBLISHED 后删除走 M3 治理（下线/归档），防止已分发资产被静默移除。
@@ -133,7 +133,7 @@ M2 补齐治理动作审计写入（audit writer M1 已备）：
 | GET /api/assets/{ns}/{slug} | 按 visibility（08 §5.1） | 资产详情；读面拒绝语义：坐标不存在/非 ACTIVE → 404；ns ARCHIVED 非成员 → 403 `namespace_archived`；visibility 拒 → 403 `access_denied`（skillhub 对齐，§7） |
 | PATCH /api/assets/{ns}/{slug} | owner 或空间 ADMIN+ | 修改 visibility（Q3） |
 | DELETE /api/assets/{ns}/{slug} | owner 或空间 ADMIN+ | 删除资产（Q5：仅无 PUBLISHED 版本；连带存储清理） |
-| PATCH /api/assets/{ns}/{slug}/status | 仅 SUPER_ADMIN | ACTIVE/HIDDEN/ARCHIVED 治理 |
+| PATCH /api/assets/{ns}/{slug}/status | owner 或空间 ADMIN+（asset:manage，05 §6.4） | ACTIVE/HIDDEN/ARCHIVED 状态治理（owner 下架自己资产；ADMIN+ 治理空间内） |
 | POST /api/assets/{ns}/{slug}/versions | asset:publish（空间成员） | 上传 zip（multipart）→ DRAFT；限流 |
 | GET /api/assets/{ns}/{slug}/versions | 按版本状态 | 版本列表（Q1：DRAFT 仅 owner/上传者/空间 ADMIN+） |
 | GET /api/assets/{ns}/{slug}/versions/{version} | 按版本状态 | 版本详情（Q1 同上；manifest/投影/文件清单） |
@@ -194,3 +194,4 @@ DRAFT → SCANNING/PUBLISHED 流转、版本下线与已发布资产治理 = M3 
 | v1.1 | 2026-09-08 | sunxuewen-rush | grilling Q1-Q5 修复：版本读面按状态过滤（DRAFT 仅 owner/上传者/空间 ADMIN+，08 §7 可见性补注同步）；DRAFT 上传者可删自己草稿（05 §6.4 补判定同步）；visibility 修改端点（owner/ADMIN+，注册可带）；资产删除端点（仅无 PUBLISHED，纠错非治理）；规范同步项 8.1 |
 | v1.2 | 2026-09-08 | sunxuewen-rush | 校验器契约修正：砍 warnings/confirmWarnings 机制（族协议 02/03/04 纯 error 无 warning 级——skillhub 单根目录提升场景在 AIH root 级契约下不存在，不为空转机制造接口）；补 zip root 级主文件布局与白名单扩展名拒绝语义 |
 | v1.3 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义对标修正（T3 实现期对标 skillhub SkillQueryService）：不可见 404 防枚举 → 403 明示分层（namespace_archived / access_denied 新码，error.namespace.archived / error.skill.access.denied 对齐；明确性优先拍板，权衡 403 泄露存在性已记录）；版本级 DRAFT 读面 Q1 维持，T14 复核 assertPreviewAccessible |
+| v1.4 | 2026-09-08 | sunxuewen-rush | 管理面判定契约修正（T4 实现期发现）：§7b 状态治理「仅超管」与 05 §6.4 明文（asset:manage = 空间 ADMIN+/owner，含归档/版本）冲突 → 对齐 05：三端点（visibility/status/删除）统一 `canManageAsset`（owner 或 ADMIN+ + 超管短路 + 空间非 ACTIVE 拒写） |

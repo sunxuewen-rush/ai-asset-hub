@@ -58,14 +58,16 @@ API Token scope 过滤、已发布资产下线/删除。
 - **Assert**：注册 201（owner 落位）；slug 冲突 409；非成员注册 403；PUBLIC 详情匿名 200；PRIVATE 详情非 owner 403（access_denied）；ns ARCHIVED 非成员 403（namespace_archived）；HIDDEN 404；FROZEN 空间注册 403
 - **Commit**: `feat(server): add asset register list and detail api`
 
-#### T4 资产管理端点：visibility 修改 + 资产删除（Q3/Q5）
+#### T4 资产管理端点：visibility 修改 + 状态治理 + 资产删除（Q3/Q5；05 §6.4 对齐）
 - **Files**
   - 续 Modify: `apps/server/src/http/assets.ts`——
-    - PATCH /api/assets/{ns}/{slug}（body {visibility}）：requireAuth + 判定 = owner 或空间 ADMIN+（asset:manage 面 a，05 §6.4——不可只查 can，组合判定 helper `canManageAsset`）
+    - PATCH /api/assets/{ns}/{slug}（body {visibility}）：判定 `canManageAsset`（owner 或空间 ADMIN+——05 §6.4；超管短路；空间非 ACTIVE 拒写）
+    - PATCH /api/assets/{ns}/{slug}/status（body {status: ACTIVE/HIDDEN/ARCHIVED}）：同判定（owner 下架自己资产；ADMIN+ 治理空间内——05 §6.4 明文）
     - DELETE /api/assets/{ns}/{slug}：canManageAsset + **资产无 PUBLISHED 版本**才可删（有 → 400 `asset.has_published`）；事务：删版本行 + asset_file 行 + 存储文件 deleteMany + asset 行（审计埋点）
-  - Create: `apps/server/src/assets/manage.ts`——`canManageAsset(principal, asset, namespaceRole)`（owner/空间 ADMIN+ 判定 helper，防 asset:manage 同码误用——M2 对齐项③落地）
+  - Create: `apps/server/src/assets/manage.ts`——`canManageAsset`（owner/空间 ADMIN+ 组合判定 helper，防 asset:manage 同码误用——M2 对齐项③落地；owner 判定不进角色矩阵）
+  - Modify: `apps/server/src/http/assets.ts` deps（db/audit/storage）+ T3 注册端点补审计埋点（asset.register）
   - Test: 续 `assets.test.ts`
-- **Assert**：owner 改 visibility 成功；MEMBER 改 → 403；无 PUBLISHED 资产可删（连带存储清理）；有 PUBLISHED 资产删 → 400；删除审计行存在
+- **Assert**：owner 改 visibility/status 成功（200 + 行断言 + 审计行）；MEMBER 改 → 403；FROZEN 空间 owner 改 → 403；无 PUBLISHED 资产可删（连带版本/文件行 + 存储清理断言）；有 PUBLISHED 资产删 → 400；删除审计行存在
 - **Commit**: `feat(server): add asset visibility patch and delete api`
 
 ### 板块 B 族协议校验器（design §4）
@@ -245,3 +247,4 @@ API Token scope 过滤、已发布资产下线/删除。
 | v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域计划——18 Task（板块 A-H：注册读面/校验器/解析投影/版本上传/版本管理/转让/审计补全/收尾），逐 Task 引用 design 2026-09-08-m2-asset-domain-design.md §N |
 | v1.1 | 2026-09-08 | sunxuewen-rush | 校验器契约同步（design v1.2）：砍 warnings/confirmWarnings（族协议纯 error）；T5 ValidationResult 去 warnings[]；T7 改 root 级主文件 + 扩展名白名单拒绝（无目录白名单）；T12/T13 删 confirm 流程 |
 | v1.2 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义同步（design v1.3）：T3/T4 详情与删除断言 404 → 403 分层（namespace_archived/access_denied） |
+| v1.3 | 2026-09-08 | sunxuewen-rush | 管理面同步（design v1.4）：T4 补状态治理端点（PATCH status，05 §6.4 asset:manage ADMIN+/owner 判定）；visibility/status/删除统一 canManageAsset（非仅超管） |
