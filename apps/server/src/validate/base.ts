@@ -7,6 +7,13 @@
 import { scanZip, ZipValidationError, type ZipEntryMeta } from './zip.js';
 import type { ValidationResult } from './types.js';
 
+/** 文件扩展名提取（白名单判定共用：点文件 .env → ''——无扩展名语义） */
+export function extensionOf(path: string): string {
+  const basename = path.split('/').pop() ?? '';
+  const idx = basename.lastIndexOf('.');
+  return idx > 0 ? basename.slice(idx).toLowerCase() : '';
+}
+
 export async function runFamilyValidation(
   zip: Buffer,
   familyCheck: (entries: ZipEntryMeta[]) => ValidationResult | Promise<ValidationResult>,

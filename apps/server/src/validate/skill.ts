@@ -1,28 +1,47 @@
 /**
- * skill 族校验器（M2 design §4；02 §3 契约：主文件 root 级 SKILL.md）。
- * T5：结构校验 + root 级主文件契约；族细则（references 布局/白名单扩展名/
- * frontmatter 内容契约）随 T6/T7 填充。
+ * skill 族校验器（M2 design §4；02 §2/§3 契约）：
+ * - 主文件 root 级，接受大小写变体（02 §2：上传兼容 skill.md/Skill.md，服务端归一化 SKILL.md）
+ * - 全包文件扩展名白名单（02 §3.3 表——skill 族白名单作用于整个包）
+ * - zip 结构/超限由 scanZip（base.ts 包装）先行
+ * frontmatter/body 内容契约（02 §3.1/§3.3 name/description/body）随 T7 接线。
  */
+import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
-import { runFamilyValidation } from './base.js';
-import type { AssetValidator } from './types.js';
+import { extensionOf, runFamilyValidation } from './base.js';
+import type { AssetValidator, ValidationIssue } from './types.js';
 
 export const SKILL_MAIN_FILE = 'SKILL.md';
+/** 02 §2：上传兼容大小写变体（服务端归一化为 SKILL.md——落存储时） */
+const SKILL_MAIN_VARIANTS: readonly string[] = ['SKILL.md', 'skill.md', 'Skill.md'];
+/** 02 §3.3 全包文件扩展名白名单（skill 族作用于整个包） */
+const SKILL_EXT_WHITELIST: readonly string[] = [
+  '.md', '.txt', '.json', '.yaml', '.yml', '.js', '.cjs', '.mjs',
+  '.ts', '.py', '.sh', '.png', '.jpg', '.svg',
+];
+const WHITELIST = new Set(SKILL_EXT_WHITELIST);
 
 export function createSkillValidator(): AssetValidator {
   return {
     type: 'skill',
     validate: (zip) =>
       runFamilyValidation(zip, (entries) => {
-        // design §4 root 级契约：主文件须在包根——缺/带外层目录（my-skill/SKILL.md）→ 结构错
-        if (!entries.some((e) => e.path === SKILL_MAIN_FILE)) {
-          return {
-            ok: false,
-            errors: [{ code: assetErrorCodes.packageLayoutInvalid, message: 'SKILL.md must exist at zip root' }],
-          };
+        const issues: ValidationIssue[] = [];
+        // root 级主文件：精确 SKILL.md 优先，大小写变体仅 fallback（02 §2 兼容——
+        // 双主文件并存时以规范名胜出，zip 序无关）
+        const main =
+          entries.find((e) => !e.path.includes('/') && e.path === SKILL_MAIN_FILE) ??
+          entries.find((e) => !e.path.includes('/') && SKILL_MAIN_VARIANTS.includes(e.path));
+        if (!main) {
+          issues.push({ code: assetErrorCodes.packageLayoutInvalid, message: `${SKILL_MAIN_FILE} must exist at zip root` });
+          return { ok: false, errors: issues };
         }
-        // 族细则（references/scripts 布局、白名单扩展名、frontmatter 契约）随 T6/T7 填充
-        return { ok: true, errors: [] };
+        // 全包扩展名白名单（02 §3.3——无扩展名/白名单外 → unsupported_file_type）
+        for (const entry of entries) {
+          if (!WHITELIST.has(extensionOf(entry.path))) {
+            issues.push({ code: protocolErrorCodes.unsupportedFileType, path: entry.path });
+          }
+        }
+        return { ok: issues.length === 0, errors: issues };
       }),
   };
 }
