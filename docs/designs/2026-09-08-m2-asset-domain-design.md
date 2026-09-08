@@ -1,7 +1,7 @@
 # M2 资产域设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.1：grilling Q1-Q5 修复——版本读面过滤/DRAFT 删除权/visibility 端点/资产删除/规范同步项；v1.0：R1-R9 评审拍板落档初稿）
+> Updated: 2026-09-08（v1.2：砍 warnings/confirmWarnings 机制——族协议契约纯 error、root 级布局语义补入；v1.1：grilling Q1-Q5 修复；v1.0：R1-R9 评审拍板落档初稿）
 > Status: 定稿（评审拍板 2026-09-08：R1-R9 锁定 + grilling Q1-Q5 通过；8 维自检 ≥9）
 > Scope: M2 资产域（00 §5）——skill/mcp/agent 三类资产坐标注册 + 族协议校验器/解析器 + 版本上传（DRAFT）+ 版本管理 + 空间 OWNER 转让 + 审计补全
 > 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）SkillPublishController / ZipPackageExtractor / NamespaceController.transferOwnership / TokenController 源码级核对
@@ -43,7 +43,7 @@ protocol 三族 manifest zod schema、对象存储 SPI + Local 实现（M1）均
 ## 4. 族协议校验器（R4/R5）
 
 - **落点**：apps/server/src/validate/（新模块）——AssetValidator 接口 + `type → validator`
-  注册表（01 §5）：`validate({ type, zipEntries }) → { ok, errors[], warnings[] }`；
+  注册表（01 §5）：`validate({ type, zipEntries }) → { ok, errors[] }`；
   manifest 结构校验复用 packages/protocol zod（protocol 保持纯 schema 单源，zip/IO 是服务端能力）。
 - **zip 解压（R5）**：yauzl 流式读取，边读边累计——天然防 zip bomb；上限常量（总量/单文件/文件数，
   数值以 02 §3.3 校验规则表为契约，env 可配——skillhub properties 配置化同构）。
@@ -53,9 +53,12 @@ protocol 三族 manifest zod schema、对象存储 SPI + Local 实现（M1）均
   mcp manifest / agent 根 agent.md）→ protocol zod 结构校验 → 错误码复用 protocolErrorCodes
   （errors.ts 单源：file_too_large/too_many_files/package_too_large/unsupported_file_type/
   invalid_*_frontmatter/sensitive_header_plaintext 等）。
-- **warnings/confirm 机制（skillhub 吸收）**：非致命告警（如白名单外文件忽略提示）随响应返回
-  `warnings[]`；含警告的上传须客户端 `confirmWarnings=true` 二次确认，否则 400
-  （skillhub publish confirmWarnings 同构）——防静默丢文件。
+- **zip 布局（root 级契约）**：主文件（skill 根 SKILL.md / mcp 根 mcp.json / agent 根 agent.md）
+  须在包根——03 §3.1 / 04 §3 明文 root 级；带外层目录（如 my-skill/xxx）的包 → 结构错误直接
+  拒绝（错误信息指引重新打包）；族协议契约无自动提升语义。
+- **纯 error 校验（无 warning 级）**：02/03/04 契约无 error/warning 分级——白名单外扩展名
+  （02 §3.3 扩展名白名单）→ `unsupported_file_type` error 拒绝；校验结果 = `{ok, errors[]}`，
+  无 warnings/confirm 二次确认面（族协议无对应场景，不为空转机制造接口）。
 - **上传限流**：上传端点按用户限流（skillhub publish authenticated=10 同构，复用 M1 rateLimiter）。
 
 ## 5. manifest 解析与投影
@@ -69,8 +72,7 @@ protocol 三族 manifest zod schema、对象存储 SPI + Local 实现（M1）均
 
 ## 6. 版本上传流程（DRAFT）
 
-- 端点 POST /api/assets/{nsSlug}/{slug}/versions，multipart（file=zip + version + changelog? +
-  confirmWarnings?）；权限：asset:publish（05 §6.4：MEMBER 可在空间内发布新资产）+
+- 端点 POST /api/assets/{nsSlug}/{slug}/versions，multipart（file=zip + version + changelog?）；权限：asset:publish（05 §6.4：MEMBER 可在空间内发布新资产）+
   空间状态 ACTIVE（FROZEN 拒写沿用 M1 rbac 判定链）。
 - **事务原子性**：先验后落——流式解压校验全过 → 写对象存储 → 落 asset_version(DRAFT) +
   asset_file 逐文件行（sha256/storage_key/content_type/size，UNIQUE(version_id, file_path)）——
@@ -135,7 +137,7 @@ M2 补齐治理动作审计写入（audit writer M1 已备）：
 
 ## 10. UI-UX 变动总览
 
-**无前端交付**（M2 后端里程碑）。上传确认（warnings/confirmWarnings）交互面随 M4 web；
+**无前端交付**（M2 后端里程碑）。校验失败的错误码/issue 展示交互随 M4 web；本设计不含 UI-UX 变更。
 本设计不含 UI-UX 变更。
 
 ## 11. 线框图
@@ -143,16 +145,15 @@ M2 补齐治理动作审计写入（audit writer M1 已备）：
 版本上传流程（原创自绘；状态机语义见 08 §7）：
 
 ```text
-POST /api/assets/{ns}/{slug}/versions（multipart: file=zip + version + changelog? + confirmWarnings?）
+POST /api/assets/{ns}/{slug}/versions（multipart: file=zip + version + changelog?）
   │ asset:publish 判定 + 空间 ACTIVE + 限流
   ▼
-yauzl 流式解压 ── 结构校验（总量/单文件/文件数/白名单/路径安全）── 拒绝 → 400（错误码）
+yauzl 流式解压 ── 结构校验（root 级主文件/白名单扩展名/总量/单文件/文件数/路径安全）
+              ── 拒绝 → 400（错误码 + issues）
   │ 通过
   ▼
 读主文件 → protocol zod 校验（manifest）── 拒绝 → 400（invalid_* 错误码）
   │ 通过
-  ▼
-warnings 非空且未 confirmWarnings ──► 400（precheck.confirm_required + warnings[]）
   ▼
 写对象存储（{namespaceId}/{assetId}/{versionId}/{path}）→ 落 asset_version(DRAFT) +
 asset_file 逐文件行（sha256）——事务：任一失败全回滚（无孤儿文件/行）
@@ -182,5 +183,6 @@ DRAFT → SCANNING/PUBLISHED 流转、版本下线与已发布资产治理 = M3 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域设计——R1-R9 评审拍板全锁（范围切分/坐标版本语义/校验器架构/解析投影/上传流程/权限细分/转让/审计/端点形态）；对标 21-skillhub 源码（confirmWarnings/配置化上限/transferOwnership/上传限流吸收） |
+| v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域设计——R1-R9 评审拍板全锁（范围切分/坐标版本语义/校验器架构/解析投影/上传流程/权限细分/转让/审计/端点形态）；对标 21-skillhub 源码（配置化上限/transferOwnership/上传限流吸收） |
 | v1.1 | 2026-09-08 | sunxuewen-rush | grilling Q1-Q5 修复：版本读面按状态过滤（DRAFT 仅 owner/上传者/空间 ADMIN+，08 §7 可见性补注同步）；DRAFT 上传者可删自己草稿（05 §6.4 补判定同步）；visibility 修改端点（owner/ADMIN+，注册可带）；资产删除端点（仅无 PUBLISHED，纠错非治理）；规范同步项 8.1 |
+| v1.2 | 2026-09-08 | sunxuewen-rush | 校验器契约修正：砍 warnings/confirmWarnings 机制（族协议 02/03/04 纯 error 无 warning 级——skillhub 单根目录提升场景在 AIH root 级契约下不存在，不为空转机制造接口）；补 zip root 级主文件布局与白名单扩展名拒绝语义 |
