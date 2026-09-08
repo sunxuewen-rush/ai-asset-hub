@@ -31,7 +31,10 @@ TypeScript 全栈（前端 React 19 + Vite，后端 Hono + Drizzle + PostgreSQL�
 
 ## 项目状态
 
-设计阶段 —— 定位与范围见 `docs/00-product-direction.md`，里程碑推进中。
+M0 ✅ · M1 ✅ 平台底座（本地账号/LDAP/OIDC 授权码/API Token/Device Flow/命名空间
+API/对象存储 SPI/审计，全仓 216 用例绿，2026-09-08）。下一步：M2 资产域
+（skill/mcp/agent 三类管线）。里程碑追踪见 [`docs/00`](docs/00-product-direction.md) §5；
+文档体系说明见 [`docs/README.md`](docs/README.md)。
 
 ## License
 
