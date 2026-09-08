@@ -4,6 +4,8 @@ import { assetErrorCodes } from '../assets/errors.js';
 import { buildSkillZip, buildZip } from '../test-utils/zip-builder.js';
 import { createValidatorRegistry } from './registry.js';
 import { readZipEntry, scanZip, ZipValidationError, type ZipLimits } from './zip.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
+ensureTestEnv();
 
 const SMALL_LIMITS: ZipLimits = {
   maxTotalBytes: 10,

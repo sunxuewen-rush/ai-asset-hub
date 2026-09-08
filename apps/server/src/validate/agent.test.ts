@@ -3,6 +3,8 @@ import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { createAgentValidator } from './agent.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
+ensureTestEnv();
 
 const validator = createAgentValidator();
 

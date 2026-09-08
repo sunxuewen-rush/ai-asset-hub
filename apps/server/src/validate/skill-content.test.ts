@@ -4,6 +4,8 @@ import { assetErrorCodes } from '../assets/errors.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { createSkillValidator } from './skill.js';
 import { parseFrontmatter } from './frontmatter.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
+ensureTestEnv();
 
 const validator = createSkillValidator();
 const VALID = '---\nname: hello\ndescription: A demo skill\n---\n# Hello\n\nBody content.\n';

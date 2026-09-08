@@ -16,7 +16,7 @@ import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
-import { createAssetRoutes } from './http/assets.js';
+import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './http/assets.js';
 import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
@@ -33,6 +33,8 @@ export interface AppDeps {
   sessions: SessionManager;
   audit: AuditWriter;
   rateLimiter: RateLimiter;
+  /** 上传限流（T13——独立实例：UPLOAD_RATE_LIMIT 常量装配） */
+  uploadRateLimiter?: RateLimiter;
   ldap: LdapChannel | null;
   storage: ObjectStorage;
   registrationEnabled: boolean;
@@ -104,7 +106,12 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
-  app.route('/api/assets', createAssetRoutes({ db: deps.db, audit: deps.audit, storage: deps.storage }));
+  app.route('/api/assets', createAssetRoutes({
+    db: deps.db,
+    audit: deps.audit,
+    storage: deps.storage,
+    uploadRateLimiter: deps.uploadRateLimiter ?? new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max),
+  }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // Device Flow（T30-T33；anonymous 端点豁免 CSRF——见装配；approve 走 cookie 通道）

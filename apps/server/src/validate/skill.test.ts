@@ -4,6 +4,8 @@ import { assetErrorCodes } from '../assets/errors.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { extensionOf } from './base.js';
 import { createSkillValidator } from './skill.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
+ensureTestEnv();
 
 const validator = createSkillValidator();
 const base = '---\nname: hello\ndescription: hi\n---\n# Hello\n';

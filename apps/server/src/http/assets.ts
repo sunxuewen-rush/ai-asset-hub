@@ -14,7 +14,8 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
-import { AssetError, assetErrorCodes } from '../assets/errors.js';
+import type { RateLimiter } from '../auth/rate-limit.js';
+import { AssetError, assetErrorCodes, UploadValidationError } from '../assets/errors.js';
 import { canManageAsset } from '../assets/manage.js';
 import {
   createAsset,
@@ -24,8 +25,10 @@ import {
   type AssetRow,
 } from '../assets/service.js';
 import { canViewAsset } from '../assets/visibility.js';
+import { createVersion } from '../assets/versions.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
+import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
   asset,
@@ -45,7 +48,12 @@ export interface AssetRoutesDeps {
   audit: AuditWriter;
   /** 资产删除连带存储清理（deleteMany） */
   storage: ObjectStorage;
+  /** 上传限流（每用户窗口——skillhub publish=10 同构；独立实例防与登录共享挤占） */
+  uploadRateLimiter: RateLimiter;
 }
+
+/** 上传限流配置（T13：10 次/分钟·每用户——常量装配于 app.ts 独立实例） */
+export const UPLOAD_RATE_LIMIT = { windowMs: 60_000, max: 10 } as const;
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -65,6 +73,15 @@ const createBodySchema = z.object({
 
 /** PATCH /:ns/:slug body（visibility 修改——Q3） */
 const visibilityBodySchema = z.object({ visibility: visibilitySchema });
+
+/** 版本号（01 §3 semver——基础三段 + 可选 pre-release/build 限定） */
+const versionFieldSchema = z
+  .string()
+  .max(64)
+  .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, 'request.invalid');
+
+/** changelog 长度界（防滥——text 列无界） */
+const changelogFieldSchema = z.string().max(4096).optional();
 
 /** PATCH /:ns/:slug/status body（状态治理——05 §6.4 asset:manage） */
 const statusBodySchema = z.object({ status: assetStatusSchema });
@@ -362,6 +379,79 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       detail: { namespaceSlug: nsSlug, slug, versionCount: versionIds.length },
     });
     return c.body(null, 204);
+  });
+
+  // POST /api/assets/{ns}/{slug}/versions（T13：multipart 上传——design §6 全链）
+  // 权限 = asset:publish（空间成员，rbac.can 含 FROZEN 拒写——与注册同判定）；
+  // 限流 = 每用户 10 次/分钟（skillhub publish 同构）；413 = 包体超上限前置（multipart）；
+  // 校验失败 400 = 首错误码 + issues 全量（UploadValidationError 特异响应）
+  app.post('/:nsSlug/:slug/versions', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    if (!slugSchema.safeParse(nsSlug).success || !slugSchema.safeParse(slug).success) {
+      throw new AssetError(assetErrorCodes.notFound);
+    }
+
+    const rl = deps.uploadRateLimiter.hit(`asset-upload:${principal.userId}`);
+    if (!rl.allowed) {
+      return c.json({ code: 'auth.rate_limited', message: 'upload rate limited', retryAfterSec: rl.retryAfterSec }, 429);
+    }
+
+    // multipart 解析（file 必填 + version 必填 + changelog 可选）
+    const body = await c.req.parseBody();
+    const rawFile = body['file'];
+    if (!(rawFile instanceof File) || rawFile.size === 0) {
+      return c.json({ code: 'request.invalid', message: 'multipart field "file" (zip) is required' }, 400);
+    }
+    const rawVersion = typeof body['version'] === 'string' ? body['version'] : undefined;
+    const versionParsed = versionFieldSchema.safeParse(rawVersion);
+    if (!versionParsed.success) {
+      return c.json({ code: 'request.invalid', message: 'version must be semver (e.g. 1.0.0)' }, 400);
+    }
+    const rawChangelog = typeof body['changelog'] === 'string' ? body['changelog'] : undefined;
+    const changelogParsed = changelogFieldSchema.safeParse(rawChangelog);
+    if (!changelogParsed.success) {
+      return c.json({ code: 'request.invalid', message: 'changelog too long (≤4096)' }, 400);
+    }
+
+    // 413 前置：包体字节 > 总包上限（config/env 单源——02 §3.3 10MiB）
+    const env = getEnv();
+    if (rawFile.size > env.ASSET_PACKAGE_MAX_BYTES) {
+      throw new AssetError(assetErrorCodes.packageTooLarge);
+    }
+    const fileBuffer = Buffer.from(await rawFile.arrayBuffer());
+
+    // 坐标 → 权限（asset:publish 空间成员——rbac.can 含空间状态/账号判定）
+    const ns = await findNamespaceBySlug(db, nsSlug);
+    if (!ns) throw new AssetError(assetErrorCodes.notFound);
+    const rbac = c.get('rbac')!;
+    const can = await rbac.can(principal.userId, PERMISSIONS.assetPublish, { namespaceId: ns.id });
+    if (!can) throw new AuthError('auth.forbidden');
+    const [assetRow] = await db
+      .select({ id: asset.id, type: asset.type })
+      .from(asset)
+      .where(and(eq(asset.namespaceId, ns.id), eq(asset.slug, slug)));
+    if (!assetRow) throw new AssetError(assetErrorCodes.notFound);
+
+    try {
+      const created = await createVersion(db, deps.storage, deps.audit, {
+        asset: { id: assetRow.id, namespaceId: ns.id, type: assetRow.type },
+        uploaderId: principal.userId,
+        file: fileBuffer,
+        version: versionParsed.data,
+        changelog: changelogParsed.data,
+      });
+      return c.json(created, 201);
+    } catch (err) {
+      if (err instanceof UploadValidationError) {
+        return c.json(
+          { code: err.issues[0]?.code ?? 'validation_failed', issues: err.issues },
+          400,
+        );
+      }
+      throw err;
+    }
   });
 
   return app;

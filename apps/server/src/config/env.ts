@@ -37,6 +37,11 @@ const envSchema = z.object({
 
   // 对象存储（08 §5.3；M1 Local 实现，S3 后置 M3）
   STORAGE_DRIVER: storageDriverSchema.default('local'),
+
+  // 资产包校验上限（02/03/04 §5：单文件 ≤1MiB / 总包 ≤10MiB / 文件数 ≤100——服务端可配置）
+  ASSET_PACKAGE_MAX_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
+  ASSET_FILE_MAX_BYTES: z.coerce.number().int().positive().default(1 * 1024 * 1024),
+  ASSET_MAX_FILES: z.coerce.number().int().positive().default(100),
   STORAGE_DIR: z.string().default('./storage'),
 
   // 对外基址（OIDC 回调 / Device Flow verificationUri 推导）

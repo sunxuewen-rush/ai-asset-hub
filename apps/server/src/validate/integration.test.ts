@@ -3,6 +3,8 @@ import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
 import { buildSkillZip, buildZip } from '../test-utils/zip-builder.js';
 import { createValidatorRegistry } from './registry.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
+ensureTestEnv();
 
 /**
  * registry 级端到端（T9）：三族合法包全过 + 各族反例在统一分发下正确拒绝。

@@ -14,6 +14,7 @@ import { AssetError } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
+import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
@@ -32,6 +33,7 @@ import {
   type RoleCode,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
+import { buildZip } from '../test-utils/zip-builder.js';
 import { rbacContext } from './auth-middleware.js';
 import { createAssetRoutes } from './assets.js';
 
@@ -49,6 +51,7 @@ let nsArch: number;
 let storageDir: string;
 let storage!: ReturnType<typeof createLocalStorage>;
 let audit!: ReturnType<typeof createAuditWriter>;
+let uploadRateLimiter!: InMemoryRateLimiter;
 let draftSeedKey = ''; // DELETE 存储清理断言用（seed 记录的 key）
 
 async function makeUser(tag: string): Promise<string> {
@@ -107,7 +110,7 @@ function buildApp(): Hono {
     }
     return c.json({ code: 'internal_error' }, 500);
   });
-  app.route('/api/assets', createAssetRoutes({ db, audit, storage }));
+  app.route('/api/assets', createAssetRoutes({ db, audit, storage, uploadRateLimiter }));
   return app;
 }
 
@@ -131,6 +134,7 @@ beforeAll(async () => {
   audit = createAuditWriter(db);
   storageDir = await mkdtemp(join(tmpdir(), 'ast-storage-'));
   storage = createLocalStorage(storageDir);
+  uploadRateLimiter = new InMemoryRateLimiter(60_000, 10);
   member = await makeUser('member');
   owner2 = await makeUser('owner2');
   outsider = await makeUser('outsider');
@@ -284,6 +288,90 @@ describe('POST /api/assets 注册', () => {
 
   it('未登录 401', async () => {
     const res = await jsonRequest('POST', '/api/assets', { namespaceSlug: 'ast-http-ns', slug: 'ast-x', type: 'skill' });
+    expect(res.status).toBe(401);
+  });
+});
+
+/** multipart 上传构造（T13：app.request + FormData——bun 原生支持） */
+function uploadZip(
+  cookie: string,
+  path: string,
+  zip: Buffer,
+  version = '1.0.0',
+  changelog?: string,
+) {
+  const fd = new FormData();
+  fd.append('file', new File([zip], 'pkg.zip', { type: 'application/zip' }));
+  fd.append('version', version);
+  if (changelog) fd.append('changelog', changelog);
+  return buildApp().request(`/api/assets/${path}/versions`, {
+    method: 'POST',
+    headers: { origin: ORIGIN.origin, host: 'localhost:3000', cookie },
+    body: fd,
+  });
+}
+
+function uploadSkillZip(): Buffer {
+  return buildZip([
+    { name: 'SKILL.md', content: '---\nname: ast-pub-skill\ndescription: upload http test\n---\n# Demo\n\nbody\n' },
+    { name: 'references/a.md', content: 'a\n' },
+  ]);
+}
+
+describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () => {
+  it('201 全链（member 上传合法包——DRAFT + fileCount）', async () => {
+    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-pub-skill', uploadSkillZip(), '3.1.0', 'via http');
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { status: string; fileCount: number; version: string };
+    expect(body.status).toBe('DRAFT');
+    expect(body.fileCount).toBe(2);
+    expect(body.version).toBe('3.1.0');
+  });
+
+  it('校验失败 400 + issues 全量（首错误码）', async () => {
+    const bad = buildZip([{ name: 'SKILL.md', content: 'no frontmatter\n' }]);
+    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-pub-skill', bad, '3.2.0');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string; issues: Array<{ code: string }> };
+    expect(body.issues.length).toBeGreaterThan(0);
+    expect(body.code).toBe(body.issues[0]!.code);
+  });
+
+  it('version 非 semver → 400 request.invalid', async () => {
+    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-pub-skill', uploadSkillZip(), 'v3');
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('request.invalid');
+  });
+
+  it('非空间成员上传 → 403', async () => {
+    const res = await uploadZip(await cookieFor(outsider), 'ast-http-ns/ast-pub-skill', uploadSkillZip(), '3.3.0');
+    expect(res.status).toBe(403);
+  });
+
+  it('资产不存在 → 404', async () => {
+    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-missing', uploadSkillZip(), '3.4.0');
+    expect(res.status).toBe(404);
+  });
+
+  it('超上限 413（包体 > ASSET_PACKAGE_MAX_BYTES 10MiB）', async () => {
+    const big = buildZip([
+      { name: 'SKILL.md', content: '---\nname: big\ndescription: big\n---\nbody\n' },
+      { name: 'blob.bin', content: Buffer.alloc(11 * 1024 * 1024, 1) },
+    ]);
+    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-pub-skill', big, '3.5.0');
+    expect(res.status).toBe(413);
+    expect(((await res.json()) as { code: string }).code).toBe('asset.package_too_large');
+  });
+
+  it('限流 429（第 11 次上传——10 次/分钟窗口）', async () => {
+    // 预热限流 key（member 已传 3 次——补 hit 到 10）
+    for (let i = 0; i < 7; i++) uploadRateLimiter.hit(`asset-upload:${member}`);
+    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-pub-skill', uploadSkillZip(), '9.9.9');
+    expect(res.status).toBe(429);
+  });
+
+  it('未登录 401', async () => {
+    const res = await uploadZip('', 'ast-http-ns/ast-pub-skill', uploadSkillZip(), '3.6.0');
     expect(res.status).toBe(401);
   });
 });

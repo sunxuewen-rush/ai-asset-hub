@@ -10,6 +10,7 @@
  */
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { fromBuffer } from 'yauzl';
+import { getEnv, type Env } from '../config/env.js';
 import { assetErrorCodes } from '../assets/errors.js';
 
 export interface ZipLimits {
@@ -18,17 +19,13 @@ export interface ZipLimits {
   maxFiles: number;
 }
 
-const MiB = 1024 * 1024;
-
-export function defaultZipLimits(env: NodeJS.ProcessEnv = process.env): ZipLimits {
-  const num = (v: string | undefined, fallback: number): number => {
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : fallback;
-  };
+/** 默认上限（config/env 单源——02/03/04 §5 数值；测试注入覆盖参数） */
+export function defaultZipLimits(env: Env | null = null): ZipLimits {
+  const e = env ?? getEnv();
   return {
-    maxTotalBytes: num(env.AHT_PACKAGE_MAX_BYTES, 10 * MiB),
-    maxFileBytes: num(env.AHT_FILE_MAX_BYTES, 1 * MiB),
-    maxFiles: num(env.AHT_MAX_FILES, 100),
+    maxTotalBytes: e.ASSET_PACKAGE_MAX_BYTES,
+    maxFileBytes: e.ASSET_FILE_MAX_BYTES,
+    maxFiles: e.ASSET_MAX_FILES,
   };
 }
 
