@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { protocolErrorCodes as EC } from '../errors.js';
 import { descriptionSchema, nameSchema } from '../slug.js';
 
 /** 敏感头名（大小写不敏感）：值必须 `${VAR}` 引用，禁止明文（03 §4） */
@@ -17,12 +18,12 @@ const serverEntrySchema = z
     /** 传输类型（03 §3.2）：必填 */
     type: z.enum(['stdio', 'http', 'sse']),
     /** 是否启用（03 §3.2）：必填 */
-    enabled: z.boolean({ required_error: 'enabled_required' }),
+    enabled: z.boolean({ required_error: EC.enabledRequired }),
     /** stdio：可执行命令，非空、不含反斜杠；`./` 或 `scripts/` 开头 = 包内引用 */
     command: z
       .string()
       .min(1)
-      .refine((v) => !v.includes('\\'), 'command_backslash')
+      .refine((v) => !v.includes('\\'), EC.commandBackslash)
       .optional(),
     /** stdio：命令参数 */
     args: z.array(z.string()).optional(),
@@ -39,30 +40,30 @@ const serverEntrySchema = z
     // 互斥与必填（03 §3.3）：type 与字段必须匹配
     if (entry.type === 'stdio') {
       if (!entry.command) {
-        ctx.addIssue({ code: 'custom', path: ['command'], message: 'stdio_requires_command' });
+        ctx.addIssue({ code: 'custom', path: ['command'], message: EC.stdioRequiresCommand });
       }
       if (entry.url !== undefined) {
         ctx.addIssue({
           code: 'custom',
           path: ['url'],
-          message: 'conflicting_url_with_stdio',
+          message: EC.conflictingUrlWithStdio,
         });
       }
     } else {
       // http / sse
       if (!entry.url) {
-        ctx.addIssue({ code: 'custom', path: ['url'], message: 'url_required' });
+        ctx.addIssue({ code: 'custom', path: ['url'], message: EC.urlRequired });
       } else {
         const protocol = new URL(entry.url).protocol;
         if (protocol !== 'http:' && protocol !== 'https:') {
-          ctx.addIssue({ code: 'custom', path: ['url'], message: 'url_must_be_http' });
+          ctx.addIssue({ code: 'custom', path: ['url'], message: EC.urlMustBeHttp });
         }
       }
       if (entry.command !== undefined) {
         ctx.addIssue({
           code: 'custom',
           path: ['command'],
-          message: 'conflicting_command_with_url',
+          message: EC.conflictingCommandWithUrl,
         });
       }
     }
@@ -76,7 +77,7 @@ const serverEntrySchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['headers', headerName],
-          message: 'sensitive_header_plaintext',
+          message: EC.sensitiveHeaderPlaintext,
         });
       }
     }
@@ -101,7 +102,7 @@ export const McpManifestSchema = z.preprocess(
       description: descriptionSchema,
       servers: z
         .record(z.string(), serverEntrySchema)
-        .refine((servers) => Object.keys(servers).length > 0, 'servers_empty'),
+        .refine((servers) => Object.keys(servers).length > 0, EC.serversEmpty),
     })
     .passthrough(),
 );

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { protocolErrorCodes } from './errors.js';
 
 /**
  * slug 规则（01 §3.3）：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，长度 1-64，不含连续 `--`。
@@ -32,4 +33,4 @@ export const nameSchema = z
 export const descriptionSchema = z
   .string({ required_error: 'missing_description', invalid_type_error: 'missing_description' })
   .min(1, 'missing_description')
-  .max(1024, 'description_too_long');
+  .max(1024, protocolErrorCodes.descriptionTooLong);
