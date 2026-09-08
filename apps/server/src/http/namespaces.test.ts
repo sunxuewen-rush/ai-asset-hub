@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, inArray, like, or } from 'drizzle-orm';
+import { and, eq, inArray, like, or } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
@@ -11,8 +11,10 @@ import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
 import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
+import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  auditLog,
   namespace,
   namespaceMember,
   type RoleCode,
@@ -24,6 +26,8 @@ import { rbacContext } from './auth-middleware.js';
 import { createNamespaceRoutes } from './namespaces.js';
 
 let db: Db;
+/** T16：转让审计断言（audit writer——治理动作埋点） */
+let audit!: ReturnType<typeof createAuditWriter>;
 let sessions: SessionManager;
 let rbac: RbacService;
 let u1: string; // 成员视角
@@ -100,7 +104,7 @@ function buildApp(): Hono {
     }
     return c.json({ code: 'internal_error' }, 500);
   });
-  app.route('/api/namespaces', createNamespaceRoutes({ db }));
+  app.route('/api/namespaces', createNamespaceRoutes({ db, audit }));
   return app;
 }
 
@@ -116,6 +120,7 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
   sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  audit = createAuditWriter(db);
   u1 = await makeUser('ns-u1');
   u2 = await makeUser('ns-u2');
   await ensureRole('ASSET_ADMIN');
@@ -185,6 +190,13 @@ afterAll(async () => {
     .from(userAccount)
     .where(like(userAccount.displayName, 'ns-%'));
   for (const u of users) {
+    await db.delete(auditLog).where(eq(auditLog.actorId, u.id)); // T16：审计动作埋点后 FK 序（audit 先清）
+    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
+    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+  }
+  const t6Users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.displayName, 't6-%'));
+  for (const u of t6Users) {
+    await db.delete(auditLog).where(eq(auditLog.actorId, u.id));
     await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
@@ -756,5 +768,80 @@ describe('DELETE /api/namespaces/:id/members/:userId（T7 移除成员）', () =
     expect(await missing.json()).toMatchObject({ code: 'namespace.member_not_found' });
     const bad = await deleteReq(`/api/namespaces/abc/members/usr_x`, await cookieFor(assetAdmin));
     expect(bad.status).toBe(400);
+  });
+});
+
+
+describe('空间 OWNER 转让（T16 R3——OWNER 位置转移）', () => {
+  let tOwner: string;
+  let tAdmin: string;
+  let tMember: string;
+  let nsT: number;
+
+  beforeAll(async () => {
+    tOwner = await makeUser('t6-owner');
+    tAdmin = await makeUser('t6-admin');
+    tMember = await makeUser('t6-member');
+    nsT = await insertNs('t6-transfer');
+    await addMember(nsT, tOwner, 'OWNER');
+    await addMember(nsT, tAdmin, 'ADMIN');
+    await addMember(nsT, tMember, 'MEMBER');
+  });
+
+  it('OWNER 转让成功：新 OWNER 升 OWNER + 旧 OWNER 降 ADMIN（防空位）', async () => {
+    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tMember }, await cookieFor(tOwner));
+    expect(res.status).toBe(204);
+
+    const roles = await db
+      .select({ userId: namespaceMember.userId, role: namespaceMember.role })
+      .from(namespaceMember)
+      .where(eq(namespaceMember.namespaceId, nsT));
+    const byUser = new Map(roles.map((r) => [r.userId, r.role]));
+    expect(byUser.get(tMember)).toBe('OWNER');
+    expect(byUser.get(tOwner)).toBe('ADMIN');
+    expect(byUser.get(tAdmin)).toBe('ADMIN');
+  });
+
+  it('审计行（namespace.transfer_ownership——from/to 记录）', async () => {
+    const rows = await db
+      .select({ action: auditLog.action, detail: auditLog.detail })
+      .from(auditLog)
+      .where(and(eq(auditLog.actorId, tOwner), eq(auditLog.action, 'namespace.transfer_ownership')));
+    expect(rows.length).toBe(1);
+    expect((rows[0]!.detail as { from: string; to: string }).to).toBe(tMember);
+  });
+
+  it('非 OWNER（ADMIN）发起 → 403', async () => {
+    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tAdmin }, await cookieFor(tAdmin));
+    expect(res.status).toBe(403);
+  });
+
+  it('目标非成员 → 400 transfer_target_not_member', async () => {
+    const outsider = await makeUser('t6-outsider');
+    // tMember 现为 OWNER（首个用例已转让）——OWNER 发起、目标非成员
+    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: outsider }, await cookieFor(tMember));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('namespace.transfer_target_not_member');
+  });
+
+  it('转给当前 OWNER → 400 request.invalid（自己转自己无操作）', async () => {
+    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tMember }, await cookieFor(tMember));
+    expect(res.status).toBe(400);
+  });
+
+  it('OWNER 移除保护延续（新 OWNER 行不可移除——transfer_deferred）', async () => {
+    const res = await jsonRequest('DELETE', `/api/namespaces/${nsT}/members/${tMember}`, undefined, await cookieFor(tOwner));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('namespace.transfer_deferred');
+  });
+
+  it('SUPER_ADMIN 治理豁免可代转（05 §6.5 管理面无空位兜底）', async () => {
+    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tAdmin }, await cookieFor(superAdmin));
+    expect(res.status).toBe(204);
+    const rows = await db
+      .select({ role: namespaceMember.role })
+      .from(namespaceMember)
+      .where(and(eq(namespaceMember.namespaceId, nsT), eq(namespaceMember.userId, tAdmin)));
+    expect(rows[0]?.role).toBe('OWNER');
   });
 });

@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
+import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import {
   namespace,
@@ -21,6 +22,8 @@ import { requireAuth, requirePlatformRole } from './auth-middleware.js';
 
 export interface NamespaceRoutesDeps {
   db: Db;
+  /** 审计写入器（T16 起：namespace 治理动作埋点——transfer_ownership） */
+  audit?: AuditWriter;
 }
 
 const listQuerySchema = z.object({
@@ -28,6 +31,9 @@ const listQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   type: namespaceTypeSchema.optional(),
 });
+
+/** 转让 body（T16——目标须为空间成员，发起后事务双角色变更） */
+const transferBodySchema = z.object({ newOwnerId: z.string().min(1).max(128) });
 
 /** POST body（T3；slug 复用 protocol slugSchema 单源） */
 const createBodySchema = z.object({
@@ -495,6 +501,75 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     await db
       .delete(namespaceMember)
       .where(and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, targetId ?? '')));
+    return c.body(null, 204);
+  });
+
+  // POST /api/namespaces/{id}/transfer-ownership（T16；design R3——OWNER 位置转移）
+  // 判定：仅当前 OWNER（或 SUPER_ADMIN 治理豁免——05 §6.5 管理面主轴）发起；
+  // 目标须为空间现有成员（防转让给陌生人）；事务：newOwner → OWNER、
+  // 原 OWNER → ADMIN（防空位——space 恒有管理角色）；审计 namespace.transfer_ownership。
+  app.post('/:id/transfer-ownership', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const id = parseNamespaceId(c.req.param('id'));
+    if (id === null) return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
+    let payload: unknown;
+    try {
+      payload = await c.req.json();
+    } catch {
+      return c.json({ code: 'request.invalid', message: 'request body must be valid json' }, 400);
+    }
+    const parsed = transferBodySchema.safeParse(payload);
+    if (!parsed.success) {
+      return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
+    }
+    const { newOwnerId } = parsed.data;
+
+    const nsRows = await db.select({ id: namespace.id }).from(namespace).where(eq(namespace.id, id));
+    if (!nsRows[0]) return c.json({ code: 'namespace.not_found', message: 'namespace.not_found' }, 404);
+
+    const members = await db
+      .select({ userId: namespaceMember.userId, role: namespaceMember.role })
+      .from(namespaceMember)
+      .where(eq(namespaceMember.namespaceId, id));
+    const currentOwner = members.find((m) => m.role === 'OWNER');
+    const targetMember = members.find((m) => m.userId === newOwnerId);
+
+    const platformRoles = await c.get('rbac')!.platformRolesOf(principal.userId);
+    const isSuperAdmin = platformRoles.includes('SUPER_ADMIN');
+    // 仅当前 OWNER 发起（超管治理豁免——05 §6.5：空间管理面无空位兜底）
+    if (!isSuperAdmin && principal.userId !== currentOwner?.userId) {
+      return c.json({ code: 'auth.forbidden', message: 'auth.forbidden' }, 403);
+    }
+    if (!targetMember) {
+      return c.json(
+        { code: 'namespace.transfer_target_not_member', message: 'namespace.transfer_target_not_member' },
+        400,
+      );
+    }
+    if (targetMember.role === 'OWNER') {
+      return c.json({ code: 'request.invalid', message: 'new owner is already the owner' }, 400);
+    }
+    const oldOwnerId = currentOwner!.userId;
+
+    await db.transaction(async (tx) => {
+      // 防空位：先升新 OWNER，再降旧 OWNER → ADMIN
+      await tx
+        .update(namespaceMember)
+        .set({ role: 'OWNER' })
+        .where(and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, newOwnerId)));
+      await tx
+        .update(namespaceMember)
+        .set({ role: 'ADMIN' })
+        .where(and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, oldOwnerId)));
+    });
+
+    await deps.audit?.({
+      actorId: principal.userId,
+      action: 'namespace.transfer_ownership',
+      targetType: 'namespace',
+      targetId: String(id),
+      detail: { from: oldOwnerId, to: newOwnerId },
+    });
     return c.body(null, 204);
   });
 

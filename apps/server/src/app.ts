@@ -105,7 +105,7 @@ export function createApp(deps: AppDeps): Hono {
     }),
   );
 
-  app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
+  app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/assets', createAssetRoutes({
     db: deps.db,
     audit: deps.audit,
