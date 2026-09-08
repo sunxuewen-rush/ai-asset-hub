@@ -1,7 +1,7 @@
 # 资产协议总纲
 
 > Date: 2026-09-04
-> Updated: 2026-09-07（v1.3：族协议状态同步——02/03/04 已定稿落地于 packages/protocol；v1.2 生命周期同步扫描态全序）
+> Updated: 2026-09-08（v1.4：M0/M1 复验同步——§2 登记表 mcp 族协议版本标注回写 v1.2；v1.3 族协议状态同步——02/03/04 已定稿落地于 packages/protocol；v1.2 生命周期同步扫描态全序）
 > Status: 定稿（族协议 02/03/04 已 v1.x 定稿，M1 已按本协议实现 packages/protocol zod schema）
 > Scope: AI Asset Hub 可分发资产的公共协议层 —— 类型登记、包形态、元数据投影、校验器插拔
 
@@ -19,7 +19,7 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 | type | 族协议 | 主文件 | 包性质 | 安装目标 |
 |------|--------|--------|--------|---------|
 | `skill` | `02-skill-protocol.md` | `SKILL.md` | 文本指令包（markdown + 资源） | agent 技能目录（`.agents/skills` 等） |
-| `mcp` | `03-mcp-bundle-protocol.md`（v1.1） | `mcp.json` | 远程连接配置 / 本地 stdio 服务器包 | 客户端 MCP 配置区 |
+| `mcp` | `03-mcp-bundle-protocol.md`（v1.2） | `mcp.json` | 远程连接配置 / 本地 stdio 服务器包 | 客户端 MCP 配置区 |
 | `agent` | `04-agent-protocol.md` | `agent.md` | agent 定义包（声明型：行为 + 模型偏好 + 技能引用） | agent 运行时配置目录（客户端自定） |
 
 **类型扩展流程**（新类型只走一遍此流程）：
@@ -128,3 +128,4 @@ interface AssetValidator {
 | v1.1 | 2026-09-04 | sunxuewen-rush | 类型体系对齐 00 v1.1（skill/mcp/agent）；演进路径中立化 |
 | v1.2 | 2026-09-04 | sunxuewen-rush | §4 生命周期补扫描态全序；资产状态独立于版本（指向 08 §7） |
 | v1.3 | 2026-09-07 | sunxuewen-rush | 族协议状态同步：02/03/04「待写」→ 已定稿（03 v1.1），Status 改定稿；§6 校验器已落地 packages/protocol |
+| v1.4 | 2026-09-08 | sunxuewen-rush | M0/M1 复验同步：§2 登记表 mcp 行族协议版本标注 v1.1 → v1.2（03 已升版未回写） |

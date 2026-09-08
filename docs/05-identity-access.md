@@ -1,7 +1,7 @@
 # 用户与权限设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
+> Updated: 2026-09-08（v1.5：M0/M1 复验——§6.2 MEMBER 行措辞收紧，与 §6.4 review:submit 判定区分；v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
 > Status: 定稿（M1 已实现：本地账号/Session/RBAC 判定链/LDAP 企业通道/OIDC 授权码流/Device Flow/API Token，docs/05 §3.1 流程）
 > Scope: AI Asset Hub 的身份、准入、会话凭证与 RBAC 授权体系
 > 设计来源：企业实战验证的注册中心认证方案（设计决策继承，命名与实现中立化/资产化）
@@ -134,7 +134,7 @@
 |------|------|
 | `OWNER` | 创建者；可转让；对空间内全部资产有完整管理权 |
 | `ADMIN` | 审核空间内发布、管理成员、管理空间内全部资产 |
-| `MEMBER` | 可在空间内发布/提交资产（走审核） |
+| `MEMBER` | 可在空间内发布新资产（走审核）；提交已有版本进审核的判定见 §6.4（owner 本人 / ADMIN+） |
 
 空间状态：`ACTIVE` 正常 / `FROZEN` 冻结（只读，拒绝写操作）/ `ARCHIVED` 归档（对外不可见）。
 
@@ -184,3 +184,4 @@
 | v1.2 | 2026-09-04 | sunxuewen-rush | §6.4 补防自审规则与 namespace:manage；§3 图注 LDAP 通道 |
 | v1.3 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 认证服务按本文档落地（本地账号/scrypt/行级锁定/CSRF/Session/RBAC/LDAP 多 DC 故障转移） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | 实现状态同步：M1 阶段二落地——API Token 签发/Bearer（§5）、审计浏览 audit:read（§6.4）、OIDC 授权码流（§3/§5，provision 公共建号/binding 复用）、Device Flow 签发 cli scope token（§5，RFC 8628） |
+| v1.5 | 2026-09-08 | sunxuewen-rush | M0/M1 复验：§6.2 MEMBER 行措辞收紧——「发布新资产（走审核）」独立表达，提交已有版本进审核（review:submit）判定明确指向 §6.4，消除「提交资产」与 §6.4 判定列的阅读张力 |
