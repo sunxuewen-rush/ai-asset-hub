@@ -22,8 +22,10 @@ import { userAccount } from './users.js';
  * asset_label / audit_log。
  */
 
-/** review_task.status（08 §6） */
-export const reviewStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED']);
+/** review_task.status（08 §6 三态 → M3 补 WITHDRAWN：撤回提审保留行置态——历史留档
+ *  保 review version 递增（08 §6「重审计数递增」依赖历史行 max）；skillhub 删行是其无
+ *  递增语义的简化，AIH 自有契约优先——design §3.5 R6 修正） */
+export const reviewStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN']);
 export type ReviewStatus = z.infer<typeof reviewStatusSchema>;
 
 /** label_definition.type（06 §1：RECOMMENDED 功能分类 / PRIVILEGED 特权标记） */

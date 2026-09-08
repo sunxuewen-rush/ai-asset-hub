@@ -57,8 +57,8 @@ export const asset = pgTable(
     ownerId: varchar('owner_id', { length: 128 })
       .notNull()
       .references(() => userAccount.id),
-    /** 冗余指针免 join（08 §5.1；应用层事务内回填，不设 DB FK——避免 schema 循环引用） */
-    latestVersionId: bigserial('latest_version_id', { mode: 'number' }),
+    /** 冗余指针免 join（08 §5.1；应用层事务内回填——approve 指向/yank 重算，不设 DB FK） */
+    latestVersionId: bigint('latest_version_id', { mode: 'number' }),
     visibility: text('visibility').$type<Visibility>().notNull().default('PUBLIC'),
     status: text('status').$type<AssetStatus>().notNull().default('ACTIVE'),
     downloadCount: bigint('download_count', { mode: 'number' }).notNull().default(0),
