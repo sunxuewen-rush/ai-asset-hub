@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
@@ -7,7 +7,11 @@ process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_tes
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { Hono } from 'hono';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { AssetError } from '../assets/errors.js';
+import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
 import { RbacService } from '../auth/rbac.js';
@@ -16,6 +20,9 @@ import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
 import {
   asset,
+  assetFile,
+  assetVersion,
+  auditLog,
   namespace,
   namespaceMember,
   role,
@@ -24,6 +31,7 @@ import {
   type AssetType,
   type RoleCode,
 } from '../db/schema/index.js';
+import { createLocalStorage } from '../storage/local.js';
 import { rbacContext } from './auth-middleware.js';
 import { createAssetRoutes } from './assets.js';
 
@@ -38,6 +46,10 @@ let assetAdmin: string; // ns-a ADMIN
 let superAdmin: string;
 let nsA: number;
 let nsArch: number;
+let storageDir: string;
+let storage!: ReturnType<typeof createLocalStorage>;
+let audit!: ReturnType<typeof createAuditWriter>;
+let draftSeedKey = ''; // DELETE 存储清理断言用（seed 记录的 key）
 
 async function makeUser(tag: string): Promise<string> {
   const id = `usr_${randomUUID()}`;
@@ -72,6 +84,14 @@ async function insertAsset(slug: string, type: AssetType, ownerId: string, visib
     .values({ namespaceId: nsIdArg, slug, type, ownerId, visibility: visibility as never, status })
     .returning({ id: asset.id });
 }
+/** 直插并取回 id（版本/文件 seed 依赖） */
+async function insertAssetReturning(slug: string, type: AssetType, ownerId: string, visibility: string): Promise<{ id: number }> {
+  const rows = await db
+    .insert(asset)
+    .values({ namespaceId: nsA, slug, type, ownerId, visibility: visibility as never })
+    .returning({ id: asset.id });
+  return rows[0]!;
+}
 
 function buildApp(): Hono {
   const app = new Hono();
@@ -83,11 +103,11 @@ function buildApp(): Hono {
       return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403 | 404 | 409 | 413);
     }
     if (err instanceof AssetError) {
-      return c.json({ code: err.code, message: err.message }, err.status as 400 | 404 | 409 | 413);
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409 | 413);
     }
     return c.json({ code: 'internal_error' }, 500);
   });
-  app.route('/api/assets', createAssetRoutes({ db }));
+  app.route('/api/assets', createAssetRoutes({ db, audit, storage }));
   return app;
 }
 
@@ -108,6 +128,9 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
   sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  audit = createAuditWriter(db);
+  storageDir = await mkdtemp(join(tmpdir(), 'ast-storage-'));
+  storage = createLocalStorage(storageDir);
   member = await makeUser('member');
   owner2 = await makeUser('owner2');
   outsider = await makeUser('outsider');
@@ -130,12 +153,47 @@ beforeAll(async () => {
   await insertAsset('ast-priv-mcp', 'mcp', member, 'PRIVATE');
   await insertAsset('ast-hidden', 'agent', member, 'PUBLIC', nsA, 'HIDDEN');
   await insertAsset('ast-arch-ns-pub', 'skill', member, 'PUBLIC', nsArch);
+  // 管理面 seed：visibility PATCH 目标 / 删除目标（无版本、有 PUBLISHED、DRAFT+文件）
+  await insertAsset('ast-vis-target', 'skill', member, 'PUBLIC');
+  await insertAsset('ast-del-plain', 'skill', member, 'PUBLIC');
+  const delPub = await insertAssetReturning('ast-del-pub', 'skill', member, 'PUBLIC');
+  const delDraft = await insertAssetReturning('ast-del-draft', 'skill', member, 'PUBLIC');
+  const pubVersion = await db
+    .insert(assetVersion)
+    .values({ assetId: delPub.id, version: '1.0.0', status: 'PUBLISHED', fileCount: 0, totalSize: 0 })
+    .returning({ id: assetVersion.id });
+  const draftVersion = await db
+    .insert(assetVersion)
+    .values({ assetId: delDraft.id, version: '0.1.0', status: 'DRAFT', fileCount: 1, totalSize: 3 })
+    .returning({ id: assetVersion.id });
+  const draftKey = `${nsA}/${delDraft.id}/${draftVersion[0]!.id}/SKILL.md`;
+  draftSeedKey = draftKey;
+  const draftContent = Buffer.from('---\nname: ast-del-draft\n---\n');
+  await storage.put(draftKey, draftContent, { contentType: 'text/markdown' });
+  await db.insert(assetFile).values({
+    versionId: draftVersion[0]!.id,
+    filePath: 'SKILL.md',
+    fileSize: draftContent.byteLength,
+    sha256: createHash('sha256').update(draftContent).digest('hex'),
+    storageKey: draftKey,
+  });
+  void pubVersion;
 });
 
 afterAll(async () => {
   const nsRows = await db.select({ id: namespace.id }).from(namespace).where(like(namespace.slug, `${PREFIX}%`));
   const ids = nsRows.map((n) => n.id);
   if (ids.length > 0) {
+    // FK 序：asset_file → asset_version → asset → member → namespace
+    const versionRows = await db
+      .select({ id: assetVersion.id })
+      .from(assetVersion)
+      .where(inArray(assetVersion.assetId, db.select({ id: asset.id }).from(asset).where(inArray(asset.namespaceId, ids))));
+    const vIds = versionRows.map((v) => v.id);
+    if (vIds.length > 0) {
+      await db.delete(assetFile).where(inArray(assetFile.versionId, vIds));
+      await db.delete(assetVersion).where(inArray(assetVersion.id, vIds));
+    }
     await db.delete(asset).where(inArray(asset.namespaceId, ids));
     await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, ids));
     await db.delete(namespace).where(inArray(namespace.id, ids));
@@ -144,9 +202,11 @@ afterAll(async () => {
   const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
   const userIds = users.map((u) => u.id);
   if (userIds.length > 0) {
+    await db.delete(auditLog).where(inArray(auditLog.actorId, userIds));
     await db.delete(userRoleBinding).where(inArray(userRoleBinding.userId, userIds));
   }
   await db.delete(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
+  await rm(storageDir, { recursive: true, force: true });
   await db.$client.end();
 });
 
@@ -313,5 +373,132 @@ describe('GET /api/assets 列表（读面过滤）', () => {
     const body = (await res.json()) as { items: Array<{ slug: string }> };
     expect(body.items.every((i) => i.slug.startsWith('ast-'))).toBe(true);
     expect(body.items.filter((i) => i.slug === 'ast-priv-mcp').length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManageAsset）', () => {
+  it('owner 改 visibility 200 + 审计行（Q3）', async () => {
+    const res = await jsonRequest(
+      'PATCH',
+      '/api/assets/ast-http-ns/ast-vis-target',
+      { visibility: 'PRIVATE' },
+      await cookieFor(member),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { visibility: string };
+    expect(body.visibility).toBe('PRIVATE');
+    // 改后读面联动：非 owner 详情 403（access_denied）
+    expect((await getReq('/api/assets/ast-http-ns/ast-vis-target')).status).toBe(403);
+    const auditRows = await db
+      .select({ action: auditLog.action })
+      .from(auditLog)
+      .where(eq(auditLog.actorId, member));
+    expect(auditRows.some((a) => a.action === 'asset.visibility_update')).toBe(true);
+  });
+
+  it('MEMBER 非 owner 改 visibility → 403', async () => {
+    // assetAdmin 是 nsA ADMIN 可改；outsider 无成员关系 → 403
+    const res = await jsonRequest(
+      'PATCH',
+      '/api/assets/ast-http-ns/ast-vis-target',
+      { visibility: 'PUBLIC' },
+      await cookieFor(outsider),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('空间 ADMIN 改 visibility 200（05 §6.5 管理面）', async () => {
+    const res = await jsonRequest(
+      'PATCH',
+      '/api/assets/ast-http-ns/ast-vis-target',
+      { visibility: 'NAMESPACE_ONLY' },
+      await cookieFor(assetAdmin),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('owner 在 ARCHIVED 空间改 visibility → 403（空间归档拒写，owner 不绕过）', async () => {
+    const res = await jsonRequest(
+      'PATCH',
+      '/api/assets/ast-http-arch/ast-arch-ns-pub',
+      { visibility: 'PRIVATE' },
+      await cookieFor(member), // member 是该资产 owner
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('owner 状态治理 PATCH status → HIDDEN 200 + 活跃面消失', async () => {
+    const res = await jsonRequest(
+      'PATCH',
+      '/api/assets/ast-http-ns/ast-pub-skill/status',
+      { status: 'HIDDEN' },
+      await cookieFor(member),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe('HIDDEN');
+    // HIDDEN 后：匿名/登录读面 404（活跃面不存在），owner 亦不可读（详情语义）
+    expect((await getReq('/api/assets/ast-http-ns/ast-pub-skill')).status).toBe(404);
+    expect((await getReq('/api/assets/ast-http-ns/ast-pub-skill', await cookieFor(member))).status).toBe(404);
+  });
+
+  it('状态治理 owner 恢复 ACTIVE 200', async () => {
+    const res = await jsonRequest(
+      'PATCH',
+      '/api/assets/ast-http-ns/ast-pub-skill/status',
+      { status: 'ACTIVE' },
+      await cookieFor(member),
+    );
+    expect(res.status).toBe(200);
+    expect((await getReq('/api/assets/ast-http-ns/ast-pub-skill')).status).toBe(200);
+  });
+
+  it('MEMBER 非 owner PATCH status → 403', async () => {
+    // nsB 的 MEMBER（owner2 的空间）对 nsA 资产无角色 → 403
+    const res = await jsonRequest(
+      'PATCH',
+      '/api/assets/ast-http-ns/ast-priv-mcp/status',
+      { status: 'HIDDEN' },
+      await cookieFor(owner2),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('DELETE 无版本资产 204 + 详情 404 + 审计（Q5）', async () => {
+    const res = await jsonRequest('DELETE', '/api/assets/ast-http-ns/ast-del-plain', undefined, await cookieFor(member));
+    expect(res.status).toBe(204);
+    expect((await getReq('/api/assets/ast-http-ns/ast-del-plain', await cookieFor(member))).status).toBe(404);
+    const auditRows = await db.select({ action: auditLog.action }).from(auditLog).where(eq(auditLog.actorId, member));
+    expect(auditRows.some((a) => a.action === 'asset.delete')).toBe(true);
+  });
+
+  it('DELETE 有 PUBLISHED 版本 → 400 has_published（防已分发资产静默移除）', async () => {
+    const res = await jsonRequest('DELETE', '/api/assets/ast-http-ns/ast-del-pub', undefined, await cookieFor(member));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.has_published');
+  });
+
+  it('DELETE DRAFT 版本资产：版本/文件行清理 + 存储文件删除', async () => {
+    const res = await jsonRequest('DELETE', '/api/assets/ast-http-ns/ast-del-draft', undefined, await cookieFor(member));
+    expect(res.status).toBe(204);
+    // 版本行清理
+    const versionRows = await db
+      .select({ id: assetVersion.id })
+      .from(assetVersion)
+      .innerJoin(asset, eq(assetVersion.assetId, asset.id))
+      .where(eq(asset.slug, 'ast-del-draft'));
+    expect(versionRows).toHaveLength(0);
+    // 文件行清理（assetFile 无 asset 直链——按该版本已被删的 asset 残余 file 行应为 0：
+    // 直接断言全库该资产关联 file 已随版本删除）
+    const fileRows = await db
+      .select({ id: assetFile.id })
+      .from(assetFile)
+      .innerJoin(assetVersion, eq(assetFile.versionId, assetVersion.id))
+      .innerJoin(asset, eq(assetVersion.assetId, asset.id))
+      .where(eq(asset.slug, 'ast-del-draft'));
+    expect(fileRows).toHaveLength(0);
+    // 存储文件已清理（deleteMany 后 key 不存在）
+    expect(await storage.exists(draftSeedKey)).toBe(false);
   });
 });

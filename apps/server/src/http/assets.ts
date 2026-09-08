@@ -1,13 +1,21 @@
 /**
- * /api/assets 路由组（M2 T3，design §3/§7/§9）：
+ * /api/assets 路由组（M2 T3-T4，design §3/§7/§9）：
  * POST 注册（asset:publish 空间成员判定）· GET 列表（读面可见 SQL 过滤）·
- * GET 详情（visibility 判定；PUBLIC 匿名可读）。
- * 统一 404 语义：坐标不存在与不可见同码（防枚举）。
+ * GET 详情（visibility 判定；PUBLIC 匿名可读）· PATCH visibility/status ·
+ * DELETE（owner/空间 ADMIN+，仅无 PUBLISHED）。
+ *
+ * 读面拒绝语义（design §7，skillhub 对齐）：坐标不存在/非 ACTIVE → 404；
+ * ns ARCHIVED 非成员 → 403 namespace_archived；visibility 拒 → 403 access_denied。
+ * 管理面判定（design §7/05 §6.4）：owner 或空间 ADMIN+（canManageAsset 组合）+
+ * 空间非 ACTIVE 拒写门 + SUPER_ADMIN 短路。
  */
 import { slugSchema } from '@ai-asset-hub/protocol';
+import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import type { AuditWriter } from '../audit/audit.js';
 import { AssetError, assetErrorCodes } from '../assets/errors.js';
+import { canManageAsset } from '../assets/manage.js';
 import {
   createAsset,
   findNamespaceBySlug,
@@ -15,17 +23,28 @@ import {
   listViewableAssets,
   type AssetRow,
 } from '../assets/service.js';
-import {
-  canViewAsset,
-} from '../assets/visibility.js';
+import { canViewAsset } from '../assets/visibility.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
 import type { Db } from '../db/client.js';
-import { assetTypeSchema, type NamespaceRole, visibilitySchema } from '../db/schema/index.js';
+import {
+  asset,
+  assetFile,
+  assetStatusSchema,
+  assetTypeSchema,
+  assetVersion,
+  type NamespaceRole,
+  visibilitySchema,
+} from '../db/schema/index.js';
+import type { ObjectStorage } from '../storage/types.js';
 import { requireAuth } from './auth-middleware.js';
 
 export interface AssetRoutesDeps {
   db: Db;
+  /** 审计写入器（资产动作 asset.* 埋点；T3-T4 起） */
+  audit: AuditWriter;
+  /** 资产删除连带存储清理（deleteMany） */
+  storage: ObjectStorage;
 }
 
 const listQuerySchema = z.object({
@@ -43,6 +62,12 @@ const createBodySchema = z.object({
   type: assetTypeSchema,
   visibility: visibilitySchema.optional(),
 });
+
+/** PATCH /:ns/:slug body（visibility 修改——Q3） */
+const visibilityBodySchema = z.object({ visibility: visibilitySchema });
+
+/** PATCH /:ns/:slug/status body（状态治理——05 §6.4 asset:manage） */
+const statusBodySchema = z.object({ status: assetStatusSchema });
 
 /** 序列化响应形状（详情/注册/列表共用；坐标回显自足——含 namespaceSlug） */
 function assetItem(row: AssetRow, namespaceSlug: string) {
@@ -76,6 +101,42 @@ async function viewerContext(
     namespaceRole: (roles[0] as NamespaceRole | undefined) ?? null,
     isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
   };
+}
+
+/** 坐标加载（管理端点共用：ns/asset 不存在 → 404 asset.not_found） */
+async function loadAssetBySlugs(db: Db, nsSlug: string, slug: string) {
+  if (!slugSchema.safeParse(nsSlug).success || !slugSchema.safeParse(slug).success) {
+    throw new AssetError(assetErrorCodes.notFound);
+  }
+  const ns = await findNamespaceBySlug(db, nsSlug);
+  if (!ns) throw new AssetError(assetErrorCodes.notFound);
+  const row = await getAsset(db, nsSlug, slug);
+  if (!row) throw new AssetError(assetErrorCodes.notFound);
+  return { ns, row };
+}
+
+/**
+ * 管理面门（requireAuth 后）：SUPER_ADMIN 短路 → 空间非 ACTIVE 拒写（05 §6.3
+ * FROZEN 只读/ARCHIVED 归档——owner 亦不能绕过空间冻结）→ canManageAsset
+ * （owner 或空间 ADMIN+，05 §6.4）。失败统一 auth.forbidden（写管理面无 404 语义）。
+ */
+async function assertManageable(
+  c: import('hono').Context,
+  ns: { id: number; status: string },
+  row: { ownerId: string },
+): Promise<{ isSuperAdmin: boolean }> {
+  const principal = c.get('principal')!;
+  const viewer = await viewerContext(c, ns.id);
+  if (viewer.isSuperAdmin) return { isSuperAdmin: true };
+  if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden');
+  const allowed = canManageAsset({
+    ownerId: row.ownerId,
+    viewerId: principal.userId,
+    namespaceRole: viewer.namespaceRole,
+    isSuperAdmin: false,
+  });
+  if (!allowed) throw new AuthError('auth.forbidden');
+  return { isSuperAdmin: false };
 }
 
 export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
@@ -112,6 +173,14 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       ownerId: principal.userId,
       visibility,
     });
+    await deps.audit({
+      ...c.get('requestContext'),
+      actorId: principal.userId,
+      action: 'asset.register',
+      targetType: 'asset',
+      targetId: String(row.id),
+      detail: { namespaceSlug, slug, type },
+    });
     return c.json(assetItem(row, namespaceSlug), 201);
   });
 
@@ -145,14 +214,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   app.get('/:nsSlug/:slug', async (c) => {
     const nsSlug = c.req.param('nsSlug');
     const slug = c.req.param('slug');
-    if (!slugSchema.safeParse(nsSlug).success || !slugSchema.safeParse(slug).success) {
-      throw new AssetError(assetErrorCodes.notFound);
-    }
-
-    const ns = await findNamespaceBySlug(db, nsSlug);
-    if (!ns) throw new AssetError(assetErrorCodes.notFound);
-    const row = await getAsset(db, nsSlug, slug);
-    if (!row) throw new AssetError(assetErrorCodes.notFound);
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
 
     const { viewerId, namespaceRole, isSuperAdmin } = await viewerContext(c, ns.id);
     // SUPER_ADMIN 短路（05 §6.3：HIDDEN/ARCHIVED 治理可见）
@@ -178,6 +240,128 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       throw new AssetError(assetErrorCodes.accessDenied);
     }
     return c.json(assetItem(row, nsSlug)); // nsSlug 已过 slugSchema 校验（path 即坐标）
+  });
+
+  // PATCH /api/assets/{ns}/{slug}（T4：visibility 修改——Q3；owner 或空间 ADMIN+）
+  app.patch('/:nsSlug/:slug', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    await assertManageable(c, ns, row);
+
+    let payload: unknown;
+    try {
+      payload = await c.req.json();
+    } catch {
+      return c.json({ code: 'request.invalid', message: 'request body must be valid json' }, 400);
+    }
+    const parsed = visibilityBodySchema.safeParse(payload);
+    if (!parsed.success) {
+      return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
+    }
+    const { visibility } = parsed.data;
+    const from = row.visibility;
+
+    const [updated] = await db
+      .update(asset)
+      .set({ visibility, updatedBy: principal.userId })
+      .where(eq(asset.id, row.id))
+      .returning();
+    await deps.audit({
+      ...c.get('requestContext'),
+      actorId: principal.userId,
+      action: 'asset.visibility_update',
+      targetType: 'asset',
+      targetId: String(row.id),
+      detail: { from, to: visibility },
+    });
+    return c.json(assetItem(updated!, nsSlug));
+  });
+
+  // PATCH /api/assets/{ns}/{slug}/status（T4：状态治理——05 §6.4 asset:manage；
+  // owner 下架自己资产 / ADMIN+ 治理空间内；HIDDEN/ARCHIVED 即从活跃读面消失）
+  app.patch('/:nsSlug/:slug/status', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    await assertManageable(c, ns, row);
+
+    let payload: unknown;
+    try {
+      payload = await c.req.json();
+    } catch {
+      return c.json({ code: 'request.invalid', message: 'request body must be valid json' }, 400);
+    }
+    const parsed = statusBodySchema.safeParse(payload);
+    if (!parsed.success) {
+      return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
+    }
+    const { status } = parsed.data;
+    const from = row.status;
+
+    const [updated] = await db
+      .update(asset)
+      .set({ status, updatedBy: principal.userId })
+      .where(eq(asset.id, row.id))
+      .returning();
+    await deps.audit({
+      ...c.get('requestContext'),
+      actorId: principal.userId,
+      action: 'asset.status_update',
+      targetType: 'asset',
+      targetId: String(row.id),
+      detail: { from, to: status },
+    });
+    return c.json(assetItem(updated!, nsSlug));
+  });
+
+  // DELETE /api/assets/{ns}/{slug}（T4：资产删除——Q5 纠错非治理）
+  // 仅无 PUBLISHED 版本可删（防已分发资产静默移除）；事务删行 + 事后存储清理（孤儿文件容忍：
+  // 存储删失败不阻断行删除——残留文件无害可后清）
+  app.delete('/:nsSlug/:slug', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    await assertManageable(c, ns, row);
+
+    const versions = await db
+      .select({ id: assetVersion.id, status: assetVersion.status })
+      .from(assetVersion)
+      .where(eq(assetVersion.assetId, row.id));
+    if (versions.some((v) => v.status === 'PUBLISHED')) {
+      throw new AssetError(assetErrorCodes.hasPublished);
+    }
+
+    const versionIds = versions.map((v) => v.id);
+    const fileKeys: string[] = [];
+    await db.transaction(async (tx) => {
+      if (versionIds.length > 0) {
+        const files = await tx
+          .select({ storageKey: assetFile.storageKey })
+          .from(assetFile)
+          .where(inArray(assetFile.versionId, versionIds));
+        fileKeys.push(...files.map((f) => f.storageKey));
+        await tx.delete(assetFile).where(inArray(assetFile.versionId, versionIds));
+        await tx.delete(assetVersion).where(inArray(assetVersion.id, versionIds));
+      }
+      await tx.delete(asset).where(eq(asset.id, row.id));
+    });
+    // 行删除成功后清理存储（deleteMany 容错：失败残留孤儿文件，不影响删除语义）
+    if (fileKeys.length > 0) {
+      await deps.storage.deleteMany(fileKeys).catch(() => {});
+    }
+    await deps.audit({
+      ...c.get('requestContext'),
+      actorId: principal.userId,
+      action: 'asset.delete',
+      targetType: 'asset',
+      targetId: String(row.id),
+      detail: { namespaceSlug: nsSlug, slug, versionCount: versionIds.length },
+    });
+    return c.body(null, 204);
   });
 
   return app;

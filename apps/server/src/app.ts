@@ -104,7 +104,7 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
-  app.route('/api/assets', createAssetRoutes({ db: deps.db }));
+  app.route('/api/assets', createAssetRoutes({ db: deps.db, audit: deps.audit, storage: deps.storage }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // Device Flow（T30-T33；anonymous 端点豁免 CSRF——见装配；approve 走 cookie 通道）
