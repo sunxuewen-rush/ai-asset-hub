@@ -4,17 +4,16 @@
  * zod manifest schema 已含，T8 接线）。
  */
 import { assetErrorCodes } from '../assets/errors.js';
-import { scanZip, ZipValidationError } from './zip.js';
-import type { AssetValidator, ValidationResult } from './types.js';
+import { runFamilyValidation } from './base.js';
+import type { AssetValidator } from './types.js';
 
 export const MCP_MAIN_FILE = 'mcp.json';
 
 export function createMcpValidator(): AssetValidator {
   return {
     type: 'mcp',
-    async validate(zip: Buffer): Promise<ValidationResult> {
-      try {
-        const { entries } = await scanZip(zip);
+    validate: (zip) =>
+      runFamilyValidation(zip, (entries) => {
         if (!entries.some((e) => e.path === MCP_MAIN_FILE)) {
           return {
             ok: false,
@@ -23,12 +22,6 @@ export function createMcpValidator(): AssetValidator {
         }
         // manifest zod 校验（03 契约）+ 敏感头规则接线随 T8
         return { ok: true, errors: [] };
-      } catch (err) {
-        if (err instanceof ZipValidationError) {
-          return { ok: false, errors: [{ code: err.code, path: err.path, message: err.message }] };
-        }
-        throw err;
-      }
-    },
+      }),
   };
 }
