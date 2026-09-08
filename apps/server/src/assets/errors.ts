@@ -7,8 +7,12 @@
 export const assetErrorCodes = {
   /** 目标 namespace 不存在（按 slug 寻址） */
   namespaceNotFound: 'asset.namespace_not_found',
-  /** 资产不存在（按坐标寻址；可见性过滤 404 同码防枚举） */
+  /** 资产不存在（按坐标寻址；HIDDEN/ARCHIVED 同码——活跃面不存在语义） */
   notFound: 'asset.not_found',
+  /** 空间已归档且非成员（skillhub error.namespace.archived 对齐——403 明示） */
+  namespaceArchived: 'asset.namespace_archived',
+  /** 资产存在但不可见（PRIVATE/NAMESPACE_ONLY 拒——skillhub error.skill.access.denied 对齐 403 明示） */
+  accessDenied: 'asset.access_denied',
   /** slug 跨类型唯一冲突（01 §3.3） */
   slugTaken: 'asset.slug_taken',
   /** 版本号重复（UNIQUE(asset_id, version)，版本不可覆写） */
@@ -27,18 +31,24 @@ export const assetErrorCodes = {
 
 export type AssetErrorCode = (typeof assetErrorCodes)[keyof typeof assetErrorCodes];
 
-/** HTTP 状态映射（07 §4；资产域码的状态语义） */
+/** HTTP 状态映射（07 §4；资产域码的状态语义——穷尽 switch，新增码漏映射即编译错） */
 export function httpStatusForAsset(code: AssetErrorCode): number {
   switch (code) {
     case 'asset.not_found':
     case 'asset.namespace_not_found':
       return 404;
+    case 'asset.namespace_archived':
+    case 'asset.access_denied':
+      return 403;
     case 'asset.slug_taken':
     case 'asset.version_conflict':
       return 409;
     case 'asset.package_too_large':
       return 413;
-    default:
+    case 'asset.draft_only':
+    case 'asset.has_published':
+    case 'asset.package_layout_invalid':
+    case 'asset.package_path_invalid':
       return 400;
   }
 }

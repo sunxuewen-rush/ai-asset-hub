@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { AssetError } from './assets/errors.js';
 import type { AuditWriter } from './audit/audit.js';
 import { AuthService } from './auth/auth-service.js';
 import { csrfProtection } from './auth/csrf.js';
@@ -15,6 +16,7 @@ import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
+import { createAssetRoutes } from './http/assets.js';
 import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
@@ -69,12 +71,18 @@ export function createApp(deps: AppDeps): Hono {
     }),
   );
 
-  // 统一错误出口：AuthError → 结构化 {code,message}；其余 500（T1 补全，防中间件异常裸 500）
+  // 统一错误出口：AuthError/AssetError → 结构化 {code,message}；其余 500
   app.onError((err, c) => {
     if (err instanceof AuthError) {
       return c.json(
         { code: err.code, message: err.message },
         err.status as 400 | 401 | 403 | 409 | 429,
+      );
+    }
+    if (err instanceof AssetError) {
+      return c.json(
+        { code: err.code, message: err.message },
+        err.status as 400 | 404 | 409 | 413,
       );
     }
     console.error('[server] unhandled error:', err);
@@ -96,6 +104,7 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db }));
+  app.route('/api/assets', createAssetRoutes({ db: deps.db }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // Device Flow（T30-T33；anonymous 端点豁免 CSRF——见装配；approve 走 cookie 通道）

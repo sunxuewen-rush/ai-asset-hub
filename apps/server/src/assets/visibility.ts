@@ -10,9 +10,12 @@
  * - asset.status HIDDEN/ARCHIVED：仅 SUPER_ADMIN 可见（隐藏/归档对外不可见）
  * - namespace.status ARCHIVED：空间对外关闭——资产仅成员/超管可读
  */
-import type { AssetStatus, NamespaceStatus, Visibility } from '../db/schema/index.js';
-
-export type NamespaceRoleName = 'OWNER' | 'ADMIN' | 'MEMBER';
+import type {
+  AssetStatus,
+  NamespaceRole,
+  NamespaceStatus,
+  Visibility,
+} from '../db/schema/index.js';
 
 export interface VisibilityInput {
   /** namespace.status（空间归档 → 对外关闭） */
@@ -25,8 +28,8 @@ export interface VisibilityInput {
   ownerId: string;
   /** null = 匿名（PUBLIC 匿名可读；NAMESPACE_ONLY/PRIVATE 需登录身份） */
   viewerId: string | null;
-  /** viewer 在空间的角色（null = 非成员）；空间 OWNER 亦为管理面 */
-  namespaceRole: NamespaceRoleName | null;
+  /** viewer 在空间的角色（null = 非成员）；空间 OWNER 亦为管理面——复用 schema NamespaceRole */
+  namespaceRole: NamespaceRole | null;
   /** SUPER_ADMIN 全可见（05 §6.3 短路） */
   isSuperAdmin: boolean;
 }

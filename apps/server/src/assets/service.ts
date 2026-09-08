@@ -3,12 +3,14 @@
  * 校验职责分层：入参格式（slug/type/visibility）由路由层 zod body schema 把关
  * （复用 protocol slugSchema / schema 枚举）；本层做坐标寻址与冲突判定。
  */
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
   asset,
   namespace,
+  namespaceMember,
   type AssetType,
+  type NamespaceRole,
   type Visibility,
 } from '../db/schema/index.js';
 import { AssetError, assetErrorCodes } from './errors.js';
@@ -36,8 +38,14 @@ export interface ListAssetsOptions {
   visibility?: Visibility;
 }
 
+/** 读面浏览上下文（T3 列表端点：requireAuth 后必有 userId；超管短路全可见） */
+export interface AssetViewerContext {
+  userId: string;
+  isSuperAdmin: boolean;
+}
+
 /** namespace 按 slug 寻址（坐标第一跳；不存在 → 404） */
-async function findNamespaceBySlug(db: Db, slug: string) {
+export async function findNamespaceBySlug(db: Db, slug: string) {
   const rows = await db
     .select({ id: namespace.id, status: namespace.status })
     .from(namespace)
@@ -131,4 +139,78 @@ export async function listAssets(
     .limit(opts.limit)
     .offset(opts.offset);
   return { items, total: totalRow?.total ?? 0 };
+}
+
+/** 我的空间成员关系子查询（T3 读面过滤共用；roles 限定如 ['OWNER','ADMIN']） */
+function myNamespaceIdsSubquery(db: Db, userId: string, roles?: NamespaceRole[]) {
+  if (roles) {
+    return db
+      .select({ id: namespaceMember.namespaceId })
+      .from(namespaceMember)
+      .where(and(eq(namespaceMember.userId, userId), inArray(namespaceMember.role, roles)));
+  }
+  return db
+    .select({ id: namespaceMember.namespaceId })
+    .from(namespaceMember)
+    .where(eq(namespaceMember.userId, userId));
+}
+
+/**
+ * 读面可见列表（T3 GET /api/assets；08 §5.1 可见性 SQL 过滤）：
+ * - ACTIVE 空间中的 ACTIVE 资产（HIDDEN/ARCHIVED 不进任何列表——坐标详情仍可治理访问）
+ * - PUBLIC：全站可见
+ * - NAMESPACE_ONLY：我成员的空间
+ * - PRIVATE：我是 owner，或我在空间的角色为 OWNER/ADMIN（05 §6.5 管理面）
+ * - SUPER_ADMIN：全量可见（含 PRIVATE——不自动含 HIDDEN，列表统一 ACTIVE）
+ */
+export async function listViewableAssets(
+  db: Db,
+  opts: ListAssetsOptions & { viewer: AssetViewerContext },
+): Promise<{ items: Array<AssetRow & { namespaceSlug: string }>; total: number }> {
+  const conditions: ReturnType<typeof eq>[] = [
+    eq(namespace.status, 'ACTIVE'),
+    eq(asset.status, 'ACTIVE'),
+  ];
+  if (opts.namespaceSlug !== undefined) {
+    const ns = await findNamespaceBySlug(db, opts.namespaceSlug);
+    if (!ns) return { items: [], total: 0 };
+    conditions.push(eq(asset.namespaceId, ns.id));
+  }
+  if (opts.type !== undefined) conditions.push(eq(asset.type, opts.type));
+  if (opts.visibility !== undefined) conditions.push(eq(asset.visibility, opts.visibility));
+
+  if (!opts.viewer.isSuperAdmin) {
+    const viewerId = opts.viewer.userId;
+    const memberNs = myNamespaceIdsSubquery(db, viewerId);
+    const adminNs = myNamespaceIdsSubquery(db, viewerId, ['OWNER', 'ADMIN']);
+    conditions.push(
+      or(
+        eq(asset.visibility, 'PUBLIC'),
+        and(eq(asset.visibility, 'NAMESPACE_ONLY'), inArray(asset.namespaceId, memberNs)),
+        and(
+          eq(asset.visibility, 'PRIVATE'),
+          or(eq(asset.ownerId, viewerId), inArray(asset.namespaceId, adminNs)),
+        ),
+      )!,
+    );
+  }
+
+  const where = and(...conditions);
+  const [totalRow] = await db
+    .select({ total: count() })
+    .from(asset)
+    .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
+    .where(where);
+  const items = await db
+    .select({ a: asset, nsSlug: namespace.slug })
+    .from(asset)
+    .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
+    .where(where)
+    .orderBy(sql`${asset.createdAt} desc, ${asset.id} desc`)
+    .limit(opts.limit)
+    .offset(opts.offset);
+  return {
+    items: items.map((r) => ({ ...r.a, namespaceSlug: r.nsSlug })),
+    total: totalRow?.total ?? 0,
+  };
 }
