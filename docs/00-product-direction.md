@@ -1,7 +1,7 @@
 # AI Asset Hub 产品定位与方向
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.7：M1 阶段二完成注记；v1.6 Status 同步定稿；v1.5 M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
+> Updated: 2026-09-08（v1.8：§7 ② 补实施完成重评（converge）约定；v1.7：M1 阶段二完成注记；v1.6 Status 同步定稿；v1.5 M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
 > Status: 定稿（项目方向决定板；里程碑出口状态见 §5 追踪表）
 > Scope: 全新开源项目 —— AI 资产注册中心与市场（多类型 AI 可复用资产）
 
@@ -123,6 +123,8 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
           触发：里程碑内出现需拍板的设计块（技术选型/状态机/UX 线框）
           例：M1 底座数据模型 · M3 审核治理 · M4 前端 UX
           定稿门禁：8 维自检 ≥9 → grilling → 重评 ≥9
+          实施完成重评（converge）：文档落地/里程碑收尾必跑文档-代码对齐回查
+          （版本头/修订记录/引用/状态同步），8 维重评 ≥9——设计不因代码演化而腐化
           合并铁律：同主题小迭代追加既有 design（bump 版本），不新建散文档
 
 ③ 计划层  docs/plans/<里程碑>-<主题>.md       实现任务清单
@@ -148,3 +150,4 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | v1.5 | 2026-09-07 | sunxuewen-rush | §5 M1 状态注记：阶段一 platform-core ✅（M1-plan 执行至 T24），阶段二后置另立 plan |
 | v1.6 | 2026-09-07 | sunxuewen-rush | 元数据同步：Status 改定稿（M0 评审通过；方向决定板随里程碑演进，见 §5） |
 | v1.7 | 2026-09-08 | sunxuewen-rush | §5 M1 状态注记：阶段二 五板块完成 ✅（M1-phase2 全 Task 绿；OIDC/Device Flow/Token/审计 落地） |
+| v1.8 | 2026-09-08 | sunxuewen-rush | §7 ② 设计层补「实施完成重评（converge）」约定：里程碑收尾必跑文档-代码对齐回查 + 8 维重评（M0/M1 复验沉淀；防 design 层因代码演化腐化） |
