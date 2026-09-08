@@ -21,7 +21,7 @@ README.md · LICENSE   Apache 2.0
 - **规范层** `docs/NN-*.md` —— 系统形态（跨里程碑稳定）：
   `00` 定位/决定板 · `01` 资产协议总纲 · `02-04` 族协议（skill/mcp/agent）·
   `05` 用户与权限 · `06` 标签分类 · `07` UI 语言与本地化 · `08` 数据模型
-- **设计层** `docs/designs/YYYY-MM-DD-<主题>-design.md` —— 阶段决策（8 段骨架；仅里程碑内的设计块）
+- **设计层** `docs/designs/YYYY-MM-DD-<主题>-design.md` —— 阶段决策（7 段骨架；仅里程碑内的设计块；任务清单归属 plan 层，design 不复制）
 - **计划层** `docs/plans/<里程碑>-<主题>.md` —— 实现任务清单（含验收断言）
 - **追踪表** —— `00` §5 里程碑状态表（出口标准：design ≥9 自检 + plan Task 全绿 + 代码验证）
 

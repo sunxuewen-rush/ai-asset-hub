@@ -1,7 +1,7 @@
 # M1 平台底座设计
 
 > Date: 2026-09-08（回溯补档——M1 完成后按体系约定 00 §7 ② 补 design 层足迹；决策本体于 2026-09-07 评审拍板）
-> Updated: 2026-09-08（v1.1：追加阶段二决策档案；v1.0：阶段一决策档案初稿）
+> Updated: 2026-09-08（v1.2：7 段骨架适配——删任务清单段、M2 对齐项入正文 §6.7；v1.1：追加阶段二决策档案；v1.0：阶段一决策档案初稿）
 > Status: 定稿（决策均已执行验证：M1-platform 27 Task + M1-phase2 38 Task 全绿，2026-09-08 全仓 216 用例）
 > Scope: M1 平台底座（00 §5）两阶段的架构与决策档案——工程基线/数据模型实现形态/认证授权/平台 API 扩展
 > 设计来源：21-skillhub（iflytek/skillhub，Apache-2.0 公开注册中心）源码级对标 S1-S10 吸收；决策与实施记录完整保留于 M1-platform.md / M1-phase2.md（本文件为决策档案，不复制 plan Task 细节）
@@ -146,6 +146,16 @@ zod（08 §7）先行就位，供 M2/M3 管线消费。
   尝试限流（每 code 5 次/分钟）+ TTL 10min 惰性清理 + 轮询一次性消费；
   RFC 8628 语义：pending → 400 authorization_pending + retry-after、过期 → 401。
 
+### 6.7 后置延伸（M2 对齐项，2026-09-08 复验产出）
+
+本 design 无未竟任务（实现状态见头部 Status）。M2 起草须携带的对齐项：
+- 治理域审计写入面：M1 audit_log 只覆盖 auth 4 动作，namespace/token/oidc/device
+  治理操作零审计——00 §2.2「全链路审计」落差，M2 管线落地时接入 audit writer
+- API Token scope 过滤：M1 签发 scope=''/cli 仅标注不强制（Bearer 中间件不过滤）——
+  scope 过滤随治理面落地（05 §5「可设 scope」措辞已超前实现）
+- asset:manage 同码三判定（管理/隐藏恢复仅超管/撤回 ASSET_ADMIN+）靠业务层细分——
+  M2/M3 实现不可只查 can('asset:manage')
+
 ## 7. 接口变更总览
 
 M1 交付的 HTTP API 面（前缀 `/api`，响应统一结构化 `{code, message}`，07 §4）：
@@ -208,18 +218,10 @@ RBAC 判定链（can 实现序）：账号状态 → 平台权限 → SUPER_ADMI
 - 代码落点：apps/server/src/{auth,audit,config,db/schema,http,storage}/ ·
   packages/protocol/src/{slug,type,errors,skill,mcp,agent}
 
-## 11. 任务清单（实现状态）
-
-- 阶段一 M1-platform 27 Task：**全绿**（2026-09-07 完成并 push）
-- 阶段二 M1-phase2 38 Task：**全绿**（2026-09-08 完成并 push，含 T35-T38 收尾）
-- 全仓验证：216 用例绿（215 pass + 1 真实网络 skip 诚实标注）/ typecheck · lint · build 4/4
-- 收尾冒烟：命名空间 CRUD + Token 签发/Bearer + 审计浏览 + Device Flow 全链 + OIDC 冒烟记录于 plan
-- 本 design 无未竟任务；M2 对齐项（治理域审计写入面/API Token scope 过滤/asset:manage 同码
-  业务层判定）留待 M2 plan 起草
-
-## 12. 修订记录
+## 11. 修订记录
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-08 | sunxuewen-rush | 回溯补档初稿：M1 阶段一决策档案（里程碑切分/工程基线/数据模型形态/认证授权，决策本体 2026-09-07 评审拍板，R1-R7/D1-D9） |
 | v1.1 | 2026-09-08 | sunxuewen-rush | 追加阶段二决策档案（命名空间 API/存储 SPI/API Token/审计浏览/OIDC/Device Flow，R1-R9/S1-S10）；补接口总览/线框/引用清单/任务状态（同主题迭代追加，00 §7 ②） |
+| v1.2 | 2026-09-08 | sunxuewen-rush | 7 段骨架适配（体系修正 00 §7 ②）：删除任务清单段（实现状态已由头部 Status 承载，Task 细则归属 plan）；M2 对齐项移入正文 §6.7 后置延伸 |
