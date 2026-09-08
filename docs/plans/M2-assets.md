@@ -55,7 +55,7 @@ API Token scope 过滤、已发布资产下线/删除。
     - GET /api/assets/{ns}/{slug}：详情（按 §T2 可见性；PUBLIC 匿名可读——挂载在 requireAuth 外/内特殊处理）
   - Modify: `apps/server/src/app.ts`（挂载 /api/assets）
   - Test: `src/http/assets.test.ts`（集成：注册→详情→列表；权限负例）
-- **Assert**：注册 201（owner 落位）；slug 冲突 409；非成员注册 403；PUBLIC 详情匿名 200；PRIVATE 详情非 owner 404；FROZEN 空间注册 403
+- **Assert**：注册 201（owner 落位）；slug 冲突 409；非成员注册 403；PUBLIC 详情匿名 200；PRIVATE 详情非 owner 403（access_denied）；ns ARCHIVED 非成员 403（namespace_archived）；HIDDEN 404；FROZEN 空间注册 403
 - **Commit**: `feat(server): add asset register list and detail api`
 
 #### T4 资产管理端点：visibility 修改 + 资产删除（Q3/Q5）
@@ -231,7 +231,7 @@ API Token scope 过滤、已发布资产下线/删除。
 ## 3. 验收总断言（plan 全绿定义）
 
 - 全仓 `bun run typecheck` 0 error；`bun run test` 0 failed；`bun run lint` 0 error；`bun run build` 成功
-- 资产域：注册/列表/详情 + visibility 读面矩阵（PUBLIC 匿名 200 / PRIVATE 非 owner 404 / HIDDEN 404）测试全绿
+- 资产域：注册/列表/详情 + visibility 读面矩阵（PUBLIC 匿名 200 / PRIVATE 非 owner 403 / HIDDEN 404 / ns ARCHIVED 非成员 403）测试全绿
 - 校验器：三族 validator 注册表 + zip 结构校验（root 级主文件/白名单扩展名/超限/路径穿越/symlink 反例）全绿
 - 上传原子性：失败零孤儿（版本行/文件行/存储全空断言）；sha256 与存储一致；version 冲突 409
 - 版本读面：DRAFT 可见性矩阵（owner/上传者/ADMIN+ 200；外 404）；DRAFT 删除判定（上传者本人可删）
@@ -244,3 +244,4 @@ API Token scope 过滤、已发布资产下线/删除。
 |------|------|------|------|
 | v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域计划——18 Task（板块 A-H：注册读面/校验器/解析投影/版本上传/版本管理/转让/审计补全/收尾），逐 Task 引用 design 2026-09-08-m2-asset-domain-design.md §N |
 | v1.1 | 2026-09-08 | sunxuewen-rush | 校验器契约同步（design v1.2）：砍 warnings/confirmWarnings（族协议纯 error）；T5 ValidationResult 去 warnings[]；T7 改 root 级主文件 + 扩展名白名单拒绝（无目录白名单）；T12/T13 删 confirm 流程 |
+| v1.2 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义同步（design v1.3）：T3/T4 详情与删除断言 404 → 403 分层（namespace_archived/access_denied） |
