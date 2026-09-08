@@ -737,10 +737,10 @@ describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => 
     expect(res.status).toBe(403);
   });
 
-  it('删 PUBLISHED 版本 → 400 draft_only（非 DRAFT 走 M3 治理——member 是 ast-del-pub owner）', async () => {
+  it('删 PUBLISHED 版本 → 400 version_not_deletable（禁删态替代 M2 draft_only——member 是 ast-del-pub owner）', async () => {
     const res = await jsonRequest('DELETE', '/api/assets/ast-http-ns/ast-del-pub/versions/1.0.0', undefined, await cookieFor(member));
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { code: string }).code).toBe('asset.draft_only');
+    expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_deletable');
   });
 
   it('已删版本再删 → 404', async () => {

@@ -17,8 +17,9 @@ export const assetErrorCodes = {
   slugTaken: 'asset.slug_taken',
   /** 版本号重复（UNIQUE(asset_id, version)，版本不可覆写） */
   versionConflict: 'asset.version_conflict',
-  /** 仅 DRAFT 版本可删除（UPLOADED+ 走治理面） */
-  draftOnly: 'asset.draft_only',
+  /** 版本存在但不可删（PENDING_REVIEW/PUBLISHED/YANKED 禁删态——M3 design §3.4 R5；
+   *  替代 M2 draft_only：删除面放宽为 DRAFT/SCAN_FAILED 上传者可删 + REJECTED/UPLOADED 管理面可删） */
+  versionNotDeletable: 'asset.version_not_deletable',
   /** 版本存在但未发布/无预览权（skillhub error.skill.version.notPublished 对齐——400 明示） */
   versionNotPublished: 'asset.version_not_published',
   /** 提交审核前态不符（仅 DRAFT/UPLOADED 可 submit——M3 design §3.1 R2） */
@@ -57,7 +58,7 @@ export function httpStatusForAsset(code: AssetErrorCode): number {
       return 409;
     case 'asset.package_too_large':
       return 413;
-    case 'asset.draft_only':
+    case 'asset.version_not_deletable':
     case 'asset.has_published':
     case 'asset.has_yanked':
     case 'asset.version_not_published':

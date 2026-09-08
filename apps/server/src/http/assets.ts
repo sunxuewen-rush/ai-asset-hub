@@ -40,6 +40,7 @@ import {
   assetStatusSchema,
   assetTypeSchema,
   assetVersion,
+  reviewTask,
   type NamespaceRole,
   visibilitySchema,
 } from '../db/schema/index.js';
@@ -387,9 +388,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json(assetItem(updated!, nsSlug));
   });
 
-  // DELETE /api/assets/{ns}/{slug}（T4：资产删除——Q5 纠错非治理）
-  // 仅无 PUBLISHED 版本可删（防已分发资产静默移除）；事务删行 + 事后存储清理（孤儿文件容忍：
-  // 存储删失败不阻断行删除——残留文件无害可后清）
+  // DELETE /api/assets/{ns}/{slug}（T4：资产删除——Q5 纠错非治理；M3 R10 条件升级）
+  // 无 PUBLISHED 且无 YANKED 版本才可删（曾分发即留档——has_yanked 400）；事务删
+  // review_task/file/version/asset + 事后存储清理（孤儿文件容忍：存储删失败不阻断行删除）
   app.delete('/:nsSlug/:slug', requireAuth(), async (c) => {
     const principal = c.get('principal')!;
     const nsSlug = c.req.param('nsSlug')!;
@@ -404,6 +405,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (versions.some((v) => v.status === 'PUBLISHED')) {
       throw new AssetError(assetErrorCodes.hasPublished);
     }
+    if (versions.some((v) => v.status === 'YANKED')) {
+      throw new AssetError(assetErrorCodes.hasYanked); // R10：曾分发即留档（design §4.2）
+    }
 
     const versionIds = versions.map((v) => v.id);
     const fileKeys: string[] = [];
@@ -414,6 +418,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
           .from(assetFile)
           .where(inArray(assetFile.versionId, versionIds));
         fileKeys.push(...files.map((f) => f.storageKey));
+        // M3：review_task 引用版本无 ON DELETE——删前显式清（审核事件留 audit_log）
+        await tx.delete(reviewTask).where(inArray(reviewTask.assetVersionId, versionIds));
         await tx.delete(assetFile).where(inArray(assetFile.versionId, versionIds));
         await tx.delete(assetVersion).where(inArray(assetVersion.id, versionIds));
       }
@@ -507,10 +513,11 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     }
   });
 
-  // DELETE /api/assets/{ns}/{slug}/versions/{version}（T15：DRAFT 删除——Q2 判定）
-  // 判定序：版本 404 → 空间写门（ACTIVE，owner/上传者亦不能绕过空间冻结）→ 授权
-  // （owner/空间 ADMIN+，或上传者本人撤回自己的 DRAFT——Q2 上传者例外）→
-  // 非 DRAFT 400 draft_only（UPLOADED+ 走 M3 治理面）。删除连带存储清理。
+  // DELETE /api/assets/{ns}/{slug}/versions/{version}（M3 T9：删除面分治——design §3.4 R5）
+  // 判定序：版本 404 → 空间写门（ns ACTIVE，owner/上传者亦不能绕过空间冻结）→ 状态门
+  // （禁删态 PENDING_REVIEW/PUBLISHED/YANKED → 400 version_not_deletable——替代 M2 draft_only）
+  // → 身份面（owner/空间 ADMIN+ 可删 DRAFT/SCAN_FAILED/REJECTED/UPLOADED；上传者本人仅
+  // DRAFT/SCAN_FAILED——草稿族例外扩展）。删除连带 review_task/存储清理（deleteVersion）。
   app.delete('/:nsSlug/:slug/versions/:version', requireAuth(), async (c) => {
     const principal = c.get('principal')!;
     const nsSlug = c.req.param('nsSlug')!;
@@ -533,17 +540,26 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const viewer = await viewerContext(c, ns.id);
     if (!viewer.isSuperAdmin) {
       if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门（05 §6.3）
-      const manager = canManageAsset({
-        ownerId: row.ownerId,
-        viewerId: principal.userId,
-        namespaceRole: viewer.namespaceRole,
-        isSuperAdmin: false,
-      });
-      // Q2：owner/空间 ADMIN+ 全 DRAFT 可删；上传者本人仅撤回自己的 DRAFT
-      const uploaderRetract = versionRow.status === 'DRAFT' && versionRow.createdBy === principal.userId;
-      if (!manager && !uploaderRetract) throw new AuthError('auth.forbidden');
     }
-    if (versionRow.status !== 'DRAFT') throw new AssetError(assetErrorCodes.draftOnly);
+
+    // 状态门：禁删态（R5 分治——PENDING_REVIEW 审核中防内容蒸发/PUBLISHED 已分发/YANKED 留档）
+    const DELETABLE_UPLOADER: ReadonlySet<string> = new Set(['DRAFT', 'SCAN_FAILED']);
+    const DELETABLE_MANAGER: ReadonlySet<string> = new Set(['DRAFT', 'SCAN_FAILED', 'REJECTED', 'UPLOADED']);
+    const status = versionRow.status;
+    if (!DELETABLE_UPLOADER.has(status) && !DELETABLE_MANAGER.has(status)) {
+      throw new AssetError(assetErrorCodes.versionNotDeletable);
+    }
+
+    // 身份面：owner/空间 ADMIN+（canManageAsset）删 REJECTED/UPLOADED + 草稿族；
+    // 上传者本人仅删自己的 DRAFT/SCAN_FAILED（M2 例外对称扩展）
+    const manager = canManageAsset({
+      ownerId: row.ownerId,
+      viewerId: principal.userId,
+      namespaceRole: viewer.namespaceRole,
+      isSuperAdmin: viewer.isSuperAdmin,
+    });
+    const uploaderRetract = DELETABLE_UPLOADER.has(status) && versionRow.createdBy === principal.userId;
+    if (!manager && !uploaderRetract) throw new AuthError('auth.forbidden');
 
     await deleteVersion(db, deps.storage, deps.audit, {
       versionId: versionRow.id,

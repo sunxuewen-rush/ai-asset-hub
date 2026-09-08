@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
-import { assetFile, assetVersion, type AssetType } from '../db/schema/index.js';
+import { assetFile, assetVersion, reviewTask, type AssetType } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
 import { extractAll } from '../validate/zip.js';
 import { validatePackage } from '../validate/index.js';
@@ -176,6 +176,9 @@ export async function deleteVersion(
     .where(eq(assetFile.versionId, input.versionId));
 
   await db.transaction(async (tx) => {
+    // 连带清 review_task（M3 R5：REJECTED/UPLOADED 删除前清任务行——08 review_task
+    // asset_version_id 无 ON DELETE，删前显式删；审核事件仍在 audit_log 长存）
+    await tx.delete(reviewTask).where(eq(reviewTask.assetVersionId, input.versionId));
     await tx.delete(assetFile).where(eq(assetFile.versionId, input.versionId));
     await tx.delete(assetVersion).where(eq(assetVersion.id, input.versionId));
   });
