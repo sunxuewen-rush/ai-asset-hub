@@ -112,7 +112,7 @@ export function createApp(deps: AppDeps): Hono {
     storage: deps.storage,
     uploadRateLimiter: deps.uploadRateLimiter ?? new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max),
   }));
-  app.route('/api/tokens', createTokenRoutes({ db: deps.db }));
+  app.route('/api/tokens', createTokenRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // Device Flow（T30-T33；anonymous 端点豁免 CSRF——见装配；approve 走 cookie 通道）
   app.route(
@@ -125,6 +125,7 @@ export function createApp(deps: AppDeps): Hono {
       // approve 尝试限流（T33：每 user_code 5 次/分钟）
       approveRateLimiter: new InMemoryRateLimiter(APPROVE_LIMIT.windowMs, APPROVE_LIMIT.max),
       publicBaseUrl: deps.publicBaseUrl ?? 'http://localhost:3000',
+      audit: deps.audit,
     }),
   );
   // OIDC 授权码流（T24/T25；authorize/callback 为访客端点——无 requireAuth，走独立 state cookie）
@@ -135,6 +136,7 @@ export function createApp(deps: AppDeps): Hono {
       sessions: deps.sessions,
       cookieSecure: deps.cookieSecure,
       sessionTtlHours: deps.sessionTtlHours,
+      audit: deps.audit,
     }),
   );
 

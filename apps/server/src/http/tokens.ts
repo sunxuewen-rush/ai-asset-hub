@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { generateTokenSecret, hashToken } from '../auth/tokens.js';
+import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import { apiToken } from '../db/schema/index.js';
 import { requireAuth } from './auth-middleware.js';
@@ -15,6 +16,8 @@ import { requireAuth } from './auth-middleware.js';
 
 export interface TokenRoutesDeps {
   db: Db;
+  /** 审计写入器（T17：token.issue/revoke 埋点——明文零落 detail） */
+  audit?: AuditWriter;
 }
 
 const DAY_MS = 86_400_000;
@@ -61,6 +64,14 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
       })
       .returning({ id: apiToken.id });
     if (!row) throw new Error('api token insert returned no row');
+    // 审计（T17：token.issue——detail 零明文（明文只在签发响应；库中仅哈希））
+    await deps.audit?.({
+      actorId: principal.userId,
+      action: 'token.issue',
+      targetType: 'api_token',
+      targetId: String(row.id),
+      detail: { expiresAt: expiresAt?.toISOString() ?? null },
+    });
     return c.json({ id: row.id, token: plain, expiresAt }, 201);
   });
 
@@ -113,6 +124,13 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
     }
     if (token.revokedAt) return c.body(null, 204); // 幂等：已吊销
     await db.update(apiToken).set({ revokedAt: new Date() }).where(eq(apiToken.id, id));
+    // 审计（T17：token.revoke——吊销动作；幂等分支不记）
+    await deps.audit?.({
+      actorId: principal.userId,
+      action: 'token.revoke',
+      targetType: 'api_token',
+      targetId: String(id),
+    });
     return c.body(null, 204);
   });
 

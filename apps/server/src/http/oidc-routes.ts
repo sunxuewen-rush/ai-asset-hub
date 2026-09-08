@@ -15,6 +15,7 @@ import { getOidcClient } from '../auth/oidc.js';
 import { provisionExternalUser } from '../auth/provision.js';
 import type { SessionManager } from '../auth/session.js';
 import { attachSessionCookie } from '../auth/session-middleware.js';
+import type { AuditWriter } from '../audit/audit.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 
@@ -65,6 +66,8 @@ export interface OidcRoutesDeps {
   sessionTtlHours: number;
   /** 回调成功 302 落地（缺省 getEnv().PUBLIC_BASE_URL） */
   publicBaseUrl?: string;
+  /** 审计写入器（T17：oidc.provisioned——首登建号动作；避免与 login 双记） */
+  audit?: AuditWriter;
 }
 
 export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
@@ -148,6 +151,16 @@ export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
       email: emailVerified ? (email ?? null) : undefined,
     });
 
+    // 审计（T17：oidc.provisioned——仅首登建号/重建时记；既有账号复用不双记）
+    if (provisioned.created) {
+      await deps.audit?.({
+        actorId: provisioned.id,
+        action: 'oidc.provisioned',
+        targetType: 'user',
+        targetId: provisioned.id,
+        detail: { provider: 'oidc' },
+      });
+    }
     // 自动登录：签发 session（与本地登录同通道）
     const sessionId = await deps.sessions.createSession(provisioned.id, provisioned.displayName);
     attachSessionCookie(c, sessionId, {

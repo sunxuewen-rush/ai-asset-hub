@@ -240,6 +240,15 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
           .values({ namespaceId: row.id, userId: principal.userId, role: 'OWNER' });
         return row;
       });
+      // 审计（T17：治理动作 namespace.create——try 内成功路径尾：审计失败会 500
+      // 但动作已落——审计为尽力而为，语义记录不阻断）
+      await deps.audit?.({
+        actorId: principal.userId,
+        action: 'namespace.create',
+        targetType: 'namespace',
+        targetId: String(ns.id),
+        detail: { slug, type },
+      });
       return c.json({ namespace: namespaceItem(ns, 1, 'OWNER') }, 201);
     } catch (err) {
       // drizzle 包装 pg 错误（query/params/cause）——真实 PG code 在 cause 层
@@ -345,6 +354,14 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
       .returning(namespaceItemColumns);
     const row = updated[0]!;
     const summary = await memberSummary(db, id, principal.userId);
+    // 审计（T17：namespace.status_change——幂等分支不记）
+    await deps.audit?.({
+      actorId: principal.userId,
+      action: 'namespace.status_change',
+      targetType: 'namespace',
+      targetId: String(id),
+      detail: { from: existing.status, to: parsed.data.status },
+    });
     return c.json({ namespace: namespaceItem(row, summary.count, summary.myRole) });
   });
 
@@ -441,6 +458,14 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
           role: namespaceMember.role,
           joinedAt: namespaceMember.createdAt,
         });
+      // 审计（T17：治理动作 member.add）
+      await deps.audit?.({
+        actorId: principal.userId,
+        action: 'namespace.member_add',
+        targetType: 'namespace',
+        targetId: String(id),
+        detail: { targetUserId: targetId, role },
+      });
       return c.json({ member }, 201);
     } catch (err) {
       const pgCode =
@@ -501,6 +526,14 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     await db
       .delete(namespaceMember)
       .where(and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, targetId ?? '')));
+    // 审计（T17：治理动作 member.remove）
+    await deps.audit?.({
+      actorId: principal.userId,
+      action: 'namespace.member_remove',
+      targetType: 'namespace',
+      targetId: String(id),
+      detail: { targetUserId: targetId },
+    });
     return c.body(null, 204);
   });
 

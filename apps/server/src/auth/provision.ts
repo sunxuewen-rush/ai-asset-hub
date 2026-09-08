@@ -26,6 +26,8 @@ export interface ProvisionedUser {
   id: string;
   displayName: string;
   email: string | null;
+  /** true = 本次调用完成建号/重建（T17：oidc.provisioned 埋点判别） */
+  created: boolean;
 }
 
 export async function provisionExternalUser(
@@ -43,6 +45,7 @@ export async function provisionExternalUser(
     .from(userAccount)
     .where(eq(userAccount.id, targetId));
 
+  let created = false;
   if (!bound) {
     if (existing.length === 0) {
       // —— 3. 全新：事务建号 + binding ——
@@ -56,6 +59,7 @@ export async function provisionExternalUser(
           });
           await tx.insert(identityBinding).values({ provider, providerSubject, userId });
         });
+        created = true; // 事务成功 = 本次完成建号（T17：provision 埋点判别）
       } catch (err) {
         // 并发同 subject 双飞：binding UNIQUE(provider, subject) 冲突 → 重查复用
         if ((err as { cause?: { code?: string } }).cause?.code === '23505') {
@@ -70,6 +74,7 @@ export async function provisionExternalUser(
     }
   } else if (existing.length === 0) {
     // binding 指向的账号已被删（异常态）→ 重建账号不重建 binding
+    created = true; // 重建了账号行（异常态修复——属建号动作）
     await db.insert(userAccount).values({
       id: targetId,
       displayName,
@@ -78,7 +83,7 @@ export async function provisionExternalUser(
     });
   }
 
-  return fetchAndSync(db, targetId, displayName, email);
+  return { ...(await fetchAndSync(db, targetId, displayName, email)), created };
 }
 
 function findBinding(db: Db, provider: string, providerSubject: string) {
@@ -118,6 +123,7 @@ async function fetchAndSync(
   }
   return {
     id: account.id,
+    created: false, // 复用/同步路径——非本次建号
     displayName,
     // 未同步（email 未传）→ 回读库值；同步过 → 输入收敛值
     email: email === undefined ? account.email : email,

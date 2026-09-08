@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { count, eq, like } from 'drizzle-orm';
+import { and, count, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 
@@ -13,12 +13,14 @@ import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
+import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, type RoleCode, role, userAccount, userRoleBinding } from '../db/schema/index.js';
+import { apiToken, auditLog, type RoleCode, role, userAccount, userRoleBinding } from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 
 let db: Db;
+let audit!: ReturnType<typeof createAuditWriter>;
 let sessions: SessionManager;
 let rbac: RbacService;
 let u1: string; // 普通 ACTIVE 用户（无平台角色——签发本人 token 不需权限码）
@@ -61,7 +63,7 @@ function buildApp(): Hono {
     }
     return c.json({ code: 'internal_error' }, 500);
   });
-  app.route('/api/tokens', createTokenRoutes({ db }));
+  app.route('/api/tokens', createTokenRoutes({ db, audit }));
   return app;
 }
 
@@ -83,6 +85,7 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
   sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  audit = createAuditWriter(db);
   u1 = await makeUser('tok-u1');
   await ensureRole('SUPER_ADMIN');
   superAdmin = await makeUser('tok-super-admin');
@@ -95,6 +98,7 @@ afterAll(async () => {
     .from(userAccount)
     .where(like(userAccount.displayName, 'tok-%'));
   for (const u of users) {
+    await db.delete(auditLog).where(eq(auditLog.actorId, u.id)); // T17：审计动作埋点后 FK 序
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
     await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
@@ -131,6 +135,13 @@ describe('POST /api/tokens（T14 签发）', () => {
     expect(row!.scope).toBe('');
     expect(row!.userId).toBe(u1);
     expect(row!.expiresAt).toBeNull();
+    // T17 审计：token.issue 落位 + detail 明文零落（敏感载荷纪律）
+    const auditRows = await db
+      .select({ action: auditLog.action, detail: auditLog.detail })
+      .from(auditLog)
+      .where(and(eq(auditLog.actorId, u1), eq(auditLog.action, 'token.issue')));
+    expect(auditRows.length).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(auditRows[auditRows.length - 1]!.detail)).not.toContain(body.token);
   });
 
   it('expiresInDays=30 → expiresAt 约 now+30d', async () => {
