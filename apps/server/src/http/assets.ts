@@ -110,13 +110,13 @@ function assetItem(row: AssetRow, namespaceSlug: string) {
   };
 }
 
-/** viewer 上下文组装（仅登录时查询；匿名 → role null + 非超管） */
+/** viewer 上下文组装（仅登录时查询；匿名 → role null + 非超管 + 非审核角色） */
 async function viewerContext(
   c: import('hono').Context,
   namespaceId: number,
-): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean }> {
+): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean; isPlatformReviewer: boolean }> {
   const principal = c.get('principal');
-  if (!principal) return { viewerId: null, namespaceRole: null, isSuperAdmin: false };
+  if (!principal) return { viewerId: null, namespaceRole: null, isSuperAdmin: false, isPlatformReviewer: false };
   const rbac = c.get('rbac')!;
   const roles = await rbac.getNamespaceRoles(principal.userId, namespaceId);
   const platformRoles = await rbac.platformRolesOf(principal.userId);
@@ -124,6 +124,7 @@ async function viewerContext(
     viewerId: principal.userId,
     namespaceRole: (roles[0] as NamespaceRole | undefined) ?? null,
     isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
+    isPlatformReviewer: platformRoles.includes('ASSET_ADMIN'),
   };
 }
 
@@ -136,7 +137,7 @@ async function assertAssetReadable(
   c: import('hono').Context,
   ns: { id: number; status: string },
   row: { status: string; visibility: string; ownerId: string },
-): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean }> {
+): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean; isPlatformReviewer: boolean }> {
   const viewer = await viewerContext(c, ns.id);
   if (viewer.isSuperAdmin) return viewer;
   if (row.status !== 'ACTIVE') throw new AssetError(assetErrorCodes.notFound);

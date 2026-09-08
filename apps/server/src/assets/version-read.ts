@@ -1,11 +1,15 @@
 /**
- * 版本读面服务（M2 T14；design §6 Q1——DRAFT 状态可见性过滤）。
- * 授权语义：DRAFT 仅 资产 owner / 版本上传者（created_by）/ 空间 ADMIN+ 可见；
- * 无权限者不可见（列表过滤 + 详情由调用方 404——不泄露存在性）。
- * PUBLISHED（M3 才有）→ 全可见（资产读面已先行过滤——版本读面端点前置资产可见判定）。
+ * 版本读面服务（M2 T14 → M3 T6 重构；design §3.6 R7——八态显式态分类）。
+ * 授权语义（未公开族 vs 曾公开族分治——M3 六态 → 八态后状态全序显式化）：
+ * - 未公开族（DRAFT/SCANNING/SCAN_FAILED/UPLOADED/PENDING_REVIEW/REJECTED）：仅
+ *   资产 owner / 版本上传者（created_by）/ 空间 ADMIN/OWNER / 平台审核角色（ASSET_ADMIN，
+ *   R7 扩展——审核待审/历史面）/ SUPER_ADMIN 可见；无权限者不可见（列表过滤 + 详情
+ *   400 version_not_published 由调用方明示——不泄露存在性）。
+ * - 曾公开族（PUBLISHED/YANKED）：全可见（资产读面已先行过滤——版本读面端点前置资产
+ *   可见判定；YANKED 详情留档公开——曾公开族读面，design §4.1 R9）。
  * 资产读面判定（ns/visibility/403 分层）在 http 层前置——本层只做版本状态授权。
  */
-import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
   assetFile,
@@ -15,11 +19,13 @@ import {
 } from '../db/schema/index.js';
 
 export interface VersionViewer {
-  /** null = 匿名（DRAFT 面恒不可见） */
+  /** null = 匿名（未公开族面恒不可见） */
   viewerId: string | null;
   /** 资产所在空间角色（null = 非成员） */
   namespaceRole: NamespaceRole | null;
   isSuperAdmin: boolean;
+  /** 平台审核角色（ASSET_ADMIN——R7 预览授权集扩展：待审/历史面审核人可见） */
+  isPlatformReviewer: boolean;
 }
 
 export interface VersionListItem {
@@ -45,35 +51,51 @@ export interface VersionDetail extends VersionListItem {
   files: VersionFileMeta[];
 }
 
-/** DRAFT 授权（内存判定——viewer 可看 DRAFT：上传者本人 or 资产 owner or 空间 ADMIN+） */
-function canViewDraft(
+/** 未公开族（曾公开族 = PUBLISHED/YANKED——非授权者亦可见，design §3.6 R7/R9） */
+const NON_PUBLIC: ReadonlySet<VersionStatus> = new Set([
+  'DRAFT',
+  'SCANNING',
+  'SCAN_FAILED',
+  'UPLOADED',
+  'PENDING_REVIEW',
+  'REJECTED',
+]);
+
+/**
+ * 未公开族授权（内存判定——行级：上传者本人 or 资产 owner or 空间 ADMIN/OWNER or
+ * 平台审核角色 ASSET_ADMIN；曾公开族恒可见。design §3.6 R7 授权集）。
+ */
+function canViewNonPublic(
   assetOwnerId: string,
   viewer: VersionViewer,
   row: { status: VersionStatus; createdBy: string | null },
 ): boolean {
-  if (row.status !== 'DRAFT') return true; // PUBLISHED 等全可见（资产读面已先行）
-  if (viewer.viewerId === null) return false; // 匿名无 DRAFT 面
-  if (viewer.viewerId === row.createdBy) return true; // 上传者本人（Q1/Q2 协作语义）
+  if (!NON_PUBLIC.has(row.status)) return true; // PUBLISHED/YANKED 曾公开族全可见
+  if (viewer.viewerId === null) return false; // 匿名无未公开族面
+  if (viewer.viewerId === row.createdBy) return true; // 上传者本人（协作语义）
   if (viewer.viewerId === assetOwnerId) return true; // 资产 owner
-  return viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN';
+  if (viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN') return true;
+  return viewer.isPlatformReviewer; // ASSET_ADMIN（R7）
 }
 
 /**
- * DRAFT 授权 SQL（viewer 可看 DRAFT：上传者本人 or 资产 owner or 空间 ADMIN+）。
- * owner/ADMIN 是常量判定（调用方已知 viewer 身份）——真值/假值拼接进 OR 条件；
- * 匿名（viewerId null）→ 仅 PUBLISHED 分支（M2 无——全空）。
+ * 未公开族授权 SQL（列表过滤——viewer 身份是调用方已知常量，拼接进 OR：
+ * 曾公开族恒见 + createdBy 本人 + owner/空间 ADMIN/ASSET_ADMIN 常量短路）。
+ * 匿名（viewerId null）→ 仅曾公开族分支（无创建者面）。
  */
-function draftVisibleWhere(assetOwnerId: string, viewer: VersionViewer): ReturnType<typeof or> {
+function nonPublicVisibleWhere(assetOwnerId: string, viewer: VersionViewer): ReturnType<typeof or> {
+  const publicFacing = inArray(assetVersion.status, ['PUBLISHED', 'YANKED']);
   if (viewer.viewerId === null) {
-    return ne(assetVersion.status, 'DRAFT');
+    return publicFacing;
   }
   const isOwner = assetOwnerId === viewer.viewerId;
   const isAdmin = viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN';
   return or(
-    ne(assetVersion.status, 'DRAFT'),
+    publicFacing,
     eq(assetVersion.createdBy, viewer.viewerId),
     isOwner ? sql`true` : sql`false`,
     isAdmin ? sql`true` : sql`false`,
+    viewer.isPlatformReviewer ? sql`true` : sql`false`,
   );
 }
 
@@ -91,7 +113,7 @@ export async function listVersions(
 ): Promise<{ items: VersionListItem[]; total: number }> {
   const where = viewer.isSuperAdmin
     ? eq(assetVersion.assetId, assetId)
-    : and(eq(assetVersion.assetId, assetId), draftVisibleWhere(assetOwnerId, viewer))!;
+    : and(eq(assetVersion.assetId, assetId), nonPublicVisibleWhere(assetOwnerId, viewer))!;
 
   const [items, totalRows] = await Promise.all([
     db
@@ -134,7 +156,7 @@ export async function getVersion(
     .where(and(eq(assetVersion.assetId, assetId), eq(assetVersion.version, version)));
   const row = rows[0];
   if (!row) return null;
-  if (!viewer.isSuperAdmin && !canViewDraft(assetOwnerId, viewer, row)) return 'restricted';
+  if (!viewer.isSuperAdmin && !canViewNonPublic(assetOwnerId, viewer, row)) return 'restricted';
 
   const files = await db
     .select({
