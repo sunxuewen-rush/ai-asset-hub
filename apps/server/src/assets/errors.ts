@@ -23,6 +23,14 @@ export const assetErrorCodes = {
   versionNotPublished: 'asset.version_not_published',
   /** 提交审核前态不符（仅 DRAFT/UPLOADED 可 submit——M3 design §3.1 R2） */
   versionNotSubmittable: 'asset.version_not_submittable',
+  /** YANKED 已撤回分发版本禁下载（曾公开族——M3 design §7.2 R13） */
+  versionYanked: 'asset.version_yanked',
+  /** yank 仅对 PUBLISHED 生效（M3 design §4.1 R9——非发布态拒） */
+  versionNotYankable: 'asset.version_not_yankable',
+  /** yank 必须给撤回理由（skillhub YankRequest 同构——M3 design §4.1 R9） */
+  yankReasonRequired: 'asset.yank_reason_required',
+  /** 资产已有 YANKED 版本禁删（曾分发即留档——M3 design §4.2 R10） */
+  hasYanked: 'asset.has_yanked',
   /** 资产已有 PUBLISHED 版本，删除走 M3 治理（防已分发资产静默移除） */
   hasPublished: 'asset.has_published',
   /** zip 布局违规：主文件不在包根 / 带外层目录（root 级契约） */
@@ -51,8 +59,12 @@ export function httpStatusForAsset(code: AssetErrorCode): number {
       return 413;
     case 'asset.draft_only':
     case 'asset.has_published':
+    case 'asset.has_yanked':
     case 'asset.version_not_published':
     case 'asset.version_not_submittable':
+    case 'asset.version_yanked':
+    case 'asset.version_not_yankable':
+    case 'asset.yank_reason_required':
     case 'asset.package_layout_invalid':
     case 'asset.package_path_invalid':
       return 400;

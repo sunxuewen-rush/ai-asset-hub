@@ -31,6 +31,7 @@ import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
 import { canSubmitReview, submitVersion } from '../review/service.js';
+import { canYank, yankVersion } from '../assets/yank.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
@@ -592,6 +593,49 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       submitterId: principal.userId,
     });
     return c.json({ taskId: out.taskId, reviewVersion: out.reviewVersion, status: 'PENDING_REVIEW' }, 201);
+  });
+
+  // POST /api/assets/{ns}/{slug}/versions/{version}/yank（T8：撤回分发——M3 design §4.1 R9）
+  // 判定：版本 404 → 平台治理面（ASSET_ADMIN/SUPER_ADMIN——05 §6.4「撤回已发布版本」，
+  // 非 owner/空间 ADMIN——治理最严面）→ reason 必填（400 yank_reason_required）→
+  // yankVersion（YANKED 三列 + latest 重算事务 + 审计）。
+  app.post('/:nsSlug/:slug/versions/:version/yank', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const version = c.req.param('version')!;
+    if (
+      !slugSchema.safeParse(nsSlug).success ||
+      !slugSchema.safeParse(slug).success ||
+      !versionFieldSchema.safeParse(version).success
+    ) {
+      throw new AssetError(assetErrorCodes.notFound);
+    }
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门（05 §6.3）
+    const [versionRow] = await db
+      .select({ id: assetVersion.id, version: assetVersion.version, status: assetVersion.status })
+      .from(assetVersion)
+      .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
+    if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
+
+    const rbac = c.get('rbac')!;
+    const platformRoles = await rbac.platformRolesOf(principal.userId);
+    if (!canYank(platformRoles.includes('ASSET_ADMIN'), platformRoles.includes('SUPER_ADMIN'))) {
+      throw new AuthError('auth.forbidden');
+    }
+    const body = await c.req.json().catch(() => ({})) as { reason?: unknown };
+    if (typeof body.reason !== 'string' || body.reason.trim() === '') {
+      throw new AssetError(assetErrorCodes.yankReasonRequired);
+    }
+
+    const out = await yankVersion(db, deps.audit, {
+      assetId: row.id,
+      version: versionRow,
+      actorId: principal.userId,
+      reason: body.reason,
+    });
+    return c.json({ status: 'YANKED', latestVersionId: out.latestVersionId }, 200);
   });
 
   return app;
