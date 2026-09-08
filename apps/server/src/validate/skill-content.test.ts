@@ -109,4 +109,26 @@ describe('parseFrontmatter（提取段工具）', () => {
     const r = parseFrontmatter('---\nname: a\ndescription: b\n');
     expect(r.ok).toBe(false);
   });
+
+  it('BOM 前缀容错（T10：首行 BOM + --- 可解析——trim 含 \\uFEFF）', () => {
+    const r = parseFrontmatter('\uFEFF---\nname: a\ndescription: b\n---\nbody\n');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.data.name).toBe('a');
+  });
+
+  it('__proto__ 注入载荷安全（不产出继承键——原型污染防护实证）', () => {
+    const r = parseFrontmatter('---\nname: a\n__proto__: {polluted: true}\nconstructor: {prototype: {x: 1}}\n---\nbody\n');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const { data } = r.value;
+      // js-yaml 5 实证：__proto__/constructor 作普通自有键（defineProperty 安全赋值）
+      // 关键断言 = 原型链零污染：
+      expect((data as { polluted?: unknown }).polluted).toBeUndefined(); // data 自身原型未被换
+      const dataProto = Object.getPrototypeOf(data) as { polluted?: unknown; x?: unknown };
+      expect(dataProto.polluted).toBeUndefined();
+      const plain: Record<string, unknown> = { key: 'v' };
+      expect((plain as { polluted?: unknown }).polluted).toBeUndefined(); // 全局原型未污染
+      expect(Object.getPrototypeOf(plain)).not.toHaveProperty('x');
+    }
+  });
 });
