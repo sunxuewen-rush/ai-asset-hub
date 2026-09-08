@@ -4,7 +4,7 @@
  * （族文件只写族规则，不重复 try/catch）。族内新错码校验错误一律返回 ValidationResult
  * （不 throw——校验失败是业务结果，T12 上传端 400 展示 issues）。
  */
-import { scanZip, ZipValidationError, type ZipEntryMeta } from './zip.js';
+import { readZipEntry, scanZip, ZipValidationError, type ZipEntryMeta } from './zip.js';
 import type { ValidationResult } from './types.js';
 
 /** 文件扩展名提取（白名单判定共用：点文件 .env → ''——无扩展名语义） */
@@ -16,11 +16,15 @@ export function extensionOf(path: string): string {
 
 export async function runFamilyValidation(
   zip: Buffer,
-  familyCheck: (entries: ZipEntryMeta[]) => ValidationResult | Promise<ValidationResult>,
+  familyCheck: (
+    entries: ZipEntryMeta[],
+    /** 读取 zip 内单文件内容（族内容校验需要——readZipEntry 封装） */
+    readFile: (path: string) => Promise<Buffer>,
+  ) => ValidationResult | Promise<ValidationResult>,
 ): Promise<ValidationResult> {
   try {
     const { entries } = await scanZip(zip);
-    return await familyCheck(entries);
+    return await familyCheck(entries, (path) => readZipEntry(zip, path));
   } catch (err) {
     if (err instanceof ZipValidationError) {
       return { ok: false, errors: [{ code: err.code, path: err.path, message: err.message }] };
