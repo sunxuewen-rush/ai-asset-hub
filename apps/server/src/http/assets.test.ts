@@ -639,9 +639,10 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
     expect(res.status).toBe(200);
   });
 
-  it('上传者看他人 DRAFT（1.0.0）→ 404（Q1：成员非 owner 非上传者不可见）', async () => {
+  it('上传者看他人 DRAFT（1.0.0）→ 400 version_not_published（对齐 skillhub notPublished 明示）', async () => {
     const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0', await cookieFor(owner2));
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_published');
   });
 
   it('空间 ADMIN 看任意 DRAFT 200（管理面）', async () => {
@@ -649,14 +650,16 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
     expect(res.status).toBe(200);
   });
 
-  it('空间外用户看 DRAFT → 404（PUBLIC 资产也 404——版本面不透）', async () => {
+  it('空间外用户看 DRAFT → 400 version_not_published（PUBLIC 资产也 400——明示未发布）', async () => {
     const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0', await cookieFor(outsider));
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_published');
   });
 
-  it('匿名看 DRAFT → 404', async () => {
+  it('匿名看 DRAFT → 400 version_not_published', async () => {
     const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0');
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_published');
   });
 
   it('SUPER_ADMIN 看 DRAFT 200（短路）', async () => {

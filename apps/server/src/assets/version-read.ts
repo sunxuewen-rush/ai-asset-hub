@@ -45,6 +45,19 @@ export interface VersionDetail extends VersionListItem {
   files: VersionFileMeta[];
 }
 
+/** DRAFT 授权（内存判定——viewer 可看 DRAFT：上传者本人 or 资产 owner or 空间 ADMIN+） */
+function canViewDraft(
+  assetOwnerId: string,
+  viewer: VersionViewer,
+  row: { status: VersionStatus; createdBy: string | null },
+): boolean {
+  if (row.status !== 'DRAFT') return true; // PUBLISHED 等全可见（资产读面已先行）
+  if (viewer.viewerId === null) return false; // 匿名无 DRAFT 面
+  if (viewer.viewerId === row.createdBy) return true; // 上传者本人（Q1/Q2 协作语义）
+  if (viewer.viewerId === assetOwnerId) return true; // 资产 owner
+  return viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN';
+}
+
 /**
  * DRAFT 授权 SQL（viewer 可看 DRAFT：上传者本人 or 资产 owner or 空间 ADMIN+）。
  * owner/ADMIN 是常量判定（调用方已知 viewer 身份）——真值/假值拼接进 OR 条件；
@@ -101,28 +114,27 @@ export async function listVersions(
   return { items, total: Number(totalRows[0]?.n ?? 0) };
 }
 
-/** 版本详情（含 manifest/投影/文件清单）；不可见/不存在 → null（调用方 404） */
+/**
+ * 版本详情（含 manifest/投影/文件清单）。三态返回：
+ * - null：版本不存在（调用方 404）
+ * - 'restricted'：存在但无预览权（非 PUBLISHED 且非授权者——调用方 400 version_not_published，
+ *   skillhub error.skill.version.notPublished 对齐——明示语义）
+ * - VersionDetail：授权可见
+ */
 export async function getVersion(
   db: Db,
   assetId: number,
   assetOwnerId: string,
   version: string,
   viewer: VersionViewer,
-): Promise<VersionDetail | null> {
+): Promise<VersionDetail | 'restricted' | null> {
   const rows = await db
     .select()
     .from(assetVersion)
-    .where(
-      viewer.isSuperAdmin
-        ? and(eq(assetVersion.assetId, assetId), eq(assetVersion.version, version))
-        : and(
-            eq(assetVersion.assetId, assetId),
-            eq(assetVersion.version, version),
-            draftVisibleWhere(assetOwnerId, viewer),
-          ),
-    );
+    .where(and(eq(assetVersion.assetId, assetId), eq(assetVersion.version, version)));
   const row = rows[0];
   if (!row) return null;
+  if (!viewer.isSuperAdmin && !canViewDraft(assetOwnerId, viewer, row)) return 'restricted';
 
   const files = await db
     .select({

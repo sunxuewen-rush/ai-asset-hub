@@ -19,6 +19,8 @@ export const assetErrorCodes = {
   versionConflict: 'asset.version_conflict',
   /** 仅 DRAFT 版本可删除（UPLOADED+ 走治理面） */
   draftOnly: 'asset.draft_only',
+  /** 版本存在但未发布/无预览权（skillhub error.skill.version.notPublished 对齐——400 明示） */
+  versionNotPublished: 'asset.version_not_published',
   /** 资产已有 PUBLISHED 版本，删除走 M3 治理（防已分发资产静默移除） */
   hasPublished: 'asset.has_published',
   /** zip 布局违规：主文件不在包根 / 带外层目录（root 级契约） */
@@ -47,6 +49,7 @@ export function httpStatusForAsset(code: AssetErrorCode): number {
       return 413;
     case 'asset.draft_only':
     case 'asset.has_published':
+    case 'asset.version_not_published':
     case 'asset.package_layout_invalid':
     case 'asset.package_path_invalid':
       return 400;

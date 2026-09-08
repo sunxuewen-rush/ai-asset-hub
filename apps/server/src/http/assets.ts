@@ -292,8 +292,10 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json({ items, total, limit, offset });
   });
 
-  // GET /api/assets/{ns}/{slug}/versions/{version}（T14：版本详情——Q1 同款授权）
-  // 详情含 manifest/投影/文件清单（sha256 可核对——design §6）；无权 → 404（不泄露）
+  // GET /api/assets/{ns}/{slug}/versions/{version}（T14：版本详情——Q1 授权）
+  // 详情含 manifest/投影/文件清单（sha256 可核对——design §6）；三态：不存在 404 /
+  // 存在但无预览权 400 version_not_published（skillhub notPublished 对齐——明示）/
+  // 授权 200。列表仍过滤（skillhub listVersions 同构：授权者全见，其他仅 PUBLISHED）。
   app.get('/:nsSlug/:slug/versions/:version', async (c) => {
     const nsSlug = c.req.param('nsSlug');
     const slug = c.req.param('slug');
@@ -301,7 +303,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
     const viewer = await assertAssetReadable(c, ns, row);
     const detail = await getVersion(db, row.id, row.ownerId, version, viewer);
-    if (!detail) throw new AssetError(assetErrorCodes.notFound);
+    if (detail === null) throw new AssetError(assetErrorCodes.notFound);
+    if (detail === 'restricted') throw new AssetError(assetErrorCodes.versionNotPublished);
     return c.json(detail);
   });
 
