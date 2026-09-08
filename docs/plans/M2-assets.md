@@ -181,8 +181,8 @@ API Token scope 过滤、已发布资产下线/删除。
     - PUBLISHED 按资产 visibility（M2 无 PUBLISHED——逻辑留接口，M3 消费）
     - 详情含 manifest_json/parsed_metadata_json/文件清单（sha256/path/size）
   - 续 Modify: http/assets.ts：GET /api/assets/{ns}/{slug}/versions + GET .../versions/{version}
-  - Test: 续集成：上传者看自己 DRAFT 200 / 空间外用户看 DRAFT 404 / owner/ADMIN 可见 / 匿名看 DRAFT 404（PUBLIC 资产也 404——版本面 DRAFT 不透）
-- **Assert**：Q1 可见性矩阵实测（列表与详情一致，无权限 404 不泄露存在性）
+  - Test: 续集成：上传者看自己 DRAFT 200 / 空间外用户看 DRAFT 400 `version_not_published` / owner/ADMIN 可见 / 匿名 400（PUBLIC 资产也 400——skillhub notPublished 对齐明示）
+- **Assert**：Q1 可见性矩阵实测（列表过滤与详情三态一致——不存在 404 / 无预览权 400 / 授权 200）
 - **Commit**: `feat(server): add version list and detail with draft visibility`
 
 #### T15 版本删除（DRAFT，Q2 判定）
@@ -248,3 +248,4 @@ API Token scope 过滤、已发布资产下线/删除。
 | v1.1 | 2026-09-08 | sunxuewen-rush | 校验器契约同步（design v1.2）：砍 warnings/confirmWarnings（族协议纯 error）；T5 ValidationResult 去 warnings[]；T7 改 root 级主文件 + 扩展名白名单拒绝（无目录白名单）；T12/T13 删 confirm 流程 |
 | v1.2 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义同步（design v1.3）：T3/T4 详情与删除断言 404 → 403 分层（namespace_archived/access_denied） |
 | v1.3 | 2026-09-08 | sunxuewen-rush | 管理面同步（design v1.4）：T4 补状态治理端点（PATCH status，05 §6.4 asset:manage ADMIN+/owner 判定）；visibility/status/删除统一 canManageAsset（非仅超管） |
+| v1.4 | 2026-09-08 | sunxuewen-rush | 版本读面同步（design v1.5）：T14 详情拒绝 404 隐藏 → 400 version_not_published 明示（skillhub notPublished 对齐拍板）；T15/T16 断言相应更新 |

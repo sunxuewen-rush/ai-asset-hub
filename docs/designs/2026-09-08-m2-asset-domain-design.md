@@ -1,7 +1,7 @@
 # M2 资产域设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.4：管理面判定对齐 05 §6.4（状态治理 ADMIN+/owner，非仅超管）；v1.3：读面拒绝语义对标 skillhub 修正（404 防枚举 → 403 明示分层）；v1.2：砍 warnings/confirmWarnings 机制——族协议契约纯 error、root 级布局语义补入；v1.1：grilling Q1-Q5 修复；v1.0：R1-R9 评审拍板落档初稿）
+> Updated: 2026-09-08（v1.5：版本读面拒绝语义对齐 skillhub（详情 400 version_not_published 明示——替代 404 隐藏）；v1.4：管理面判定对齐 05 §6.4（状态治理 ADMIN+/owner，非仅超管）；v1.3：读面拒绝语义对标 skillhub 修正（404 防枚举 → 403 明示分层）；v1.2：砍 warnings/confirmWarnings 机制——族协议契约纯 error、root 级布局语义补入；v1.1：grilling Q1-Q5 修复；v1.0：R1-R9 评审拍板落档初稿）
 > Status: 定稿（评审拍板 2026-09-08：R1-R9 锁定 + grilling Q1-Q5 通过；8 维自检 ≥9）
 > Scope: M2 资产域（00 §5）——skill/mcp/agent 三类资产坐标注册 + 族协议校验器/解析器 + 版本上传（DRAFT）+ 版本管理 + 空间 OWNER 转让 + 审计补全
 > 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）SkillPublishController / ZipPackageExtractor / NamespaceController.transferOwnership / TokenController 源码级核对
@@ -78,8 +78,11 @@ protocol 三族 manifest zod schema、对象存储 SPI + Local 实现（M1）均
   asset_file 逐文件行（sha256/storage_key/content_type/size，UNIQUE(version_id, file_path)）——
   任一失败全回滚（校验失败不产生孤儿文件/行）。
 - DRAFT 版本管理：列表（分页 + 状态过滤）、详情（manifest/投影/文件清单 sha256 可核对）、
-  删除。**版本读面按状态过滤（Q1）**：DRAFT 仅 owner/上传者/空间 ADMIN+ 可见（列表与详情一致，
-  无权限者 404——不泄露存在性）；将来 PUBLISHED 按资产 visibility 公开（08 §5.1）。
+  删除。**版本读面按状态过滤（Q1）**：DRAFT 仅 owner/上传者/空间 ADMIN+ 可见——列表过滤
+  （skillhub listVersions 同构：授权者全见，其他仅 PUBLISHED）+ 详情拒绝对齐 skillhub
+  assertPreviewAccessible 明示语义：**存在但无预览权 → 400 `asset.version_not_published`**
+  （error.skill.version.notPublished 对齐，2026-09-08 拍板替代初版 404 隐藏——明示一致）；
+  版本不存在仍 404。将来 PUBLISHED 按资产 visibility 公开（08 §5.1）。
 - **DRAFT 删除权（Q2）**：上传者本人可删自己的 DRAFT（未提交草稿撤回，开放协作撤回语义）；
   owner/空间 ADMIN+ 可删空间内任一 DRAFT；删除连带存储文件清理（deleteMany）。
   已进 UPLOADED+（提交/审核）后删除回 owner/空间 ADMIN+ 管理面（M3 治理）。
@@ -121,7 +124,8 @@ M2 补齐治理动作审计写入（audit writer M1 已备）：
 
 - 05 §6.4：asset:manage 判定补「DRAFT 版本可由上传者本人删除（未进审核）」（Q2）；
   asset:publish 行加注「发布资产包含资产注册与草稿上传（M2 语义）」（Q4）
-- 08 §7：版本可见性语义补注（DRAFT 仅 owner/上传者/空间 ADMIN+；PUBLISHED 按资产 visibility）（Q1）
+- 08 §7：版本可见性语义补注（DRAFT 仅 owner/上传者/空间 ADMIN+——列表过滤 + 详情 400
+  version_not_published 明示（skillhub notPublished 对齐）；PUBLISHED 按资产 visibility）（Q1）
 - 00 §5：M2 行文案修正（R2）+ 状态注记
 
 ## 9. 接口变更总览（M2 新增，前缀 /api 维持无版本化——R8）
