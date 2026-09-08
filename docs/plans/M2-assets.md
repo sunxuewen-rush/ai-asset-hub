@@ -2,7 +2,7 @@
 
 > Date: 2026-09-08
 > Updated: 2026-09-08（v1.0：初稿——design 定稿后 Task 清单化）
-> Status: 定稿（design 已定稿 2026-09-08；本 plan 任务清单引用 design §N，评审通过后执行）
+> Status: 定稿（design 已定稿 2026-09-08；本 plan 任务清单引用 design §N，评审通过后执行；v1.5 实施完成——18 Task 全部实现、板块 A-G 收官、server 全量 401+ pass + typecheck 0，收敛见 design v1.6）
 > 引用链：本文档 → 设计 docs/designs/2026-09-08-m2-asset-domain-design.md（§N 逐 Task 引用）→ 规范 00 §5 · 01 §2/§3/§5/§6 · 02 §3 · 03 §3/§5 · 04 §3/§4 · 05 §5/§6 · 06 §5.3 · 08 §5/§7（引用不复制，字段契约以规范为准）
 > 命名约定见 docs/plans/README.md
 
@@ -249,3 +249,4 @@ API Token scope 过滤、已发布资产下线/删除。
 | v1.2 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义同步（design v1.3）：T3/T4 详情与删除断言 404 → 403 分层（namespace_archived/access_denied） |
 | v1.3 | 2026-09-08 | sunxuewen-rush | 管理面同步（design v1.4）：T4 补状态治理端点（PATCH status，05 §6.4 asset:manage ADMIN+/owner 判定）；visibility/status/删除统一 canManageAsset（非仅超管） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | 版本读面同步（design v1.5）：T14 详情拒绝 404 隐藏 → 400 version_not_published 明示（skillhub notPublished 对齐拍板）；T15/T16 断言相应更新 |
+| v1.5 | 2026-09-08 | sunxuewen-rush | 实施完成：18 Task 全部实现收官（板块 A-G）——server 全量 401+ pass + typecheck 0；收敛与规范同步见 design v1.6 |

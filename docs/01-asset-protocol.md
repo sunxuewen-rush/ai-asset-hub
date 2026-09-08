@@ -1,7 +1,7 @@
 # 资产协议总纲
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.4：M0/M1 复验同步——§2 登记表 mcp 族协议版本标注回写 v1.2；v1.3 族协议状态同步——02/03/04 已定稿落地于 packages/protocol；v1.2 生命周期同步扫描态全序）
+> Updated: 2026-09-08（v1.5：§3.2 searchText 正文摘要截断数值补注（≤500 字符——M2 投影实现同步）；v1.4：M0/M1 复验同步——§2 登记表 mcp 族协议版本标注回写 v1.2；v1.3 族协议状态同步——02/03/04 已定稿落地于 packages/protocol；v1.2 生命周期同步扫描态全序）
 > Status: 定稿（族协议 02/03/04 已 v1.x 定稿，M1 已按本协议实现 packages/protocol zod schema）
 > Scope: AI Asset Hub 可分发资产的公共协议层 —— 类型登记、包形态、元数据投影、校验器插拔
 
@@ -58,7 +58,7 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 |---------|------|---------|
 | `name` | 资产名（slug 源） | 主文件中的 name 字段（各族定义位置） |
 | `description` | 一句话描述（列表/搜索用） | 主文件 description 字段 |
-| `searchText` | 可索引文本 | name + description + 正文摘要（各族定义截断规则） |
+| `searchText` | 可索引文本 | name + description + 正文摘要（各族定义截断规则；**M2 定：正文摘要 ≤500 字符**——服务端投影统一截断，2026-09-08 补注） |
 | `type` | 资产类型 | 显式声明（各族定义） |
 | `summary` 扩展 | 展示性摘要 | 族协议可选字段（如 mcp 的连接形态、agent 的模型偏好） |
 
@@ -129,3 +129,4 @@ interface AssetValidator {
 | v1.2 | 2026-09-04 | sunxuewen-rush | §4 生命周期补扫描态全序；资产状态独立于版本（指向 08 §7） |
 | v1.3 | 2026-09-07 | sunxuewen-rush | 族协议状态同步：02/03/04「待写」→ 已定稿（03 v1.1），Status 改定稿；§6 校验器已落地 packages/protocol |
 | v1.4 | 2026-09-08 | sunxuewen-rush | M0/M1 复验同步：§2 登记表 mcp 行族协议版本标注 v1.1 → v1.2（03 已升版未回写） |
+| v1.5 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§3.2 投影 searchText 补「正文摘要 ≤500 字符」截断数值（T11 D1 拍板落档——族协议文档原无数值） |

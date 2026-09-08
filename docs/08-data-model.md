@@ -1,8 +1,8 @@
 # 数据模型设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-07（v1.2：实现状态同步——drizzle schema 全表落地；v1.1 schema 蓝图对齐实战模型增补）
-> Status: 定稿（M1 已按本文档 v1.1 落地 drizzle schema 四域全表迁移/种子）
+> Updated: 2026-09-08（v1.3：§7 版本读面可见性补注（DRAFT 授权集 + 400 明示对齐 skillhub——M2 实现同步）；v1.2：实现状态同步——drizzle schema 全表落地；v1.1 schema 蓝图对齐实战模型增补）
+> Status: 定稿（M1 已按本文档 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记）
 > Scope: AI Asset Hub 表结构蓝图 —— 用户/空间/资产/版本/文件/审核/label/审计
 > 设计来源：以企业实战验证的注册中心数据模型为基准（同构继承），按 00-07 规范资产化/中立化
 
@@ -148,6 +148,12 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后回 DRAFT/UPLOADED）
 - `PENDING_REVIEW` → `PUBLISHED` 需 review_task 通过（防自审见 §6）
 - 资产状态独立于版本：`ACTIVE/HIDDEN/ARCHIVED`（隐藏/归档作用于资产整体，不作用于单版本）
 
+**版本读面可见性（M2 补注，2026-09-08 对齐 skillhub）**：`PUBLISHED` 按资产
+visibility 公开；`DRAFT` 仅资产 owner / 版本上传者本人 / 空间 ADMIN+ 可见——列表过滤
+（授权者全见，其他仅见 PUBLISHED）+ 详情无预览权 → 400 `asset.version_not_published`
+明示（对齐 skillhub `error.skill.version.notPublished`；M2 只有 DRAFT 态——全序后续态
+`UPLOADED` 起的预览权在 M3 审核设计时按同构扩展）。
+
 标签通道（01 §4）：`latest` 只读跟随最新 PUBLISHED；自定义标签（stable/beta）
 存 `asset_version` 侧标签位（实现期以表 `asset_version_tag` 或列扩展，M3 定）。
 
@@ -178,3 +184,4 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后回 DRAFT/UPLOADED）
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：用户/空间/资产/版本/文件/治理域表结构 + 版本状态机全序 |
 | v1.1 | 2026-09-07 | sunxuewen-rush | §2 状态列实现形态（VARCHAR+应用层 zod 枚举）；§3 local_credential 补 username/failed_attempts/locked_until、user_account.id 生成注明、identity_binding subject 长度、role/permission/role_permission 三表模型；§6 audit_log 补 request_id/client_ip/user_agent、review_task 补 PENDING 部分唯一索引；§8 汇总表同步；§9 治理扩展表演进说明（对齐实战模型增补） |
 | v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 drizzle schema 四域全表落地（迁移/种子幂等，docs/01 §6 zod 单源消费） |
+| v1.3 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§7 状态机补「版本读面可见性」注记（DRAFT 授权集 owner/上传者/空间 ADMIN+；详情无预览权 400 version_not_published 对齐 skillhub；列表过滤语义） |

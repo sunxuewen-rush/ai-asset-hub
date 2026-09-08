@@ -1,8 +1,8 @@
 # 用户与权限设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.5：M0/M1 复验——§6.2 MEMBER 行措辞收紧，与 §6.4 review:submit 判定区分；v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
-> Status: 定稿（M1 已实现：本地账号/Session/RBAC 判定链/LDAP 企业通道/OIDC 授权码流/Device Flow/API Token，docs/05 §3.1 流程）
+> Updated: 2026-09-08（v1.6：M2 实现同步——§6.4 asset:manage 补 DRAFT 上传者删除例外（Q2）、asset:publish 行加 M2 语义注（Q4）；v1.5：M0/M1 复验——§6.2 MEMBER 行措辞收紧，与 §6.4 review:submit 判定区分；v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
+> Status: 定稿（M1 已实现：本地账号/Session/RBAC 判定链/LDAP 企业通道/OIDC 授权码流/Device Flow/API Token，docs/05 §3.1 流程；M2 已按 v1.6 同步 §6.4 DRAFT 上传者删除例外 + asset:publish M2 语义）
 > Scope: AI Asset Hub 的身份、准入、会话凭证与 RBAC 授权体系
 > 设计来源：企业实战验证的注册中心认证方案（设计决策继承，命名与实现中立化/资产化）
 
@@ -148,9 +148,9 @@
 
 | 操作 | 所需权限 | 判定 |
 |------|---------|------|
-| 发布资产包 | `asset:publish` | 普通用户须为目标空间成员；SUPER_ADMIN 可绕过成员校验直发 |
+| 发布资产包 | `asset:publish` | 普通用户须为目标空间成员；SUPER_ADMIN 可绕过成员校验直发（M2 注：包含资产注册与草稿版本上传——成员判定同） |
 | 提交已有版本进审核 | `review:submit` | owner 本人，或空间 ADMIN/OWNER，或 ASSET_ADMIN/SUPER_ADMIN |
-| 管理资产（归档/版本） | `asset:manage` | 空间 ADMIN 以上，或 owner 本人 |
+| 管理资产（归档/版本） | `asset:manage` | 空间 ADMIN 以上，或 owner 本人（M2 补：DRAFT 版本删除可由**上传者本人**执行——未进审核的草稿撤回，开放协作语义；进 UPLOADED+ 后回本行判定） |
 | 空间间提升（如到全局） | `asset:promote` | 空间 ADMIN 以上，或 owner 本人 |
 | 审核发布 | `review:approve` | 空间 ADMIN/OWNER，或 ASSET_ADMIN/SUPER_ADMIN |
 | 管理空间成员/角色 | `namespace:manage` | 空间 OWNER / ADMIN |
@@ -185,3 +185,4 @@
 | v1.3 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 认证服务按本文档落地（本地账号/scrypt/行级锁定/CSRF/Session/RBAC/LDAP 多 DC 故障转移） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | 实现状态同步：M1 阶段二落地——API Token 签发/Bearer（§5）、审计浏览 audit:read（§6.4）、OIDC 授权码流（§3/§5，provision 公共建号/binding 复用）、Device Flow 签发 cli scope token（§5，RFC 8628） |
 | v1.5 | 2026-09-08 | sunxuewen-rush | M0/M1 复验：§6.2 MEMBER 行措辞收紧——「发布新资产（走审核）」独立表达，提交已有版本进审核（review:submit）判定明确指向 §6.4，消除「提交资产」与 §6.4 判定列的阅读张力 |
+| v1.6 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§6.4 asset:manage 补「DRAFT 版本删除可由上传者本人执行（未进审核撤回，Q2）」例外；asset:publish 行加注 M2 语义（含资产注册与草稿上传，Q4） |
