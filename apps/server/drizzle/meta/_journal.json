@@ -22,6 +22,13 @@
       "when": 1788873803139,
       "tag": "0002_glorious_morgan_stark",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788876398128,
+      "tag": "0003_lonely_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

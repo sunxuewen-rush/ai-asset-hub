@@ -22,7 +22,9 @@ import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { requestContextMiddleware } from './http/request-context.js';
 import { createReviewRoutes } from './http/reviews.js';
+import { createLabelRoutes } from './http/labels.js';
 import { ReviewError } from './review/errors.js';
+import { LabelError } from './labels/errors.js';
 import { tokenAuthMiddleware } from './http/token-middleware.js';
 import { createTokenRoutes } from './http/tokens.js';
 import type { ObjectStorage } from './storage/types.js';
@@ -95,6 +97,12 @@ export function createApp(deps: AppDeps): Hono {
         err.status as 400 | 403 | 404,
       );
     }
+    if (err instanceof LabelError) {
+      return c.json(
+        { code: err.code, message: err.message },
+        err.status as 400 | 403 | 404 | 409,
+      );
+    }
     console.error('[server] unhandled error:', err);
     return c.json({ code: 'internal_error', message: 'internal server error' }, 500);
   });
@@ -122,6 +130,7 @@ export function createApp(deps: AppDeps): Hono {
   }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/reviews', createReviewRoutes({ db: deps.db, audit: deps.audit }));
+  app.route('/api/labels', createLabelRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // Device Flow（T30-T33；anonymous 端点豁免 CSRF——见装配；approve 走 cookie 通道）
   app.route(

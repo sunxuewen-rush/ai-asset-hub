@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   bigserial,
   boolean,
   index,
@@ -72,8 +73,9 @@ export const labelDefinition = pgTable(
     type: text('type').$type<LabelType>().notNull(),
     visibleInFilter: boolean('visible_in_filter').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
-    /** 自引用父级（NULL = 一级；06 §2.2 应用层锁两级树） */
-    parentId: bigserial('parent_id', { mode: 'number' }).references((): any => labelDefinition.id),
+    /** 自引用父级（NULL = 一级；06 §2.2 应用层锁两级树）——bigint 可空指针
+     *  （非 bigserial：serial 隐含 NOT NULL + 自增——一级 label 无法表达，M1 bug 修复） */
+    parentId: bigint('parent_id', { mode: 'number' }).references((): any => labelDefinition.id),
     createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
