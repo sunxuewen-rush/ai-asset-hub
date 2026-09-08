@@ -1,8 +1,8 @@
 # M3 治理管线设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.2：grilling 用户轮 Q1-Q3 拍板——单人/小空间审核运营模型、label 不预置种子、bundle_missing 防御码；v1.1：grilling G8-G10 + 8 维自检 9.1；v1.0：R1-R15 全部采纳，见修订记录）
-> Status: 定稿（2026-09-08：评审拍板 R1-R15 全部采纳 + grilling G1-G10 与用户轮 Q1-Q3 通过 + 8 维自检 9.1 —— v1.2）
+> Updated: 2026-09-08（v1.3：T5 实现同步——review.access_denied（403）补入错误码表（skillhub review.no_permission 实证）；v1.2：grilling 用户轮 Q1-Q3 拍板；v1.1：grilling G8-G10 + 8 维自检 9.1；v1.0：R1-R15 全部采纳，见修订记录）
+> Status: 定稿（2026-09-08：评审拍板 R1-R15 全部采纳 + grilling G1-G10 与用户轮 Q1-Q3 通过 + 8 维自检 9.1；v1.3 T5 同步补码——v1.3）
 > Scope: M3 治理管线（00 §5）——SCANNING→PUBLISHED 六态推进（扫描/审核/发布）+ 已发布资产治理 + 标签管线 + 搜索 + 下载/统计 + API Token scope 过滤
 > 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）skillhub-domain/skillhub-app/skillhub-auth 源码级核对：SkillVersionStatus（八态 enum）· ReviewService / ReviewPortalAppService（提交/审核/撤回）· SkillGovernanceService（yank/withdraw/deleteVersion）· ApiTokenScopeService / RouteSecurityPolicyRegistry（scope 过滤）· 14-skill-lifecycle.md（状态语义参考——**发现文档-代码漂移：withdraw 文档写 PENDING_REVIEW→DRAFT，代码实际 →UPLOADED，以代码为准**）
 > 引用链：本文档 → 规范 00 §2/§5/§7 · 01 §3/§4/§5 · 05 §5/§6 · 06 §1-§6 · 08 §2/§5/§6/§7/§9（引用不复制，字段与规则以规范为准）
@@ -302,7 +302,8 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
 - review.*：`review.not_found`（404）· `review.already_pending`（400——同版本重复 submit）·
   `review.not_pending`（400——非 PENDING 不可审/撤/已被并发结案）· `review.self_review`
   （403——防自审；权限违背族，与 M2 access_denied 同层）· `review.comment_required`（400——
-  reject 无 comment）
+  reject 无 comment）· `review.access_denied`（403——审核详情/队列越权可见；对齐 skillhub
+  review.no_permission（ReviewPortalAppService DomainForbiddenException 实证）——T5 实现补入）
 - label.*（06 族，收尾 bump 06 补码表）：`label.not_found` / `label.parent.has_children` /
   `label.slug_taken`（slug UNIQUE——06 未列码，M3 新增并 06 同步）/ `label.limit_exceeded`
 
@@ -398,6 +399,7 @@ Bearer token ──► tokenAuthMiddleware 读 token.scope
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.3 | 2026-09-08 | sunxuewen-rush | T5 实现同步：review.access_denied（403——审核详情/队列越权可见；skillhub review.no_permission 源码实证对齐）补入 §9 错误码表 |
 | v1.2 | 2026-09-08 | sunxuewen-rush | grilling 用户轮 Q1-Q3 拍板：审核运营模型确认（单人自托管 SUPER_ADMIN 例外闭环/互审团队空间 ≥2 ADMIN 级——05 同步项补运营注记）；label 不预置种子（运营数据）；asset.bundle_missing 防御码入错误码表 |
 | v1.1 | 2026-09-08 | sunxuewen-rush | grilling 修复：G8 接口表 reviews/{id} 权限列精确化（review:approve 面 / 本人 submitted_by）；G9 下载限流补默认值（60 次/分钟·IP，env 可配）；G10 bundle 副本补 bundle_sha256 列（08 §5.3 zip 双通道校验承诺闭环）。体系对齐：8 维自检 9.1（简洁 9/极致 9.5/正确 9.5/一致 9/安全 9/前瞻 9/直白易懂 9/好维护 9——门禁措辞按 00 §7 8 维档） |
 | v1.0 | 2026-09-08 | sunxuewen-rush | 评审拍板：R1-R15 全部采纳推荐值（无调整项）——拍板前草案迭代（v0.1）：对标 skillhub 源码实证（八态同源补全 REJECTED/YANKED、submit 前态、withdraw 回 UPLOADED、yank latest 重算、scope 白名单→permission 交集差异）+ 15 维自检 8.43→9.04 修复（UPLOADED 产生路径与 zip 下载分档、SCAN_FAILED 同版本修正重传 vs REJECTED 新版本号分治、删除权分治 + PENDING_REVIEW 禁删、审核并发与重审 version、错误码分域 + draft_only 迁移、幂等收敛、version-read 白名单陷阱标注） |
