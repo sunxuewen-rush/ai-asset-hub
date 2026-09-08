@@ -29,6 +29,8 @@ import { createVersion, deleteVersion } from '../assets/versions.js';
 import { getVersion, listVersions } from '../assets/version-read.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
+import { ReviewError, reviewErrorCodes } from '../review/errors.js';
+import { canSubmitReview, submitVersion } from '../review/service.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
@@ -549,6 +551,47 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       version,
     });
     return c.body(null, 204);
+  });
+
+  // POST /api/assets/{ns}/{slug}/versions/{version}/submit（T7：提交审核——M3 design §3.1 R2）
+  // 判定：版本 404 → 空间写门（ns ACTIVE——SUPER_ADMIN 短路）→ canSubmitReview
+  // （can('review:submit', ns) 含 空间 ADMIN/OWNER + ASSET_ADMIN + SUPER_ADMIN；∪ 上传者
+  // 本人例外 ∪ owner 本人——05 §6.4 + R2）→ submitVersion（前态/并发/version 递增事务）。
+  app.post('/:nsSlug/:slug/versions/:version/submit', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const version = c.req.param('version')!;
+    if (
+      !slugSchema.safeParse(nsSlug).success ||
+      !slugSchema.safeParse(slug).success ||
+      !versionFieldSchema.safeParse(version).success
+    ) {
+      throw new AssetError(assetErrorCodes.notFound);
+    }
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const [versionRow] = await db
+      .select({ id: assetVersion.id, version: assetVersion.version, status: assetVersion.status, createdBy: assetVersion.createdBy })
+      .from(assetVersion)
+      .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
+    if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
+
+    const viewer = await viewerContext(c, ns.id);
+    if (!viewer.isSuperAdmin) {
+      if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门（05 §6.3）
+    }
+    const rbac = c.get('rbac')!;
+    const hasReviewSubmit = await rbac.can(principal.userId, PERMISSIONS.reviewSubmit, { namespaceId: ns.id });
+    if (!canSubmitReview({ assetOwnerId: row.ownerId, versionCreatedBy: versionRow.createdBy, actorId: principal.userId, hasReviewSubmit })) {
+      throw new ReviewError(reviewErrorCodes.accessDenied);
+    }
+
+    const out = await submitVersion(db, deps.audit, {
+      asset: { id: row.id, namespaceId: ns.id, ownerId: row.ownerId },
+      version: { id: versionRow.id, version: versionRow.version, status: versionRow.status, createdBy: versionRow.createdBy },
+      submitterId: principal.userId,
+    });
+    return c.json({ taskId: out.taskId, reviewVersion: out.reviewVersion, status: 'PENDING_REVIEW' }, 201);
   });
 
   return app;
