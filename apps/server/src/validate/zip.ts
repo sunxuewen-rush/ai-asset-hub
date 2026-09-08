@@ -165,3 +165,45 @@ export function readZipEntry(zip: Buffer, path: string): Promise<Buffer> {
     });
   });
 }
+
+/**
+ * 单遍解压全部文件条目（T12 上传事务用——总量 ≤10MiB 已由 scanZip 界，内存安全）。
+ * 目录条目跳过；解压流错误（CRC 校验失败等）→ ZipValidationError（上传拒——坏包不入存储）。
+ */
+export function extractAll(zip: Buffer): Promise<Array<{ path: string; content: Buffer }>> {
+  return new Promise((resolve, reject) => {
+    fromBuffer(zip, { lazyEntries: true }, (openErr, zipfile) => {
+      if (openErr || !zipfile) {
+        reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, 'zip open failed'));
+        return;
+      }
+      const files: Array<{ path: string; content: Buffer }> = [];
+      zipfile.on('error', (err: Error) => reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, err.message)));
+      zipfile.on('entry', (entry) => {
+        const mode = entry.externalFileAttributes >>> 16;
+        const isDir = entry.fileName.endsWith('/') || (mode & 0o170000) === 0o040000;
+        if (isDir) {
+          zipfile.readEntry();
+          return;
+        }
+        zipfile.openReadStream(entry, (streamErr, stream) => {
+          if (streamErr || !stream) {
+            reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, entry.fileName, 'read stream failed'));
+            return;
+          }
+          const chunks: Buffer[] = [];
+          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          stream.on('error', (err: Error) =>
+            reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, entry.fileName, err.message)),
+          );
+          stream.on('end', () => {
+            files.push({ path: entry.fileName, content: Buffer.concat(chunks) });
+            zipfile.readEntry();
+          });
+        });
+      });
+      zipfile.on('end', () => resolve(files));
+      zipfile.readEntry();
+    });
+  });
+}

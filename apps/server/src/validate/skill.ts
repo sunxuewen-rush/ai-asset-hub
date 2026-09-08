@@ -15,7 +15,15 @@ import type { AssetValidator, ValidationIssue } from './types.js';
 
 export const SKILL_MAIN_FILE = 'SKILL.md';
 /** 02 §2：上传兼容大小写变体（服务端归一化为 SKILL.md——落存储时） */
-const SKILL_MAIN_VARIANTS: readonly string[] = ['SKILL.md', 'skill.md', 'Skill.md'];
+export const SKILL_MAIN_VARIANTS: readonly string[] = ['SKILL.md', 'skill.md', 'Skill.md'];
+
+/** 主文件定位（validate/index 组合入口复用——精确 SKILL.md 优先 + 变体 fallback） */
+export function findSkillMainEntry(entries: ReadonlyArray<{ path: string }>): { path: string } | undefined {
+  return (
+    entries.find((e) => !e.path.includes('/') && e.path === SKILL_MAIN_FILE) ??
+    entries.find((e) => !e.path.includes('/') && SKILL_MAIN_VARIANTS.includes(e.path))
+  );
+}
 /** 02 §3.3 全包文件扩展名白名单（skill 族作用于整个包） */
 const SKILL_EXT_WHITELIST: readonly string[] = [
   '.md', '.txt', '.json', '.yaml', '.yml', '.js', '.cjs', '.mjs',
@@ -31,9 +39,7 @@ export function createSkillValidator(): AssetValidator {
         const issues: ValidationIssue[] = [];
         // root 级主文件：精确 SKILL.md 优先，大小写变体仅 fallback（02 §2 兼容——
         // 双主文件并存时以规范名胜出，zip 序无关）
-        const main =
-          entries.find((e) => !e.path.includes('/') && e.path === SKILL_MAIN_FILE) ??
-          entries.find((e) => !e.path.includes('/') && SKILL_MAIN_VARIANTS.includes(e.path));
+        const main = findSkillMainEntry(entries);
         if (!main) {
           issues.push({ code: assetErrorCodes.packageLayoutInvalid, message: `${SKILL_MAIN_FILE} must exist at zip root` });
           return { ok: false, errors: issues };

@@ -67,3 +67,16 @@ export class AssetError extends Error {
     return httpStatusForAsset(this.code);
   }
 }
+
+/**
+ * 上传校验失败（族校验器 issues 全量——T13 端点 400 响应含 issues 数组，非单码结构——
+ * 路由层特异 catch，不进 onError 通用出口）
+ */
+export class UploadValidationError extends Error {
+  constructor(
+    readonly issues: Array<{ code: string; path?: string; message?: string }>,
+  ) {
+    super(issues[0]?.code ?? 'validation_failed');
+    this.name = 'UploadValidationError';
+  }
+}
