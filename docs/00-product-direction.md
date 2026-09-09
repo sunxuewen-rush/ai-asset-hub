@@ -1,7 +1,7 @@
 # AI Asset Hub 产品定位与方向
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.11：§5 M3 行完成注记（治理管线闭环 2026-09-08）；v1.10：§5 M2 行完成注记（资产域闭环 2026-09-08）+ M3 行治理语义注记；v1.9：§7 ② 设计层 8 段 → 7 段骨架（删任务清单段）；v1.8：§7 ② 补实施完成重评（converge）约定；v1.7：M1 阶段二完成注记；v1.6 Status 同步定稿；v1.5 M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
+> Updated: 2026-09-09（v1.12：§5 M4 行注记——M4a 市场门户完成 ✅（2026-09-09 收尾：portal design v0.8 定稿落地，T1-T19 全绿 538 tests，联调 dogfood 记录 docs/smoke/2026-09-09-m4a-t18.md）；M4b 管理后台拆为待办 ⬜）；v1.11：§5 M3 行完成注记（治理管线闭环 2026-09-08）；v1.10：§5 M2 行完成注记（资产域闭环 2026-09-08）+ M3 行治理语义注记；v1.9：§7 ② 设计层 8 段 → 7 段骨架（删任务清单段）；v1.8：§7 ② 补实施完成重评（converge）约定；v1.7：M1 阶段二完成注记；v1.6 Status 同步定稿；v1.5 M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
 > Status: 定稿（项目方向决定板；里程碑出口状态见 §5 追踪表）
 > Scope: 全新开源项目 —— AI 资产注册中心与市场（多类型 AI 可复用资产）
 
@@ -93,7 +93,7 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | M1 | 平台底座：schema/用户认证(本地+SSO 适配)/命名空间/对象存储/审计 | ✅ 阶段一 platform-core + 阶段二 五板块完成（命名空间 HTTP API / 对象存储 Local SPI / API Token 签发-Bearer / 审计浏览 / OIDC 授权码流 / Device Flow；T28/T34 冒烟记录于 M1-phase2 plan） |
 | M2 | 资产域：skill/mcp/agent 三类资产坐标注册 + 族协议校验器/解析器 + 版本上传（DRAFT） | ✅ 2026-09-08 完成（资产域闭环：坐标注册/管理、三族校验器+解析投影、版本上传 DRAFT+读面/删除、空间 OWNER 转让、审计补全——design/plan 见 `2026-09-08-m2-asset-domain-design` + `M2-assets.md`；converge 重评见 docs/00 §7 ②） |
 | M3 | 治理管线：SCANNING→PUBLISHED 状态流转（扫描/审核/发布）+ 标签/搜索/下载/统计 | ✅ 2026-09-08 完成（治理闭环：版本八态 schema+迁移、审核管线（submit/approve/reject/withdraw + 队列读面 + HTTP API）、yank 撤回与 latest 维护、删除面放宽、label 管理/挂载、搜索（q/标签/排序）、下载五档授权+限流、bundle 顺存、token scope 交集——design/plan 见 `2026-09-08-m3-governance-pipeline-design` + `M3-governance.md`；T1-T15 全绿 514 tests） |
-| M4 | 前端：市场门户（类型化浏览/搜索/详情）+ 管理后台 | ⬜ |
+| M4 | 前端：市场门户（类型化浏览/搜索/详情）+ 管理后台 | M4a ✅ 2026-09-09（市场门户：类型化浏览/搜索/详情三 tab + 行级版本对比——design/plan 见 `2026-09-09-m4a-marketplace-portal-design` + `M4a-marketplace.md`；T1-T19 全绿 538 tests；联调 dogfood 截图/记录 docs/smoke/2026-09-09-m4a-t18.md；修复录：useApi StrictMode abort / server lint 债全清）。M4b ⬜ 管理后台（标签/生命周期/审核 UI——待立项） |
 | M5 | CLI：安装/发布/搜索（对齐 OpenSkills/ClawHub 习惯） | ⬜ |
 | M6 | 开源发布完善：贡献指南/CI/文档站/CHANGELOG.md + runbook 事故手册惯例 + 可选存量中心迁移工具 | ⬜ |
 
@@ -155,3 +155,4 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | v1.9 | 2026-09-08 | sunxuewen-rush | §7 ② 设计层骨架 8 段 → 7 段：任务清单段删除（实现细则归属计划层，design 不复制，消除双清单漂移）；③ 计划层收拢为「实现任务清单」单一定位 |
 | v1.10 | 2026-09-08 | sunxuewen-rush | §5 M2 行完成注记（资产域闭环——坐标注册/管理、三族校验器、DRAFT 上传+版本读面/删除、OWNER 转让、审计补全）；M3 行补治理语义注记（六态推进——上传即 DRAFT 已落 M2） |
 | v1.11 | 2026-09-08 | sunxuewen-rush | §5 M3 行完成注记（治理管线闭环 2026-09-08——八态/审核管线/yank/删除面/label/搜索/下载/bundle/scope；T1-T15 全绿） |
+| v1.12 | 2026-09-09 | sunxuewen-rush | §5 M4 行注记：M4a 市场门户完成 ✅（portal design v0.8 落地；T1-T19 全绿 538 tests；dogfood 记录 docs/smoke/2026-09-09-m4a-t18.md）；M4b 管理后台拆待办 |

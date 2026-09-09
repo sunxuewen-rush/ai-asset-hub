@@ -1,8 +1,8 @@
 # UI 语言与本地化约定
 
 > Date: 2026-09-04
-> Updated: 2026-09-07（v1.1：实现状态同步——文档定稿，UI 资源随 M4 前端铺开）
-> Status: 定稿（M0 评审通过；M4 前端实现按其铺资源）
+> Updated: 2026-09-09（v1.2：M4a 市场门户双语资源落地注记——zh 真源/en 完整兜底对齐四组字典 navigation/market/common/errors；lang 系统跟随 + localStorage 持久化——实现见 `M4a-marketplace.md` T8）
+> Status: 定稿（M0 评审通过；M4a 门户资源已落地，M4b 管理后台资源随其实现铺开）
 > Scope: 前端界面语言机制 —— 支持语言、默认跟随系统、手动切换、错误码本地化、API 语言契约
 
 ## 1. 定位
@@ -66,3 +66,4 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：zh/en 双语、默认跟随系统、手动切换、错误码本地化、API 语言契约 |
 | v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：文档定稿标注（M1 无前端，UI 资源随 M4 铺开） |
+| v1.2 | 2026-09-09 | sunxuewen-rush | M4a 市场门户双语资源落地注记：zh 真源 + en 完整对齐四组字典；lang 系统跟随 + localStorage |
