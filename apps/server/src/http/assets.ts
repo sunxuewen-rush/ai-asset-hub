@@ -31,7 +31,10 @@ import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
 import { canSubmitReview, submitVersion } from '../review/service.js';
+import { LabelError, labelErrorCodes } from '../labels/errors.js';
 import { canYank, yankVersion } from '../assets/yank.js';
+import { attachLabel, detachLabel, labelsOfAsset } from '../labels/service.js';
+import { labelSlugSchema } from '../labels/service.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
@@ -277,7 +280,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const slug = c.req.param('slug');
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
     await assertAssetReadable(c, ns, row); // 读面 403/404 分层（design §7）
-    return c.json(assetItem(row, nsSlug)); // nsSlug 已过 slugSchema 校验（path 即坐标）
+    // 详情补 labels[]（06 §5.3——挂载 slug 列表；列表项不含）
+    const labels = await labelsOfAsset(db, row.id);
+    return c.json({ ...assetItem(row, nsSlug), labels });
   });
 
   // GET /api/assets/{ns}/{slug}/versions（T14：版本列表——Q1 DRAFT 授权过滤）
@@ -652,6 +657,60 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       reason: body.reason,
     });
     return c.json({ status: 'YANKED', latestVersionId: out.latestVersionId }, 200);
+  });
+
+  // PUT/DELETE /api/assets/{ns}/{slug}/labels/{labelSlug}（T11：挂载/移除——06 §3/§5.3）
+  // 判定（design §5 R11）：label type 分判——RECOMMENDED = canManageAsset（owner/空间
+  // ADMIN/OWNER——06 §3 挂载权限）+ SUPER_ADMIN 短路；PRIVILEGED = 仅 SUPER_ADMIN。
+  // 幂等：重复挂 200 / 移除不存在 204。≤10 上限（06 §1）。
+  app.put('/:nsSlug/:slug/labels/:labelSlug', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const labelSlug = c.req.param('labelSlug')!;
+    if (!labelSlugSchema.safeParse(labelSlug).success) throw new LabelError(labelErrorCodes.notFound);
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const viewer = await viewerContext(c, ns.id);
+    if (!viewer.isSuperAdmin && ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门
+    const canManage = canManageAsset({
+      ownerId: row.ownerId,
+      viewerId: principal.userId,
+      namespaceRole: viewer.namespaceRole,
+      isSuperAdmin: viewer.isSuperAdmin,
+    });
+    await attachLabel(db, deps.audit, {
+      assetId: row.id,
+      labelSlug,
+      actorId: principal.userId,
+      canManage,
+      isSuperAdmin: viewer.isSuperAdmin,
+    });
+    return c.body(null, 204);
+  });
+
+  app.delete('/:nsSlug/:slug/labels/:labelSlug', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const labelSlug = c.req.param('labelSlug')!;
+    if (!labelSlugSchema.safeParse(labelSlug).success) throw new LabelError(labelErrorCodes.notFound);
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const viewer = await viewerContext(c, ns.id);
+    if (!viewer.isSuperAdmin && ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden');
+    const canManage = canManageAsset({
+      ownerId: row.ownerId,
+      viewerId: principal.userId,
+      namespaceRole: viewer.namespaceRole,
+      isSuperAdmin: viewer.isSuperAdmin,
+    });
+    await detachLabel(db, deps.audit, {
+      assetId: row.id,
+      labelSlug,
+      actorId: principal.userId,
+      canManage,
+      isSuperAdmin: viewer.isSuperAdmin,
+    });
+    return c.body(null, 204);
   });
 
   return app;

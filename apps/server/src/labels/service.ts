@@ -5,11 +5,12 @@
  * 级联：删 definition → 翻译/挂载 ON DELETE CASCADE（06 §2 表结构）；「搜索文档重建」
  * 句在 AIH 消化掉（无独立搜索索引——design §5 R11：挂载实时 join，删 label 无需重建）。
  */
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import {
+  assetLabel,
   labelDefinition,
   labelTranslation,
   type LabelType,
@@ -323,4 +324,100 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
 export async function findLabelBySlug(db: Db, slug: string): Promise<{ id: number; slug: string; type: LabelType; parentId: number | null }> {
   const row = await loadBySlug(db, slug);
   return { id: row.id, slug: row.slug, type: row.type, parentId: row.parentId };
+}
+
+/* ==================== 资产挂载（06 §3/§5.3——T11） ==================== */
+
+/** 每资产挂载上限（06 §1） */
+export const MAX_LABELS_PER_ASSET = 10;
+
+/**
+ * 挂载判定（06 §3——只看 label.type）：RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN
+ * （canManageAsset——路由层判定结果）；PRIVILEGED = 仅 SUPER_ADMIN。
+ */
+export function canAttachLabel(type: LabelType, canManage: boolean, isSuperAdmin: boolean): boolean {
+  if (type === 'PRIVILEGED') return isSuperAdmin;
+  return canManage || isSuperAdmin;
+}
+
+/**
+ * 挂载 label（幂等：已挂 → 200 成功不报错——06 §5.3 挂载面宽 + UNIQUE 兜底防前端竞态）。
+ * 上限 ≤10（超限 400 label.limit_exceeded）；判定输入由路由层组装（canManageAsset/isSuperAdmin）。
+ * 层级无关：一级/二级均可挂（06 §4——挂载不感知层级）。
+ */
+export async function attachLabel(
+  db: Db,
+  audit: AuditWriter,
+  input: { assetId: number; labelSlug: string; actorId: string; canManage: boolean; isSuperAdmin: boolean },
+): Promise<void> {
+  const { assetId, labelSlug, actorId } = input;
+  const label = await findLabelBySlug(db, labelSlug); // 不存在 → label.not_found
+  if (!canAttachLabel(label.type, input.canManage, input.isSuperAdmin)) {
+    throw new LabelError(labelErrorCodes.accessDenied);
+  }
+
+  try {
+    const inserted = await db.transaction(async (tx) => {
+      // 上限（幂等豁免：已挂不计入上限）
+      const [existing] = await tx
+        .select({ id: assetLabel.id })
+        .from(assetLabel)
+        .where(and(eq(assetLabel.assetId, assetId), eq(assetLabel.labelId, label.id)));
+      if (existing) return 'duplicate' as const;
+
+      const [cnt] = await tx
+        .select({ n: sql<number>`count(*)` })
+        .from(assetLabel)
+        .where(eq(assetLabel.assetId, assetId));
+      if (Number(cnt?.n ?? 0) >= MAX_LABELS_PER_ASSET) throw new LabelError(labelErrorCodes.limitExceeded);
+
+      await tx.insert(assetLabel).values({ assetId, labelId: label.id, createdBy: actorId });
+      return 'inserted' as const;
+    });
+
+    if (inserted === 'duplicate') return; // 幂等：已挂即成功（200）
+  } catch (err) {
+    const cause = (err as { cause?: { code?: string } }).cause;
+    if (cause?.code === '23505') return; // 并发重复挂——幂等吸收
+    throw err;
+  }
+
+  await audit({
+    actorId,
+    action: 'asset.label_attach',
+    targetType: 'asset',
+    targetId: String(assetId),
+    detail: { labelSlug },
+  });
+}
+
+/** 移除挂载（幂等 204：不存在亦成功——DELETE 语义；判定同挂载——06 §3「移除挂载同挂载权限」） */
+export async function detachLabel(
+  db: Db,
+  audit: AuditWriter,
+  input: { assetId: number; labelSlug: string; actorId: string; canManage: boolean; isSuperAdmin: boolean },
+): Promise<void> {
+  const label = await findLabelBySlug(db, input.labelSlug);
+  if (!canAttachLabel(label.type, input.canManage, input.isSuperAdmin)) {
+    throw new LabelError(labelErrorCodes.accessDenied);
+  }
+  await db.delete(assetLabel).where(and(eq(assetLabel.assetId, input.assetId), eq(assetLabel.labelId, label.id)));
+  await audit({
+    actorId: input.actorId,
+    action: 'asset.label_detach',
+    targetType: 'asset',
+    targetId: String(input.assetId),
+    detail: { labelSlug: input.labelSlug },
+  });
+}
+
+/** 资产挂载的 label slug 列表（详情响应——06 §5.3 查询响应；挂载顺序无关——按 label id 稳定序） */
+export async function labelsOfAsset(db: Db, assetId: number): Promise<string[]> {
+  const rows = await db
+    .select({ slug: labelDefinition.slug, id: labelDefinition.id })
+    .from(assetLabel)
+    .innerJoin(labelDefinition, eq(assetLabel.labelId, labelDefinition.id))
+    .where(eq(assetLabel.assetId, assetId))
+    .orderBy(labelDefinition.id);
+  return rows.map((r) => r.slug);
 }
