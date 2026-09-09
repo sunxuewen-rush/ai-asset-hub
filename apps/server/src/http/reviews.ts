@@ -196,6 +196,8 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     if (!Number.isInteger(taskId) || taskId <= 0) throw new ReviewError(reviewErrorCodes.notFound);
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
+    // R14：withdraw 写动作 scope 交集（design §8 ②「submit/withdraw = review:submit」）
+    assertTokenScoped(c, PERMISSIONS.reviewSubmit);
     const platformRoles = await rbac.platformRolesOf(principal.userId);
     const nsRole = (await rbac.getNamespaceRoles(principal.userId, nsId))[0] ?? null;
     await withdrawReview(db, audit, {

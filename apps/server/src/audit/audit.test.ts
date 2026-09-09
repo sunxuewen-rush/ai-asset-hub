@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
@@ -17,6 +17,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // 精确清理自数据（requestId 唯一标识 + 匿名 ghost 行）——不误删并发文件的同 action 行
+  await db.delete(auditLog).where(eq(auditLog.requestId, 'req-12345'));
+  await db
+    .delete(auditLog)
+    .where(sql`actor_id IS NULL AND detail->>'username' = 'ghost'`);
   await db.delete(auditLog).where(eq(auditLog.action, 'test.audit'));
   await db.$client.end();
 });

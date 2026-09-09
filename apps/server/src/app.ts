@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { getEnv } from './config/env.js';
 import { AssetError } from './assets/errors.js';
 import type { AuditWriter } from './audit/audit.js';
 import { AuthService } from './auth/auth-service.js';
@@ -122,10 +123,12 @@ export function createApp(deps: AppDeps): Hono {
       uploadRateLimiter:
         deps.uploadRateLimiter ??
         new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max),
-      downloadRateLimiter: new InMemoryRateLimiter(
-        DOWNLOAD_RATE_LIMIT.windowMs,
-        DOWNLOAD_RATE_LIMIT.max,
-      ),
+      downloadRateLimiter:
+        // env 可配（design §7.2 G9——默认 60/分·IP）
+        new InMemoryRateLimiter(
+          getEnv().DOWNLOAD_RATE_LIMIT_WINDOW_MS,
+          getEnv().DOWNLOAD_RATE_LIMIT_MAX,
+        ),
     }),
   );
   app.route('/api/tokens', createTokenRoutes({ db: deps.db, audit: deps.audit }));

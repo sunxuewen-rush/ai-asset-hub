@@ -44,6 +44,10 @@ const envSchema = z.object({
   ASSET_MAX_FILES: z.coerce.number().int().positive().default(100),
   STORAGE_DIR: z.string().default('./storage'),
 
+  // 下载限流（M3 design §7.2 G9：60 次/分钟·IP——匿名公开下载面；env 可配）
+  DOWNLOAD_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  DOWNLOAD_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+
   // 对外基址（OIDC 回调 / Device Flow verificationUri 推导）
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
 

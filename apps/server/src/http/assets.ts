@@ -78,7 +78,7 @@ const listQuerySchema = z.object({
   type: assetTypeSchema.optional(),
   visibility: visibilitySchema.optional(),
   /** T12 全文检索（design §6 R12） */
-  q: z.string().trim().min(1).max(200).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   /** T12 label 多值 OR（06 §4——?label=a&label=b；上限 20 防滥用） */
   label: z.array(z.string().trim().min(1).max(64)).max(20).optional(),
 });
@@ -205,6 +205,9 @@ async function assertManageable(
 ): Promise<{ isSuperAdmin: boolean }> {
   const principal = c.get('principal')!;
   const viewer = await viewerContext(c, ns.id);
+  // R14 scope 交集先于超管短路（superAdmin + 收窄 scope = 收窄生效——design §8「无 scope 概念」
+  // 仅指无码超管面如 label 管理；管理写面有 asset:manage 码可交）
+  assertTokenScoped(c, PERMISSIONS.assetManage);
   if (viewer.isSuperAdmin) return { isSuperAdmin: true };
   if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden');
   const allowed = canManageAsset({
@@ -584,6 +587,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       namespaceRole: viewer.namespaceRole,
       isSuperAdmin: viewer.isSuperAdmin,
     });
+    // R14：版本删除（含上传者本人草稿撤回）scope 交集——design §8 ②「删除 = asset:manage」
+    assertTokenScoped(c, PERMISSIONS.assetManage);
     const uploaderRetract = DELETABLE_UPLOADER.has(status) && versionRow.createdBy === principal.userId;
     if (!manager && !uploaderRetract) throw new AuthError('auth.forbidden');
 
@@ -667,6 +672,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (!canYank(platformRoles.includes('ASSET_ADMIN'), platformRoles.includes('SUPER_ADMIN'))) {
       throw new AuthError('auth.forbidden');
     }
+    assertTokenScoped(c, PERMISSIONS.assetManage); // R14：yank 平台治理面 scope 交集（design §8 ②）
     const body = await c.req.json().catch(() => ({})) as { reason?: unknown };
     if (typeof body.reason !== 'string' || body.reason.trim() === '') {
       throw new AssetError(assetErrorCodes.yankReasonRequired);
@@ -700,12 +706,16 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       namespaceRole: viewer.namespaceRole,
       isSuperAdmin: viewer.isSuperAdmin,
     });
+    // R14 scope：RECOMMENDED 挂载 = asset:manage（design §8 ②——service 分判内组合）
+    const scopes = c.get('tokenScopes');
+    const hasAssetManageScope = scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
     await attachLabel(db, deps.audit, {
       assetId: row.id,
       labelSlug,
       actorId: principal.userId,
       canManage,
       isSuperAdmin: viewer.isSuperAdmin,
+      hasAssetManageScope,
     });
     return c.body(null, 204);
   });
@@ -725,12 +735,16 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       namespaceRole: viewer.namespaceRole,
       isSuperAdmin: viewer.isSuperAdmin,
     });
+    // R14 scope：移除挂载同挂载权（RECOMMENDED = asset:manage——service 分判内组合）
+    const scopes = c.get('tokenScopes');
+    const hasAssetManageScope = scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
     await detachLabel(db, deps.audit, {
       assetId: row.id,
       labelSlug,
       actorId: principal.userId,
       canManage,
       isSuperAdmin: viewer.isSuperAdmin,
+      hasAssetManageScope,
     });
     return c.body(null, 204);
   });

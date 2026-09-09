@@ -388,15 +388,18 @@ export const MAX_LABELS_PER_ASSET = 10;
 
 /**
  * 挂载判定（06 §3——只看 label.type）：RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN
- * （canManageAsset——路由层判定结果）；PRIVILEGED = 仅 SUPER_ADMIN。
+ * （canManageAsset——路由层判定结果）+ scope 交集（R14：RECOMMENDED 挂载 = asset:manage——
+ * design §8 ②——收窄 token 无码即拒，owner 分支形同虚设防白设）；PRIVILEGED = 仅 SUPER_ADMIN
+ * （无码超管面——scope 不收窄）。
  */
 export function canAttachLabel(
   type: LabelType,
   canManage: boolean,
   isSuperAdmin: boolean,
+  hasAssetManageScope: boolean,
 ): boolean {
   if (type === 'PRIVILEGED') return isSuperAdmin;
-  return canManage || isSuperAdmin;
+  return (canManage || isSuperAdmin) && hasAssetManageScope;
 }
 
 /**
@@ -413,11 +416,12 @@ export async function attachLabel(
     actorId: string;
     canManage: boolean;
     isSuperAdmin: boolean;
+    hasAssetManageScope: boolean;
   },
 ): Promise<void> {
   const { assetId, labelSlug, actorId } = input;
   const label = await findLabelBySlug(db, labelSlug); // 不存在 → label.not_found
-  if (!canAttachLabel(label.type, input.canManage, input.isSuperAdmin)) {
+  if (!canAttachLabel(label.type, input.canManage, input.isSuperAdmin, input.hasAssetManageScope)) {
     throw new LabelError(labelErrorCodes.accessDenied);
   }
 
@@ -467,10 +471,11 @@ export async function detachLabel(
     actorId: string;
     canManage: boolean;
     isSuperAdmin: boolean;
+    hasAssetManageScope: boolean;
   },
 ): Promise<void> {
   const label = await findLabelBySlug(db, input.labelSlug);
-  if (!canAttachLabel(label.type, input.canManage, input.isSuperAdmin)) {
+  if (!canAttachLabel(label.type, input.canManage, input.isSuperAdmin, input.hasAssetManageScope)) {
     throw new LabelError(labelErrorCodes.accessDenied);
   }
   await db
