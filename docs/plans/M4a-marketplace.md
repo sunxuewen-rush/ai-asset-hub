@@ -1,7 +1,7 @@
 # M4a 市场门户实现计划
 
 > Date: 2026-09-09
-> Updated: 2026-09-09（v0.3：T7 完成回填——依赖版本入档 + commit hash；注记 I18nProvider 装配归 T8（i18n 层属 T8 交付物）。v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
+> Updated: 2026-09-09（v0.4：T8 完成回填——commit hash + compare.ts 建文件注记（§4.2 树对齐，plan Files 未列）；T6 漂移注记（from=to 实测 200 空 files——测试为真相，非 plan 所写 400；version_compare_invalid 未落地）。v0.3：T7 完成回填——依赖版本入档 + commit hash；注记 I18nProvider 装配归 T8（i18n 层属 T8 交付物）。v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
 > Status: 执行中（已批准；板块 A 完成——T1-T6 全部 ✅ + commit；当前板块 B web 基座）
 > 引用链：本文档 → 设计 docs/designs/2026-09-09-m4a-marketplace-portal-design.md（v0.8，§N 逐 Task 引用）→ 规范 00 §5 · 02/03/04 族协议 · 05 §3.1 · 06 §2.3/§4 · 07 全 · 08 §5/§7（引用不复制，契约以 design v0.8 为准）
 > 命名约定见 docs/plans/README.md
@@ -102,7 +102,11 @@ storage.get(storageKey)（ObjectStorage.get → Buffer|Readable）零解压；`.
   补 `version_compare_invalid`（400——from/to 缺失/相等/不存在/YANKED）并同步 httpStatusForAsset
   穷尽 switch**；Test
 - **Assert**: changeType 与 hunks 形状符合 §5.2；YANKED/不存在版本 400；同版本 from=to 400；
-  目录不入行 diff（文件级清单）
+ 目录不入行 diff（文件级清单）
+ **注（v0.4 实测对齐）**：同版本 from=to 实为 **200 `{files:[]}`**（assets.test.ts
+ 「同版本对比：无差异文件」断言为真相）非 400；`version_compare_invalid` 未落地——
+ 错误响应用既有码（缺失参数 400 request.invalid / 版本不存在 404 asset.not_found /
+ YANKED 400 asset.version_yanked）；前端 base≠head 防非法调换兜底（T17）
 - **Commit**: `feat(server): add version compare endpoint with line-level hunks`
 
 ### 板块 B web 工程基座（design §3/§4）
@@ -120,9 +124,12 @@ useI18n/字典）为 T8 交付物，T7 引之须半份落地，故 main.tsx 的 
 - **Commit**: `feat(web): scaffold app shell with tokens, router and dev proxy`
 
 #### T8 api 层 + i18n 层（design §4.1/§7）
-- **Files**: Create `api/client.ts`（useApi：fetch+Abort 竞态+Map 缓存+错误归一 `{code,message}`+
-  Accept-Language 头）+ `api/types.ts`（§5.2 契约形状一一对应：assetItem/labels/stats/
-  fileContent/compare）+ `api/assets.ts|labels.ts|stats.ts|content.ts`；i18n/
+✅ 完成（commit `6c2b27d`；api/ 建 client/types/assets/labels/stats/content + compare.ts——
+compare 按 design §4.2 组件树分文件，plan Files 行未列）
+- **Files**: Create `api/client.ts`（fetch+Abort+语言感知 Map 缓存（键含 lang——07 §5）+
+  失败清理缓存（重试可真实重发）+ 错误归一 `{code,message}`/http_*/network + Accept-Language
+  头）+ `api/types.ts`（§5.2 契约形状一一对应：assetItem/labels/stats/fileContent/compare）+
+  `api/assets.ts|labels.ts|stats.ts|content.ts`；i18n/
   （I18nProvider/useI18n + localStorage + 字典 zh|en 四组 navigation/market/common/errors——
   文案按 demo 拍板：技能中心 Skill/MCP 中心 MCP Server/专家中心 Agent/总览文件版本等）+ 
   LanguageSwitcher.tsx
