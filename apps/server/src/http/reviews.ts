@@ -24,7 +24,7 @@ import { reviewTask } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
 import { approveReview, rejectReview, withdrawReview } from '../review/service.js';
 import { getReviewDetail, listMine, listQueue, parseReviewStatus, type QueueFilters } from '../review/query.js';
-import { requireAuth } from './auth-middleware.js';
+import { requireAuth, assertTokenScoped } from './auth-middleware.js';
 
 const PAGE_SCHEMA = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -113,6 +113,7 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
     const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, { namespaceId: nsId });
+    assertTokenScoped(c, PERMISSIONS.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
     const platformRoles = await rbac.platformRolesOf(principal.userId);
     const out = await approveReview(db, audit, {
@@ -135,6 +136,7 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
     const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, { namespaceId: nsId });
+    assertTokenScoped(c, PERMISSIONS.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
     const platformRoles = await rbac.platformRolesOf(principal.userId);
     const out = await rejectReview(db, audit, {

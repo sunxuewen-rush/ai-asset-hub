@@ -50,7 +50,7 @@ import {
   visibilitySchema,
 } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
-import { requireAuth } from './auth-middleware.js';
+import { requireAuth, assertTokenScoped } from './auth-middleware.js';
 import { Readable } from 'node:stream';
 
 export interface AssetRoutesDeps {
@@ -243,6 +243,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       namespaceId: ns.id,
     });
     if (!allowed) throw new AuthError('auth.forbidden');
+    assertTokenScoped(c, PERMISSIONS.assetPublish); // T15：token scope 交集（R14）
 
     const row = await createAsset(db, {
       namespaceSlug,
@@ -509,6 +510,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const rbac = c.get('rbac')!;
     const can = await rbac.can(principal.userId, PERMISSIONS.assetPublish, { namespaceId: ns.id });
     if (!can) throw new AuthError('auth.forbidden');
+    assertTokenScoped(c, PERMISSIONS.assetPublish); // T15：token scope 交集
     const [assetRow] = await db
       .select({ id: asset.id, type: asset.type })
       .from(asset)
@@ -621,6 +623,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     }
     const rbac = c.get('rbac')!;
     const hasReviewSubmit = await rbac.can(principal.userId, PERMISSIONS.reviewSubmit, { namespaceId: ns.id });
+    assertTokenScoped(c, PERMISSIONS.reviewSubmit); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canSubmitReview({ assetOwnerId: row.ownerId, versionCreatedBy: versionRow.createdBy, actorId: principal.userId, hasReviewSubmit })) {
       throw new ReviewError(reviewErrorCodes.accessDenied);
     }

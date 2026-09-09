@@ -47,6 +47,18 @@ export function requireAuth() {
   };
 }
 
+/**
+ * token scope 交集判定（M3 design §8 R14）：session 通道恒过（无 scope）；
+ * token 通道 scope 非空时要求含 code（permission 码交集——白名单外拒）。
+ * '' / 'cli'（全量）经 parseTokenScope → null → 恒过（M1 零破坏）。
+ * 出口与 RBAC 拒同（auth.forbidden——不泄露 scope 细节）。
+ */
+export function assertTokenScoped(c: Context, code: string): void {
+  const scopes = c.get('tokenScopes');
+  if (scopes === undefined || scopes === null) return;
+  if (!scopes.has(code)) throw new AuthError('auth.forbidden');
+}
+
 export function requirePermission(code: string, opts: { namespaceId?: number } = {}) {
   return async (c: Context, next: Next) => {
     const principal = c.get('principal');
@@ -54,6 +66,7 @@ export function requirePermission(code: string, opts: { namespaceId?: number } =
     const rbac = requireRbac(c);
     const allowed = await rbac.can(principal.userId, code, opts);
     if (!allowed) throw new AuthError('auth.forbidden');
+    assertTokenScoped(c, code); // T15：token scope 交集（RBAC 过 + scope 含码才放行）
     await next();
   };
 }

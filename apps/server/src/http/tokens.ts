@@ -1,6 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { PERMISSIONS } from '../auth/permissions.js';
 import { generateTokenSecret, hashToken } from '../auth/tokens.js';
 import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
@@ -22,9 +23,11 @@ export interface TokenRoutesDeps {
 
 const DAY_MS = 86_400_000;
 
-/** POST body（T14：省略 expiresInDays = 永不过期 expiresAt null；1-3650 天，超限 400） */
+/** POST body（T14：省略 expiresInDays = 永不过期 expiresAt null；1-3650 天，超限 400；
+ *  T15：可选 scope = permission 码白名单（交集收窄——R14；省略 = 空 scope 全量） */
 const issueBodySchema = z.object({
   expiresInDays: z.number().int().min(1).max(3650).optional(),
+  scope: z.array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]])).max(10).optional(),
 });
 
 export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
@@ -58,8 +61,9 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
       .values({
         userId: principal.userId,
         tokenHash: hashToken(plain),
-        // scope 默认空串 = 全量（05 §5：可设 scope/到期；M1 不做 scope 过滤）
-        scope: '',
+        // scope 缺省 = 空串 = 全量（05 §5；''/'cli' 认证时全量语义——M1 零破坏）；
+        // 显式 scope = permission 码逗号 join（交集收窄——T15 R14 新签发可设）
+        scope: parsed.data.scope === undefined ? '' : parsed.data.scope.join(','),
         expiresAt,
       })
       .returning({ id: apiToken.id });
