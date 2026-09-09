@@ -30,6 +30,7 @@ import {
 } from '../assets/service.js';
 import { canViewAsset } from '../assets/visibility.js';
 import { createVersion, deleteVersion } from '../assets/versions.js';
+import { readVersionFile } from '../assets/version-content.js';
 import { getVersion, listVersions } from '../assets/version-read.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
@@ -361,6 +362,31 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (detail === null) throw new AssetError(assetErrorCodes.notFound);
     if (detail === 'restricted') throw new AssetError(assetErrorCodes.versionNotPublished);
     return c.json(detail);
+  });
+
+  // GET /api/assets/{ns}/{slug}/versions/{version}/files/*（M4a R8：文件内容读取——匿名预览）
+  // 授权 = 下载判定同语义（PUBLISHED 公开 / 预览集 / YANKED 400——文件内容是下载前奏）；
+  // filePath 走 db 参数化 uq 查询（天然防穿越）+ 显式路径安全校验
+  app.get('/:nsSlug/:slug/versions/:version/files/*', async (c) => {
+    const nsSlug = c.req.param('nsSlug');
+    const slug = c.req.param('slug');
+    const version = c.req.param('version');
+    // hono '*' 通配匹配但不暴露捕获值——自 URL 取 files/ 后段（保持契约 path 格式；
+    // URL 编码段解码后交 assertSafeReadPath 校验 + db 参数化查询）
+    const rawPath = new URL(c.req.url).pathname;
+    const marker = '/files/';
+    const fpStart = rawPath.indexOf(marker);
+    const filePath = fpStart >= 0 ? decodeURIComponent(rawPath.slice(fpStart + marker.length)) : '';
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const viewer = await assertAssetReadable(c, ns, row); // 读面 403/404 分层
+    const content = await readVersionFile(db, deps.storage, {
+      assetId: row.id,
+      ownerId: row.ownerId,
+      version,
+      filePath,
+      viewer,
+    });
+    return c.json(content);
   });
 
   // PATCH /api/assets/{ns}/{slug}（T4：visibility 修改——Q3；owner 或空间 ADMIN+）

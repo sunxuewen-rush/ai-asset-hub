@@ -11,6 +11,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AssetError } from '../assets/errors.js';
+import { assertSafeReadPath } from '../assets/version-content.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
@@ -521,6 +522,121 @@ describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', ()
     expect(body.latestName).toBeNull();
     expect(body.latestDescription).toBeNull();
     expect(body.ownerDisplayName).toBe('ast-member'); // owner 名不依赖版本
+  });
+});
+
+describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', () => {
+  const vids: number[] = [];
+  let pubAssetId = 0;
+  beforeAll(async () => {
+    // 懒建：PUBLISHED 资产（SKILL.md 文本 + 超大文件 + 二进制文件）+ YANKED 资产
+    const [a] = await db
+      .insert(asset)
+      .values({ namespaceId: nsA, slug: 'ast-file-pub', type: 'skill', ownerId: member, visibility: 'PUBLIC' })
+      .returning({ id: asset.id });
+    pubAssetId = a!.id;
+    const [v] = await db
+      .insert(assetVersion)
+      .values({ assetId: a!.id, version: '1.0.0', status: 'PUBLISHED', createdBy: member, publishedAt: new Date() })
+      .returning({ id: assetVersion.id });
+    vids.push(v!.id);
+    await db.update(asset).set({ latestVersionId: v!.id }).where(eq(asset.id, a!.id));
+    const putFile = async (path: string, buf: Buffer, contentType?: string) => {
+      const key = `${nsA}/${a!.id}/${v!.id}/${path}`;
+      await storage.put(key, buf, contentType ? { contentType } : undefined);
+      await db.insert(assetFile).values({
+        versionId: v!.id,
+        filePath: path,
+        fileSize: buf.byteLength,
+        contentType: contentType ?? null,
+        sha256: 'x'.repeat(64),
+        storageKey: key,
+      });
+    };
+    await putFile('SKILL.md', Buffer.from('---\nname: file-pub\n---\n# 内容读取测试\n正文行\n'), 'text/markdown');
+    await putFile('reference/big.txt', Buffer.alloc(300 * 1024, 65)); // 300KB > 256KB 截断阈值
+    await putFile('assets/blob.bin', Buffer.from([0xff, 0x00, 0xfe, 0x01, 0x80]), 'application/octet-stream');
+    // YANKED 资产
+    const [ay] = await db
+      .insert(asset)
+      .values({ namespaceId: nsA, slug: 'ast-file-yanked', type: 'skill', ownerId: member, visibility: 'PUBLIC' })
+      .returning({ id: asset.id });
+    const [vy] = await db
+      .insert(assetVersion)
+      .values({ assetId: ay!.id, version: '2.0.0', status: 'YANKED', createdBy: member, publishedAt: new Date(), yankedAt: new Date(), yankedBy: member, yankReason: 't5' })
+      .returning({ id: assetVersion.id });
+    const keyY = `${nsA}/${ay!.id}/${vy!.id}/SKILL.md`;
+    await storage.put(keyY, Buffer.from('yanked 内容'), { contentType: 'text/markdown' });
+    await db.insert(assetFile).values({ versionId: vy!.id, filePath: 'SKILL.md', fileSize: 12, contentType: 'text/markdown', sha256: 'y'.repeat(64), storageKey: keyY });
+  });
+
+  it('PUBLISHED 文本文件匿名可读（content/binary:false）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/SKILL.md');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { path: string; binary: boolean; truncated: boolean; content: string };
+    expect(body.path).toBe('SKILL.md');
+    expect(body.binary).toBe(false);
+    expect(body.truncated).toBe(false);
+    expect(body.content).toContain('# 内容读取测试');
+  });
+
+  it('超大文件：截断 truncated:true（content ≤ 256KB）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/reference/big.txt');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { truncated: boolean; content: string };
+    expect(body.truncated).toBe(true);
+    expect(Buffer.byteLength(body.content, 'utf8')).toBeLessThanOrEqual(256 * 1024 + 3);
+  });
+
+  it('二进制文件：binary:true 无 content', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/assets/blob.bin');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { binary: boolean; content?: string };
+    expect(body.binary).toBe(true);
+    expect(body.content).toBeUndefined();
+  });
+
+  it('YANKED 版本：400 version_yanked', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-file-yanked/versions/2.0.0/files/SKILL.md');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.version_yanked');
+  });
+
+  it('不存在文件：404 version_file_not_found', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/NO-SUCH.md');
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.version_file_not_found');
+  });
+
+  it('路径穿越：assertSafeReadPath 纯函数拒绝全形态（URL 层归一后 .. 不可达——纵深防御单测）', async () => {
+    // URL 规范在客户端折叠 ../ 与 %2e%2e 段——服务端 assert 是防非规范代理的纵深；
+    // 直接单测纯函数全形态
+    for (const evil of ['../SKILL.md', 'a/../../b.md', '/etc/passwd', 'a\\b.md', '']) {
+      let threw = false;
+      try {
+        assertSafeReadPath(evil);
+      } catch (e) {
+        threw = e instanceof AssetError && (e as AssetError).code === 'asset.version_file_path_invalid';
+      }
+      expect(threw).toBe(true);
+    }
+    expect(() => assertSafeReadPath('reference/ok.md')).not.toThrow();
+  });
+
+  it('不存在版本：404 asset.not_found', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-file-pub/versions/9.9.9/files/SKILL.md');
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.not_found');
+  });
+
+  it('PRIVATE 资产文件匿名：403 access_denied（读面分层先行）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-priv-mcp/versions/1.0.0/files/SKILL.md');
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.access_denied');
   });
 });
 

@@ -42,6 +42,10 @@ export const assetErrorCodes = {
   packagePathInvalid: 'asset.package_path_invalid',
   /** multipart 接收超限（上传前置 413） */
   packageTooLarge: 'asset.package_too_large',
+  /** 版本文件内容读取：目标文件不在该版本清单（M4a R8） */
+  versionFileNotFound: 'asset.version_file_not_found',
+  /** 版本文件内容读取：路径非法（`..`/绝对/反斜杠——M4a R8） */
+  versionFilePathInvalid: 'asset.version_file_path_invalid',
 } as const;
 
 export type AssetErrorCode = (typeof assetErrorCodes)[keyof typeof assetErrorCodes];
@@ -71,7 +75,10 @@ export function httpStatusForAsset(code: AssetErrorCode): number {
     case 'asset.yank_reason_required':
     case 'asset.package_layout_invalid':
     case 'asset.package_path_invalid':
+    case 'asset.version_file_path_invalid':
       return 400;
+    case 'asset.version_file_not_found':
+      return 404;
   }
 }
 
