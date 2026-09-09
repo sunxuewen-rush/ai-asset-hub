@@ -6,6 +6,7 @@ import { fetchVersionDetail, fetchVersionList } from '../api/versions.js';
 import { type DetailTab, DetailTabs } from '../components/market/detail/DetailTabs.js';
 import { FilesTab } from '../components/market/detail/FilesTab.js';
 import { OverviewTab } from '../components/market/detail/OverviewTab.js';
+import { VersionCompare } from '../components/market/detail/VersionCompare.js';
 import { compactCount, formatDate, ownerText } from '../components/market/format.js';
 import { Badge } from '../components/ui/Badge.js';
 import { ErrorState } from '../components/ui/ErrorState.js';
@@ -23,16 +24,6 @@ const CENTER_TITLE_KEY: Record<
   mcp: 'centerTitleMcps',
   agent: 'centerTitleAgents',
 };
-
-/** versions tab 占位——T17 替换（防空白） */
-function panePlaceholder(tab: DetailTab) {
-  const notes: Record<DetailTab, string> = {
-    overview: '',
-    files: '',
-    versions: '版本 tab：历史 + 行级对比（T17 落地）',
-  };
-  return <p className={styles.paneNote}>{notes[tab]}</p>;
-}
 
 /**
  * 资产详情页（design §3 v0.7：面包屑 → 头部（名称 + 可见性 pill + @ns + 标签行）→
@@ -114,7 +105,15 @@ export function AssetDetail() {
         />
       );
     }
-    return panePlaceholder(tab);
+    // versions tab：波 1 版本列表数据源（历史 + 对比）
+    return (
+      <VersionCompare
+        nsSlug={nsSlug}
+        slug={slug}
+        versions={versionsState.data?.items ?? []}
+        latestVersion={detail.latestVersion}
+      />
+    );
   };
 
   return (

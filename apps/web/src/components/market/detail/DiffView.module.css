@@ -1,0 +1,108 @@
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.sec {
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  width: 100%;
+  background: rgba(37, 99, 235, 0.04);
+  border: none;
+  border-bottom: 1px solid var(--line-faint);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.head:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+.chev {
+  font-size: 9px;
+  color: var(--text-3);
+  margin-right: 2px;
+  transition: transform 0.12s;
+  flex-shrink: 0;
+}
+.collapsed .chev {
+  transform: rotate(-90deg);
+}
+.path {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.plus {
+  color: var(--diff-add-fg);
+}
+.minus {
+  color: var(--diff-del-fg);
+  margin-left: 8px;
+}
+.body {
+  padding: 4px 0;
+}
+/* 行三列 grid：old 行号 46 | new 行号 46 | 内容（§4.4 GitHub 亮色系） */
+.rows {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11-5);
+  line-height: 1.65;
+}
+.line {
+  display: grid;
+  grid-template-columns: 46px 46px 1fr;
+}
+.no {
+  text-align: right;
+  padding: 0 8px;
+  color: var(--text-3);
+  border-right: 1px solid var(--line-faint);
+  user-select: none;
+}
+.tx {
+  padding: 0 10px;
+  white-space: pre;
+  overflow-x: auto;
+}
+.add {
+  background: var(--diff-add-bg);
+}
+.add .tx {
+  color: var(--diff-add-fg);
+}
+.del {
+  background: var(--diff-del-bg);
+}
+.del .tx {
+  color: var(--diff-del-fg);
+}
+.ctx {
+  color: var(--text-2);
+}
+.note {
+  font-size: var(--fs-12);
+  color: var(--text-3);
+  padding: 10px 14px;
+  margin: 0;
+}

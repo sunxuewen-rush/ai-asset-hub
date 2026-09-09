@@ -80,6 +80,8 @@ export const en: Dict = {
       'Click folders to expand/collapse; click a file to preview. Truncated sha256 lets you verify integrity.',
     binaryPreviewUnsupported: '(Binary file or preview not supported — download to view)',
     previewTruncated: 'Content truncated (showing first 256KB)',
+    fileUnit: 'files',
+    diffNoChanges: 'No differences between the two versions',
   },
   common: {
     loading: 'Loading…',

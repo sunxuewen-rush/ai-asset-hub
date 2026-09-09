@@ -74,6 +74,8 @@ export const zh = {
     filesTreeHint: '目录可点击展开/收起；文件点击预览内容。sha256 截断可核对完整性。',
     binaryPreviewUnsupported: '（二进制文件或预览暂不支持 —— 请下载后查看）',
     previewTruncated: '内容超长已截断（仅显示前 256KB）',
+    fileUnit: '文件',
+    diffNoChanges: '两版本无差异',
   },
   common: {
     loading: '加载中…',

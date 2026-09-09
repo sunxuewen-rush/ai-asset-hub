@@ -1,0 +1,39 @@
+.nav {
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.4);
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11-5);
+  padding: 7px 10px;
+  cursor: pointer;
+  color: var(--text-2);
+  border: none;
+  background: none;
+  border-bottom: 1px solid var(--line-faint);
+  text-align: left;
+  width: 100%;
+}
+.item:hover {
+  background: rgba(37, 99, 235, 0.05);
+}
+.item.active {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--brand);
+  font-weight: 600;
+}
+.name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
