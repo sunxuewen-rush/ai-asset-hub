@@ -1,8 +1,8 @@
 # M4a 市场门户实现计划
 
 > Date: 2026-09-09
-> Updated: 2026-09-09（v0.1：初稿——design v0.8 定稿后 Task 清单化；自检修复：T5/T6 补 R8/R9 错误码注册（assets/errors.ts + httpStatusForAsset 穷尽）、T14 补 latest YANKED 下载禁用态断言、T6 显式依赖 T1/T5 存储路径、T11 同步 v0.8 polish 规格（入口卡左置计数/最新行式/动效 posture）；交叉核对修复引用链 v0.8）
-> Status: 草稿（design v0.8 定稿后起草，8 维自检 ≈9.3 ≥9；待用户评审批准；19 Task 按板块顺序执行——每 Task 完成 = 断言为真 + 18 维自检 ≥9 + 用户批准后 commit）
+> Updated: 2026-09-09（v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
+> Status: 执行中（已批准；板块 A 完成——T1-T6 全部 ✅ + commit；当前板块 B web 基座）
 > 引用链：本文档 → 设计 docs/designs/2026-09-09-m4a-marketplace-portal-design.md（v0.8，§N 逐 Task 引用）→ 规范 00 §5 · 02/03/04 族协议 · 05 §3.1 · 06 §2.3/§4 · 07 全 · 08 §5/§7（引用不复制，契约以 design v0.8 为准）
 > 命名约定见 docs/plans/README.md
 
@@ -38,6 +38,7 @@ README 之外的排序切换；社交面。
 ### 板块 A 服务端最小支撑（design §6 R4-R9）
 
 #### T1 实证：bundle 存储结构与读路径（design §5.2 R8 前置）
+✅ 完成（2026-09-09——实证结论已回写 design §5.2 R8 注记）
 - **Files**: 读 `apps/server/src/assets/download.ts` · `db/schema/assets.ts`（asset_file/
   asset_version.bundleStorageKey/bundleSha256）· storage SPI——确认版本文件内容存取方式
   （zip 对象 or 逐文件顺存 or 双份）→ 结论写 Task 断言
@@ -46,6 +47,7 @@ README 之外的排序切换；社交面。
 - **Commit**: 无代码变更——结论并入 T5（不单独 commit）
 
 #### T2 R4：列表匿名放行（design §6 R4）
+✅ 完成（commit `8c8d2cf`）
 - **Files**: Modify `apps/server/src/http/assets.ts`（GET / 撤 requireAuth；viewer 组装复用
   viewerContext 匿名分支：principal 无 → userId null → listViewableAssets 条件坍缩 PUBLIC-only——
   service.ts 实证）；Test `src/http/assets.test.ts` 或新增匿名面用例
@@ -54,6 +56,7 @@ README 之外的排序切换；社交面。
 - **Commit**: `feat(server): allow anonymous asset listing (PUBLIC-only visibility)`
 
 #### T3 R5 + R6：assetItem 展示字段（design §5.2 R5/R6）
+✅ 完成（commit `163e3f2`）
 - **Files**: Modify `apps/server/src/http/assets.ts`（assetItem 序列化 + 数据源查询 join——
   list/detail/versions 数据行 join `asset_version`(latest_version_id) 投影
   version/name/description + join `user_account` 投影 displayName）；列表与详情共用一处；
@@ -63,6 +66,7 @@ README 之外的排序切换；社交面。
 - **Commit**: `feat(server): enrich assetItem with latest version projection and owner display name`
 
 #### T4 R7：stats 聚合端点（design §5.2 G6）
+✅ 完成（commit `574da4b`）
 - **Files**: Create `apps/server/src/http/stats.ts`（或并入 assets.ts 同面——plan 实现取）+ 
   app.ts 注册 GET /api/stats（匿名）；聚合 PUBLIC+ACTIVE：count / sum(downloadCount) /
   group by type → `{totalAssets,totalDownloads,typeCounts:{type:n}}`；Test 新用例
@@ -71,6 +75,7 @@ README 之外的排序切换；社交面。
 - **Commit**: `feat(server): add public stats aggregation endpoint`
 
 #### T5 R8：文件内容读取端点（design §5.2 G7；**T1 实证结论（2026-09-09）——逐文件顺存直读**：
+✅ 完成（commit `066eab4`）
 assetFile 行含 storageKey/（versionId,filePath）uq；读路径 = db 参数化查 assetFile → 
 storage.get(storageKey)（ObjectStorage.get → Buffer|Readable）零解压；`..`/绝对路径在 db 查
 天然不命中——显式含 `..` 先拒 400 path_invalid 友好提示再查；truncated 用 fileSize 先行判定
@@ -87,6 +92,7 @@ storage.get(storageKey)（ObjectStorage.get → Buffer|Readable）零解压；`.
 - **Commit**: `feat(server): add version file content endpoint`
 
 #### T6 R9：版本 compare 端点（design §5.2 G8；依赖 T1/T5 存储路径——hunks 计算需读两版
+✅ 完成（commit `a76e963`）
 文件内容，读取实现复用 T5 路径结论）
 - **Files**: Create compare 实现——两版本文件清单并集比对（sha/路径 → ADDED/MODIFIED/DELETED）；
   MODIFIED 文本文件行级 diff → hunks（diff 算法：引入轻量 diff 依赖需用户批准——或自实现
