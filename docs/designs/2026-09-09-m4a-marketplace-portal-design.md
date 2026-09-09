@@ -168,7 +168,9 @@ version 详情 / download（302/200；YANKED 400；限流 429）——全匿名�
 - **G7 单文件内容读取** → **R8（v0.7 定案）**：GET /assets/:ns/:slug/versions/:version/
   files/:path（path URL 编码，含目录分隔）→ 200 `{path, size, binary, truncated, content?}`
   （文本文件 content + truncated 阈值截断；二进制 binary=true 无 content——预览 UI 区分提示）。
-  服务端从版本存储按 path 取单文件（实现路径：zip 解包索引或顺存对象，plan 实证选路）。
+  服务端从版本存储按 path 取单文件（**T1 实证定案：assetFile 逐文件顺存 + storageKey 直读——
+  db 参数化查 (versionId,filePath) uq 列 → ObjectStorage.get(storageKey)，零解压**；
+  显式 `..` 先拒 400；fileSize 先行判定截断；contentType + utf8 试解码判 binary）。
   **总览主文档按族解析（v0.7 补——族协议实证 docs/02/03/04）**：skill 族主文档 = SKILL.md
   （必需，root）；mcp/agent 族 = README.md（可选）——存在则渲染 markdown，不存在则前端回退
   manifest 结构化摘要（mcp.json/agent.md 字段卡）；总览组件按 type 分型取主文档 path

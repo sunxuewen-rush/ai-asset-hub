@@ -70,9 +70,13 @@ README 之外的排序切换；社交面。
   typeCounts 键动态（Record）
 - **Commit**: `feat(server): add public stats aggregation endpoint`
 
-#### T5 R8：文件内容读取端点（design §5.2 G7；T1 路径先行）
-- **Files**: Create 版本文件内容读（按 T1 实证路径——顺存 key 直读或 zip 解压取单文件+
-  缓存索引）；路由 GET /assets/:ns/:slug/versions/:version/files/*path（path 含目录，URL
+#### T5 R8：文件内容读取端点（design §5.2 G7；**T1 实证结论（2026-09-09）——逐文件顺存直读**：
+assetFile 行含 storageKey/（versionId,filePath）uq；读路径 = db 参数化查 assetFile → 
+storage.get(storageKey)（ObjectStorage.get → Buffer|Readable）零解压；`..`/绝对路径在 db 查
+天然不命中——显式含 `..` 先拒 400 path_invalid 友好提示再查；truncated 用 fileSize 先行判定
+（>256KB 流截断读前段）；binary 判定 contentType + utf8 试解码）
+- **Files**: Create 版本文件内容读（storage.get 直读 + fileSize 截断 + binary 判定）；路由
+  GET /assets/:ns/:slug/versions/:version/files/*path（path 含目录，URL
   编码）匿名 + YANKED 400 + 不存在 404 + 路径越权 400（禁 `..`/绝对路径）+ 越界文件 404；
   响应 `{path,size,binary,truncated,content?}`——文本 utf8（解码失败 binary=true）；
   truncated 阈值（常量 256KB——超限截断 content + truncated:true，二进制无 content；
