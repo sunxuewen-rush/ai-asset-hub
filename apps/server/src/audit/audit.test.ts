@@ -19,9 +19,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // 精确清理自数据（requestId 唯一标识 + 匿名 ghost 行）——不误删并发文件的同 action 行
   await db.delete(auditLog).where(eq(auditLog.requestId, 'req-12345'));
-  await db
-    .delete(auditLog)
-    .where(sql`actor_id IS NULL AND detail->>'username' = 'ghost'`);
+  await db.delete(auditLog).where(sql`actor_id IS NULL AND detail->>'username' = 'ghost'`);
   await db.delete(auditLog).where(eq(auditLog.action, 'test.audit'));
   await db.$client.end();
 });

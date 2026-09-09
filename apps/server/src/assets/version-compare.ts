@@ -5,12 +5,13 @@
  * 授权同 R8（decideDownload——PUBLISHED 匿名 / 预览集 / YANKED 400——比较读内容与下载同语义）；
  * 大文本（行数/矩阵超限）与二进制 → 标注 truncated/binary 不产 hunks（前端区分提示）。
  */
+
+import type { Readable } from 'node:stream';
 import { and, eq, inArray } from 'drizzle-orm';
-import { Readable } from 'node:stream';
 import type { Db } from '../db/client.js';
 import { assetFile, assetVersion } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
-import { decideDownload, type DownloadViewer } from './download.js';
+import { type DownloadViewer, decideDownload } from './download.js';
 import { AssetError, assetErrorCodes } from './errors.js';
 import { collectStream, looksTextual } from './version-content.js';
 
@@ -62,8 +63,20 @@ function splitLines(text: string): string[] {
 function lineDiff(fromLines: string[], toLines: string[]): DiffLine[] {
   const n = fromLines.length;
   const m = toLines.length;
-  if (n === 0) return toLines.map((c, i) => ({ type: 'ADD', oldLineNumber: null, newLineNumber: i + 1, content: c }));
-  if (m === 0) return fromLines.map((c, i) => ({ type: 'DELETE', oldLineNumber: i + 1, newLineNumber: null, content: c }));
+  if (n === 0)
+    return toLines.map((c, i) => ({
+      type: 'ADD',
+      oldLineNumber: null,
+      newLineNumber: i + 1,
+      content: c,
+    }));
+  if (m === 0)
+    return fromLines.map((c, i) => ({
+      type: 'DELETE',
+      oldLineNumber: i + 1,
+      newLineNumber: null,
+      content: c,
+    }));
   if (n > MAX_DIFF_LINES || m > MAX_DIFF_LINES) throw new Error('diff_too_large');
 
   // LCS 长度矩阵（Int32 行滚动 + 回溯用全表——n*m ≤ 1500² 内存受控）
@@ -71,7 +84,8 @@ function lineDiff(fromLines: string[], toLines: string[]): DiffLine[] {
   const cols = m + 1;
   const dp = new Int32Array(rows * cols);
   for (let i = n - 1; i >= 0; i--) {
-    const fi = fromLines[i]!;
+    const fi = fromLines[i];
+    if (fi === undefined) continue; // 不可达守卫（i<n 恒真）——noNonNull 替代
     for (let j = m - 1; j >= 0; j--) {
       dp[i * cols + j] =
         fi === toLines[j]
@@ -84,8 +98,9 @@ function lineDiff(fromLines: string[], toLines: string[]): DiffLine[] {
   let i = 0;
   let j = 0;
   while (i < n && j < m) {
-    const fl = fromLines[i]!;
-    const tl = toLines[j]!;
+    const fl = fromLines[i];
+    const tl = toLines[j];
+    if (fl === undefined || tl === undefined) break; // 不可达守卫（i<n 且 j<m 恒真）
     if (fl === tl) {
       out.push({ type: 'CONTEXT', oldLineNumber: i + 1, newLineNumber: j + 1, content: fl });
       i++;
@@ -99,11 +114,15 @@ function lineDiff(fromLines: string[], toLines: string[]): DiffLine[] {
     }
   }
   while (i < n) {
-    out.push({ type: 'DELETE', oldLineNumber: i + 1, newLineNumber: null, content: fromLines[i]! });
+    const fl = fromLines[i];
+    if (fl === undefined) break; // 不可达守卫
+    out.push({ type: 'DELETE', oldLineNumber: i + 1, newLineNumber: null, content: fl });
     i++;
   }
   while (j < m) {
-    out.push({ type: 'ADD', oldLineNumber: null, newLineNumber: j + 1, content: toLines[j]! });
+    const tl = toLines[j];
+    if (tl === undefined) break; // 不可达守卫
+    out.push({ type: 'ADD', oldLineNumber: null, newLineNumber: j + 1, content: tl });
     j++;
   }
   return out;
@@ -123,12 +142,11 @@ async function readFileText(
 
 /** 全 ADD/DELETE 行序列（ADDED/DELETED 文件——GitHub 视觉全量行） */
 function fullAddOrDelete(type: 'ADD' | 'DELETE', content: string): CompareFileResult['hunks'] {
-  const lines = splitLines(content)
-    .map((line, idx) =>
-      type === 'ADD'
-        ? { type: 'ADD' as const, oldLineNumber: null, newLineNumber: idx + 1, content: line }
-        : { type: 'DELETE' as const, oldLineNumber: idx + 1, newLineNumber: null, content: line },
-    );
+  const lines = splitLines(content).map((line, idx) =>
+    type === 'ADD'
+      ? { type: 'ADD' as const, oldLineNumber: null, newLineNumber: idx + 1, content: line }
+      : { type: 'DELETE' as const, oldLineNumber: idx + 1, newLineNumber: null, content: line },
+  );
   return lines.length > 0 ? [{ lines }] : undefined;
 }
 
@@ -156,7 +174,8 @@ export async function compareVersions(
   for (const v of [fv, tv]) {
     const decision = decideDownload(v.status, viewer, ownerId, v);
     if (decision.kind === 'yanked') throw new AssetError(assetErrorCodes.versionYanked);
-    if (decision.kind === 'not_published') throw new AssetError(assetErrorCodes.versionNotPublished);
+    if (decision.kind === 'not_published')
+      throw new AssetError(assetErrorCodes.versionNotPublished);
   }
 
   const [fromFiles, toFiles] = await Promise.all([
@@ -178,7 +197,7 @@ export async function compareVersions(
         results.push({ path: p, changeType: 'MODIFIED', binary, truncated });
         continue;
       }
-      const fromText = (await readFileText(storage, f));
+      const fromText = await readFileText(storage, f);
       let lines: DiffLine[];
       try {
         lines = lineDiff(splitLines(fromText.text), splitLines(text));
@@ -186,7 +205,13 @@ export async function compareVersions(
         results.push({ path: p, changeType: 'MODIFIED', binary: false, truncated: true });
         continue;
       }
-      results.push({ path: p, changeType: 'MODIFIED', binary: false, truncated: false, hunks: [{ lines }] });
+      results.push({
+        path: p,
+        changeType: 'MODIFIED',
+        binary: false,
+        truncated: false,
+        hunks: [{ lines }],
+      });
     } else if (t) {
       const { text, binary, truncated } = await readFileText(storage, t);
       results.push({
@@ -197,7 +222,9 @@ export async function compareVersions(
         hunks: !binary && !truncated ? fullAddOrDelete('ADD', text) : undefined,
       });
     } else {
-      const { text, binary, truncated } = await readFileText(storage, f!);
+      const file = f;
+      if (!file) continue; // 不可达守卫（else 分支语义上 f 恒存在）
+      const { text, binary, truncated } = await readFileText(storage, file);
       results.push({
         path: p,
         changeType: 'DELETED',

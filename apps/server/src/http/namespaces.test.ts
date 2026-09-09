@@ -7,11 +7,11 @@ process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_tes
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { Hono } from 'hono';
+import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
 import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
 import {
   auditLog,
@@ -194,7 +194,10 @@ afterAll(async () => {
     await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
-  const t6Users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.displayName, 't6-%'));
+  const t6Users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.displayName, 't6-%'));
   for (const u of t6Users) {
     await db.delete(auditLog).where(eq(auditLog.actorId, u.id));
     await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
@@ -771,7 +774,6 @@ describe('DELETE /api/namespaces/:id/members/:userId（T7 移除成员）', () =
   });
 });
 
-
 describe('空间 OWNER 转让（T16 R3——OWNER 位置转移）', () => {
   let tOwner: string;
   let tAdmin: string;
@@ -789,7 +791,12 @@ describe('空间 OWNER 转让（T16 R3——OWNER 位置转移）', () => {
   });
 
   it('OWNER 转让成功：新 OWNER 升 OWNER + 旧 OWNER 降 ADMIN（防空位）', async () => {
-    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tMember }, await cookieFor(tOwner));
+    const res = await jsonRequest(
+      'POST',
+      `/api/namespaces/${nsT}/transfer-ownership`,
+      { newOwnerId: tMember },
+      await cookieFor(tOwner),
+    );
     expect(res.status).toBe(204);
 
     const roles = await db
@@ -806,37 +813,66 @@ describe('空间 OWNER 转让（T16 R3——OWNER 位置转移）', () => {
     const rows = await db
       .select({ action: auditLog.action, detail: auditLog.detail })
       .from(auditLog)
-      .where(and(eq(auditLog.actorId, tOwner), eq(auditLog.action, 'namespace.transfer_ownership')));
+      .where(
+        and(eq(auditLog.actorId, tOwner), eq(auditLog.action, 'namespace.transfer_ownership')),
+      );
     expect(rows.length).toBe(1);
     expect((rows[0]!.detail as { from: string; to: string }).to).toBe(tMember);
   });
 
   it('非 OWNER（ADMIN）发起 → 403', async () => {
-    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tAdmin }, await cookieFor(tAdmin));
+    const res = await jsonRequest(
+      'POST',
+      `/api/namespaces/${nsT}/transfer-ownership`,
+      { newOwnerId: tAdmin },
+      await cookieFor(tAdmin),
+    );
     expect(res.status).toBe(403);
   });
 
   it('目标非成员 → 400 transfer_target_not_member', async () => {
     const outsider = await makeUser('t6-outsider');
     // tMember 现为 OWNER（首个用例已转让）——OWNER 发起、目标非成员
-    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: outsider }, await cookieFor(tMember));
+    const res = await jsonRequest(
+      'POST',
+      `/api/namespaces/${nsT}/transfer-ownership`,
+      { newOwnerId: outsider },
+      await cookieFor(tMember),
+    );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { code: string }).code).toBe('namespace.transfer_target_not_member');
+    expect(((await res.json()) as { code: string }).code).toBe(
+      'namespace.transfer_target_not_member',
+    );
   });
 
   it('转给当前 OWNER → 400 request.invalid（自己转自己无操作）', async () => {
-    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tMember }, await cookieFor(tMember));
+    const res = await jsonRequest(
+      'POST',
+      `/api/namespaces/${nsT}/transfer-ownership`,
+      { newOwnerId: tMember },
+      await cookieFor(tMember),
+    );
     expect(res.status).toBe(400);
   });
 
   it('OWNER 移除保护延续（新 OWNER 行不可移除——transfer_deferred）', async () => {
-    const res = await jsonRequest('DELETE', `/api/namespaces/${nsT}/members/${tMember}`, undefined, await cookieFor(tOwner));
+    const res = await jsonRequest(
+      'DELETE',
+      `/api/namespaces/${nsT}/members/${tMember}`,
+      undefined,
+      await cookieFor(tOwner),
+    );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('namespace.transfer_deferred');
   });
 
   it('SUPER_ADMIN 治理豁免可代转（05 §6.5 管理面无空位兜底）', async () => {
-    const res = await jsonRequest('POST', `/api/namespaces/${nsT}/transfer-ownership`, { newOwnerId: tAdmin }, await cookieFor(superAdmin));
+    const res = await jsonRequest(
+      'POST',
+      `/api/namespaces/${nsT}/transfer-ownership`,
+      { newOwnerId: tAdmin },
+      await cookieFor(superAdmin),
+    );
     expect(res.status).toBe(204);
     const rows = await db
       .select({ role: namespaceMember.role })

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { createMcpValidator } from './mcp.js';
-import { ensureTestEnv } from '../test-utils/env-setup.js';
+
 ensureTestEnv();
 
 const validator = createMcpValidator();
@@ -26,7 +27,9 @@ describe('mcp 族规则（03 §2/§3/§4/§5）', () => {
   });
 
   it('合法本地型包（scripts/server.js）→ ok', async () => {
-    const r = await validator.validate(mcpZip([{ name: 'scripts/server.js', content: 'console.log(1)\n' }]));
+    const r = await validator.validate(
+      mcpZip([{ name: 'scripts/server.js', content: 'console.log(1)\n' }]),
+    );
     expect(r.ok).toBe(true);
   });
 

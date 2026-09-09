@@ -6,8 +6,8 @@
  */
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import type { z } from 'zod';
-import { readZipEntry, scanZip, ZipValidationError, type ZipEntryMeta } from './zip.js';
 import type { ValidationIssue, ValidationResult } from './types.js';
+import { readZipEntry, scanZip, type ZipEntryMeta, ZipValidationError } from './zip.js';
 
 /** 文件扩展名提取（白名单判定共用：点文件 .env → ''——无扩展名语义） */
 export function extensionOf(path: string): string {
@@ -26,7 +26,9 @@ const KNOWN_ERROR_CODES = new Set<string>(Object.values(protocolErrorCodes));
  */
 export function zodIssuesToValidation(error: z.ZodError, pathPrefix?: string): ValidationIssue[] {
   return error.issues.map((issue) => {
-    const issuePath = pathPrefix ? [pathPrefix, ...(issue.path ?? [])].join('/') : issue.path?.join('.');
+    const issuePath = pathPrefix
+      ? [pathPrefix, ...(issue.path ?? [])].join('/')
+      : issue.path?.join('.');
     const code = KNOWN_ERROR_CODES.has(issue.message) ? issue.message : 'request.invalid';
     const message = KNOWN_ERROR_CODES.has(issue.message) ? undefined : issue.message;
     return { code, path: issuePath, message };

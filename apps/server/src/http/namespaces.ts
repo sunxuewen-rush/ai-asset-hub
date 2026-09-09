@@ -2,9 +2,9 @@ import { slugSchema } from '@ai-asset-hub/protocol';
 import { and, count, eq, inArray, or, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
-import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import {
   namespace,
@@ -557,8 +557,12 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     }
     const { newOwnerId } = parsed.data;
 
-    const nsRows = await db.select({ id: namespace.id }).from(namespace).where(eq(namespace.id, id));
-    if (!nsRows[0]) return c.json({ code: 'namespace.not_found', message: 'namespace.not_found' }, 404);
+    const nsRows = await db
+      .select({ id: namespace.id })
+      .from(namespace)
+      .where(eq(namespace.id, id));
+    if (!nsRows[0])
+      return c.json({ code: 'namespace.not_found', message: 'namespace.not_found' }, 404);
 
     const members = await db
       .select({ userId: namespaceMember.userId, role: namespaceMember.role })
@@ -575,7 +579,10 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     }
     if (!targetMember) {
       return c.json(
-        { code: 'namespace.transfer_target_not_member', message: 'namespace.transfer_target_not_member' },
+        {
+          code: 'namespace.transfer_target_not_member',
+          message: 'namespace.transfer_target_not_member',
+        },
         400,
       );
     }

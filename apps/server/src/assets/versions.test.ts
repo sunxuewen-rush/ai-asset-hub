@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { randomUUID } from 'node:crypto';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,10 +14,10 @@ import {
   auditLog,
   namespace,
   namespaceMember,
+  type RoleCode,
   role,
   userAccount,
   userRoleBinding,
-  type RoleCode,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildZip } from '../test-utils/zip-builder.js';
@@ -40,7 +39,9 @@ let assetId: number;
 
 async function makeUser(tag: string): Promise<string> {
   const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}-${randomUUID().slice(0, 8)}`, status: 'ACTIVE' });
+  await db
+    .insert(userAccount)
+    .values({ id, displayName: `${PREFIX}${tag}-${randomUUID().slice(0, 8)}`, status: 'ACTIVE' });
   return id;
 }
 
@@ -67,7 +68,10 @@ async function insertAsset(slug: string): Promise<number> {
 
 function validSkillZip(): Buffer {
   return buildZip([
-    { name: 'SKILL.md', content: '---\nname: demo-skill\ndescription: upload test\n---\n# Demo\n\nbody content\n' },
+    {
+      name: 'SKILL.md',
+      content: '---\nname: demo-skill\ndescription: upload test\n---\n# Demo\n\nbody content\n',
+    },
     { name: 'references/guide.md', content: '# Guide\n' },
     { name: 'assets/icon.svg', content: '<svg/>' },
   ]);
@@ -94,13 +98,21 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const nsRows = await db.select({ id: namespace.id }).from(namespace).where(like(namespace.slug, `${PREFIX}%`));
+  const nsRows = await db
+    .select({ id: namespace.id })
+    .from(namespace)
+    .where(like(namespace.slug, `${PREFIX}%`));
   const ids = nsRows.map((n) => n.id);
   if (ids.length > 0) {
     const vRows = await db
       .select({ id: assetVersion.id })
       .from(assetVersion)
-      .where(inArray(assetVersion.assetId, db.select({ id: asset.id }).from(asset).where(inArray(asset.namespaceId, ids))));
+      .where(
+        inArray(
+          assetVersion.assetId,
+          db.select({ id: asset.id }).from(asset).where(inArray(asset.namespaceId, ids)),
+        ),
+      );
     const vIds = vRows.map((v) => v.id);
     if (vIds.length > 0) {
       await db.delete(assetFile).where(inArray(assetFile.versionId, vIds));
@@ -110,7 +122,10 @@ afterAll(async () => {
     await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, ids));
     await db.delete(namespace).where(inArray(namespace.id, ids));
   }
-  const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.displayName, `${PREFIX}%`));
   const userIds = users.map((u) => u.id);
   if (userIds.length > 0) {
     await db.delete(auditLog).where(inArray(auditLog.actorId, userIds));
@@ -122,7 +137,10 @@ afterAll(async () => {
 });
 
 async function versionCount(): Promise<number> {
-  const rows = await db.select({ id: assetVersion.id }).from(assetVersion).where(eq(assetVersion.assetId, assetId));
+  const rows = await db
+    .select({ id: assetVersion.id })
+    .from(assetVersion)
+    .where(eq(assetVersion.assetId, assetId));
   return rows.length;
 }
 
@@ -171,17 +189,17 @@ describe('createVersion 上传服务（design §6 先验后落）', () => {
     }
 
     // 投影落库断言（manifest_json/parsed_metadata_json）
-    const [row] = await db
-      .select()
-      .from(assetVersion)
-      .where(eq(assetVersion.id, created.id));
+    const [row] = await db.select().from(assetVersion).where(eq(assetVersion.id, created.id));
     expect(row!.manifestJson).toMatchObject({ name: 'demo-skill' });
     const parsed = row!.parsedMetadataJson as { name: string; searchText: string };
     expect(parsed.name).toBe('demo-skill');
     expect(parsed.searchText).toContain('Demo body content');
 
     // 审计行
-    const auditRows = await db.select({ action: auditLog.action }).from(auditLog).where(eq(auditLog.actorId, owner));
+    const auditRows = await db
+      .select({ action: auditLog.action })
+      .from(auditLog)
+      .where(eq(auditLog.actorId, owner));
     expect(auditRows.some((a) => a.action === 'asset.version_upload')).toBe(true);
   });
 
@@ -236,7 +254,10 @@ describe('createVersion 上传服务（design §6 先验后落）', () => {
     });
     expect(v2.version).toBe('2.0.0');
     expect(await versionCount()).toBe(2);
-    const filesV2 = await db.select({ id: assetFile.id }).from(assetFile).where(eq(assetFile.versionId, v2.id));
+    const filesV2 = await db
+      .select({ id: assetFile.id })
+      .from(assetFile)
+      .where(eq(assetFile.versionId, v2.id));
     expect(filesV2).toHaveLength(3);
   });
 });

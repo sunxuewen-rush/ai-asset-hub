@@ -24,7 +24,10 @@ export function createAgentValidator(): AssetValidator {
         const issues: ValidationIssue[] = [];
         const main = entries.find((e) => e.path === AGENT_MAIN_FILE);
         if (!main) {
-          issues.push({ code: assetErrorCodes.packageLayoutInvalid, message: `${AGENT_MAIN_FILE} must exist at zip root` });
+          issues.push({
+            code: assetErrorCodes.packageLayoutInvalid,
+            message: `${AGENT_MAIN_FILE} must exist at zip root`,
+          });
           return { ok: false, errors: issues };
         }
         for (const entry of entries) {

@@ -16,7 +16,16 @@ export const MCP_MAIN_FILE = 'mcp.json';
 const ROOT_ALLOWED = new Set([MCP_MAIN_FILE, 'README.md']);
 /** 03 §5：scripts/ 内扩展名白名单 */
 const SCRIPTS_EXT_WHITELIST = new Set([
-  '.json', '.md', '.js', '.cjs', '.mjs', '.ts', '.py', '.sh', '.png', '.svg',
+  '.json',
+  '.md',
+  '.js',
+  '.cjs',
+  '.mjs',
+  '.ts',
+  '.py',
+  '.sh',
+  '.png',
+  '.svg',
 ]);
 /** 03 §5：依赖目录禁止入包（任意深度） */
 const FORBIDDEN_DIRS = new Set(['node_modules', 'vendor']);
@@ -29,7 +38,10 @@ export function createMcpValidator(): AssetValidator {
         const issues: ValidationIssue[] = [];
         const main = entries.find((e) => e.path === MCP_MAIN_FILE);
         if (!main) {
-          issues.push({ code: assetErrorCodes.packageLayoutInvalid, message: `${MCP_MAIN_FILE} must exist at zip root` });
+          issues.push({
+            code: assetErrorCodes.packageLayoutInvalid,
+            message: `${MCP_MAIN_FILE} must exist at zip root`,
+          });
           return { ok: false, errors: issues };
         }
         for (const entry of entries) {
@@ -37,7 +49,11 @@ export function createMcpValidator(): AssetValidator {
           const segments = entry.path.split('/');
           // 依赖目录禁止（03 §5——scripts/node_modules 亦拒）
           if (segments.some((s) => FORBIDDEN_DIRS.has(s))) {
-            issues.push({ code: protocolErrorCodes.unsupportedFileType, path: entry.path, message: 'dependency dirs are not allowed in package' });
+            issues.push({
+              code: protocolErrorCodes.unsupportedFileType,
+              path: entry.path,
+              message: 'dependency dirs are not allowed in package',
+            });
             continue;
           }
           // 仅 scripts/** 收文件，且扩展名白名单（03 §5——root 杂散/未知目录拒）
@@ -55,7 +71,11 @@ export function createMcpValidator(): AssetValidator {
           }
         } catch (err) {
           if (err instanceof SyntaxError) {
-            issues.push({ code: assetErrorCodes.packageLayoutInvalid, path: MCP_MAIN_FILE, message: 'mcp.json is not valid json' });
+            issues.push({
+              code: assetErrorCodes.packageLayoutInvalid,
+              path: MCP_MAIN_FILE,
+              message: 'mcp.json is not valid json',
+            });
           } else {
             throw err;
           }

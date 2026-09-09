@@ -4,12 +4,13 @@
  * 预览授权集；YANKED 400 version_yanked；其余 400 version_not_published——文件内容
  * 读取是下载的前奏，授权同下载最严一致）。
  */
+
+import type { Readable } from 'node:stream';
 import { and, eq } from 'drizzle-orm';
-import { Readable } from 'node:stream';
 import type { Db } from '../db/client.js';
 import { assetFile, assetVersion } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
-import { decideDownload, type DownloadViewer } from './download.js';
+import { type DownloadViewer, decideDownload } from './download.js';
 import { AssetError, assetErrorCodes } from './errors.js';
 
 /** 文本预览截断阈值（超限 content 截断 + truncated:true——契约 §5.2） */
@@ -60,11 +61,46 @@ export function collectStream(stream: Readable, maxBytes: number): Promise<Buffe
 }
 
 /** 常见文本 content-type（storage 顺存时 contentTypeFor 推断——白名单判文本） */
-const TEXT_PREFIXES = ['text/', 'application/json', 'application/xml', 'application/javascript',
-  'application/x-yaml', 'application/x-httpd-php', 'application/sql', 'application/toml'];
-const TEXT_EXTS = ['.md', '.markdown', '.json', '.mjs', '.js', '.ts', '.tsx', '.jsx', '.yaml', '.yml',
-  '.toml', '.xml', '.txt', '.csv', '.svg', '.css', '.html', '.sh', '.py', '.go', '.rs', '.java', '.c',
-  '.h', '.ini', '.conf', '.lock', '.env'];
+const TEXT_PREFIXES = [
+  'text/',
+  'application/json',
+  'application/xml',
+  'application/javascript',
+  'application/x-yaml',
+  'application/x-httpd-php',
+  'application/sql',
+  'application/toml',
+];
+const TEXT_EXTS = [
+  '.md',
+  '.markdown',
+  '.json',
+  '.mjs',
+  '.js',
+  '.ts',
+  '.tsx',
+  '.jsx',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.xml',
+  '.txt',
+  '.csv',
+  '.svg',
+  '.css',
+  '.html',
+  '.sh',
+  '.py',
+  '.go',
+  '.rs',
+  '.java',
+  '.c',
+  '.h',
+  '.ini',
+  '.conf',
+  '.lock',
+  '.env',
+];
 
 export function looksTextual(contentType: string | null, path: string, buf: Buffer): boolean {
   const ct = (contentType ?? '').toLowerCase();
@@ -120,7 +156,8 @@ export async function readVersionFile(
 
   const stream = (await storage.get(file.storageKey)) as Readable;
   const buf = await collectStream(stream, FILE_CONTENT_TRUNCATE_BYTES);
-  const truncated = file.fileSize > FILE_CONTENT_TRUNCATE_BYTES || buf.byteLength >= FILE_CONTENT_TRUNCATE_BYTES;
+  const truncated =
+    file.fileSize > FILE_CONTENT_TRUNCATE_BYTES || buf.byteLength >= FILE_CONTENT_TRUNCATE_BYTES;
   const binary = !looksTextual(file.contentType, file.filePath, buf);
   return {
     path: file.filePath,

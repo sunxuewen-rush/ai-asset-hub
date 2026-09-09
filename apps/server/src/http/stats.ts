@@ -2,8 +2,8 @@
  * GET /api/stats（M4a R7——匿名公开统计；聚合语义见 assets/stats.ts 注释）。
  */
 import { Hono } from 'hono';
-import type { Db } from '../db/client.js';
 import { getPublicStats } from '../assets/stats.js';
+import type { Db } from '../db/client.js';
 
 export function createStatsRoutes({ db }: { db: Db }): Hono {
   const app = new Hono();

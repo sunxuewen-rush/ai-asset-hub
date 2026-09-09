@@ -41,7 +41,9 @@ export function buildZip(entries: ZipFixtureEntry[]): Buffer {
 
   for (const entry of entries) {
     const name = Buffer.from(entry.name, 'utf8');
-    const content = Buffer.isBuffer(entry.content) ? entry.content : Buffer.from(entry.content ?? '');
+    const content = Buffer.isBuffer(entry.content)
+      ? entry.content
+      : Buffer.from(entry.content ?? '');
     const mode = entry.mode ?? 0o100644;
     const crc = crc32(content);
 

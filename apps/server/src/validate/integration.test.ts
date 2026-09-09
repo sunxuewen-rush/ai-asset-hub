@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
 import { buildSkillZip, buildZip } from '../test-utils/zip-builder.js';
 import { createValidatorRegistry } from './registry.js';
-import { ensureTestEnv } from '../test-utils/env-setup.js';
+
 ensureTestEnv();
 
 /**
@@ -28,7 +29,9 @@ describe('registry 三族分发（端到端）', () => {
   it('三族合法包全过', async () => {
     expect((await registry.skill.validate(buildSkillZip())).ok).toBe(true);
     expect((await registry.mcp.validate(mcpZip(MCP_VALID))).ok).toBe(true);
-    expect((await registry.agent.validate(buildZip([{ name: 'agent.md', content: AGENT_VALID }]))).ok).toBe(true);
+    expect(
+      (await registry.agent.validate(buildZip([{ name: 'agent.md', content: AGENT_VALID }]))).ok,
+    ).toBe(true);
   });
 
   it('错误资产传给错误族校验器 → 结构拒绝（族契约隔离）', async () => {
@@ -65,7 +68,14 @@ describe('registry 三族分发（端到端）', () => {
         JSON.stringify({
           name: 'demo',
           description: 'x',
-          servers: { s: { type: 'http', url: 'https://e.com', enabled: true, headers: { 'x-api-key': 'sk-123' } } },
+          servers: {
+            s: {
+              type: 'http',
+              url: 'https://e.com',
+              enabled: true,
+              headers: { 'x-api-key': 'sk-123' },
+            },
+          },
         }),
       ),
     );
@@ -73,7 +83,9 @@ describe('registry 三族分发（端到端）', () => {
   });
 
   it('mcp 反例：依赖目录 node_modules', async () => {
-    const r = await registry.mcp.validate(mcpZip(MCP_VALID, [{ name: 'node_modules/x/index.js', content: 'x' }]));
+    const r = await registry.mcp.validate(
+      mcpZip(MCP_VALID, [{ name: 'node_modules/x/index.js', content: 'x' }]),
+    );
     expect(r.errors[0]?.code).toBe(protocolErrorCodes.unsupportedFileType);
   });
 

@@ -4,11 +4,15 @@
  * 解析结果（main manifest 对象 + 文本族 body）——T12 投影输入。
  * 解析失败理论不可达（validator 已过同源 schema）——防御性 rethrow（真 bug 信号 500）。
  */
-import { AgentManifestSchema, McpManifestSchema, SkillManifestSchema } from '@ai-asset-hub/protocol';
+import {
+  AgentManifestSchema,
+  McpManifestSchema,
+  SkillManifestSchema,
+} from '@ai-asset-hub/protocol';
 import type { AssetType } from '../db/schema/index.js';
-import { parseFrontmatter } from './frontmatter.js';
 import { AGENT_MAIN_FILE, createAgentValidator } from './agent.js';
-import { MCP_MAIN_FILE, createMcpValidator } from './mcp.js';
+import { parseFrontmatter } from './frontmatter.js';
+import { createMcpValidator, MCP_MAIN_FILE } from './mcp.js';
 import { createSkillValidator, findSkillMainEntry } from './skill.js';
 import type { ValidationIssue } from './types.js';
 import { readZipEntry, scanZip, type ZipEntryMeta } from './zip.js';
@@ -33,34 +37,50 @@ const validators = {
 };
 
 /** 主文件解析（族专用：frontmatter 族走 YAML + zod；mcp 走 JSON + zod） */
-async function parseMainFile(type: AssetType, zip: Buffer, entries: ZipEntryMeta[]): Promise<{ manifest: unknown; body?: string }> {
+async function parseMainFile(
+  type: AssetType,
+  zip: Buffer,
+  entries: ZipEntryMeta[],
+): Promise<{ manifest: unknown; body?: string }> {
   const read = (path: string) => readZipEntry(zip, path);
   if (type === 'skill') {
     const main = findSkillMainEntry(entries);
     const content = (await read(main!.path)).toString('utf8');
     const parsed = parseFrontmatter(content);
-    if (!parsed.ok) throw new Error(`unreachable: skill main file parse failed after validation (${parsed.error})`);
+    if (!parsed.ok)
+      throw new Error(
+        `unreachable: skill main file parse failed after validation (${parsed.error})`,
+      );
     const schemaResult = SkillManifestSchema.safeParse(parsed.value.data);
-    if (!schemaResult.success) throw new Error('unreachable: skill manifest schema failed after validation');
+    if (!schemaResult.success)
+      throw new Error('unreachable: skill manifest schema failed after validation');
     return { manifest: schemaResult.data, body: parsed.value.body };
   }
   if (type === 'agent') {
     const content = (await read(AGENT_MAIN_FILE)).toString('utf8');
     const parsed = parseFrontmatter(content);
-    if (!parsed.ok) throw new Error(`unreachable: agent main file parse failed after validation (${parsed.error})`);
+    if (!parsed.ok)
+      throw new Error(
+        `unreachable: agent main file parse failed after validation (${parsed.error})`,
+      );
     const schemaResult = AgentManifestSchema.safeParse(parsed.value.data);
-    if (!schemaResult.success) throw new Error('unreachable: agent manifest schema failed after validation');
+    if (!schemaResult.success)
+      throw new Error('unreachable: agent manifest schema failed after validation');
     return { manifest: schemaResult.data, body: parsed.value.body };
   }
   const content = (await read(MCP_MAIN_FILE)).toString('utf8');
   const json: unknown = JSON.parse(content);
   const schemaResult = McpManifestSchema.safeParse(json);
-  if (!schemaResult.success) throw new Error('unreachable: mcp manifest schema failed after validation');
+  if (!schemaResult.success)
+    throw new Error('unreachable: mcp manifest schema failed after validation');
   return { manifest: schemaResult.data };
 }
 
 /** 上传管线组合校验（T12 createVersion 第一步消费；T13 前不重复造轮） */
-export async function validatePackage(type: AssetType, file: Buffer): Promise<PackageValidationResult> {
+export async function validatePackage(
+  type: AssetType,
+  file: Buffer,
+): Promise<PackageValidationResult> {
   const validator = validators[type];
   const result = await validator.validate(file);
   if (!result.ok) return { ok: false, errors: result.errors };
@@ -74,6 +94,8 @@ export async function validatePackage(type: AssetType, file: Buffer): Promise<Pa
     };
   } catch {
     // 校验器通过后解析失败 = 服务端不一致 bug——透出 500（不吞）
-    throw new Error(`validatePackage: parse main file failed after validation passed (type=${type})`);
+    throw new Error(
+      `validatePackage: parse main file failed after validation passed (type=${type})`,
+    );
   }
 }

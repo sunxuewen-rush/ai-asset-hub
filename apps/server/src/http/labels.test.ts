@@ -14,7 +14,14 @@ import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
-import { auditLog, labelDefinition, role, userAccount, userRoleBinding, type RoleCode } from '../db/schema/index.js';
+import {
+  auditLog,
+  labelDefinition,
+  type RoleCode,
+  role,
+  userAccount,
+  userRoleBinding,
+} from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
 import { rbacContext } from './auth-middleware.js';
 import { createLabelRoutes } from './labels.js';
@@ -33,7 +40,10 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 async function ensureRole(code: RoleCode) {
-  await db.insert(role).values({ code, name: `r-${code}`, isSystem: true }).onConflictDoNothing();
+  await db
+    .insert(role)
+    .values({ code, name: `r-${code}`, isSystem: true })
+    .onConflictDoNothing();
 }
 async function bindRole(userId: string, code: RoleCode) {
   const rows = await db.select().from(role).where(eq(role.code, code));
@@ -49,20 +59,32 @@ function buildApp(): Hono {
   app.use('*', sessionMiddleware(sessions));
   app.use('*', csrfProtection({}));
   app.onError((err, c) => {
-    if (err instanceof AuthError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
-    if (err instanceof LabelError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409);
+    if (err instanceof AuthError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
+    if (err instanceof LabelError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409);
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/labels', createLabelRoutes({ db, audit }));
   return app;
 }
 const ORIGIN = { origin: 'http://localhost:3000' };
-async function req(method: string, url: string, body?: unknown, cookie?: string, acceptLanguage?: string) {
+async function req(
+  method: string,
+  url: string,
+  body?: unknown,
+  cookie?: string,
+  acceptLanguage?: string,
+) {
   const headers: Record<string, string> = { host: 'localhost:3000', ...ORIGIN };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (cookie) headers.cookie = cookie;
   if (acceptLanguage) headers['accept-language'] = acceptLanguage;
-  return buildApp().request(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  return buildApp().request(url, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 const post = (u: string, b: unknown, c?: string) => req('POST', u, b, c);
 const get = (u: string, c?: string, al?: string) => req('GET', u, undefined, c, al);
@@ -85,7 +107,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.id, `${PREFIX}%`));
   await db.delete(labelDefinition).where(like(labelDefinition.createdBy, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
@@ -97,15 +122,34 @@ afterAll(async () => {
 
 describe('label 定义管理（06 §3/§5.2——仅 SUPER_ADMIN）', () => {
   it('超管建一级 label（RECOMMENDED + 翻译）→ 201', async () => {
-    const res = await post('/api/labels', { slug: slug('software'), type: 'RECOMMENDED', translations: [{ locale: 'zh', displayName: '软件' }, { locale: 'en', displayName: 'Software' }] }, await cookieFor(superAdmin));
+    const res = await post(
+      '/api/labels',
+      {
+        slug: slug('software'),
+        type: 'RECOMMENDED',
+        translations: [
+          { locale: 'zh', displayName: '软件' },
+          { locale: 'en', displayName: 'Software' },
+        ],
+      },
+      await cookieFor(superAdmin),
+    );
     expect(res.status).toBe(201);
-    const body = (await res.json()) as { slug: string; parentId: null; translations: Array<{ locale: string }> };
+    const body = (await res.json()) as {
+      slug: string;
+      parentId: null;
+      translations: Array<{ locale: string }>;
+    };
     expect(body.parentId).toBeNull();
     expect(body.translations).toHaveLength(2);
   });
 
   it('非超管（owner）建 → 403 label.access_denied', async () => {
-    const res = await post('/api/labels', { slug: slug('denied'), type: 'RECOMMENDED' }, await cookieFor(ownerId));
+    const res = await post(
+      '/api/labels',
+      { slug: slug('denied'), type: 'RECOMMENDED' },
+      await cookieFor(ownerId),
+    );
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe('label.access_denied');
   });
@@ -119,7 +163,11 @@ describe('label 定义管理（06 §3/§5.2——仅 SUPER_ADMIN）', () => {
     const parent = slug('tech');
     await post('/api/labels', { slug: parent, type: 'RECOMMENDED' }, await cookieFor(superAdmin));
     const child = slug('comm');
-    const res = await post('/api/labels', { slug: child, type: 'RECOMMENDED', parentSlug: parent }, await cookieFor(superAdmin));
+    const res = await post(
+      '/api/labels',
+      { slug: child, type: 'RECOMMENDED', parentSlug: parent },
+      await cookieFor(superAdmin),
+    );
     expect(res.status).toBe(201);
     // 管理面响应 parentId = 父 slug（06 §5.2 对外契约——skillhub LabelDefinitionResponse 对齐 D2）
     expect(((await res.json()) as { parentId: string | null }).parentId).toBe(parent);
@@ -129,14 +177,26 @@ describe('label 定义管理（06 §3/§5.2——仅 SUPER_ADMIN）', () => {
     const parent = slug('lvl1');
     await post('/api/labels', { slug: parent, type: 'RECOMMENDED' }, await cookieFor(superAdmin));
     const child = slug('lvl2');
-    await post('/api/labels', { slug: child, type: 'RECOMMENDED', parentSlug: parent }, await cookieFor(superAdmin));
+    await post(
+      '/api/labels',
+      { slug: child, type: 'RECOMMENDED', parentSlug: parent },
+      await cookieFor(superAdmin),
+    );
     const sa = await cookieFor(superAdmin);
 
-    const noParent = await post('/api/labels', { slug: slug('nop'), type: 'RECOMMENDED', parentSlug: 'ghost-parent' }, sa);
+    const noParent = await post(
+      '/api/labels',
+      { slug: slug('nop'), type: 'RECOMMENDED', parentSlug: 'ghost-parent' },
+      sa,
+    );
     expect(noParent.status).toBe(404);
     expect(((await noParent.json()) as { code: string }).code).toBe('label.not_found');
 
-    const nested = await post('/api/labels', { slug: slug('nested'), type: 'RECOMMENDED', parentSlug: child }, sa);
+    const nested = await post(
+      '/api/labels',
+      { slug: slug('nested'), type: 'RECOMMENDED', parentSlug: child },
+      sa,
+    );
     expect(nested.status).toBe(400);
     expect(((await nested.json()) as { code: string }).code).toBe('label.invalid_parent');
 
@@ -176,9 +236,17 @@ describe('公开列表（06 §5.1——RECOMMENDED + visible_in_filter + display
   it('只含 RECOMMENDED 可见项；PRIVILEGED/隐藏不混入', async () => {
     const sa = await cookieFor(superAdmin);
     const visible = slug('visible');
-    await post('/api/labels', { slug: visible, type: 'RECOMMENDED', translations: [{ locale: 'zh', displayName: '可见' }] }, sa);
+    await post(
+      '/api/labels',
+      { slug: visible, type: 'RECOMMENDED', translations: [{ locale: 'zh', displayName: '可见' }] },
+      sa,
+    );
     await post('/api/labels', { slug: slug('priv'), type: 'PRIVILEGED' }, sa);
-    await post('/api/labels', { slug: slug('hidden'), type: 'RECOMMENDED', visibleInFilter: false }, sa);
+    await post(
+      '/api/labels',
+      { slug: slug('hidden'), type: 'RECOMMENDED', visibleInFilter: false },
+      sa,
+    );
 
     const res = await get('/api/labels', undefined, 'zh-CN,zh;q=0.9');
     expect(res.status).toBe(200);
@@ -203,7 +271,11 @@ describe('公开列表（06 §5.1——RECOMMENDED + visible_in_filter + display
   it('D5 对标：无 zh/en 翻译时 fr 请求 → slug 兜底（不显示随机首翻译）', async () => {
     const sa = await cookieFor(superAdmin);
     const frOnly = slug('fr-only');
-    await post('/api/labels', { slug: frOnly, type: 'RECOMMENDED', translations: [{ locale: 'fr', displayName: 'Seul' }] }, sa);
+    await post(
+      '/api/labels',
+      { slug: frOnly, type: 'RECOMMENDED', translations: [{ locale: 'fr', displayName: 'Seul' }] },
+      sa,
+    );
     const res = await get('/api/labels', undefined, 'fr-FR');
     const items = (await res.json()) as Array<{ slug: string; displayName: string }>;
     const hit = items.find((i) => i.slug === frOnly);
@@ -219,25 +291,59 @@ describe('对标 skillhub 修正（D1-D8——源码实证回写）', () => {
   it('D3 翻译整组替换：PATCH 提供新组 → 未列 locale 被移除', async () => {
     const sa = await cookieFor(superAdmin);
     const l = slug('d3');
-    await post('/api/labels', { slug: l, type: 'RECOMMENDED', translations: [{ locale: 'zh', displayName: '旧' }, { locale: 'en', displayName: 'Old' }] }, sa);
-    const up = await patch(`/api/labels/${l}`, { translations: [{ locale: 'zh', displayName: '新' }] }, sa);
+    await post(
+      '/api/labels',
+      {
+        slug: l,
+        type: 'RECOMMENDED',
+        translations: [
+          { locale: 'zh', displayName: '旧' },
+          { locale: 'en', displayName: 'Old' },
+        ],
+      },
+      sa,
+    );
+    const up = await patch(
+      `/api/labels/${l}`,
+      { translations: [{ locale: 'zh', displayName: '新' }] },
+      sa,
+    );
     expect(up.status).toBe(200);
-    const body = (await up.json()) as { translations: Array<{ locale: string; displayName: string }> };
+    const body = (await up.json()) as {
+      translations: Array<{ locale: string; displayName: string }>;
+    };
     expect(body.translations).toHaveLength(1); // en 已移除（整组替换）
     expect(body.translations[0]).toEqual({ locale: 'zh', displayName: '新' });
   });
 
   it('D4 同批翻译 locale 重复 → 400 label.translation.locale_duplicate（非误报 slug_taken）', async () => {
     const sa = await cookieFor(superAdmin);
-    const res = await post('/api/labels', { slug: slug('d4'), type: 'RECOMMENDED', translations: [{ locale: 'zh', displayName: '一' }, { locale: 'ZH', displayName: '二' }] }, sa);
+    const res = await post(
+      '/api/labels',
+      {
+        slug: slug('d4'),
+        type: 'RECOMMENDED',
+        translations: [
+          { locale: 'zh', displayName: '一' },
+          { locale: 'ZH', displayName: '二' },
+        ],
+      },
+      sa,
+    );
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { code: string }).code).toBe('label.translation.locale_duplicate');
+    expect(((await res.json()) as { code: string }).code).toBe(
+      'label.translation.locale_duplicate',
+    );
   });
 
   it('D8 locale 归一：zh_CN 入库转 zh-cn（07 BCP47——_→- 小写）', async () => {
     const sa = await cookieFor(superAdmin);
     const l = slug('d8');
-    const res = await post('/api/labels', { slug: l, type: 'RECOMMENDED', translations: [{ locale: 'zh_CN', displayName: '中国' }] }, sa);
+    const res = await post(
+      '/api/labels',
+      { slug: l, type: 'RECOMMENDED', translations: [{ locale: 'zh_CN', displayName: '中国' }] },
+      sa,
+    );
     expect(res.status).toBe(201);
     const body = (await res.json()) as { translations: Array<{ locale: string }> };
     expect(body.translations[0]!.locale).toBe('zh-cn');
@@ -259,7 +365,11 @@ describe('对标 skillhub 修正（D1-D8——源码实证回写）', () => {
   it('D1 定义总数上限：直插满 100 → 第 101 个 400 label.definition_limit_exceeded', async () => {
     const sa = await cookieFor(superAdmin);
     // 直插需真实用户（created_by FK）——用 superAdmin；slug like 前缀清理
-    const rows = Array.from({ length: 100 }, (_, i) => ({ slug: `${PREFIX}bulk-${i}`, type: 'RECOMMENDED' as const, createdBy: superAdmin }));
+    const rows = Array.from({ length: 100 }, (_, i) => ({
+      slug: `${PREFIX}bulk-${i}`,
+      type: 'RECOMMENDED' as const,
+      createdBy: superAdmin,
+    }));
     await db.insert(labelDefinition).values(rows);
     const res = await post('/api/labels', { slug: slug('d1'), type: 'RECOMMENDED' }, sa);
     expect(res.status).toBe(400);

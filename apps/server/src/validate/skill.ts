@@ -18,7 +18,9 @@ export const SKILL_MAIN_FILE = 'SKILL.md';
 export const SKILL_MAIN_VARIANTS: readonly string[] = ['SKILL.md', 'skill.md', 'Skill.md'];
 
 /** 主文件定位（validate/index 组合入口复用——精确 SKILL.md 优先 + 变体 fallback） */
-export function findSkillMainEntry(entries: ReadonlyArray<{ path: string }>): { path: string } | undefined {
+export function findSkillMainEntry(
+  entries: ReadonlyArray<{ path: string }>,
+): { path: string } | undefined {
   return (
     entries.find((e) => !e.path.includes('/') && e.path === SKILL_MAIN_FILE) ??
     entries.find((e) => !e.path.includes('/') && SKILL_MAIN_VARIANTS.includes(e.path))
@@ -26,8 +28,20 @@ export function findSkillMainEntry(entries: ReadonlyArray<{ path: string }>): { 
 }
 /** 02 §3.3 全包文件扩展名白名单（skill 族作用于整个包） */
 const SKILL_EXT_WHITELIST: readonly string[] = [
-  '.md', '.txt', '.json', '.yaml', '.yml', '.js', '.cjs', '.mjs',
-  '.ts', '.py', '.sh', '.png', '.jpg', '.svg',
+  '.md',
+  '.txt',
+  '.json',
+  '.yaml',
+  '.yml',
+  '.js',
+  '.cjs',
+  '.mjs',
+  '.ts',
+  '.py',
+  '.sh',
+  '.png',
+  '.jpg',
+  '.svg',
 ];
 const WHITELIST = new Set(SKILL_EXT_WHITELIST);
 
@@ -41,7 +55,10 @@ export function createSkillValidator(): AssetValidator {
         // 双主文件并存时以规范名胜出，zip 序无关）
         const main = findSkillMainEntry(entries);
         if (!main) {
-          issues.push({ code: assetErrorCodes.packageLayoutInvalid, message: `${SKILL_MAIN_FILE} must exist at zip root` });
+          issues.push({
+            code: assetErrorCodes.packageLayoutInvalid,
+            message: `${SKILL_MAIN_FILE} must exist at zip root`,
+          });
           return { ok: false, errors: issues };
         }
         // 全包扩展名白名单（02 §3.3——无扩展名/白名单外 → unsupported_file_type）

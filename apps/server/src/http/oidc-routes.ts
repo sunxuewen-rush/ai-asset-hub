@@ -9,13 +9,13 @@ import {
   randomPKCECodeVerifier,
   randomState,
 } from 'openid-client';
+import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
 import type { OidcClient } from '../auth/oidc.js';
 import { getOidcClient } from '../auth/oidc.js';
 import { provisionExternalUser } from '../auth/provision.js';
 import type { SessionManager } from '../auth/session.js';
 import { attachSessionCookie } from '../auth/session-middleware.js';
-import type { AuditWriter } from '../audit/audit.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 

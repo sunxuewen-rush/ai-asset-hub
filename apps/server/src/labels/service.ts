@@ -7,8 +7,8 @@
  */
 import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { getEnv } from '../config/env.js';
 import type { AuditWriter } from '../audit/audit.js';
+import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
   assetLabel,
@@ -69,7 +69,9 @@ export const MAX_LABEL_DEFINITIONS = 100;
  * 翻译入参归一（skillhub LabelDefinitionService.normalize 同构——D8/D4）：
  * trim + _→- + 小写（07 BCP47 语言标签）；同批 locale 重复 → 400 明示（防 DB UNIQUE 误报 slug_taken）。
  */
-function normalizeTranslations(translations: Array<{ locale: string; displayName: string }>): Array<{ locale: string; displayName: string }> {
+function normalizeTranslations(
+  translations: Array<{ locale: string; displayName: string }>,
+): Array<{ locale: string; displayName: string }> {
   const seen = new Map<string, string>();
   const out: Array<{ locale: string; displayName: string }> = [];
   for (const t of translations) {
@@ -169,9 +171,7 @@ export async function createLabel(
   if (!labelSlugSchema.safeParse(slug).success)
     throw new LabelError(labelErrorCodes.invalidParent, 'invalid slug'); // 复用码？slug 格式错用 request.invalid 更贴——路由层校验；此处防御
   // D1：定义总数上限（skillhub max-definitions:100 同构——env 可配 LABEL_MAX_DEFINITIONS，C7）
-  const [total] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(labelDefinition);
+  const [total] = await db.select({ n: sql<number>`count(*)` }).from(labelDefinition);
   if (Number(total?.n ?? 0) >= getEnv().LABEL_MAX_DEFINITIONS)
     throw new LabelError(labelErrorCodes.definitionLimitExceeded);
   const parentId = await resolveParent(db, input.parentSlug);
@@ -200,15 +200,13 @@ export async function createLabel(
           createdBy: labelDefinition.createdBy,
         });
       if (translations.length > 0) {
-        await tx
-          .insert(labelTranslation)
-          .values(
-            translations.map((t) => ({
-              labelId: def!.id,
-              locale: t.locale,
-              displayName: t.displayName,
-            })),
-          );
+        await tx.insert(labelTranslation).values(
+          translations.map((t) => ({
+            labelId: def!.id,
+            locale: t.locale,
+            displayName: t.displayName,
+          })),
+        );
       }
       return { def: def!, translations };
     });
@@ -281,19 +279,17 @@ export async function updateLabel(
 
     if (nextTranslations !== null) {
       // D3 整组替换：删未列 locale → 插全部（body = 最终态；事务原子）
-      await tx
-        .delete(labelTranslation)
-        .where(
-          and(
-            eq(labelTranslation.labelId, existing.id),
-            nextTranslations.length > 0
-              ? notInArray(
-                  labelTranslation.locale,
-                  nextTranslations.map((t) => t.locale),
-                )
-              : undefined,
-          ),
-        );
+      await tx.delete(labelTranslation).where(
+        and(
+          eq(labelTranslation.labelId, existing.id),
+          nextTranslations.length > 0
+            ? notInArray(
+                labelTranslation.locale,
+                nextTranslations.map((t) => t.locale),
+              )
+            : undefined,
+        ),
+      );
       if (nextTranslations.length > 0) {
         await tx
           .insert(labelTranslation)

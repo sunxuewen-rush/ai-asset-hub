@@ -1,9 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import type { AuditWriter } from '../audit/audit.js';
 import { PERMISSIONS } from '../auth/permissions.js';
 import { generateTokenSecret, hashToken } from '../auth/tokens.js';
-import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import { apiToken } from '../db/schema/index.js';
 import { requireAuth } from './auth-middleware.js';
@@ -27,7 +27,10 @@ const DAY_MS = 86_400_000;
  *  T15：可选 scope = permission 码白名单（交集收窄——R14；省略 = 空 scope 全量） */
 const issueBodySchema = z.object({
   expiresInDays: z.number().int().min(1).max(3650).optional(),
-  scope: z.array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]])).max(10).optional(),
+  scope: z
+    .array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]]))
+    .max(10)
+    .optional(),
 });
 
 export function createTokenRoutes(deps: TokenRoutesDeps): Hono {

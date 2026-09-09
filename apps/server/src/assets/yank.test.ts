@@ -12,7 +12,7 @@ import {
   namespaceMember,
   userAccount,
 } from '../db/schema/index.js';
-import { AssetError, assetErrorCodes } from './errors.js';
+import { type AssetError, assetErrorCodes } from './errors.js';
 import { canYank, yankVersion } from './yank.js';
 
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -39,11 +39,22 @@ async function insertAssetAndVersion(
 ) {
   const [a] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug: `${PREFIX}a-${randomUUID().slice(0, 8)}`, type: 'skill', ownerId })
+    .values({
+      namespaceId: nsId,
+      slug: `${PREFIX}a-${randomUUID().slice(0, 8)}`,
+      type: 'skill',
+      ownerId,
+    })
     .returning({ id: asset.id });
   const [v] = await db
     .insert(assetVersion)
-    .values({ assetId: a!.id, version, status, createdBy: ownerId, publishedAt: publishedAt ?? new Date() })
+    .values({
+      assetId: a!.id,
+      version,
+      status,
+      createdBy: ownerId,
+      publishedAt: publishedAt ?? new Date(),
+    })
     .returning({ id: assetVersion.id, version: assetVersion.version, status: assetVersion.status });
   return { assetId: a!.id, versionRow: v! };
 }
@@ -55,7 +66,12 @@ beforeAll(async () => {
   ownerId = await makeUser('owner');
   const [ns] = await db
     .insert(namespace)
-    .values({ slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
+    .values({
+      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
+      displayName: `${PREFIX}ns`,
+      type: 'TEAM',
+      createdBy: ownerId,
+    })
     .returning({ id: namespace.id });
   nsId = ns!.id;
   await db.insert(namespaceMember).values({ namespaceId: nsId, userId: ownerId, role: 'OWNER' });
@@ -85,37 +101,93 @@ describe('yankVersion（design §4.1 R9——PUBLISHED → YANKED + latest 重�
     const { assetId, versionRow } = await insertAssetAndVersion('1.0.0', 'PUBLISHED');
     await db.update(asset).set({ latestVersionId: versionRow.id }).where(eq(asset.id, assetId));
 
-    const out = await yankVersion(db, audit, { assetId, version: versionRow, actorId: ownerId, reason: 'security incident' });
+    const out = await yankVersion(db, audit, {
+      assetId,
+      version: versionRow,
+      actorId: ownerId,
+      reason: 'security incident',
+    });
     expect(out.latestVersionId).toBeNull();
 
     const [ver] = await db
-      .select({ status: assetVersion.status, yankedAt: assetVersion.yankedAt, yankedBy: assetVersion.yankedBy, yankReason: assetVersion.yankReason })
+      .select({
+        status: assetVersion.status,
+        yankedAt: assetVersion.yankedAt,
+        yankedBy: assetVersion.yankedBy,
+        yankReason: assetVersion.yankReason,
+      })
       .from(assetVersion)
       .where(eq(assetVersion.id, versionRow.id));
-    expect(ver).toMatchObject({ status: 'YANKED', yankedBy: ownerId, yankReason: 'security incident' });
+    expect(ver).toMatchObject({
+      status: 'YANKED',
+      yankedBy: ownerId,
+      yankReason: 'security incident',
+    });
     expect(ver!.yankedAt).not.toBeNull();
-    const [a] = await db.select({ latest: asset.latestVersionId }).from(asset).where(eq(asset.id, assetId));
+    const [a] = await db
+      .select({ latest: asset.latestVersionId })
+      .from(asset)
+      .where(eq(asset.id, assetId));
     expect(a!.latest).toBeNull();
 
-    const [log] = await db.select({ action: auditLog.action }).from(auditLog)
-      .where(and(eq(auditLog.action, 'asset.version_yank'), eq(auditLog.targetId, String(assetId))));
+    const [log] = await db
+      .select({ action: auditLog.action })
+      .from(auditLog)
+      .where(
+        and(eq(auditLog.action, 'asset.version_yank'), eq(auditLog.targetId, String(assetId))),
+      );
     expect(log?.action).toBe('asset.version_yank');
   });
 
   it('多 PUBLISHED：yank 当前 latest → 指回剩余最新（publishedAt 序）', async () => {
     const [a] = await db
       .insert(asset)
-      .values({ namespaceId: nsId, slug: `${PREFIX}m-${randomUUID().slice(0, 8)}`, type: 'skill', ownerId })
+      .values({
+        namespaceId: nsId,
+        slug: `${PREFIX}m-${randomUUID().slice(0, 8)}`,
+        type: 'skill',
+        ownerId,
+      })
       .returning({ id: asset.id });
     const assetId = a!.id;
     const early = new Date(Date.now() - 3600_000);
-    const [v1] = await db.insert(assetVersion).values({ assetId, version: '1.0.0', status: 'PUBLISHED', createdBy: ownerId, publishedAt: early }).returning({ id: assetVersion.id });
-    const [v2] = await db.insert(assetVersion).values({ assetId, version: '2.0.0', status: 'PUBLISHED', createdBy: ownerId, publishedAt: new Date() }).returning({ id: assetVersion.id, version: assetVersion.version, status: assetVersion.status });
+    const [v1] = await db
+      .insert(assetVersion)
+      .values({
+        assetId,
+        version: '1.0.0',
+        status: 'PUBLISHED',
+        createdBy: ownerId,
+        publishedAt: early,
+      })
+      .returning({ id: assetVersion.id });
+    const [v2] = await db
+      .insert(assetVersion)
+      .values({
+        assetId,
+        version: '2.0.0',
+        status: 'PUBLISHED',
+        createdBy: ownerId,
+        publishedAt: new Date(),
+      })
+      .returning({
+        id: assetVersion.id,
+        version: assetVersion.version,
+        status: assetVersion.status,
+      });
     await db.update(asset).set({ latestVersionId: v2!.id }).where(eq(asset.id, assetId));
 
-    const out = await yankVersion(db, audit, { assetId, version: v2!, actorId: ownerId, reason: 'bad release' });
+    const out = await yankVersion(db, audit, {
+      assetId,
+      version: v2!,
+      actorId: ownerId,
+      reason: 'bad release',
+    });
     expect(out.latestVersionId).toBe(v1!.id); // 指回 1.0.0（剩余最新 PUBLISHED）
-    const [a2] = await db.select({ latest: asset.latestVersionId }).from(asset).where(eq(asset.id, assetId));
+    const [a2] = await db
+      .select({ latest: asset.latestVersionId })
+      .from(asset)
+      .where(eq(asset.id, assetId));
     expect(a2!.latest).toBe(v1!.id);
   });
 
@@ -133,7 +205,12 @@ describe('yankVersion（design §4.1 R9——PUBLISHED → YANKED + latest 重�
   it('reason 空 → 400 yank_reason_required', async () => {
     const { assetId, versionRow } = await insertAssetAndVersion('3.0.0', 'PUBLISHED');
     try {
-      await yankVersion(db, audit, { assetId, version: versionRow, actorId: ownerId, reason: '   ' });
+      await yankVersion(db, audit, {
+        assetId,
+        version: versionRow,
+        actorId: ownerId,
+        reason: '   ',
+      });
       throw new Error('expected reasonRequired');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected reasonRequired') throw err;

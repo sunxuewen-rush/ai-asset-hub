@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
 import { buildSkillZip, buildZip } from '../test-utils/zip-builder.js';
 import { createValidatorRegistry } from './registry.js';
-import { readZipEntry, scanZip, ZipValidationError, type ZipLimits } from './zip.js';
-import { ensureTestEnv } from '../test-utils/env-setup.js';
+import { readZipEntry, scanZip, type ZipLimits, ZipValidationError } from './zip.js';
+
 ensureTestEnv();
 
 const SMALL_LIMITS: ZipLimits = {
@@ -37,11 +38,17 @@ describe('scanZip 结构校验（design §4 / 02 §3.3）', () => {
   });
 
   it('路径穿越 ../ → 拒绝（yauzl open 阶段内置安全校验 → package_layout_invalid）', async () => {
-    await expectZipCode(scanZip(buildZip([{ name: '../evil.md', content: 'x' }])), assetErrorCodes.packageLayoutInvalid);
+    await expectZipCode(
+      scanZip(buildZip([{ name: '../evil.md', content: 'x' }])),
+      assetErrorCodes.packageLayoutInvalid,
+    );
   });
 
   it('绝对路径 → 拒绝（yauzl 内置 → package_layout_invalid）', async () => {
-    await expectZipCode(scanZip(buildZip([{ name: '/etc/passwd', content: 'x' }])), assetErrorCodes.packageLayoutInvalid);
+    await expectZipCode(
+      scanZip(buildZip([{ name: '/etc/passwd', content: 'x' }])),
+      assetErrorCodes.packageLayoutInvalid,
+    );
   });
 
   it('反斜杠文件名 → yauzl 规范化为正斜杠（无穿越风险，条目接受）', async () => {
@@ -50,7 +57,10 @@ describe('scanZip 结构校验（design §4 / 02 §3.3）', () => {
   });
 
   it('空段 // → package_path_invalid', async () => {
-    await expectZipCode(scanZip(buildZip([{ name: 'a//b.md', content: 'x' }])), assetErrorCodes.packagePathInvalid);
+    await expectZipCode(
+      scanZip(buildZip([{ name: 'a//b.md', content: 'x' }])),
+      assetErrorCodes.packagePathInvalid,
+    );
   });
 
   it('symlink 条目 → package_path_invalid（服务端安全规则）', async () => {
@@ -121,7 +131,9 @@ describe('族 validator 骨架（root 级主文件契约）', () => {
       },
     ]);
     expect((await registry.mcp.validate(mcpZip)).ok).toBe(true);
-    const agentZip = buildZip([{ name: 'agent.md', content: '---\nname: a\ndescription: b\n---\nbody\n' }]);
+    const agentZip = buildZip([
+      { name: 'agent.md', content: '---\nname: a\ndescription: b\n---\nbody\n' },
+    ]);
     expect((await registry.agent.validate(agentZip)).ok).toBe(true);
   });
 

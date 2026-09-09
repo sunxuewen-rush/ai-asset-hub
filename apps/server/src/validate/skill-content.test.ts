@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
-import { buildZip } from '../test-utils/zip-builder.js';
-import { createSkillValidator } from './skill.js';
-import { parseFrontmatter } from './frontmatter.js';
 import { ensureTestEnv } from '../test-utils/env-setup.js';
+import { buildZip } from '../test-utils/zip-builder.js';
+import { parseFrontmatter } from './frontmatter.js';
+import { createSkillValidator } from './skill.js';
+
 ensureTestEnv();
 
 const validator = createSkillValidator();
@@ -58,7 +59,9 @@ describe('skill frontmatter 内容契约（02 §3.1/§3.3）', () => {
   });
 
   it('description 超 1024 → description_too_long', async () => {
-    const r = await validateSkillMd(`---\nname: hello\ndescription: ${'x'.repeat(1025)}\n---\nbody\n`);
+    const r = await validateSkillMd(
+      `---\nname: hello\ndescription: ${'x'.repeat(1025)}\n---\nbody\n`,
+    );
     expect(r.errors[0]?.code).toBe(protocolErrorCodes.descriptionTooLong);
   });
 
@@ -119,7 +122,9 @@ describe('parseFrontmatter（提取段工具）', () => {
   });
 
   it('__proto__ 注入载荷安全（不产出继承键——原型污染防护实证）', () => {
-    const r = parseFrontmatter('---\nname: a\n__proto__: {polluted: true}\nconstructor: {prototype: {x: 1}}\n---\nbody\n');
+    const r = parseFrontmatter(
+      '---\nname: a\n__proto__: {polluted: true}\nconstructor: {prototype: {x: 1}}\n---\nbody\n',
+    );
     expect(r.ok).toBe(true);
     if (r.ok) {
       const { data } = r.value;

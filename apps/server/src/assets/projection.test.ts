@@ -8,13 +8,28 @@ import {
   projectSkill,
 } from './projection.js';
 
-const skillManifest = { name: 'hello', description: 'A demo skill', allowedTools: ['bash'], metadata: { tags: ['x'] } };
-const agentManifest = { name: 'cr', description: '评审专家', category: 'engineering', icon: 'ShieldCheck' };
+const skillManifest = {
+  name: 'hello',
+  description: 'A demo skill',
+  allowedTools: ['bash'],
+  metadata: { tags: ['x'] },
+};
+const agentManifest = {
+  name: 'cr',
+  description: '评审专家',
+  category: 'engineering',
+  icon: 'ShieldCheck',
+};
 const mcpManifest: McpManifest = {
   name: 'demo',
   description: 'demo mcp',
   servers: {
-    s: { type: 'http', url: 'https://example.com', enabled: true, headers: { Authorization: '${TOKEN}' } },
+    s: {
+      type: 'http',
+      url: 'https://example.com',
+      enabled: true,
+      headers: { Authorization: '$' + '{TOKEN}' },
+    },
   },
   tools: ['list'],
 };
@@ -75,7 +90,9 @@ describe('projectMcp（03 §7 连接形态）', () => {
   it('stdio → 本地 · command args', () => {
     const p = projectMcp({
       ...mcpManifest,
-      servers: { s: { type: 'stdio', command: 'node', args: ['scripts/server.js'], enabled: true } },
+      servers: {
+        s: { type: 'stdio', command: 'node', args: ['scripts/server.js'], enabled: true },
+      },
     });
     expect(p.parsedMetadata.summary).toBe('本地 · node scripts/server.js');
   });

@@ -3,18 +3,18 @@
  * 校验职责分层：入参格式（slug/type/visibility）由路由层 zod body schema 把关
  * （复用 protocol slugSchema / schema 枚举）；本层做坐标寻址与冲突判定。
  */
-import { and, count, eq, exists, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, exists, ilike, inArray, or, type SQL, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
+  type AssetType,
   asset,
   assetLabel,
   assetVersion,
   labelDefinition,
+  type NamespaceRole,
   namespace,
   namespaceMember,
   userAccount,
-  type AssetType,
-  type NamespaceRole,
   type Visibility,
 } from '../db/schema/index.js';
 import { AssetError, assetErrorCodes } from './errors.js';
@@ -71,7 +71,12 @@ export async function loadAssetItemMeta(
 ): Promise<Map<number, AssetItemMeta>> {
   const map = new Map<number, AssetItemMeta>();
   for (const a of assets) {
-    map.set(a.id, { latestVersion: null, latestName: null, latestDescription: null, ownerDisplayName: null });
+    map.set(a.id, {
+      latestVersion: null,
+      latestName: null,
+      latestDescription: null,
+      ownerDisplayName: null,
+    });
   }
   const ownerIds = [...new Set(assets.map((a) => a.ownerId))];
   if (ownerIds.length > 0) {
@@ -80,12 +85,20 @@ export async function loadAssetItemMeta(
       .from(userAccount)
       .where(inArray(userAccount.id, ownerIds));
     const byId = new Map(users.map((u) => [u.id, u.displayName]));
-    for (const a of assets) map.get(a.id)!.ownerDisplayName = byId.get(a.ownerId) ?? null;
+    for (const a of assets) {
+      const meta = map.get(a.id);
+      if (!meta) continue; // 不可达守卫（map 全资产预置）
+      meta.ownerDisplayName = byId.get(a.ownerId) ?? null;
+    }
   }
   const versionIds = assets.map((a) => a.latestVersionId).filter((v): v is number => v !== null);
   if (versionIds.length > 0) {
     const vRows = await db
-      .select({ id: assetVersion.id, version: assetVersion.version, meta: assetVersion.parsedMetadataJson })
+      .select({
+        id: assetVersion.id,
+        version: assetVersion.version,
+        meta: assetVersion.parsedMetadataJson,
+      })
       .from(assetVersion)
       .where(inArray(assetVersion.id, versionIds));
     const byId = new Map(vRows.map((r) => [r.id, r]));
@@ -93,7 +106,8 @@ export async function loadAssetItemMeta(
       if (a.latestVersionId === null) continue;
       const v = byId.get(a.latestVersionId);
       if (!v) continue;
-      const meta = map.get(a.id)!;
+      const meta = map.get(a.id);
+      if (!meta) continue; // 不可达守卫（map 全资产预置）
       meta.latestVersion = v.version;
       const m = (v.meta ?? {}) as Record<string, unknown>;
       meta.latestName = typeof m.name === 'string' ? m.name : null;
@@ -117,10 +131,7 @@ export async function findNamespaceBySlug(db: Db, slug: string) {
  * 注册资产（T1）：坐标 @namespaceSlug/slug 跨类型唯一（01 §3.3）。
  * 冲突预检给友好 409（asset.slug_taken）；DB 唯一键 23505 兜底并发窗口。
  */
-export async function createAsset(
-  db: Db,
-  input: CreateAssetInput,
-): Promise<AssetRow> {
+export async function createAsset(db: Db, input: CreateAssetInput): Promise<AssetRow> {
   const ns = await findNamespaceBySlug(db, input.namespaceSlug);
   if (!ns) throw new AssetError(assetErrorCodes.namespaceNotFound);
 
@@ -144,7 +155,9 @@ export async function createAsset(
         updatedBy: input.ownerId,
       })
       .returning();
-    return rows[0]!;
+    const row = rows[0];
+    if (row === undefined) throw new Error('asset insert returned no row');
+    return row;
   } catch (err) {
     const cause = (err as { cause?: { code?: string } }).cause;
     if (cause?.code === PG_UNIQUE_VIOLATION) {
@@ -185,10 +198,7 @@ export async function listAssets(
   if (opts.visibility !== undefined) conditions.push(eq(asset.visibility, opts.visibility));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
-  const [totalRow] = await db
-    .select({ total: count() })
-    .from(asset)
-    .where(where);
+  const [totalRow] = await db.select({ total: count() }).from(asset).where(where);
   const items = await db
     .select()
     .from(asset)
@@ -248,26 +258,25 @@ export async function listViewableAssets(
   const q = opts.q?.trim().slice(0, 100);
   if (q && q.length > 0) {
     const pattern = `%${q}%`;
-    conditions.push(
-      or(
-        ilike(asset.slug, pattern),
-        exists(
-          db
-            .select({ id: assetVersion.id })
-            .from(assetVersion)
-            .where(
-              and(
-                eq(assetVersion.assetId, asset.id),
-                or(
-                  ilike(sql`${assetVersion.parsedMetadataJson}->>'name'`, pattern),
-                  ilike(sql`${assetVersion.parsedMetadataJson}->>'description'`, pattern),
-                  ilike(sql`${assetVersion.parsedMetadataJson}->>'searchText'`, pattern),
-                )!,
+    const searchCond = or(
+      ilike(asset.slug, pattern),
+      exists(
+        db
+          .select({ id: assetVersion.id })
+          .from(assetVersion)
+          .where(
+            and(
+              eq(assetVersion.assetId, asset.id),
+              or(
+                ilike(sql`${assetVersion.parsedMetadataJson}->>'name'`, pattern),
+                ilike(sql`${assetVersion.parsedMetadataJson}->>'description'`, pattern),
+                ilike(sql`${assetVersion.parsedMetadataJson}->>'searchText'`, pattern),
               ),
             ),
-        ),
-      )!,
+          ),
+      ),
     );
+    if (searchCond !== undefined) conditions.push(searchCond);
   }
 
   // T12 label 多值 OR（06 §4——挂载任一即命中；slug → id 解析；全不存在 → 视为无筛选不报错）
@@ -282,7 +291,15 @@ export async function listViewableAssets(
           db
             .select({ id: assetLabel.id })
             .from(assetLabel)
-            .where(and(eq(assetLabel.assetId, asset.id), inArray(assetLabel.labelId, labelRows.map((l) => l.id)))),
+            .where(
+              and(
+                eq(assetLabel.assetId, asset.id),
+                inArray(
+                  assetLabel.labelId,
+                  labelRows.map((l) => l.id),
+                ),
+              ),
+            ),
         ),
       );
     }
@@ -290,21 +307,25 @@ export async function listViewableAssets(
 
   if (!opts.viewer.isSuperAdmin) {
     const viewerId = opts.viewer.userId;
-    const branches: (SQL | undefined)[] = [eq(asset.visibility, 'PUBLIC')];
+    const branches: SQL[] = [eq(asset.visibility, 'PUBLIC')];
     if (viewerId !== null) {
       // NAMESPACE_ONLY：我成员的空间；PRIVATE：我 owner 或空间 OWNER/ADMIN
       const memberNs = myNamespaceIdsSubquery(db, viewerId);
       const adminNs = myNamespaceIdsSubquery(db, viewerId, ['OWNER', 'ADMIN']);
-      branches.push(
-        and(eq(asset.visibility, 'NAMESPACE_ONLY'), inArray(asset.namespaceId, memberNs))!,
-        and(
-          eq(asset.visibility, 'PRIVATE'),
-          or(eq(asset.ownerId, viewerId), inArray(asset.namespaceId, adminNs))!,
-        )!,
+      const nsOnly = and(
+        eq(asset.visibility, 'NAMESPACE_ONLY'),
+        inArray(asset.namespaceId, memberNs),
       );
+      const privateOwner = or(eq(asset.ownerId, viewerId), inArray(asset.namespaceId, adminNs));
+      const privateCond =
+        privateOwner === undefined ? undefined : and(eq(asset.visibility, 'PRIVATE'), privateOwner);
+      // 不可达守卫（子查询常真——SQL 构造 undefined 仅类型联合）——防泄漏保底跳过分支
+      if (nsOnly !== undefined) branches.push(nsOnly);
+      if (privateCond !== undefined) branches.push(privateCond);
     }
     // 匿名 viewer（userId null）：仅 PUBLIC 分支——PUBLIC-only 坍缩（M4a R4）
-    conditions.push(or(...(branches as SQL[]))!);
+    const visible = or(...branches);
+    if (visible !== undefined) conditions.push(visible);
   }
 
   const where = and(...conditions);

@@ -7,15 +7,22 @@ import { Hono } from 'hono';
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
+import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
 import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
-import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, auditLog, type RoleCode, role, userAccount, userRoleBinding } from '../db/schema/index.js';
+import {
+  apiToken,
+  auditLog,
+  type RoleCode,
+  role,
+  userAccount,
+  userRoleBinding,
+} from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 

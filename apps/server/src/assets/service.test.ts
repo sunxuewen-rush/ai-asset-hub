@@ -8,7 +8,7 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
 import { asset, namespace, userAccount } from '../db/schema/index.js';
-import { AssetError, assetErrorCodes, type AssetErrorCode } from './errors.js';
+import { AssetError, type AssetErrorCode, assetErrorCodes } from './errors.js';
 import { createAsset, getAsset, listAssets } from './service.js';
 
 let db: Db;
@@ -167,7 +167,11 @@ describe('listAssets', () => {
   });
 
   it('namespace 不存在 → 空列表（非 404：列表语义）', async () => {
-    const { items, total } = await listAssets(db, { limit: 20, offset: 0, namespaceSlug: 'ast-no-such' });
+    const { items, total } = await listAssets(db, {
+      limit: 20,
+      offset: 0,
+      namespaceSlug: 'ast-no-such',
+    });
     expect(items).toHaveLength(0);
     expect(total).toBe(0);
   });

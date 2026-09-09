@@ -10,6 +10,7 @@ import { Hono } from 'hono';
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
+import { getPublicStats, type PublicStats } from '../assets/stats.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
@@ -19,7 +20,6 @@ import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
 import { asset, namespace, userAccount } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
-import { getPublicStats, type PublicStats } from '../assets/stats.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
 import { createStatsRoutes } from './stats.js';
 
@@ -35,17 +35,35 @@ async function makeUser(tag: string): Promise<string> {
   await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
   return id;
 }
-async function insertNs(slug: string, status: 'ACTIVE' | 'FROZEN' | 'ARCHIVED' = 'ACTIVE'): Promise<number> {
+async function insertNs(
+  slug: string,
+  status: 'ACTIVE' | 'FROZEN' | 'ARCHIVED' = 'ACTIVE',
+): Promise<number> {
   const rows = await db
     .insert(namespace)
     .values({ slug, displayName: `${PREFIX}${slug}`, type: 'TEAM', status })
     .returning({ id: namespace.id });
   return rows[0]!.id;
 }
-async function insertAsset(ns: number, slug: string, type: string, visibility: string, status: 'ACTIVE' | 'HIDDEN' | 'ARCHIVED' = 'ACTIVE', dl = 0) {
+async function insertAsset(
+  ns: number,
+  slug: string,
+  type: string,
+  visibility: string,
+  status: 'ACTIVE' | 'HIDDEN' | 'ARCHIVED' = 'ACTIVE',
+  dl = 0,
+) {
   await db
     .insert(asset)
-    .values({ namespaceId: ns, slug, type: type as never, ownerId, visibility: visibility as never, status, downloadCount: dl })
+    .values({
+      namespaceId: ns,
+      slug,
+      type: type as never,
+      ownerId,
+      visibility: visibility as never,
+      status,
+      downloadCount: dl,
+    })
     .onConflictDoNothing();
 }
 
@@ -69,9 +87,18 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // 前缀清理（禁全表 delete——纪律）：slug/ns slug 均带 stt- 前缀
-  await db.delete(asset).where(like(asset.slug, `${PREFIX}%`)).catch(() => {});
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`)).catch(() => {});
-  await db.delete(userAccount).where(like(userAccount.id, 'usr_%')).catch(() => {});
+  await db
+    .delete(asset)
+    .where(like(asset.slug, `${PREFIX}%`))
+    .catch(() => {});
+  await db
+    .delete(namespace)
+    .where(like(namespace.slug, `${PREFIX}%`))
+    .catch(() => {});
+  await db
+    .delete(userAccount)
+    .where(like(userAccount.id, 'usr_%'))
+    .catch(() => {});
   await db.$client.end();
 });
 

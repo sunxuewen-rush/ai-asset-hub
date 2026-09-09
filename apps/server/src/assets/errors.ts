@@ -102,9 +102,7 @@ export class AssetError extends Error {
  * 路由层特异 catch，不进 onError 通用出口）
  */
 export class UploadValidationError extends Error {
-  constructor(
-    readonly issues: Array<{ code: string; path?: string; message?: string }>,
-  ) {
+  constructor(readonly issues: Array<{ code: string; path?: string; message?: string }>) {
     super(issues[0]?.code ?? 'validation_failed');
     this.name = 'UploadValidationError';
   }

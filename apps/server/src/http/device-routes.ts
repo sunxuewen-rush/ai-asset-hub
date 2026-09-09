@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
+import type { AuditWriter } from '../audit/audit.js';
 import type { DevicePendingStore } from '../auth/device-store.js';
 import { AuthError } from '../auth/errors.js';
 import type { RateLimiter } from '../auth/rate-limit.js';
 import { generateTokenSecret, hashToken } from '../auth/tokens.js';
-import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import { apiToken } from '../db/schema/index.js';
 import { requireAuth } from './auth-middleware.js';

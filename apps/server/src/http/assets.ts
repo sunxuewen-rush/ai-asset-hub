@@ -9,39 +9,36 @@
  * 管理面判定（design §7/05 §6.4）：owner 或空间 ADMIN+（canManageAsset 组合）+
  * 空间非 ACTIVE 拒写门 + SUPER_ADMIN 短路。
  */
+
+import { Readable } from 'node:stream';
 import { slugSchema } from '@ai-asset-hub/protocol';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { AuditWriter } from '../audit/audit.js';
-import type { RateLimiter } from '../auth/rate-limit.js';
-import { InMemoryRateLimiter } from '../auth/rate-limit.js';
+import { decideDownload, resolveDownload } from '../assets/download.js';
 import { AssetError, assetErrorCodes, UploadValidationError } from '../assets/errors.js';
 import { canManageAsset } from '../assets/manage.js';
 import {
+  type AssetItemMeta,
+  type AssetRow,
+  type AssetViewerContext,
   createAsset,
   findNamespaceBySlug,
   getAsset,
   listViewableAssets,
   loadAssetItemMeta,
-  type AssetItemMeta,
-  type AssetRow,
-  type AssetViewerContext,
 } from '../assets/service.js';
-import { canViewAsset } from '../assets/visibility.js';
-import { createVersion, deleteVersion } from '../assets/versions.js';
-import { readVersionFile } from '../assets/version-content.js';
 import { compareVersions } from '../assets/version-compare.js';
+import { readVersionFile } from '../assets/version-content.js';
 import { getVersion, listVersions } from '../assets/version-read.js';
+import { createVersion, deleteVersion } from '../assets/versions.js';
+import { canViewAsset } from '../assets/visibility.js';
+import { canYank, yankVersion } from '../assets/yank.js';
+import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
-import { ReviewError, reviewErrorCodes } from '../review/errors.js';
-import { canSubmitReview, submitVersion } from '../review/service.js';
-import { LabelError, labelErrorCodes } from '../labels/errors.js';
-import { canYank, yankVersion } from '../assets/yank.js';
-import { decideDownload, resolveDownload } from '../assets/download.js';
-import { attachLabel, detachLabel, labelsOfAsset } from '../labels/service.js';
-import { labelSlugSchema } from '../labels/service.js';
+import type { RateLimiter } from '../auth/rate-limit.js';
+import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
@@ -50,13 +47,16 @@ import {
   assetStatusSchema,
   assetTypeSchema,
   assetVersion,
-  reviewTask,
   type NamespaceRole,
+  reviewTask,
   visibilitySchema,
 } from '../db/schema/index.js';
+import { LabelError, labelErrorCodes } from '../labels/errors.js';
+import { attachLabel, detachLabel, labelSlugSchema, labelsOfAsset } from '../labels/service.js';
+import { ReviewError, reviewErrorCodes } from '../review/errors.js';
+import { canSubmitReview, submitVersion } from '../review/service.js';
 import type { ObjectStorage } from '../storage/types.js';
-import { requireAuth, assertTokenScoped } from './auth-middleware.js';
-import { Readable } from 'node:stream';
+import { assertTokenScoped, requireAuth } from './auth-middleware.js';
 
 export interface AssetRoutesDeps {
   db: Db;
@@ -147,9 +147,15 @@ function assetItem(row: AssetRow, namespaceSlug: string, meta?: AssetItemMeta | 
 async function viewerContext(
   c: import('hono').Context,
   namespaceId: number,
-): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean; isPlatformReviewer: boolean }> {
+): Promise<{
+  viewerId: string | null;
+  namespaceRole: NamespaceRole | null;
+  isSuperAdmin: boolean;
+  isPlatformReviewer: boolean;
+}> {
   const principal = c.get('principal');
-  if (!principal) return { viewerId: null, namespaceRole: null, isSuperAdmin: false, isPlatformReviewer: false };
+  if (!principal)
+    return { viewerId: null, namespaceRole: null, isSuperAdmin: false, isPlatformReviewer: false };
   const rbac = c.get('rbac')!;
   const roles = await rbac.getNamespaceRoles(principal.userId, namespaceId);
   const platformRoles = await rbac.platformRolesOf(principal.userId);
@@ -170,7 +176,12 @@ async function assertAssetReadable(
   c: import('hono').Context,
   ns: { id: number; status: string },
   row: { status: string; visibility: string; ownerId: string },
-): Promise<{ viewerId: string | null; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean; isPlatformReviewer: boolean }> {
+): Promise<{
+  viewerId: string | null;
+  namespaceRole: NamespaceRole | null;
+  isSuperAdmin: boolean;
+  isPlatformReviewer: boolean;
+}> {
   const viewer = await viewerContext(c, ns.id);
   if (viewer.isSuperAdmin) return viewer;
   if (row.status !== 'ACTIVE') throw new AssetError(assetErrorCodes.notFound);
@@ -236,7 +247,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   const app = new Hono();
   const { db } = deps;
   // 下载限流兜底（测试 buildApp 可不传——app 工厂装配常量实例）
-  const downloadRateLimiter = deps.downloadRateLimiter ?? new InMemoryRateLimiter(DOWNLOAD_RATE_LIMIT.windowMs, DOWNLOAD_RATE_LIMIT.max);
+  const downloadRateLimiter =
+    deps.downloadRateLimiter ??
+    new InMemoryRateLimiter(DOWNLOAD_RATE_LIMIT.windowMs, DOWNLOAD_RATE_LIMIT.max);
 
   // POST /api/assets（T3：注册——asset:publish 空间成员判定；FROZEN/ARCHIVED 由 rbac.can 拒）
   app.post('/', requireAuth(), async (c) => {
@@ -285,7 +298,10 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const principal = c.get('principal') ?? null;
     const rbac = c.get('rbac')!;
     const query = c.req.query();
-    const parsed = listQuerySchema.safeParse({ ...query, label: c.req.queries('label') ?? undefined });
+    const parsed = listQuerySchema.safeParse({
+      ...query,
+      label: c.req.queries('label') ?? undefined,
+    });
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
@@ -556,19 +572,32 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
 
     const rl = deps.uploadRateLimiter.hit(`asset-upload:${principal.userId}`);
     if (!rl.allowed) {
-      return c.json({ code: 'auth.rate_limited', message: 'upload rate limited', retryAfterSec: rl.retryAfterSec }, 429);
+      return c.json(
+        {
+          code: 'auth.rate_limited',
+          message: 'upload rate limited',
+          retryAfterSec: rl.retryAfterSec,
+        },
+        429,
+      );
     }
 
     // multipart 解析（file 必填 + version 必填 + changelog 可选）
     const body = await c.req.parseBody();
     const rawFile = body['file'];
     if (!(rawFile instanceof File) || rawFile.size === 0) {
-      return c.json({ code: 'request.invalid', message: 'multipart field "file" (zip) is required' }, 400);
+      return c.json(
+        { code: 'request.invalid', message: 'multipart field "file" (zip) is required' },
+        400,
+      );
     }
     const rawVersion = typeof body['version'] === 'string' ? body['version'] : undefined;
     const versionParsed = versionFieldSchema.safeParse(rawVersion);
     if (!versionParsed.success) {
-      return c.json({ code: 'request.invalid', message: 'version must be semver (e.g. 1.0.0)' }, 400);
+      return c.json(
+        { code: 'request.invalid', message: 'version must be semver (e.g. 1.0.0)' },
+        400,
+      );
     }
     const rawChangelog = typeof body['changelog'] === 'string' ? body['changelog'] : undefined;
     const changelogParsed = changelogFieldSchema.safeParse(rawChangelog);
@@ -635,7 +664,11 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     }
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
     const [versionRow] = await db
-      .select({ id: assetVersion.id, status: assetVersion.status, createdBy: assetVersion.createdBy })
+      .select({
+        id: assetVersion.id,
+        status: assetVersion.status,
+        createdBy: assetVersion.createdBy,
+      })
       .from(assetVersion)
       .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
     if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
@@ -647,7 +680,12 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
 
     // 状态门：禁删态（R5 分治——PENDING_REVIEW 审核中防内容蒸发/PUBLISHED 已分发/YANKED 留档）
     const DELETABLE_UPLOADER: ReadonlySet<string> = new Set(['DRAFT', 'SCAN_FAILED']);
-    const DELETABLE_MANAGER: ReadonlySet<string> = new Set(['DRAFT', 'SCAN_FAILED', 'REJECTED', 'UPLOADED']);
+    const DELETABLE_MANAGER: ReadonlySet<string> = new Set([
+      'DRAFT',
+      'SCAN_FAILED',
+      'REJECTED',
+      'UPLOADED',
+    ]);
     const status = versionRow.status;
     if (!DELETABLE_UPLOADER.has(status) && !DELETABLE_MANAGER.has(status)) {
       throw new AssetError(assetErrorCodes.versionNotDeletable);
@@ -663,7 +701,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     });
     // R14：版本删除（含上传者本人草稿撤回）scope 交集——design §8 ②「删除 = asset:manage」
     assertTokenScoped(c, PERMISSIONS.assetManage);
-    const uploaderRetract = DELETABLE_UPLOADER.has(status) && versionRow.createdBy === principal.userId;
+    const uploaderRetract =
+      DELETABLE_UPLOADER.has(status) && versionRow.createdBy === principal.userId;
     if (!manager && !uploaderRetract) throw new AuthError('auth.forbidden');
 
     await deleteVersion(db, deps.storage, deps.audit, {
@@ -693,7 +732,12 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     }
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
     const [versionRow] = await db
-      .select({ id: assetVersion.id, version: assetVersion.version, status: assetVersion.status, createdBy: assetVersion.createdBy })
+      .select({
+        id: assetVersion.id,
+        version: assetVersion.version,
+        status: assetVersion.status,
+        createdBy: assetVersion.createdBy,
+      })
       .from(assetVersion)
       .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
     if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
@@ -703,18 +747,35 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门（05 §6.3）
     }
     const rbac = c.get('rbac')!;
-    const hasReviewSubmit = await rbac.can(principal.userId, PERMISSIONS.reviewSubmit, { namespaceId: ns.id });
+    const hasReviewSubmit = await rbac.can(principal.userId, PERMISSIONS.reviewSubmit, {
+      namespaceId: ns.id,
+    });
     assertTokenScoped(c, PERMISSIONS.reviewSubmit); // T15：token scope 交集（R14——scope 无码即拒）
-    if (!canSubmitReview({ assetOwnerId: row.ownerId, versionCreatedBy: versionRow.createdBy, actorId: principal.userId, hasReviewSubmit })) {
+    if (
+      !canSubmitReview({
+        assetOwnerId: row.ownerId,
+        versionCreatedBy: versionRow.createdBy,
+        actorId: principal.userId,
+        hasReviewSubmit,
+      })
+    ) {
       throw new ReviewError(reviewErrorCodes.accessDenied);
     }
 
     const out = await submitVersion(db, deps.audit, {
       asset: { id: row.id, namespaceId: ns.id, ownerId: row.ownerId },
-      version: { id: versionRow.id, version: versionRow.version, status: versionRow.status, createdBy: versionRow.createdBy },
+      version: {
+        id: versionRow.id,
+        version: versionRow.version,
+        status: versionRow.status,
+        createdBy: versionRow.createdBy,
+      },
       submitterId: principal.userId,
     });
-    return c.json({ taskId: out.taskId, reviewVersion: out.reviewVersion, status: 'PENDING_REVIEW' }, 201);
+    return c.json(
+      { taskId: out.taskId, reviewVersion: out.reviewVersion, status: 'PENDING_REVIEW' },
+      201,
+    );
   });
 
   // POST /api/assets/{ns}/{slug}/versions/{version}/yank（T8：撤回分发——M3 design §4.1 R9）
@@ -747,7 +808,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       throw new AuthError('auth.forbidden');
     }
     assertTokenScoped(c, PERMISSIONS.assetManage); // R14：yank 平台治理面 scope 交集（design §8 ②）
-    const body = await c.req.json().catch(() => ({})) as { reason?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as { reason?: unknown };
     if (typeof body.reason !== 'string' || body.reason.trim() === '') {
       throw new AssetError(assetErrorCodes.yankReasonRequired);
     }
@@ -770,7 +831,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const nsSlug = c.req.param('nsSlug')!;
     const slug = c.req.param('slug')!;
     const labelSlug = c.req.param('labelSlug')!;
-    if (!labelSlugSchema.safeParse(labelSlug).success) throw new LabelError(labelErrorCodes.notFound);
+    if (!labelSlugSchema.safeParse(labelSlug).success)
+      throw new LabelError(labelErrorCodes.notFound);
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
     const viewer = await viewerContext(c, ns.id);
     if (!viewer.isSuperAdmin && ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门
@@ -782,7 +844,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     });
     // R14 scope：RECOMMENDED 挂载 = asset:manage（design §8 ②——service 分判内组合）
     const scopes = c.get('tokenScopes');
-    const hasAssetManageScope = scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
+    const hasAssetManageScope =
+      scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
     await attachLabel(db, deps.audit, {
       assetId: row.id,
       labelSlug,
@@ -799,7 +862,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const nsSlug = c.req.param('nsSlug')!;
     const slug = c.req.param('slug')!;
     const labelSlug = c.req.param('labelSlug')!;
-    if (!labelSlugSchema.safeParse(labelSlug).success) throw new LabelError(labelErrorCodes.notFound);
+    if (!labelSlugSchema.safeParse(labelSlug).success)
+      throw new LabelError(labelErrorCodes.notFound);
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
     const viewer = await viewerContext(c, ns.id);
     if (!viewer.isSuperAdmin && ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden');
@@ -811,7 +875,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     });
     // R14 scope：移除挂载同挂载权（RECOMMENDED = asset:manage——service 分判内组合）
     const scopes = c.get('tokenScopes');
-    const hasAssetManageScope = scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
+    const hasAssetManageScope =
+      scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
     await detachLabel(db, deps.audit, {
       assetId: row.id,
       labelSlug,
@@ -842,7 +907,12 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
     const viewer = await assertAssetReadable(c, ns, row);
     const [versionRow] = await db
-      .select({ id: assetVersion.id, status: assetVersion.status, createdBy: assetVersion.createdBy, bundleStorageKey: assetVersion.bundleStorageKey })
+      .select({
+        id: assetVersion.id,
+        status: assetVersion.status,
+        createdBy: assetVersion.createdBy,
+        bundleStorageKey: assetVersion.bundleStorageKey,
+      })
       .from(assetVersion)
       .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
     if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
@@ -850,13 +920,21 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     // 五档判定（design §7.2——错误码分派按 kind）
     const decision = decideDownload(versionRow.status, viewer, row.ownerId, versionRow);
     if (decision.kind === 'yanked') throw new AssetError(assetErrorCodes.versionYanked);
-    if (decision.kind === 'not_published') throw new AssetError(assetErrorCodes.versionNotPublished);
+    if (decision.kind === 'not_published')
+      throw new AssetError(assetErrorCodes.versionNotPublished);
 
     // 限流（下载独立实例——60/分·IP；design G9 数值）
     const clientIp = c.get('requestContext')?.clientIp ?? 'unknown';
     const rl = downloadRateLimiter.hit(`asset-download:${clientIp}`);
     if (!rl.allowed) {
-      return c.json({ code: 'auth.rate_limited', message: 'download rate limited', retryAfterSec: rl.retryAfterSec }, 429);
+      return c.json(
+        {
+          code: 'auth.rate_limited',
+          message: 'download rate limited',
+          retryAfterSec: rl.retryAfterSec,
+        },
+        429,
+      );
     }
 
     const resolved = await resolveDownload(db, deps.storage, { assetId: row.id, versionRow });
@@ -865,7 +943,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     }
     // Local 流式兜底：zip 字节流 + attachment（fetch Response——Node 全局类型含 BodyInit）
     const data = await deps.storage.get(resolved.bundleKey);
-    const stream = data instanceof Buffer ? data : Readable.toWeb(data as import('node:stream').Readable);
+    const stream =
+      data instanceof Buffer ? data : Readable.toWeb(data as import('node:stream').Readable);
     return new Response(stream, {
       status: 200,
       headers: {

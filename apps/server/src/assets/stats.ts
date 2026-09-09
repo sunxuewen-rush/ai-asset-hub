@@ -15,7 +15,10 @@ export interface PublicStats {
 }
 
 export async function getPublicStats(db: Db): Promise<PublicStats> {
-  const nsActive = db.select({ id: namespace.id }).from(namespace).where(eq(namespace.status, 'ACTIVE'));
+  const nsActive = db
+    .select({ id: namespace.id })
+    .from(namespace)
+    .where(eq(namespace.status, 'ACTIVE'));
   const rows = await db
     .select({
       type: asset.type,

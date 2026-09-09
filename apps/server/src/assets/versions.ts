@@ -13,10 +13,10 @@ import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
-import { assetFile, assetVersion, reviewTask, type AssetType } from '../db/schema/index.js';
+import { type AssetType, assetFile, assetVersion, reviewTask } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
-import { extractAll } from '../validate/zip.js';
 import { validatePackage } from '../validate/index.js';
+import { extractAll } from '../validate/zip.js';
 import { AssetError, assetErrorCodes, UploadValidationError } from './errors.js';
 import { projectAsset } from './projection.js';
 
@@ -55,9 +55,10 @@ export async function createVersion(
     .select({ id: assetVersion.id, status: assetVersion.status })
     .from(assetVersion)
     .where(and(eq(assetVersion.assetId, target.id), eq(assetVersion.version, version)));
-  const replaceScanFailed = existing.length > 0 && existing[0]!.status === 'SCAN_FAILED';
-  if (existing.length > 0 && !replaceScanFailed) throw new AssetError(assetErrorCodes.versionConflict);
-  const replacedVersionId = existing.length > 0 ? existing[0]!.id : null;
+  const replaceScanFailed = existing[0]?.status === 'SCAN_FAILED';
+  if (existing.length > 0 && !replaceScanFailed)
+    throw new AssetError(assetErrorCodes.versionConflict);
+  const replacedVersionId = existing.length > 0 ? (existing[0]?.id ?? null) : null;
 
   // 2. 族校验 + 解析（失败抛 UploadValidationError——issues 全量给端点 400）
   const validation = await validatePackage(target.type, file);
@@ -104,7 +105,8 @@ export async function createVersion(
           createdBy: uploaderId,
         })
         .returning({ id: assetVersion.id });
-      const vid = row!.id;
+      const vid = row?.id;
+      if (vid === undefined) throw new Error('version insert returned no row');
 
       const contents = await extractAllFor(files, file);
       for (const f of contents) {
@@ -135,7 +137,16 @@ export async function createVersion(
 
     // 事务后清旧文件存储（SCAN_FAILED 覆写——旧 bundle 一并删；deleteMany 容错孤儿容忍）
     if (staleFileKeys.length > 0) {
-      await storage.deleteMany([...staleFileKeys, replacedVersionId === null ? '' : `${target.namespaceId}/${target.id}/${replacedVersionId}/bundle.zip`].filter(Boolean)).catch(() => {});
+      await storage
+        .deleteMany(
+          [
+            ...staleFileKeys,
+            replacedVersionId === null
+              ? ''
+              : `${target.namespaceId}/${target.id}/${replacedVersionId}/bundle.zip`,
+          ].filter(Boolean),
+        )
+        .catch(() => {});
     }
 
     // 5. 审计（动作面 asset.version_upload）
@@ -157,10 +168,17 @@ export async function createVersion(
 }
 
 /** 按 path 从 zip 提取内容（extractAll 后按序匹配——validatePackage 已 scan 通过，内容可解） */
-async function extractAllFor(paths: string[], zip: Buffer): Promise<Array<{ path: string; content: Buffer }>> {
+async function extractAllFor(
+  paths: string[],
+  zip: Buffer,
+): Promise<Array<{ path: string; content: Buffer }>> {
   const all = await extractAll(zip);
   const byPath = new Map(all.map((f) => [f.path, f.content]));
-  return paths.map((path) => ({ path, content: byPath.get(path)! }));
+  return paths.map((path) => {
+    const content = byPath.get(path);
+    if (content === undefined) throw new Error(`missing extracted file: ${path}`);
+    return { path, content };
+  });
 }
 
 /** 内容类型（白名单扩展名 → mime；未知回落 octet-stream——仅索引元数据用途） */

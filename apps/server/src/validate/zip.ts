@@ -10,8 +10,8 @@
  */
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { fromBuffer } from 'yauzl';
-import { getEnv, type Env } from '../config/env.js';
 import { assetErrorCodes } from '../assets/errors.js';
+import { type Env, getEnv } from '../config/env.js';
 
 export interface ZipLimits {
   maxTotalBytes: number;
@@ -50,12 +50,7 @@ export class ZipValidationError extends Error {
 
 /** zip 条目路径安全（zip-slip 防护：禁绝对/反斜杠/空段/.././穿越） */
 export function assertSafeZipPath(path: string): void {
-  if (
-    path.length === 0 ||
-    path.startsWith('/') ||
-    path.includes('\\') ||
-    path.includes('//')
-  ) {
+  if (path.length === 0 || path.startsWith('/') || path.includes('\\') || path.includes('//')) {
     throw new ZipValidationError(assetErrorCodes.packagePathInvalid, path);
   }
   for (const segment of path.split('/')) {
@@ -75,11 +70,20 @@ function unixMode(entry: { externalFileAttributes: number }): number {
  * （路径安全/symlink/单文件上限/总量/条目数），全部通过返回条目清单。
  * 违规即抛 ZipValidationError（首错即停——02 契约 fail fast）。
  */
-export async function scanZip(zip: Buffer, limits: ZipLimits = defaultZipLimits()): Promise<{ entries: ZipEntryMeta[] }> {
+export async function scanZip(
+  zip: Buffer,
+  limits: ZipLimits = defaultZipLimits(),
+): Promise<{ entries: ZipEntryMeta[] }> {
   return new Promise((resolve, reject) => {
     fromBuffer(zip, { lazyEntries: true }, (openErr, zipfile) => {
       if (openErr || !zipfile) {
-        reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, 'zip open failed'));
+        reject(
+          new ZipValidationError(
+            assetErrorCodes.packageLayoutInvalid,
+            undefined,
+            'zip open failed',
+          ),
+        );
         return;
       }
       const entries: ZipEntryMeta[] = [];
@@ -87,39 +91,48 @@ export async function scanZip(zip: Buffer, limits: ZipLimits = defaultZipLimits(
       let fileCount = 0;
 
       zipfile.on('error', (err: Error) => {
-        reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, err.message));
+        reject(
+          new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, err.message),
+        );
       });
-      zipfile.on('entry', (entry: { fileName: string; uncompressedSize: number; externalFileAttributes: number }) => {
-        try {
-          assertSafeZipPath(entry.fileName);
-          const mode = unixMode(entry);
-          const isDir = entry.fileName.endsWith('/') || (mode & 0o170000) === 0o040000;
-          if (isDir) {
+      zipfile.on(
+        'entry',
+        (entry: { fileName: string; uncompressedSize: number; externalFileAttributes: number }) => {
+          try {
+            assertSafeZipPath(entry.fileName);
+            const mode = unixMode(entry);
+            const isDir = entry.fileName.endsWith('/') || (mode & 0o170000) === 0o040000;
+            if (isDir) {
+              zipfile.readEntry();
+              return;
+            }
+            // symlink 拒绝（服务端安全规则：解压语义不可追踪外部目标）
+            if ((mode & 0o170000) === 0o120000) {
+              throw new ZipValidationError(
+                assetErrorCodes.packagePathInvalid,
+                entry.fileName,
+                'symlink entries are not allowed',
+              );
+            }
+            if (entry.uncompressedSize > limits.maxFileBytes) {
+              throw new ZipValidationError(protocolErrorCodes.fileTooLarge, entry.fileName);
+            }
+            totalBytes += entry.uncompressedSize;
+            if (totalBytes > limits.maxTotalBytes) {
+              throw new ZipValidationError(protocolErrorCodes.packageTooLarge, undefined);
+            }
+            fileCount += 1;
+            if (fileCount > limits.maxFiles) {
+              throw new ZipValidationError(protocolErrorCodes.tooManyFiles, undefined);
+            }
+            entries.push({ path: entry.fileName, size: entry.uncompressedSize });
             zipfile.readEntry();
-            return;
+          } catch (err) {
+            zipfile.close();
+            reject(err);
           }
-          // symlink 拒绝（服务端安全规则：解压语义不可追踪外部目标）
-          if ((mode & 0o170000) === 0o120000) {
-            throw new ZipValidationError(assetErrorCodes.packagePathInvalid, entry.fileName, 'symlink entries are not allowed');
-          }
-          if (entry.uncompressedSize > limits.maxFileBytes) {
-            throw new ZipValidationError(protocolErrorCodes.fileTooLarge, entry.fileName);
-          }
-          totalBytes += entry.uncompressedSize;
-          if (totalBytes > limits.maxTotalBytes) {
-            throw new ZipValidationError(protocolErrorCodes.packageTooLarge, undefined);
-          }
-          fileCount += 1;
-          if (fileCount > limits.maxFiles) {
-            throw new ZipValidationError(protocolErrorCodes.tooManyFiles, undefined);
-          }
-          entries.push({ path: entry.fileName, size: entry.uncompressedSize });
-          zipfile.readEntry();
-        } catch (err) {
-          zipfile.close();
-          reject(err);
-        }
-      });
+        },
+      );
       zipfile.on('end', () => resolve({ entries }));
       zipfile.readEntry();
     });
@@ -131,7 +144,13 @@ export function readZipEntry(zip: Buffer, path: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     fromBuffer(zip, { lazyEntries: true }, (openErr, zipfile) => {
       if (openErr || !zipfile) {
-        reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, 'zip open failed'));
+        reject(
+          new ZipValidationError(
+            assetErrorCodes.packageLayoutInvalid,
+            undefined,
+            'zip open failed',
+          ),
+        );
         return;
       }
       let found = false;
@@ -141,7 +160,13 @@ export function readZipEntry(zip: Buffer, path: string): Promise<Buffer> {
           found = true;
           zipfile.openReadStream(entry, (streamErr, stream) => {
             if (streamErr || !stream) {
-              reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, path, 'read stream failed'));
+              reject(
+                new ZipValidationError(
+                  assetErrorCodes.packageLayoutInvalid,
+                  path,
+                  'read stream failed',
+                ),
+              );
               return;
             }
             const chunks: Buffer[] = [];
@@ -155,7 +180,9 @@ export function readZipEntry(zip: Buffer, path: string): Promise<Buffer> {
       });
       zipfile.on('end', () => {
         if (!found) {
-          reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, path, 'entry not found'));
+          reject(
+            new ZipValidationError(assetErrorCodes.packageLayoutInvalid, path, 'entry not found'),
+          );
         }
       });
       zipfile.readEntry();
@@ -171,11 +198,21 @@ export function extractAll(zip: Buffer): Promise<Array<{ path: string; content: 
   return new Promise((resolve, reject) => {
     fromBuffer(zip, { lazyEntries: true }, (openErr, zipfile) => {
       if (openErr || !zipfile) {
-        reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, 'zip open failed'));
+        reject(
+          new ZipValidationError(
+            assetErrorCodes.packageLayoutInvalid,
+            undefined,
+            'zip open failed',
+          ),
+        );
         return;
       }
       const files: Array<{ path: string; content: Buffer }> = [];
-      zipfile.on('error', (err: Error) => reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, err.message)));
+      zipfile.on('error', (err: Error) =>
+        reject(
+          new ZipValidationError(assetErrorCodes.packageLayoutInvalid, undefined, err.message),
+        ),
+      );
       zipfile.on('entry', (entry) => {
         const mode = entry.externalFileAttributes >>> 16;
         const isDir = entry.fileName.endsWith('/') || (mode & 0o170000) === 0o040000;
@@ -185,13 +222,25 @@ export function extractAll(zip: Buffer): Promise<Array<{ path: string; content: 
         }
         zipfile.openReadStream(entry, (streamErr, stream) => {
           if (streamErr || !stream) {
-            reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, entry.fileName, 'read stream failed'));
+            reject(
+              new ZipValidationError(
+                assetErrorCodes.packageLayoutInvalid,
+                entry.fileName,
+                'read stream failed',
+              ),
+            );
             return;
           }
           const chunks: Buffer[] = [];
           stream.on('data', (chunk: Buffer) => chunks.push(chunk));
           stream.on('error', (err: Error) =>
-            reject(new ZipValidationError(assetErrorCodes.packageLayoutInvalid, entry.fileName, err.message)),
+            reject(
+              new ZipValidationError(
+                assetErrorCodes.packageLayoutInvalid,
+                entry.fileName,
+                err.message,
+              ),
+            ),
           );
           stream.on('end', () => {
             files.push({ path: entry.fileName, content: Buffer.concat(chunks) });

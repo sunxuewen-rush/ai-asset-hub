@@ -35,7 +35,8 @@ export interface VisibilityInput {
 }
 
 export function canViewAsset(input: VisibilityInput): boolean {
-  const { nsStatus, assetStatus, visibility, ownerId, viewerId, namespaceRole, isSuperAdmin } = input;
+  const { nsStatus, assetStatus, visibility, ownerId, viewerId, namespaceRole, isSuperAdmin } =
+    input;
 
   // SUPER_ADMIN 短路（05 §6.3：全权）
   if (isSuperAdmin) return true;

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
 import { assetErrorCodes } from '../assets/errors.js';
+import { ensureTestEnv } from '../test-utils/env-setup.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { createAgentValidator } from './agent.js';
-import { ensureTestEnv } from '../test-utils/env-setup.js';
+
 ensureTestEnv();
 
 const validator = createAgentValidator();
@@ -12,7 +13,8 @@ function agentZip(agentMd: string, extra: Array<{ name: string; content: string 
   return buildZip([{ name: 'agent.md', content: agentMd }, ...extra]);
 }
 
-const VALID = '---\nname: code-reviewer\ndescription: 资深代码评审专家\nlabel: 代码评审官\n---\n# 身份\n\n评审代码。\n';
+const VALID =
+  '---\nname: code-reviewer\ndescription: 资深代码评审专家\nlabel: 代码评审官\n---\n# 身份\n\n评审代码。\n';
 
 describe('agent 族规则（04 §2/§3/§4/§5）', () => {
   it('合法包（agent.md + README.md + assets 资源）→ ok', async () => {
@@ -28,7 +30,9 @@ describe('agent 族规则（04 §2/§3/§4/§5）', () => {
 
   it('可选字段 label/icon/category 通过（04 §3.1）', async () => {
     const r = await validator.validate(
-      agentZip('---\nname: cr\ndescription: x\nicon: ShieldCheck\ncategory: engineering\n---\nbody\n'),
+      agentZip(
+        '---\nname: cr\ndescription: x\nicon: ShieldCheck\ncategory: engineering\n---\nbody\n',
+      ),
     );
     expect(r.ok).toBe(true);
   });
@@ -61,7 +65,9 @@ describe('agent 族规则（04 §2/§3/§4/§5）', () => {
   });
 
   it('assets/ 内白名单外扩展名（.js）→ 拒（04 §4 表无 .js）', async () => {
-    const r = await validator.validate(agentZip(VALID, [{ name: 'assets/bundle.js', content: 'x' }]));
+    const r = await validator.validate(
+      agentZip(VALID, [{ name: 'assets/bundle.js', content: 'x' }]),
+    );
     expect(r.ok).toBe(false);
   });
 });

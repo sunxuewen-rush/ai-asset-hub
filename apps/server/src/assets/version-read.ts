@@ -111,9 +111,14 @@ export async function listVersions(
   viewer: VersionViewer,
   opts: ListVersionsOptions,
 ): Promise<{ items: VersionListItem[]; total: number }> {
-  const where = viewer.isSuperAdmin
-    ? eq(assetVersion.assetId, assetId)
-    : and(eq(assetVersion.assetId, assetId), nonPublicVisibleWhere(assetOwnerId, viewer))!;
+  const where = (() => {
+    if (viewer.isSuperAdmin) return eq(assetVersion.assetId, assetId);
+    const npv = nonPublicVisibleWhere(assetOwnerId, viewer);
+    // 不可达守卫：npv null（理论不可达）→ 恒不命中（防 undefined where 泄漏全量）
+    return npv === null
+      ? eq(assetVersion.assetId, -1)
+      : and(eq(assetVersion.assetId, assetId), npv);
+  })();
 
   const [items, totalRows] = await Promise.all([
     db
