@@ -18,10 +18,12 @@ export function useApi<T>(loader: (signal: AbortSignal) => Promise<T>, deps: rea
   const [state, setState] = useState<UseApiState<T>>(INITIAL);
 
   useEffect(() => {
-    const controller = new AbortController();
+    // StrictMode 双跑兼容（React 19 dev 实证 T18：cleanup 即 abort 会让双跑第二波 fetch
+    // 全部以 AbortError 落败——abort 属锦上添花，竞态终止由 alive 守卫承担，见下）
+    const signal = new AbortController().signal;
     let alive = true;
     setState(INITIAL);
-    loader(controller.signal)
+    loader(signal)
       .then((data) => {
         if (alive) setState({ data, error: null, loading: false });
       })
@@ -36,7 +38,6 @@ export function useApi<T>(loader: (signal: AbortSignal) => Promise<T>, deps: rea
       });
     return () => {
       alive = false;
-      controller.abort();
     };
     // 通用 hook——loader/deps 由调用方显式传入（useApi(loader, [q,page]) 参数化重发语义），
     // biome-ignore lint/correctness/useExhaustiveDependencies: 闭包变量 loader 非本文件字面量，静态规则不适用
