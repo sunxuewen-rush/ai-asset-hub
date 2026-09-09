@@ -640,6 +640,102 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
   });
 });
 
+describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () => {
+  beforeAll(async () => {
+    // 懒建：两 PUBLISHED 版本（v1.0.0 基线 / v1.1.0：SKILL.md 改 2 行 + new.mjs 新增 + old.md 删除）
+    const [a] = await db
+      .insert(asset)
+      .values({ namespaceId: nsA, slug: 'ast-cmp', type: 'skill', ownerId: member, visibility: 'PUBLIC' })
+      .returning({ id: asset.id });
+    const mkVersion = async (version: string, files: Array<[string, Buffer, string?]>) => {
+      const [v] = await db
+        .insert(assetVersion)
+        .values({ assetId: a!.id, version, status: 'PUBLISHED', createdBy: member, publishedAt: new Date() })
+        .returning({ id: assetVersion.id });
+      for (const [p, buf, ct] of files) {
+        const key = `${nsA}/${a!.id}/${v!.id}/${p}`;
+        await storage.put(key, buf, ct ? { contentType: ct } : undefined);
+        await db.insert(assetFile).values({
+          versionId: v!.id,
+          filePath: p,
+          fileSize: buf.byteLength,
+          contentType: ct ?? null,
+          sha256: `${version}-${p}`.padEnd(64, '0'),
+          storageKey: key,
+        });
+      }
+      return v!.id;
+    };
+    await mkVersion('1.0.0', [
+      ['SKILL.md', Buffer.from('# Title\nline a\nline b\nline c\n## End\n'), 'text/markdown'],
+      ['old.md', Buffer.from('# old\n'), 'text/markdown'],
+    ]);
+    await mkVersion('1.1.0', [
+      ['SKILL.md', Buffer.from('# Title\nline a\nline b NEW\nline c\nline d\n## End\n'), 'text/markdown'],
+      ['new.mjs', Buffer.from('export const v = 1;\n'), 'text/javascript'],
+    ]);
+  });
+
+  it('MODIFIED 行级 hunks：DELETE+ADD 行号正确', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=1.1.0');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      files: Array<{ path: string; changeType: string; hunks?: Array<{ lines: Array<{ type: string; oldLineNumber: number | null; newLineNumber: number | null; content: string }> }> }>;
+    };
+    const skill = body.files.find((f) => f.path === 'SKILL.md');
+    expect(skill?.changeType).toBe('MODIFIED');
+    const lines = skill?.hunks?.[0]?.lines ?? [];
+    expect(lines.length).toBe(7);
+    const delB = lines.find((l) => l.type === 'DELETE' && l.content === 'line b');
+    expect(delB?.oldLineNumber).toBe(3);
+    expect(delB?.newLineNumber).toBeNull();
+    const addBNew = lines.find((l) => l.type === 'ADD' && l.content === 'line b NEW');
+    expect(addBNew?.oldLineNumber).toBeNull();
+    expect(addBNew?.newLineNumber).toBe(3);
+    const addD = lines.find((l) => l.type === 'ADD' && l.content === 'line d');
+    expect(addD?.newLineNumber).toBe(5);
+    const ctxEnd = lines.find((l) => l.type === 'CONTEXT' && l.content === '## End');
+    expect(ctxEnd?.oldLineNumber).toBe(5);
+    expect(ctxEnd?.newLineNumber).toBe(6);
+  });
+
+  it('ADDED/DELETED 文件 + 未变文件不列', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=1.1.0');
+    const body = (await res.json()) as { files: Array<{ path: string; changeType: string; hunks?: Array<{ lines: Array<{ type: string }> }> }> };
+    expect(body.files.map((f) => f.path).sort()).toEqual(['SKILL.md', 'new.mjs', 'old.md']);
+    const added = body.files.find((f) => f.path === 'new.mjs');
+    expect(added?.changeType).toBe('ADDED');
+    expect(added?.hunks?.[0]?.lines).toHaveLength(1); // export const v = 1; 全 ADD
+    const deleted = body.files.find((f) => f.path === 'old.md');
+    expect(deleted?.changeType).toBe('DELETED');
+    expect(deleted?.hunks?.[0]?.lines?.[0]?.type).toBe('DELETE');
+  });
+
+  it('参数缺失：400 request.invalid', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0');
+    expect(res.status).toBe(400);
+  });
+
+  it('版本不存在：404 asset.not_found', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=9.9.9');
+    expect(res.status).toBe(404);
+  });
+
+  it('YANKED 版本对比：400 version_yanked（两版本均存在——同版自比触发 yanked 判定）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-file-yanked/versions/compare?from=2.0.0&to=2.0.0');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.version_yanked');
+  });
+
+  it('同版本对比：无差异文件（空 files）', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=1.0.0');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { files: unknown[] };
+    expect(body.files).toEqual([]);
+  });
+});
+
 describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManageAsset）', () => {
   it('owner 改 visibility 200 + 审计行（Q3）', async () => {
     const res = await jsonRequest(

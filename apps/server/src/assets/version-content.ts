@@ -37,7 +37,7 @@ export function assertSafeReadPath(filePath: string): void {
 }
 
 /** 流收集（至 maxBytes 截断——超大文件不全读） */
-function collectStream(stream: Readable, maxBytes: number): Promise<Buffer> {
+export function collectStream(stream: Readable, maxBytes: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
@@ -66,7 +66,7 @@ const TEXT_EXTS = ['.md', '.markdown', '.json', '.mjs', '.js', '.ts', '.tsx', '.
   '.toml', '.xml', '.txt', '.csv', '.svg', '.css', '.html', '.sh', '.py', '.go', '.rs', '.java', '.c',
   '.h', '.ini', '.conf', '.lock', '.env'];
 
-function looksTextual(contentType: string | null, path: string, buf: Buffer): boolean {
+export function looksTextual(contentType: string | null, path: string, buf: Buffer): boolean {
   const ct = (contentType ?? '').toLowerCase();
   if (TEXT_PREFIXES.some((p) => ct.startsWith(p))) return true;
   const lower = path.toLowerCase();

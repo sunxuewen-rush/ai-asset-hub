@@ -31,6 +31,7 @@ import {
 import { canViewAsset } from '../assets/visibility.js';
 import { createVersion, deleteVersion } from '../assets/versions.js';
 import { readVersionFile } from '../assets/version-content.js';
+import { compareVersions } from '../assets/version-compare.js';
 import { getVersion, listVersions } from '../assets/version-read.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
@@ -346,6 +347,31 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const { limit, offset } = query.data;
     const { items, total } = await listVersions(db, row.id, row.ownerId, viewer, { limit, offset });
     return c.json({ items, total, limit, offset });
+  });
+
+  // GET /api/assets/{ns}/{slug}/versions/compare（M4a R9：行级版本对比——匿名）
+  // 静态段 compare（RegExpRouter 静态优先——先于下方 :version 参数路由命中）；
+  // from/to 缺省参数 400 request.invalid；版本不存在/无权语义见 compareVersions
+  app.get('/:nsSlug/:slug/versions/compare', async (c) => {
+    const parsed = z
+      .object({
+        from: z.string().min(1).max(128),
+        to: z.string().min(1).max(128),
+      })
+      .safeParse(c.req.query());
+    if (!parsed.success) {
+      return c.json({ code: 'request.invalid', message: 'invalid compare params' }, 400);
+    }
+    const { ns, row } = await loadAssetBySlugs(db, c.req.param('nsSlug'), c.req.param('slug'));
+    const viewer = await assertAssetReadable(c, ns, row);
+    const files = await compareVersions(db, deps.storage, {
+      assetId: row.id,
+      ownerId: row.ownerId,
+      from: parsed.data.from,
+      to: parsed.data.to,
+      viewer,
+    });
+    return c.json({ files });
   });
 
   // GET /api/assets/{ns}/{slug}/versions/{version}（T14：版本详情——Q1 授权）
