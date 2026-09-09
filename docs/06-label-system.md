@@ -114,6 +114,8 @@ label 定义 CRUD + 批量排序：
 
 挂载/移除：`PUT/DELETE /api/assets/{namespace}/{slug}/labels/{labelSlug}` —— 按 §3 权限校验，
 层级无关。查询响应含 `parentId`（该 label 定义侧的层级归属，`null` = 一级）。
+**幂等**：重复挂已挂 label → 200 成功（不重复计数、不超上限判定）；移除不存在的挂载 → 204
+（DELETE 语义——RESTful 幂等；上限 ≤10 只对新增生效）。
 
 > API 路径前缀统一 `/api`（版本化前缀 `v1` 待 API 设计文档定）；§5 各路径为资源级示意。
 

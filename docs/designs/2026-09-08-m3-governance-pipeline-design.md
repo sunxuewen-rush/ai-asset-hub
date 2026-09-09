@@ -317,7 +317,8 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
   `label.limit_exceeded`（每资产 ≤10 挂载）/ `label.invalid_parent`（锁两级拒——parent 非一级/
   自指/一级降级/挂二级之下）/ `label.access_denied`（403——管理面非 SUPER_ADMIN 或 PRIVILEGED 挂载
   非超管——06 §3）/ `label.definition_limit_exceeded`（400——定义总数 ≤100——skillhub
-  max-definitions 同构）/ `label.translation.locale_duplicate`（400——同批翻译 locale 重复——D4）
+  max-definitions 同构）/ `label.translation.locale_duplicate`（400——同批翻译 locale 重复——D4）/
+  `label.translation.blank`（400——翻译入参空 locale/displayName——路由 zod 已拦的服务层防御——R2）
 
 认证装配沿用 M1（Bearer 显式优先 → session 回退）；错误格式 07 §4；审计动作全部埋点（新增面：
 asset.version_submit / review.approve / review.reject / review.withdraw / asset.version_yank /

@@ -1,7 +1,7 @@
 # M3 治理管线实现计划
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v0.2：T1-T15 全完成 + T16 收尾执行注——规范同步 00 v1.11/01 v1.6/05 v1.7/06 v1.3/08 v1.4 + 冒烟手册见 §6；v0.1：初稿——design v1.2 定稿后 Task 清单化）
+> Updated: 2026-09-09（v0.3：D1-D8 对标修正收尾注——label 域对齐 skillhub（06 v1.4/design v1.6）；v0.2：T1-T15 全完成 + T16 收尾执行注——规范同步 00 v1.11/01 v1.6/05 v1.7/08 v1.4 + 冒烟手册见 §6；v0.1：初稿——design v1.2 定稿后 Task 清单化）
 > Status: 定稿（2026-09-08：design v1.2 定稿后起草，用户评审批准；16 Task 按 §3 顺序执行——每 Task 完成 = 断言为真 + 18 维自检 ≥9 + 用户批准后 commit）
 > 引用链：本文档 → 设计 docs/designs/2026-09-08-m3-governance-pipeline-design.md（v1.2，§N 逐 Task 引用）→ 规范 00 §5 · 01 §3/§4 · 05 §5/§6 · 06 §1-§6 · 08 §5/§6/§7/§9（引用不复制，字段契约以规范与 design 为准）
 > 命名约定见 docs/plans/README.md
@@ -363,6 +363,7 @@ T10 → T11 → T12 → T13 → T14 → T15 → T16。
 |------|------|------|------|
 | v0.1 | 2026-09-08 | sunxuewen-rush | 初稿：M3 治理管线计划——design v1.2 定稿后 Task 清单化（板块 A-G 16 Task：八态迁移/扫描 SPI/review 域服务与读面/预览权重构/yank/删除面/标签/搜索/下载/scope/收尾） |
 | v0.2 | 2026-09-08 | sunxuewen-rush | 执行完成注记：T1-T15 全绿（server 514 tests + typecheck 0，M2 401 基线零回归）；T16 规范同步 5 文件 bump（00 v1.11 M3 行完成 / 01 v1.6 八态注 / 05 v1.7 审核管线+scope+运营注 / 06 v1.3 标签管线落地 / 08 v1.4 八态+列+WITHDRAWN）；M3 实现实证修复 M1 bug ×2（asset.latest_version_id / label.parent_id bigserial 误用——迁移 0002/0003）+ design 矛盾 1（R4/R6 withdraw 删行 vs version 递增 → WITHDRAWN 保留行方案）；冒烟手册 §6（分步 curl 验证——用户实跑）；仓级欠账注：lint 全绿不达（biome 默认规则 vs M1/M2 既有 `!` 断言风格 + 全仓 format 未归一——非 M3 引入，待独立 chore/M6 对齐 biome 配置） |
+| v0.3 | 2026-09-09 | sunxuewen-rush | 复盘修正收尾注：converge（scope owner 分支收窄全覆盖/下载限流 env 化/q 上限统一/audit 测试并发脆弱修复——design v1.5）+ label 对标 21-skillhub D1-D8（定义上限 env 化 LABEL_MAX_DEFINITIONS/管理面 slug 契约/翻译整组替换/locale 归一与预检/回退确定性/parent_id 索引 0004——06 v1.4/design v1.6）+ 二次复盘 R2 修正（blank 码 400 化——label.translation.blank）——520 tests 全绿 |
 
 ## 6. 冒烟手册（M3 手动验证——分步 curl，预期结果含）
 
