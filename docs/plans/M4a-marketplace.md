@@ -1,7 +1,7 @@
 # M4a 市场门户实现计划
 
 > Date: 2026-09-09
-> Updated: 2026-09-09（v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
+> Updated: 2026-09-09（v0.3：T7 完成回填——依赖版本入档 + commit hash；注记 I18nProvider 装配归 T8（i18n 层属 T8 交付物）。v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
 > Status: 执行中（已批准；板块 A 完成——T1-T6 全部 ✅ + commit；当前板块 B web 基座）
 > 引用链：本文档 → 设计 docs/designs/2026-09-09-m4a-marketplace-portal-design.md（v0.8，§N 逐 Task 引用）→ 规范 00 §5 · 02/03/04 族协议 · 05 §3.1 · 06 §2.3/§4 · 07 全 · 08 §5/§7（引用不复制，契约以 design v0.8 为准）
 > 命名约定见 docs/plans/README.md
@@ -108,6 +108,9 @@ storage.get(storageKey)（ObjectStorage.get → Buffer|Readable）零解压；`.
 ### 板块 B web 工程基座（design §3/§4）
 
 #### T7 基座装配：依赖 + 路由 + 代理 + 样式骨架
+✅ 完成（commit `d506125`；依赖版本入档——react-router-dom@7.18.3 / react-markdown@10.1.0 /
+remark-gfm@4.0.1（全自带 types 零 @types）；I18nProvider 装配归 T8——i18n 层（I18nProvider/
+useI18n/字典）为 T8 交付物，T7 引之须半份落地，故 main.tsx 的 Provider 包裹随 T8 补）
 - **Files**: Modify `apps/web/package.json`（+react-router-dom +react-markdown +remark-gfm——
   design §4.1 破例已批；类型 @types 按需）+ vite.config.ts（dev 代理 /api→3000）+
   main.tsx（BrowserRouter + 五路由占位 + I18nProvider）+ styles/tokens.css（design §4.4
