@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { I18nProvider } from './i18n/I18nProvider.js';
 import { AssetDetail } from './pages/AssetDetail';
 import { Center, type CenterType } from './pages/Center';
 import { Home } from './pages/Home';
@@ -21,14 +22,16 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
 
 createRoot(rootElement).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        {CENTER_ROUTES.map(({ path, type }) => (
-          <Route key={path} path={path} element={<Center type={type} />} />
-        ))}
-        <Route path="/assets/:nsSlug/:slug" element={<AssetDetail />} />
-      </Routes>
-    </BrowserRouter>
+    <I18nProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          {CENTER_ROUTES.map(({ path, type }) => (
+            <Route key={path} path={path} element={<Center type={type} />} />
+          ))}
+          <Route path="/assets/:nsSlug/:slug" element={<AssetDetail />} />
+        </Routes>
+      </BrowserRouter>
+    </I18nProvider>
   </StrictMode>,
 );
