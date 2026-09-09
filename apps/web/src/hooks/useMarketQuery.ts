@@ -7,6 +7,8 @@ export interface MarketQuery {
   /** 即时搜索草稿（输入框绑定值——回退/前进/分享还原时随 URL 同步） */
   q: string;
   setQ: (next: string) => void;
+  /** 已提交的 q（URL 现值）——列表拉取以此为准（防抖后写 URL 才发请求） */
+  committedQ: string;
   /** label 多值 OR（URL 重复 label= 参数；06/§5.1） */
   labels: readonly string[];
   toggleLabel: (label: string) => void;
@@ -79,5 +81,14 @@ export function useMarketQuery(): MarketQuery {
     commit(p);
   }
 
-  return { q: draft, setQ, labels: urlLabels, toggleLabel, clearLabels, page: urlPage, setPage };
+  return {
+    q: draft,
+    setQ,
+    committedQ: urlQ,
+    labels: urlLabels,
+    toggleLabel,
+    clearLabels,
+    page: urlPage,
+    setPage,
+  };
 }

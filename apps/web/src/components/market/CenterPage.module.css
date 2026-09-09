@@ -117,3 +117,24 @@
   color: var(--text-3);
   white-space: nowrap;
 }
+.resultHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 0 2px;
+}
+.total {
+  font-size: var(--fs-13);
+  color: var(--text-2);
+}
+.sort {
+  margin-left: auto;
+  font-size: var(--fs-12-5);
+  color: var(--text-3);
+}
+.stateBox {
+  display: flex;
+  justify-content: center;
+  padding: 56px 0;
+}
