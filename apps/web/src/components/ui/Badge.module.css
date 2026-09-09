@@ -1,0 +1,39 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-10-5);
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.mono {
+  font-family: var(--font-mono);
+}
+/* demo pill 色系：浅底深字 + 同色边框 */
+.success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.info {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--brand);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+.warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--ct-mod);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+.danger {
+  background: rgba(225, 29, 72, 0.1);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.2);
+}
+.neutral {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-3);
+  border: 1px solid transparent;
+}

@@ -1,0 +1,33 @@
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 0 4px;
+}
+.pager button {
+  font-family: inherit;
+  font-size: var(--fs-12-5);
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  border: 1px solid var(--line-soft);
+}
+.pager button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pager button.next {
+  background: var(--grad-brand);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+.pager .page {
+  font-size: var(--fs-12-5);
+  color: var(--text-3);
+  font-weight: 600;
+}
