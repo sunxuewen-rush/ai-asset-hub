@@ -1,7 +1,7 @@
 # M4a 市场门户实现计划
 
 > Date: 2026-09-09
-> Updated: 2026-09-09（v0.13：T17 完成回填——commit hash + 板块 E（T14-T17）全部 ✅；diff 12 断言（徽章三态/统计/前缀/YANKED 预拦截/单版本空态）+ 修复录（pair 归一纯函数化/行 key 去 index/label 关联）。v0.12：T16 完成回填——commit hash；文件树/预览对话框 15 断言 + 修复录（macOS 大小写 FS 冲突/遮罩 button 化）。v0.11：T15 完成回填——commit hash；总览分型探测/md 渲染/摘要过滤断言 + manifestFields 数组过滤 bug 修复。v0.10：T14 完成回填——commit hash；详情壳两波编排 + tab 语义 SSR 断言。v0.9：T13 完成回填——commit hash；卡/筛选 SSR 断言 + curl 契约实测（type/q/label 参数名）。v0.8：T12 完成回填——commit hash；三中心参数化 SSR 冒烟 9 断言（type 注入矩阵 + URL q 还原）。v0.7：T11 完成回填——commit hash；首页 SSR 冒烟 12 断言（zh/en 双语）。v0.6：T10 完成回填——commit hash + 板块 B（T7-T10）全部 ✅；SSR 冒烟 12 断言留证。v0.5：T9 完成回填——commit hash；原子组件 SSR 冒烟 17 断言留证。v0.4：T8 完成回填——commit hash + compare.ts 建文件注记（§4.2 树对齐，plan Files 未列）；T6 漂移注记（from=to 实测 200 空 files——测试为真相，非 plan 所写 400；version_compare_invalid 未落地）。v0.3：T7 完成回填——依赖版本入档 + commit hash；注记 I18nProvider 装配归 T8（i18n 层属 T8 交付物）。v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
+> Updated: 2026-09-09（v0.14：T18 完成回填——commit `83be7f6` fix(web) useApi StrictMode abort 守卫（真 bug：React 19 dev 双跑 effect + cleanup 即 abort → 双跑第二波全 AbortError；页内 fetch 包装实证 + StrictMode 摘除对照——修复改 alive 守卫兜底）+ `2fbc303` chore(server) biome 格式/lint 债全清（41 文件排版 + 20 处断言机械守卫改写——turbo 缓存掩盖的存量债；538 tests 全绿 + 真实链复验证语义零变）；联调记录 docs/smoke/2026-09-09-m4a-t18.md（seed 直插 2 资产 3 版本 + 全链 29/29 + Edge headless dogfood 26/26 零 console 错 + 截图 6 张入档）。v0.13：T17 完成回填——commit hash + 板块 E（T14-T17）全部 ✅；diff 12 断言（徽章三态/统计/前缀/YANKED 预拦截/单版本空态）+ 修复录（pair 归一纯函数化/行 key 去 index/label 关联）。v0.12：T16 完成回填——commit hash；文件树/预览对话框 15 断言 + 修复录（macOS 大小写 FS 冲突/遮罩 button 化）。v0.11：T15 完成回填——commit hash；总览分型探测/md 渲染/摘要过滤断言 + manifestFields 数组过滤 bug 修复。v0.10：T14 完成回填——commit hash；详情壳两波编排 + tab 语义 SSR 断言。v0.9：T13 完成回填——commit hash；卡/筛选 SSR 断言 + curl 契约实测（type/q/label 参数名）。v0.8：T12 完成回填——commit hash；三中心参数化 SSR 冒烟 9 断言（type 注入矩阵 + URL q 还原）。v0.7：T11 完成回填——commit hash；首页 SSR 冒烟 12 断言（zh/en 双语）。v0.6：T10 完成回填——commit hash + 板块 B（T7-T10）全部 ✅；SSR 冒烟 12 断言留证。v0.5：T9 完成回填——commit hash；原子组件 SSR 冒烟 17 断言留证。v0.4：T8 完成回填——commit hash + compare.ts 建文件注记（§4.2 树对齐，plan Files 未列）；T6 漂移注记（from=to 实测 200 空 files——测试为真相，非 plan 所写 400；version_compare_invalid 未落地）。v0.3：T7 完成回填——依赖版本入档 + commit hash；注记 I18nProvider 装配归 T8（i18n 层属 T8 交付物）。v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
 > Status: 执行中（已批准；板块 A 完成——T1-T6 全部 ✅ + commit；板块 B 完成——T7-T10 全部 ✅ + commit；当前板块 C 首页）
 > 引用链：本文档 → 设计 docs/designs/2026-09-09-m4a-marketplace-portal-design.md（v0.8，§N 逐 Task 引用）→ 规范 00 §5 · 02/03/04 族协议 · 05 §3.1 · 06 §2.3/§4 · 07 全 · 08 §5/§7（引用不复制，契约以 design v0.8 为准）
 > 命名约定见 docs/plans/README.md
@@ -242,6 +242,9 @@ binary/truncated 提示）+ market/detail/FilesTab.tsx 编排（已拉缓存—�
 ### 板块 F 联调与收尾
 
 #### T18 联调冒烟（design §5 契约全链）
+✅ 完成（commit `83be7f6` + `2fbc303`；记录 docs/smoke/2026-09-09-m4a-t18.md——seed 直插 2 资产
+3 版本（skill 双版本三型 diff + mcp 单版本）+ 契约全链 29/29 + Edge headless dogfood 26/26
+零 console 错 + 截图 6 张；真 bug 修复：useApi StrictMode abort 竞态（React 19 dev 双跑 effect））
 - **Files**: 起 dev db + server（M3 冒烟资产沿用或补 seed——匿名可见资产）+ web dev；
   冒烟断言：匿名 labels/assets(q+label)/详情/版本/文件内容/compare/stats/download 全链 200
   形状对齐 §5.2；web 五路由 dogfood 走查（首页统计/中心筛选网格/详情三 tab/下载）——
