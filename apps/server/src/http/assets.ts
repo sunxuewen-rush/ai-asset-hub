@@ -69,6 +69,10 @@ const listQuerySchema = z.object({
   nsSlug: z.string().trim().min(1).max(64).optional(),
   type: assetTypeSchema.optional(),
   visibility: visibilitySchema.optional(),
+  /** T12 全文检索（design §6 R12） */
+  q: z.string().trim().min(1).max(200).optional(),
+  /** T12 label 多值 OR（06 §4——?label=a&label=b；上限 20 防滥用） */
+  label: z.array(z.string().trim().min(1).max(64)).max(20).optional(),
 });
 
 /** 版本列表分页（T14——独立小 schema：无 ns/type 过滤） */
@@ -252,11 +256,12 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   app.get('/', requireAuth(), async (c) => {
     const principal = c.get('principal')!;
     const rbac = c.get('rbac')!;
-    const parsed = listQuerySchema.safeParse(c.req.query());
+    const query = c.req.query();
+    const parsed = listQuerySchema.safeParse({ ...query, label: c.req.queries('label') ?? undefined });
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
-    const { limit, offset, nsSlug, type, visibility } = parsed.data;
+    const { limit, offset, nsSlug, type, visibility, q, label } = parsed.data;
     const platformRoles = await rbac.platformRolesOf(principal.userId);
 
     const { items, total } = await listViewableAssets(db, {
@@ -265,6 +270,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       namespaceSlug: nsSlug,
       type,
       visibility,
+      q,
+      labelSlugs: label,
       viewer: { userId: principal.userId, isSuperAdmin: platformRoles.includes('SUPER_ADMIN') },
     });
     return c.json({ items: items.map((i) => assetItem(i, i.namespaceSlug)), total, limit, offset });

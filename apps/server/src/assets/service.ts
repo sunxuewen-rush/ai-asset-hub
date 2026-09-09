@@ -3,10 +3,13 @@
  * 校验职责分层：入参格式（slug/type/visibility）由路由层 zod body schema 把关
  * （复用 protocol slugSchema / schema 枚举）；本层做坐标寻址与冲突判定。
  */
-import { and, count, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, count, eq, exists, ilike, inArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
   asset,
+  assetLabel,
+  assetVersion,
+  labelDefinition,
   namespace,
   namespaceMember,
   type AssetType,
@@ -36,6 +39,10 @@ export interface ListAssetsOptions {
   namespaceSlug?: string;
   type?: AssetType;
   visibility?: Visibility;
+  /** 全文检索（T12——design §6 R12：slug ILIKE ∪ 版本投影 name/description/searchText——01 §3.2） */
+  q?: string;
+  /** label 多值 OR（06 §4——命中挂载任一 label 即命中；slug 入参，服务层解 id） */
+  labelSlugs?: string[];
 }
 
 /** 读面浏览上下文（T3 列表端点：requireAuth 后必有 userId；超管短路全可见） */
@@ -179,6 +186,51 @@ export async function listViewableAssets(
   if (opts.type !== undefined) conditions.push(eq(asset.type, opts.type));
   if (opts.visibility !== undefined) conditions.push(eq(asset.visibility, opts.visibility));
 
+  // T12 全文检索（design §6 R12）：q 命中 slug 或任一版本的投影字段
+  // （parsed_metadata_json → name/description/searchText——01 §3.2 投影落 jsonb）
+  const q = opts.q?.trim().slice(0, 100);
+  if (q && q.length > 0) {
+    const pattern = `%${q}%`;
+    conditions.push(
+      or(
+        ilike(asset.slug, pattern),
+        exists(
+          db
+            .select({ id: assetVersion.id })
+            .from(assetVersion)
+            .where(
+              and(
+                eq(assetVersion.assetId, asset.id),
+                or(
+                  ilike(sql`${assetVersion.parsedMetadataJson}->>'name'`, pattern),
+                  ilike(sql`${assetVersion.parsedMetadataJson}->>'description'`, pattern),
+                  ilike(sql`${assetVersion.parsedMetadataJson}->>'searchText'`, pattern),
+                )!,
+              ),
+            ),
+        ),
+      )!,
+    );
+  }
+
+  // T12 label 多值 OR（06 §4——挂载任一即命中；slug → id 解析；全不存在 → 视为无筛选不报错）
+  if (opts.labelSlugs && opts.labelSlugs.length > 0) {
+    const labelRows = await db
+      .select({ id: labelDefinition.id })
+      .from(labelDefinition)
+      .where(inArray(labelDefinition.slug, opts.labelSlugs));
+    if (labelRows.length > 0) {
+      conditions.push(
+        exists(
+          db
+            .select({ id: assetLabel.id })
+            .from(assetLabel)
+            .where(and(eq(assetLabel.assetId, asset.id), inArray(assetLabel.labelId, labelRows.map((l) => l.id)))),
+        ),
+      );
+    }
+  }
+
   if (!opts.viewer.isSuperAdmin) {
     const viewerId = opts.viewer.userId;
     const memberNs = myNamespaceIdsSubquery(db, viewerId);
@@ -206,7 +258,8 @@ export async function listViewableAssets(
     .from(asset)
     .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
     .where(where)
-    .orderBy(sql`${asset.createdAt} desc, ${asset.id} desc`)
+    // T12 排序 updated_at desc（design §6 R12——最近更新优先；id desc 破平）
+    .orderBy(sql`${asset.updatedAt} desc, ${asset.id} desc`)
     .limit(opts.limit)
     .offset(opts.offset);
   return {

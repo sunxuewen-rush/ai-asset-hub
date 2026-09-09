@@ -57,7 +57,8 @@ export async function yankVersion(
       .orderBy(desc(assetVersion.publishedAt), desc(assetVersion.createdAt), desc(assetVersion.id))
       .limit(1);
     const nextLatest = remaining[0]?.id ?? null;
-    await tx.update(asset).set({ latestVersionId: nextLatest }).where(eq(asset.id, assetId));
+    // updatedAt 同步 bump（T12 排序语义——撤回属内容状态更新）
+    await tx.update(asset).set({ latestVersionId: nextLatest, updatedAt: new Date() }).where(eq(asset.id, assetId));
     return nextLatest;
   });
 

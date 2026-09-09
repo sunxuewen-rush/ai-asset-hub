@@ -200,9 +200,10 @@ export async function approveReview(
       .where(eq(assetVersion.id, task.versionId));
 
     // latest 指针：发布时序即最新（yank 时重算——T8）
+    // updatedAt 同步 bump：资产活跃序（T12 搜索排序 updated_at desc——发布=内容更新核心）
     await tx
       .update(asset)
-      .set({ latestVersionId: task.versionId })
+      .set({ latestVersionId: task.versionId, updatedAt: new Date() })
       .where(eq(asset.id, task.assetId));
   });
 
