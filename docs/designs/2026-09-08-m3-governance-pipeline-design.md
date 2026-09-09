@@ -1,8 +1,8 @@
 # M3 治理管线设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.4：T8 实现同步——version_not_yankable/yank_reason_required 补入错误码表（skillhub YankRequest 实证）；v1.3：T5 同步 access_denied；v1.2：Q1-Q3 拍板；v1.1：G8-G10 + 8 维 9.1；v1.0：R1-R15，见修订记录）
-> Status: 定稿（2026-09-08：R1-R15 + grilling G1-G10/Q1-Q3 + 8 维自检 9.1；v1.3/v1.4 实现同步补码——v1.4）
+> Updated: 2026-09-08（v1.5：converge 修正——§3.5 R6/§9 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板——08 §6 重审递增契约优先于 skillhub 删行简化）；v1.4：T8 实现同步——version_not_yankable/yank_reason_required 补入错误码表（skillhub YankRequest 实证）；v1.3：T5 同步 access_denied；v1.2：Q1-Q3 拍板；v1.1：G8-G10 + 8 维 9.1；v1.0：R1-R15，见修订记录）
+> Status: 定稿（2026-09-08：R1-R15 + grilling G1-G10/Q1-Q3 + 8 维自检 9.1；v1.3-v1.5 实现同步 + converge 重评 ≥9——v1.5）
 > Scope: M3 治理管线（00 §5）——SCANNING→PUBLISHED 六态推进（扫描/审核/发布）+ 已发布资产治理 + 标签管线 + 搜索 + 下载/统计 + API Token scope 过滤
 > 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）skillhub-domain/skillhub-app/skillhub-auth 源码级核对：SkillVersionStatus（八态 enum）· ReviewService / ReviewPortalAppService（提交/审核/撤回）· SkillGovernanceService（yank/withdraw/deleteVersion）· ApiTokenScopeService / RouteSecurityPolicyRegistry（scope 过滤）· 14-skill-lifecycle.md（状态语义参考——**发现文档-代码漂移：withdraw 文档写 PENDING_REVIEW→DRAFT，代码实际 →UPLOADED，以代码为准**）
 > 引用链：本文档 → 规范 00 §2/§5/§7 · 01 §3/§4/§5 · 05 §5/§6 · 06 §1-§6 · 08 §2/§5/§6/§7/§9（引用不复制，字段与规则以规范为准）
@@ -112,8 +112,10 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
 ### 3.5 撤回提审（R6）
 
 - withdraw：`PENDING_REVIEW → UPLOADED`（skillhub 代码实证——14 文档写 DRAFT 是漂移，以代码
-  为准；UPLOADED = 「包可下载但未进审核」中间带，与 AIH 六态语义精确吻合）+ 删 PENDING
-  review_task 行。
+  为准；UPLOADED = 「包可下载但未进审核」中间带，与 AIH 六态语义精确吻合）+ review_task
+  **保留行置 WITHDRAWN**（converge 修正——T4 实现拍板：初版按 skillhub 删 PENDING 行，但删行会
+  清空历史导致 08 §6「重审计数递增」（依赖历史行 max）落空——AIH 自有契约优先，改保留行置
+  WITHDRAWN 四态（zod 加值零 DB 迁移）；部分唯一索引仍只锁 PENDING 防并发双待审；审核留档增强）。
 - 权限：提交人本人（skillhub 同构：withdraw-review 仅提交人）+ asset owner + 空间 ADMIN/OWNER
   （管理面可撤空间内任意待审——防提交人失联卡队列；withdraw 非破坏可逆，管理面宽放无碍）。
 
@@ -205,7 +207,8 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
 - 形态：**PG 内实现**，不引外部索引（skillhub 独立 skillhub-search 模块是重索引架构——
   AIH 自托管轻量定位下的有意裁剪：searchText ≤500 的规模 PG 足够；查询收在服务层，将来可替换
   索引不动 API）。
-- `GET /api/assets` 扩展参数：`q`（name/description/searchText 三字段 ILIKE %q%，q ≤ 128 字符）、
+- `GET /api/assets` 扩展参数：`q`（name/description/searchText 三字段 ILIKE %q%，q 超长截断至
+  100 字符——schema max(100) 防滥用）、
   `label`（多值 OR——06 §4「选中节点 + 全部后代」展开由前端合并传多值，后端接收 slug 数组做
   asset_label join inArray 命中任一即中）。既有 nsSlug/type/visibility 过滤保留（and() 组合——
   drizzle 条件组合铁律）。分页 limit/offset 沿用。排序：`updated_at desc`（默认，保持简单；
@@ -280,7 +283,7 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
 | GET /api/reviews/mine | 登录 | 我的提交（状态过滤） |
 | POST /api/reviews/{id}/approve | review:approve + 防自审 | → PUBLISHED + latest 更新；comment 可空 |
 | POST /api/reviews/{id}/reject | review:approve + 防自审 | → REJECTED；comment 必填 |
-| POST /api/reviews/{id}/withdraw | 提交人本人/owner/空间 ADMIN+（R6） | PENDING_REVIEW → UPLOADED；删 PENDING 任务 |
+| POST /api/reviews/{id}/withdraw | 提交人本人/owner/空间 ADMIN+（R6） | PENDING_REVIEW → UPLOADED；review_task 保留行置 WITHDRAWN（留档保重审 version 递增） |
 | POST /api/assets/{ns}/{slug}/versions/{version}/yank | ASSET_ADMIN/SUPER_ADMIN（05 §6.4） | PUBLISHED → YANKED；reason 必填；latest 重算 |
 | GET /api/assets/{ns}/{slug}/versions/{version}/download | 按版本状态+资产可见性（R13） | zip 流出/直链；计数；限流 |
 | DELETE /api/assets/{ns}/{slug}（条件升级） | canManageAsset | 增 YANKED 检查（R10：`asset.has_yanked` 400） |
@@ -401,6 +404,7 @@ Bearer token ──► tokenAuthMiddleware 读 token.scope
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.5 | 2026-09-08 | sunxuewen-rush | converge 修正：§3.5 R6 与 §9 接口表 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板方案 A——08 §6 review version 递增契约（历史行 max）优先于 skillhub 删行简化；zod 四态零 DB 迁移；部分唯一索引仍只锁 PENDING；审核历史留档增强——对齐代码 review/service.ts withdrawReview 与 08 §6 v1.4） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | T8 实现同步：asset.version_not_yankable / asset.yank_reason_required 补入 §9 错误码表（yank 非 PUBLISHED 拒 + reason 必填——skillhub YankRequest 实证） |
 | v1.3 | 2026-09-08 | sunxuewen-rush | T5 实现同步：review.access_denied（403——审核详情/队列越权可见；skillhub review.no_permission 源码实证对齐）补入 §9 错误码表 |
 | v1.2 | 2026-09-08 | sunxuewen-rush | grilling 用户轮 Q1-Q3 拍板：审核运营模型确认（单人自托管 SUPER_ADMIN 例外闭环/互审团队空间 ≥2 ADMIN 级——05 同步项补运营注记）；label 不预置种子（运营数据）；asset.bundle_missing 防御码入错误码表 |
