@@ -1,0 +1,143 @@
+.nav {
+  width: 204px;
+  flex-shrink: 0;
+  margin: 16px 0 16px 10px;
+  border-radius: 18px;
+  padding: 16px 12px;
+  position: sticky;
+  top: calc(var(--topbar-h) + 16px);
+  height: calc(100vh - var(--topbar-h) - 32px);
+  display: flex;
+  flex-direction: column;
+}
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 3px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.item:hover {
+  background: var(--tint-row);
+  color: var(--ink);
+}
+.item.active {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.13), rgba(6, 182, 212, 0.07));
+  color: var(--brand);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+.ic {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: rgba(148, 163, 184, 0.14);
+  flex-shrink: 0;
+}
+/* 类型色 icon 衬底（skill 蓝 / mcp 青 / agent 紫——§4.4） */
+.item.t-skill .ic {
+  background: var(--tint-skill);
+  color: var(--c-skill);
+}
+.item.t-mcp .ic {
+  background: var(--tint-mcp);
+  color: var(--c-mcp);
+}
+.item.t-agent .ic {
+  background: var(--tint-agent);
+  color: var(--c-agent);
+}
+/* 激活：渐变实底白图标（demo nav-item.active .ic） */
+.item.active .ic {
+  background: var(--grad-brand);
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+}
+.item.active.t-mcp .ic {
+  background: var(--grad-mcp);
+  box-shadow: 0 3px 8px rgba(8, 145, 178, 0.3);
+}
+.item.active.t-agent .ic {
+  background: var(--grad-agent);
+  box-shadow: 0 3px 8px rgba(124, 58, 237, 0.3);
+}
+.labels {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.en {
+  font-size: 10px;
+  color: var(--text-3);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+}
+.cnt {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.foot {
+  margin-top: auto;
+  border-top: 1px solid rgba(37, 99, 235, 0.1);
+  padding-top: 14px;
+}
+.gh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 10px;
+  padding: 7px 0;
+  text-decoration: none;
+  margin-bottom: 10px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.gh:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  color: var(--brand);
+}
+.star {
+  color: #f59e0b;
+}
+.footLinks {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+.ver {
+  font-size: 10.5px;
+  color: var(--text-3);
+  text-align: center;
+  font-family: var(--font-mono);
+}
