@@ -4,6 +4,7 @@ import { fetchAssetDetail } from '../api/assets.js';
 import type { AssetType } from '../api/types.js';
 import { fetchVersionDetail, fetchVersionList } from '../api/versions.js';
 import { type DetailTab, DetailTabs } from '../components/market/detail/DetailTabs.js';
+import { OverviewTab } from '../components/market/detail/OverviewTab.js';
 import { compactCount, formatDate, ownerText } from '../components/market/format.js';
 import { Badge } from '../components/ui/Badge.js';
 import { ErrorState } from '../components/ui/ErrorState.js';
@@ -22,10 +23,10 @@ const CENTER_TITLE_KEY: Record<
   agent: 'centerTitleAgents',
 };
 
-/** 各 tab 面板——T15-T17 逐 tab 替换（当前占位防空白） */
+/** files/versions tab 占位——T16/T17 替换（防空白；overview 键为类型完整性占位不被调用） */
 function panePlaceholder(tab: DetailTab) {
   const notes: Record<DetailTab, string> = {
-    overview: '总览 tab：skill.md 正文渲染（T15 落地）',
+    overview: '',
     files: '文件 tab：折叠树 + 预览对话框（T16 落地）',
     versions: '版本 tab：历史 + 行级对比（T17 落地）',
   };
@@ -85,6 +86,25 @@ export function AssetDetail() {
   const centerPath = CENTER_OF[detail.type];
   const labelTitle = t('market', CENTER_TITLE_KEY[detail.type]);
 
+  /** tab 面板注入（总览 = 波 2 latest 详情消费——G7 主文档/摘要回退；files/versions 待 T16/T17） */
+  const renderPane = (tab: DetailTab) => {
+    if (tab === 'overview') {
+      if (!latestVersion) return <p className={styles.paneNote}>—</p>;
+      return (
+        <OverviewTab
+          type={detail.type}
+          nsSlug={nsSlug}
+          slug={slug}
+          version={latestVersion}
+          files={latestState.data?.files ?? []}
+          manifest={latestState.data?.manifestJson ?? null}
+          changelog={latestState.data?.changelog}
+        />
+      );
+    }
+    return panePlaceholder(tab);
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.crumb}>
@@ -115,7 +135,7 @@ export function AssetDetail() {
 
       <div className={styles.body}>
         <div className={styles.main}>
-          <DetailTabs renderPane={panePlaceholder} />
+          <DetailTabs renderPane={renderPane} />
         </div>
         <aside className={styles.side}>
           <div className={`glass ${styles.panel} ${styles.dlCard}`}>

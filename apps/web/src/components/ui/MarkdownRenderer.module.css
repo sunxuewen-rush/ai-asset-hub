@@ -1,0 +1,93 @@
+.body {
+  font-size: var(--fs-13-5);
+  line-height: 1.8;
+  color: var(--ink);
+}
+.body :global(h1) {
+  font-size: var(--fs-19);
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin: 4px 0 10px;
+}
+.body :global(h2) {
+  font-size: var(--fs-15);
+  font-weight: 700;
+  margin: 16px 0 6px;
+}
+.body :global(h3) {
+  font-size: var(--fs-14);
+  font-weight: 700;
+  margin: 12px 0 4px;
+}
+.body :global(p) {
+  margin: 6px 0;
+  color: var(--text-2);
+}
+.body :global(ul),
+.body :global(ol) {
+  margin: 6px 0 6px 2px;
+  padding-left: 18px;
+  color: var(--text-2);
+}
+.body :global(li) {
+  margin: 3px 0;
+}
+.body :global(code) {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--md-code-bg);
+  border: 1px solid var(--md-code-border);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+.body :global(pre) {
+  background: var(--md-pre-bg);
+  color: var(--md-pre-fg);
+  padding: 12px 14px;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 8px 0;
+  font-family: var(--font-mono);
+}
+.body :global(pre code) {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+.body :global(blockquote) {
+  border-left: 3px solid var(--md-quote-border);
+  background: var(--md-quote-bg);
+  padding: 6px 12px;
+  margin: 8px 0;
+  border-radius: 0 8px 8px 0;
+  color: var(--text-2);
+}
+/* GFM 表格（remark-gfm——§4.1） */
+.body :global(table) {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: var(--fs-12-5);
+  display: block;
+  overflow-x: auto;
+}
+.body :global(th),
+.body :global(td) {
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  padding: 5px 12px;
+  text-align: left;
+}
+.body :global(th) {
+  background: rgba(37, 99, 235, 0.05);
+  font-weight: 600;
+}
+.body :global(hr) {
+  border: none;
+  border-top: 1px solid var(--line-faint);
+  margin: 12px 0;
+}
+.body :global(a) {
+  color: var(--brand);
+}
