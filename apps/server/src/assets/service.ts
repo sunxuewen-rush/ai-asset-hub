@@ -12,6 +12,7 @@ import {
   labelDefinition,
   namespace,
   namespaceMember,
+  userAccount,
   type AssetType,
   type NamespaceRole,
   type Visibility,
@@ -49,6 +50,57 @@ export interface ListAssetsOptions {
 export interface AssetViewerContext {
   userId: string | null;
   isSuperAdmin: boolean;
+}
+
+/** assetItem 增强投影（M4a R5/R6：latest 版本展示 + owner 显示名——批注入防 N+1） */
+export interface AssetItemMeta {
+  latestVersion: string | null;
+  latestName: string | null;
+  latestDescription: string | null;
+  ownerDisplayName: string | null;
+}
+
+/**
+ * 批加载资产展示元数据（R5/R6）：latest 版本投影（parsed_metadata_json
+ * name/description——01 §3.2）+ owner 显示名（user_account.displayName）。
+ * 两条 inArray 查询防 N+1；缺失（无版本/owner 已删）→ null 字段。
+ */
+export async function loadAssetItemMeta(
+  db: Db,
+  assets: Array<{ id: number; ownerId: string; latestVersionId: number | null }>,
+): Promise<Map<number, AssetItemMeta>> {
+  const map = new Map<number, AssetItemMeta>();
+  for (const a of assets) {
+    map.set(a.id, { latestVersion: null, latestName: null, latestDescription: null, ownerDisplayName: null });
+  }
+  const ownerIds = [...new Set(assets.map((a) => a.ownerId))];
+  if (ownerIds.length > 0) {
+    const users = await db
+      .select({ id: userAccount.id, displayName: userAccount.displayName })
+      .from(userAccount)
+      .where(inArray(userAccount.id, ownerIds));
+    const byId = new Map(users.map((u) => [u.id, u.displayName]));
+    for (const a of assets) map.get(a.id)!.ownerDisplayName = byId.get(a.ownerId) ?? null;
+  }
+  const versionIds = assets.map((a) => a.latestVersionId).filter((v): v is number => v !== null);
+  if (versionIds.length > 0) {
+    const vRows = await db
+      .select({ id: assetVersion.id, version: assetVersion.version, meta: assetVersion.parsedMetadataJson })
+      .from(assetVersion)
+      .where(inArray(assetVersion.id, versionIds));
+    const byId = new Map(vRows.map((r) => [r.id, r]));
+    for (const a of assets) {
+      if (a.latestVersionId === null) continue;
+      const v = byId.get(a.latestVersionId);
+      if (!v) continue;
+      const meta = map.get(a.id)!;
+      meta.latestVersion = v.version;
+      const m = (v.meta ?? {}) as Record<string, unknown>;
+      meta.latestName = typeof m.name === 'string' ? m.name : null;
+      meta.latestDescription = typeof m.description === 'string' ? m.description : null;
+    }
+  }
+  return map;
 }
 
 /** namespace 按 slug 寻址（坐标第一跳；不存在 → 404） */

@@ -473,6 +473,57 @@ describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () =>
   });
 });
 
+describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', () => {
+  it('详情：PUBLISHED latest 投影 + owner 显示名（匿名可读）', async () => {
+    const [a] = await db
+      .insert(asset)
+      .values({ namespaceId: nsA, slug: 'ast-meta-proj', type: 'skill', ownerId: member, visibility: 'PUBLIC' })
+      .returning({ id: asset.id });
+    const [v] = await db
+      .insert(assetVersion)
+      .values({
+        assetId: a!.id,
+        version: '2.1.0',
+        status: 'PUBLISHED',
+        createdBy: member,
+        publishedAt: new Date(),
+        parsedMetadataJson: { name: 'Meta 投影技能', description: 'R5 断言描述' } as never,
+      })
+      .returning({ id: assetVersion.id });
+    await db.update(asset).set({ latestVersionId: v!.id }).where(eq(asset.id, a!.id));
+
+    const res = await getReq('/api/assets/ast-http-ns/ast-meta-proj'); // 匿名（PUBLIC）
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.latestVersion).toBe('2.1.0');
+    expect(body.latestName).toBe('Meta 投影技能');
+    expect(body.latestDescription).toBe('R5 断言描述');
+    expect(body.ownerDisplayName).toBe('ast-member'); // makeUser displayName = ast-member
+    expect(body.ownerId).toBe(member); // ownerId 保留（前端工号拼装）
+  });
+
+  it('列表：批注入字段与详情一致（防 N+1 同语义）', async () => {
+    const res = await getReq('/api/assets?nsSlug=ast-http-ns&type=skill'); // 匿名
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: Array<{ slug: string; latestVersion: string | null; latestName: string | null; ownerDisplayName: string | null }> };
+    const item = body.items.find((i) => i.slug === 'ast-meta-proj');
+    expect(item).toBeDefined();
+    expect(item!.latestVersion).toBe('2.1.0');
+    expect(item!.latestName).toBe('Meta 投影技能');
+    expect(item!.ownerDisplayName).toBe('ast-member');
+  });
+
+  it('无版本资产：R5 字段 null（形状稳定）；owner 名仍返回', async () => {
+    const res = await getReq('/api/assets/ast-http-ns/ast-pub-skill'); // seed 无版本
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.latestVersion).toBeNull();
+    expect(body.latestName).toBeNull();
+    expect(body.latestDescription).toBeNull();
+    expect(body.ownerDisplayName).toBe('ast-member'); // owner 名不依赖版本
+  });
+});
+
 describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManageAsset）', () => {
   it('owner 改 visibility 200 + 审计行（Q3）', async () => {
     const res = await jsonRequest(

@@ -23,6 +23,8 @@ import {
   findNamespaceBySlug,
   getAsset,
   listViewableAssets,
+  loadAssetItemMeta,
+  type AssetItemMeta,
   type AssetRow,
   type AssetViewerContext,
 } from '../assets/service.js';
@@ -113,8 +115,9 @@ const changelogFieldSchema = z.string().max(4096).optional();
 /** PATCH /:ns/:slug/status body（状态治理——05 §6.4 asset:manage） */
 const statusBodySchema = z.object({ status: assetStatusSchema });
 
-/** 序列化响应形状（详情/注册/列表共用；坐标回显自足——含 namespaceSlug） */
-function assetItem(row: AssetRow, namespaceSlug: string) {
+/** 序列化响应形状（详情/注册/列表共用；坐标回显自足——含 namespaceSlug）。
+ * M4a R5/R6：meta（latest 版本投影 + owner 显示名）为可选注入——缺省（注册场景）字段 null。 */
+function assetItem(row: AssetRow, namespaceSlug: string, meta?: AssetItemMeta | null) {
   return {
     id: row.id,
     namespaceId: row.namespaceId,
@@ -126,6 +129,12 @@ function assetItem(row: AssetRow, namespaceSlug: string) {
     ownerId: row.ownerId,
     /** 当前版本指针（M3 起 approve/yank 维护——详情暴露供消费者取 latest） */
     latestVersionId: row.latestVersionId,
+    /** R5：latest 版本展示投影（latest_version join——批注入防 N+1） */
+    latestVersion: meta?.latestVersion ?? null,
+    latestName: meta?.latestName ?? null,
+    latestDescription: meta?.latestDescription ?? null,
+    /** R6：owner 显示名（user_account.displayName——LDAP 建号同步 05 §3.1） */
+    ownerDisplayName: meta?.ownerDisplayName ?? null,
     downloadCount: row.downloadCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -294,7 +303,14 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       labelSlugs: label,
       viewer,
     });
-    return c.json({ items: items.map((i) => assetItem(i, i.namespaceSlug)), total, limit, offset });
+    // R5/R6：批注入 latest 版本投影 + owner 显示名（两条 inArray 防 N+1）
+    const metas = await loadAssetItemMeta(db, items);
+    return c.json({
+      items: items.map((i) => assetItem(i, i.namespaceSlug, metas.get(i.id))),
+      total,
+      limit,
+      offset,
+    });
   });
 
   // GET /api/assets/{ns}/{slug}（T3：详情——PUBLIC 匿名可读）
@@ -309,7 +325,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     await assertAssetReadable(c, ns, row); // 读面 403/404 分层（design §7）
     // 详情补 labels[]（06 §5.3——挂载 slug 列表；列表项不含）
     const labels = await labelsOfAsset(db, row.id);
-    return c.json({ ...assetItem(row, nsSlug), labels });
+    // R5/R6：latest 版本投影 + owner 显示名（详情单行也走批函数——同一语义）
+    const metaMap = await loadAssetItemMeta(db, [row]);
+    return c.json({ ...assetItem(row, nsSlug, metaMap.get(row.id)), labels });
   });
 
   // GET /api/assets/{ns}/{slug}/versions（T14：版本列表——Q1 DRAFT 授权过滤）
