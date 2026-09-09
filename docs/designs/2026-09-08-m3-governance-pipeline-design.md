@@ -1,8 +1,8 @@
 # M3 治理管线设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.5：converge 修正——§3.5 R6/§9 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板——08 §6 重审递增契约优先于 skillhub 删行简化）；v1.4：T8 实现同步——version_not_yankable/yank_reason_required 补入错误码表（skillhub YankRequest 实证）；v1.3：T5 同步 access_denied；v1.2：Q1-Q3 拍板；v1.1：G8-G10 + 8 维 9.1；v1.0：R1-R15，见修订记录）
-> Status: 定稿（2026-09-08：R1-R15 + grilling G1-G10/Q1-Q3 + 8 维自检 9.1；v1.3-v1.5 实现同步 + converge 重评 ≥9——v1.5）
+> Updated: 2026-09-08（v1.6：复盘对标修正 label D1-D8；v1.5：converge 修正——§3.5 R6/§9 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板——08 §6 重审递增契约优先于 skillhub 删行简化）；v1.4：T8 实现同步——version_not_yankable/yank_reason_required 补入错误码表（skillhub YankRequest 实证）；v1.3：T5 同步 access_denied；v1.2：Q1-Q3 拍板；v1.1：G8-G10 + 8 维 9.1；v1.0：R1-R15，见修订记录）
+> Status: 定稿（2026-09-08：R1-R15 + grilling G1-G10/Q1-Q3 + 8 维自检 9.1；v1.3-v1.6 实现同步 + converge 重评 ≥9 + skillhub 对标修正——v1.6）
 > Scope: M3 治理管线（00 §5）——SCANNING→PUBLISHED 六态推进（扫描/审核/发布）+ 已发布资产治理 + 标签管线 + 搜索 + 下载/统计 + API Token scope 过滤
 > 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）skillhub-domain/skillhub-app/skillhub-auth 源码级核对：SkillVersionStatus（八态 enum）· ReviewService / ReviewPortalAppService（提交/审核/撤回）· SkillGovernanceService（yank/withdraw/deleteVersion）· ApiTokenScopeService / RouteSecurityPolicyRegistry（scope 过滤）· 14-skill-lifecycle.md（状态语义参考——**发现文档-代码漂移：withdraw 文档写 PENDING_REVIEW→DRAFT，代码实际 →UPLOADED，以代码为准**）
 > 引用链：本文档 → 规范 00 §2/§5/§7 · 01 §3/§4/§5 · 05 §5/§6 · 06 §1-§6 · 08 §2/§5/§6/§7/§9（引用不复制，字段与规则以规范为准）
@@ -185,10 +185,14 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
 ## 5. 标签管线（R11：06 全量落地）
 
 - 管理 API（SUPER_ADMIN——硬判定短路即可，**零新权限码**；06 §3 与 05 角色矩阵核对无缺口）：
-  label 定义 CRUD + 翻译随定义一次写全（body 带 `translations: {locale, displayName}[]`）+
+  label 定义 CRUD + 翻译随定义一次写全（body 带 `translations: {locale, displayName}[]`，**提供即整组替换**
+  ——skillhub replaceTranslations 同构，删未列 locale 使移除翻译可达——D3 对标修正）+
   `PUT /api/labels/order` 批量排序。校验规则按 06 §5.2：锁两级（parent 须一级、不自指、一级不
   可降级、二级可换域）、删一级带子级拒 `label.parent.has_children`、parent 不存在
-  `label.not_found`（06 码）。
+  `label.not_found`（06 码）。**定义总数上限 100**（skillhub label.max-definitions:100 同构——
+  `label.definition_limit_exceeded`——D1 对标补）。翻译入参 locale 归一（_→- 小写 07 BCP47 +
+  同批重复预检 `label.translation.locale_duplicate`——D4/D8）。管理面响应 `parentId` = **父 slug**
+  （skillhub LabelDefinitionResponse 同构——入参/响应 slug 契约自洽——D2）。
 - 公开 `GET /api/labels`（06 §5.1：仅 RECOMMENDED + visible_in_filter；displayName 回退链
   locale → slug——07 §4 语义；parentId 用父 slug 字符串）。
 - 资产挂载 `PUT/DELETE /api/assets/{ns}/{slug}/labels/{labelSlug}`（06 §5.3）：
@@ -309,8 +313,11 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
   （403——防自审；权限违背族，与 M2 access_denied 同层）· `review.comment_required`（400——
   reject 无 comment）· `review.access_denied`（403——审核详情/队列越权可见；对齐 skillhub
   review.no_permission（ReviewPortalAppService DomainForbiddenException 实证）——T5 实现补入）
-- label.*（06 族，收尾 bump 06 补码表）：`label.not_found` / `label.parent.has_children` /
-  `label.slug_taken`（slug UNIQUE——06 未列码，M3 新增并 06 同步）/ `label.limit_exceeded`
+- label.*（06 族）：`label.not_found` / `label.parent.has_children` / `label.slug_taken` /
+  `label.limit_exceeded`（每资产 ≤10 挂载）/ `label.invalid_parent`（锁两级拒——parent 非一级/
+  自指/一级降级/挂二级之下）/ `label.access_denied`（403——管理面非 SUPER_ADMIN 或 PRIVILEGED 挂载
+  非超管——06 §3）/ `label.definition_limit_exceeded`（400——定义总数 ≤100——skillhub
+  max-definitions 同构）/ `label.translation.locale_duplicate`（400——同批翻译 locale 重复——D4）
 
 认证装配沿用 M1（Bearer 显式优先 → session 回退）；错误格式 07 §4；审计动作全部埋点（新增面：
 asset.version_submit / review.approve / review.reject / review.withdraw / asset.version_yank /
@@ -404,6 +411,7 @@ Bearer token ──► tokenAuthMiddleware 读 token.scope
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.6 | 2026-09-08 | sunxuewen-rush | 复盘对标 21-skillhub 源码修正（D1-D8）：§5 label 定义上限 100（definition_limit_exceeded）、翻译整组替换（PUT 语义——删未列 locale）、管理面响应 parentId = 父 slug（LabelDefinitionResponse 同构）、locale 归一与去重预检（_→- 小写/translation.locale_duplicate）；§9 label 码表补全（invalid_parent/access_denied/definition_limit_exceeded/translation.locale_duplicate——复盘发现 2 实现码未回写 + 对标补 2 新码） |
 | v1.5 | 2026-09-08 | sunxuewen-rush | converge 修正：§3.5 R6 与 §9 接口表 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板方案 A——08 §6 review version 递增契约（历史行 max）优先于 skillhub 删行简化；zod 四态零 DB 迁移；部分唯一索引仍只锁 PENDING；审核历史留档增强——对齐代码 review/service.ts withdrawReview 与 08 §6 v1.4） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | T8 实现同步：asset.version_not_yankable / asset.yank_reason_required 补入 §9 错误码表（yank 非 PUBLISHED 拒 + reason 必填——skillhub YankRequest 实证） |
 | v1.3 | 2026-09-08 | sunxuewen-rush | T5 实现同步：review.access_denied（403——审核详情/队列越权可见；skillhub review.no_permission 源码实证对齐）补入 §9 错误码表 |

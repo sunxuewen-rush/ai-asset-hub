@@ -1,8 +1,8 @@
 # 标签与分类设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.3：M3 实现同步——标签管理管线落地（定义 CRUD/挂载/公开列表）；v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
-> Status: 定稿（M1 已落 label_definition/translation/asset_label 表结构；M3 已按 v1.3 落地标签管理管线——定义 CRUD/挂载/公开列表全量实现）
+> Updated: 2026-09-09（v1.4：复盘对标 21-skillhub 源码修正——管理面响应 slug 契约/定义上限/翻译整组替换/locale 归一/parent_id 索引；v1.3（2026-09-08）：M3 实现同步——标签管理管线落地（定义 CRUD/挂载/公开列表）；v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
+> Status: 定稿（M1 已落 label_definition/translation/asset_label 表结构；M3 已按 v1.3-v1.4 落地标签管理管线——定义 CRUD/挂载/公开列表全量实现 + skillhub 对标修正）
 > Scope: AI Asset Hub 的 label 体系 —— 定义/多语言/两级分类/挂载/筛选语义/权限
 > 设计来源：企业实战验证的 label 方案（Phase 1 基础 + Phase 2 两级分类，设计决策继承，命名资产化）
 
@@ -98,12 +98,17 @@ GET /api/labels        （同 web 查询面）
 
 label 定义 CRUD + 批量排序：
 
-- `POST/PUT` 请求带可选 `parentId`（String，缺省/`null` = 一级）
+- `POST/PUT` 请求带可选 `parentId`（String，缺省/`null` = 一级）；**响应 `parentId` 同回父 slug**
+  （skillhub LabelDefinitionResponse 同构——入参/响应契约自洽）
 - **锁两级校验**：parent 必须是一级分类；不能挂二级之下；不能指自身；一级不可降级；
   二级可换域；parent 不存在 → `label.not_found`
+- **定义总数 ≤100**（skillhub max-definitions 同构——防膨胀）→ `label.definition_limit_exceeded`
+- **翻译**：`translations` 提供即整组替换（删未列 locale——移除翻译可达；PUT 语义）；locale
+  入参归一 `_→-` 小写（07 BCP47）；同批 locale 重复 → `label.translation.locale_duplicate` 预检
 - 删除：带子级的一级分类拒绝（`label.parent.has_children`，先删/转移子级）；
-  DDL `ON DELETE RESTRICT` 双保险；删二级 → 级联清理挂载 + 触发受影响资产搜索文档重建
-- 展示排序：一级按 `sort_order`、二级在父级下按 `sort_order`
+  DDL `ON DELETE RESTRICT` 双保险 + `parent_id` 索引（子级检查）；删二级 → 级联清理挂载
+  （无搜索文档重建——实时 join 模型）
+- 展示排序：一级按 `sort_order`、二级在父级下按 `sort_order`（服务端层级序，前端直接消费）
 
 ### 5.3 资产 label API（owner/空间管理员）
 
@@ -126,3 +131,4 @@ label 定义 CRUD + 批量排序：
 | v1.1 | 2026-09-04 | sunxuewen-rush | §5.3 API 路径前缀统一 /api |
 | v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 落 label 三表结构（definition/translation/asset_label），管线后置 M3 |
 | v1.3 | 2026-09-08 | sunxuewen-rush | M3 实现同步：标签管理管线落地——定义 CRUD/排序（SUPER_ADMIN，slug_taken 409 补码）、挂载 API（RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN，PRIVILEGED = 仅 SUPER_ADMIN；重复挂幂等 200、≤10 超限 400 label.limit_exceeded、删定义级联挂载） |
+| v1.4 | 2026-09-08 | sunxuewen-rush | 复盘对标 21-skillhub 源码修正：§5.2 管理面响应 parentId 回父 slug（LabelDefinitionResponse 同构）；定义总数 ≤100（definition_limit_exceeded）；翻译整组替换（PUT 语义——删未列 locale）；locale 归一与去重预检（translation.locale_duplicate）；parent_id 索引 + 搜索重建句改「无重建——实时 join 模型」落实 |
