@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
 import { and, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { AssetError, assetErrorCodes } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
 import {
@@ -13,9 +14,15 @@ import {
   reviewTask,
   userAccount,
 } from '../db/schema/index.js';
-import { AssetError, assetErrorCodes } from '../assets/errors.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
-import { approveReview, canSubmitReview, canWithdrawReview, rejectReview, submitVersion, withdrawReview } from './service.js';
+import {
+  approveReview,
+  canSubmitReview,
+  canWithdrawReview,
+  rejectReview,
+  submitVersion,
+  withdrawReview,
+} from './service.js';
 
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
@@ -38,7 +45,12 @@ async function makeUser(tag: string): Promise<string> {
 async function insertNs(): Promise<number> {
   const [r] = await db
     .insert(namespace)
-    .values({ slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
+    .values({
+      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
+      displayName: `${PREFIX}ns`,
+      type: 'TEAM',
+      createdBy: ownerId,
+    })
     .returning({ id: namespace.id });
   return r!.id;
 }
@@ -46,7 +58,12 @@ async function insertNs(): Promise<number> {
 async function insertAsset(slug: string): Promise<number> {
   const [r] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug: `${PREFIX}${slug}-${randomUUID().slice(0, 8)}`, type: 'skill', ownerId })
+    .values({
+      namespaceId: nsId,
+      slug: `${PREFIX}${slug}-${randomUUID().slice(0, 8)}`,
+      type: 'skill',
+      ownerId,
+    })
     .returning({ id: asset.id });
   return r!.id;
 }
@@ -61,11 +78,18 @@ async function insertVersion(
   const [r] = await db
     .insert(assetVersion)
     .values({ assetId, version, status, createdBy })
-    .returning({ id: assetVersion.id, version: assetVersion.version, status: assetVersion.status, createdBy: assetVersion.createdBy });
+    .returning({
+      id: assetVersion.id,
+      version: assetVersion.version,
+      status: assetVersion.status,
+      createdBy: assetVersion.createdBy,
+    });
   return r!;
 }
 
-async function assetRow(assetId: number): Promise<{ id: number; namespaceId: number; ownerId: string }> {
+async function assetRow(
+  assetId: number,
+): Promise<{ id: number; namespaceId: number; ownerId: string }> {
   const [r] = await db
     .select({ id: asset.id, namespaceId: asset.namespaceId, ownerId: asset.ownerId })
     .from(asset)
@@ -101,19 +125,47 @@ afterAll(async () => {
 
 describe('canSubmitReview（design §3.1 R2 判定——05 §6.4 + 上传者本人例外）', () => {
   it('hasReviewSubmit（空间 ADMIN/OWNER + ASSET_ADMIN + SUPER_ADMIN——can() 结果）→ 可提', () => {
-    expect(canSubmitReview({ assetOwnerId: ownerId, versionCreatedBy: contributorId, actorId: strangerId, hasReviewSubmit: true })).toBe(true);
+    expect(
+      canSubmitReview({
+        assetOwnerId: ownerId,
+        versionCreatedBy: contributorId,
+        actorId: strangerId,
+        hasReviewSubmit: true,
+      }),
+    ).toBe(true);
   });
 
   it('上传者本人例外（非 owner 非权限——MEMBER 贡献者提自己稿）', () => {
-    expect(canSubmitReview({ assetOwnerId: ownerId, versionCreatedBy: contributorId, actorId: contributorId, hasReviewSubmit: false })).toBe(true);
+    expect(
+      canSubmitReview({
+        assetOwnerId: ownerId,
+        versionCreatedBy: contributorId,
+        actorId: contributorId,
+        hasReviewSubmit: false,
+      }),
+    ).toBe(true);
   });
 
   it('owner 本人（角色矩阵外业务分支）', () => {
-    expect(canSubmitReview({ assetOwnerId: ownerId, versionCreatedBy: contributorId, actorId: ownerId, hasReviewSubmit: false })).toBe(true);
+    expect(
+      canSubmitReview({
+        assetOwnerId: ownerId,
+        versionCreatedBy: contributorId,
+        actorId: ownerId,
+        hasReviewSubmit: false,
+      }),
+    ).toBe(true);
   });
 
   it('外人（非上传者非 owner 无权限）→ 拒', () => {
-    expect(canSubmitReview({ assetOwnerId: ownerId, versionCreatedBy: contributorId, actorId: strangerId, hasReviewSubmit: false })).toBe(false);
+    expect(
+      canSubmitReview({
+        assetOwnerId: ownerId,
+        versionCreatedBy: contributorId,
+        actorId: strangerId,
+        hasReviewSubmit: false,
+      }),
+    ).toBe(false);
   });
 });
 
@@ -130,10 +182,17 @@ describe('submitVersion（design §3.1 R2）', () => {
     });
     expect(out.reviewVersion).toBe(1);
 
-    const [ver] = await db.select({ status: assetVersion.status }).from(assetVersion).where(eq(assetVersion.id, v.id));
+    const [ver] = await db
+      .select({ status: assetVersion.status })
+      .from(assetVersion)
+      .where(eq(assetVersion.id, v.id));
     expect(ver!.status).toBe('PENDING_REVIEW');
     const [task] = await db
-      .select({ status: reviewTask.status, version: reviewTask.version, submittedBy: reviewTask.submittedBy })
+      .select({
+        status: reviewTask.status,
+        version: reviewTask.version,
+        submittedBy: reviewTask.submittedBy,
+      })
       .from(reviewTask)
       .where(eq(reviewTask.assetVersionId, v.id));
     expect(task).toMatchObject({ status: 'PENDING', version: 1, submittedBy: contributorId });
@@ -142,14 +201,24 @@ describe('submitVersion（design §3.1 R2）', () => {
     const [log] = await db
       .select({ action: auditLog.action })
       .from(auditLog)
-      .where(and(eq(auditLog.actorId, contributorId), eq(auditLog.action, 'asset.version_submit'), eq(auditLog.targetId, String(assetId))));
+      .where(
+        and(
+          eq(auditLog.actorId, contributorId),
+          eq(auditLog.action, 'asset.version_submit'),
+          eq(auditLog.targetId, String(assetId)),
+        ),
+      );
     expect(log?.action).toBe('asset.version_submit');
   });
 
   it('UPLOADED 前态可提（withdraw 回退态再提——design §3.1）', async () => {
     const assetId = await insertAsset('uploaded');
     const v = await insertVersion(assetId, '2.0.0', 'UPLOADED', ownerId);
-    const out = await submitVersion(db, audit, { asset: await assetRow(assetId), version: v, submitterId: ownerId });
+    const out = await submitVersion(db, audit, {
+      asset: await assetRow(assetId),
+      version: v,
+      submitterId: ownerId,
+    });
     expect(out.reviewVersion).toBe(1);
   });
 
@@ -157,7 +226,11 @@ describe('submitVersion（design §3.1 R2）', () => {
     const assetId = await insertAsset('published');
     const v = await insertVersion(assetId, '3.0.0', 'PUBLISHED', ownerId);
     try {
-      await submitVersion(db, audit, { asset: await assetRow(assetId), version: v, submitterId: ownerId });
+      await submitVersion(db, audit, {
+        asset: await assetRow(assetId),
+        version: v,
+        submitterId: ownerId,
+      });
       throw new Error('expected versionNotSubmittable');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected versionNotSubmittable') throw err;
@@ -180,7 +253,10 @@ describe('submitVersion（design §3.1 R2）', () => {
       expect((err as ReviewError).code).toBe(reviewErrorCodes.alreadyPending);
     }
     // 不落第二行
-    const tasks = await db.select({ id: reviewTask.id }).from(reviewTask).where(eq(reviewTask.assetVersionId, v.id));
+    const tasks = await db
+      .select({ id: reviewTask.id })
+      .from(reviewTask)
+      .where(eq(reviewTask.assetVersionId, v.id));
     expect(tasks).toHaveLength(1);
   });
 
@@ -197,7 +273,11 @@ describe('submitVersion（design §3.1 R2）', () => {
       reviewedBy: ownerId,
       reviewedAt: new Date(),
     });
-    const out = await submitVersion(db, audit, { asset: await assetRow(assetId), version: v, submitterId: contributorId });
+    const out = await submitVersion(db, audit, {
+      asset: await assetRow(assetId),
+      version: v,
+      submitterId: contributorId,
+    });
     expect(out.reviewVersion).toBe(2);
   });
 });
@@ -206,13 +286,21 @@ describe('submitVersion（design §3.1 R2）', () => {
 async function makePendingTask(submitterId: string, versionStr = '1.0.0') {
   const assetId = await insertAsset('pending');
   const v = await insertVersion(assetId, versionStr, 'DRAFT', submitterId);
-  const out = await submitVersion(db, audit, { asset: await assetRow(assetId), version: v, submitterId });
+  const out = await submitVersion(db, audit, {
+    asset: await assetRow(assetId),
+    version: v,
+    submitterId,
+  });
   return { assetId, versionId: v.id, taskId: out.taskId };
 }
 
 async function taskState(taskId: number) {
   const rows = await db
-    .select({ status: reviewTask.status, reviewedBy: reviewTask.reviewedBy, version: reviewTask.version })
+    .select({
+      status: reviewTask.status,
+      reviewedBy: reviewTask.reviewedBy,
+      version: reviewTask.version,
+    })
     .from(reviewTask)
     .where(eq(reviewTask.id, taskId));
   return rows[0];
@@ -221,7 +309,13 @@ async function taskState(taskId: number) {
 describe('approveReview（design §3.3 R4）', () => {
   it('通过：版本 PUBLISHED + published_at + asset.latest 指向 + task APPROVED + 审计', async () => {
     const { assetId, versionId, taskId } = await makePendingTask(contributorId);
-    const out = await approveReview(db, audit, { taskId, actorId: ownerId, comment: 'lgtm', canApprove: true, isSuperAdmin: false });
+    const out = await approveReview(db, audit, {
+      taskId,
+      actorId: ownerId,
+      comment: 'lgtm',
+      canApprove: true,
+      isSuperAdmin: false,
+    });
     expect(out.publishedVersion).toBe('1.0.0');
 
     const [ver] = await db
@@ -230,11 +324,16 @@ describe('approveReview（design §3.3 R4）', () => {
       .where(eq(assetVersion.id, versionId));
     expect(ver!.status).toBe('PUBLISHED');
     expect(ver!.publishedAt).not.toBeNull();
-    const [a] = await db.select({ latest: asset.latestVersionId }).from(asset).where(eq(asset.id, assetId));
+    const [a] = await db
+      .select({ latest: asset.latestVersionId })
+      .from(asset)
+      .where(eq(asset.id, assetId));
     expect(a!.latest).toBe(versionId);
     expect(await taskState(taskId)).toMatchObject({ status: 'APPROVED', reviewedBy: ownerId });
 
-    const [log] = await db.select({ action: auditLog.action }).from(auditLog)
+    const [log] = await db
+      .select({ action: auditLog.action })
+      .from(auditLog)
       .where(and(eq(auditLog.action, 'review.approve'), eq(auditLog.targetId, String(taskId))));
     expect(log?.action).toBe('review.approve');
   });
@@ -242,7 +341,12 @@ describe('approveReview（design §3.3 R4）', () => {
   it('无审核权限（canApprove=false）→ 403 review.access_denied', async () => {
     const { taskId } = await makePendingTask(contributorId);
     try {
-      await approveReview(db, audit, { taskId, actorId: strangerId, canApprove: false, isSuperAdmin: false });
+      await approveReview(db, audit, {
+        taskId,
+        actorId: strangerId,
+        canApprove: false,
+        isSuperAdmin: false,
+      });
       throw new Error('expected accessDenied');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected accessDenied') throw err;
@@ -253,28 +357,55 @@ describe('approveReview（design §3.3 R4）', () => {
   it('防自审：提交人审自己 → 403 review.self_review；SUPER_ADMIN 例外放行', async () => {
     const { taskId, versionId, assetId } = await makePendingTask(contributorId);
     try {
-      await approveReview(db, audit, { taskId, actorId: contributorId, canApprove: true, isSuperAdmin: false });
+      await approveReview(db, audit, {
+        taskId,
+        actorId: contributorId,
+        canApprove: true,
+        isSuperAdmin: false,
+      });
       throw new Error('expected selfReview');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected selfReview') throw err;
       expect((err as ReviewError).code).toBe(reviewErrorCodes.selfReview);
     }
     // 版本未被误发布
-    const [ver] = await db.select({ status: assetVersion.status }).from(assetVersion).where(eq(assetVersion.id, versionId));
+    const [ver] = await db
+      .select({ status: assetVersion.status })
+      .from(assetVersion)
+      .where(eq(assetVersion.id, versionId));
     expect(ver!.status).toBe('PENDING_REVIEW');
 
     // SUPER_ADMIN 例外（05 §6.4：调用方显式放行）
-    const out = await approveReview(db, audit, { taskId, actorId: contributorId, comment: 'self', canApprove: true, isSuperAdmin: true });
+    const out = await approveReview(db, audit, {
+      taskId,
+      actorId: contributorId,
+      comment: 'self',
+      canApprove: true,
+      isSuperAdmin: true,
+    });
     expect(out.publishedVersion).toBe('1.0.0');
-    const [a] = await db.select({ latest: asset.latestVersionId }).from(asset).where(eq(asset.id, assetId));
+    const [a] = await db
+      .select({ latest: asset.latestVersionId })
+      .from(asset)
+      .where(eq(asset.id, assetId));
     expect(a!.latest).toBe(versionId);
   });
 
   it('并发双审：第一人结案后第二人 → 400 review.not_pending', async () => {
     const { taskId } = await makePendingTask(contributorId);
-    await approveReview(db, audit, { taskId, actorId: ownerId, canApprove: true, isSuperAdmin: false });
+    await approveReview(db, audit, {
+      taskId,
+      actorId: ownerId,
+      canApprove: true,
+      isSuperAdmin: false,
+    });
     try {
-      await approveReview(db, audit, { taskId, actorId: ownerId, canApprove: true, isSuperAdmin: false });
+      await approveReview(db, audit, {
+        taskId,
+        actorId: ownerId,
+        canApprove: true,
+        isSuperAdmin: false,
+      });
       throw new Error('expected notPending');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected notPending') throw err;
@@ -284,7 +415,12 @@ describe('approveReview（design §3.3 R4）', () => {
 
   it('task 不存在 → 404 review.not_found', async () => {
     try {
-      await approveReview(db, audit, { taskId: 999_999_999, actorId: ownerId, canApprove: true, isSuperAdmin: false });
+      await approveReview(db, audit, {
+        taskId: 999_999_999,
+        actorId: ownerId,
+        canApprove: true,
+        isSuperAdmin: false,
+      });
       throw new Error('expected notFound');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected notFound') throw err;
@@ -296,17 +432,34 @@ describe('approveReview（design §3.3 R4）', () => {
 describe('rejectReview（design §3.4 R5）', () => {
   it('拒绝：版本 REJECTED + task REJECTED + comment 落位；latest 不动（从未发布）', async () => {
     const { assetId, versionId, taskId } = await makePendingTask(contributorId, '2.0.0');
-    const out = await rejectReview(db, audit, { taskId, actorId: ownerId, comment: 'missing license', canApprove: true, isSuperAdmin: false });
+    const out = await rejectReview(db, audit, {
+      taskId,
+      actorId: ownerId,
+      comment: 'missing license',
+      canApprove: true,
+      isSuperAdmin: false,
+    });
     expect(out.rejectedVersion).toBe('2.0.0');
 
-    const [ver] = await db.select({ status: assetVersion.status }).from(assetVersion).where(eq(assetVersion.id, versionId));
+    const [ver] = await db
+      .select({ status: assetVersion.status })
+      .from(assetVersion)
+      .where(eq(assetVersion.id, versionId));
     expect(ver!.status).toBe('REJECTED');
-    const [task] = await db.select({ status: reviewTask.status, reviewComment: reviewTask.reviewComment }).from(reviewTask).where(eq(reviewTask.id, taskId));
+    const [task] = await db
+      .select({ status: reviewTask.status, reviewComment: reviewTask.reviewComment })
+      .from(reviewTask)
+      .where(eq(reviewTask.id, taskId));
     expect(task).toMatchObject({ status: 'REJECTED', reviewComment: 'missing license' });
-    const [a] = await db.select({ latest: asset.latestVersionId }).from(asset).where(eq(asset.id, assetId));
+    const [a] = await db
+      .select({ latest: asset.latestVersionId })
+      .from(asset)
+      .where(eq(asset.id, assetId));
     expect(a!.latest).toBeNull();
 
-    const [log] = await db.select({ action: auditLog.action }).from(auditLog)
+    const [log] = await db
+      .select({ action: auditLog.action })
+      .from(auditLog)
       .where(and(eq(auditLog.action, 'review.reject'), eq(auditLog.targetId, String(taskId))));
     expect(log?.action).toBe('review.reject');
   });
@@ -314,7 +467,13 @@ describe('rejectReview（design §3.4 R5）', () => {
   it('comment 必填（空 → 400 review.comment_required）', async () => {
     const { taskId } = await makePendingTask(contributorId);
     try {
-      await rejectReview(db, audit, { taskId, actorId: ownerId, comment: '   ', canApprove: true, isSuperAdmin: false });
+      await rejectReview(db, audit, {
+        taskId,
+        actorId: ownerId,
+        comment: '   ',
+        canApprove: true,
+        isSuperAdmin: false,
+      });
       throw new Error('expected commentRequired');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected commentRequired') throw err;
@@ -326,45 +485,91 @@ describe('rejectReview（design §3.4 R5）', () => {
 describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + 删 PENDING 任务）', () => {
   it('提交人本人撤回：版本 UPLOADED + task 行保留置 WITHDRAWN（历史留档——08 §6 version 递增）', async () => {
     const { assetId, versionId, taskId } = await makePendingTask(contributorId, '3.0.0');
-    await withdrawReview(db, audit, { taskId, actorId: contributorId, namespaceRole: 'MEMBER', isSuperAdmin: false });
-    const [ver] = await db.select({ status: assetVersion.status }).from(assetVersion).where(eq(assetVersion.id, versionId));
+    await withdrawReview(db, audit, {
+      taskId,
+      actorId: contributorId,
+      namespaceRole: 'MEMBER',
+      isSuperAdmin: false,
+    });
+    const [ver] = await db
+      .select({ status: assetVersion.status })
+      .from(assetVersion)
+      .where(eq(assetVersion.id, versionId));
     expect(ver!.status).toBe('UPLOADED');
-    const [task] = await db.select({ status: reviewTask.status }).from(reviewTask).where(eq(reviewTask.id, taskId));
+    const [task] = await db
+      .select({ status: reviewTask.status })
+      .from(reviewTask)
+      .where(eq(reviewTask.id, taskId));
     expect(task?.status).toBe('WITHDRAWN'); // 保留行（不删——历史留档）
     // withdraw 回 UPLOADED 后可再提——review version 递增（历史 WITHDRAWN max=1 → 2，08 §6）
     const [v] = await db
-      .select({ id: assetVersion.id, version: assetVersion.version, status: assetVersion.status, createdBy: assetVersion.createdBy })
+      .select({
+        id: assetVersion.id,
+        version: assetVersion.version,
+        status: assetVersion.status,
+        createdBy: assetVersion.createdBy,
+      })
       .from(assetVersion)
       .where(eq(assetVersion.id, versionId));
-    const out = await submitVersion(db, audit, { asset: await assetRow(assetId), version: v!, submitterId: contributorId });
+    const out = await submitVersion(db, audit, {
+      asset: await assetRow(assetId),
+      version: v!,
+      submitterId: contributorId,
+    });
     expect(out.reviewVersion).toBe(2);
   });
 
   it('owner 可撤他人提交（管理面）', async () => {
     const { versionId, taskId } = await makePendingTask(contributorId, '4.0.0');
-    await withdrawReview(db, audit, { taskId, actorId: ownerId, namespaceRole: 'OWNER', isSuperAdmin: false });
-    const [ver] = await db.select({ status: assetVersion.status }).from(assetVersion).where(eq(assetVersion.id, versionId));
+    await withdrawReview(db, audit, {
+      taskId,
+      actorId: ownerId,
+      namespaceRole: 'OWNER',
+      isSuperAdmin: false,
+    });
+    const [ver] = await db
+      .select({ status: assetVersion.status })
+      .from(assetVersion)
+      .where(eq(assetVersion.id, versionId));
     expect(ver!.status).toBe('UPLOADED');
   });
 
   it('外人（非提交人非 owner 非空间 ADMIN）→ 403 review.access_denied', async () => {
     const { taskId, versionId } = await makePendingTask(contributorId, '5.0.0');
     try {
-      await withdrawReview(db, audit, { taskId, actorId: strangerId, namespaceRole: null, isSuperAdmin: false });
+      await withdrawReview(db, audit, {
+        taskId,
+        actorId: strangerId,
+        namespaceRole: null,
+        isSuperAdmin: false,
+      });
       throw new Error('expected accessDenied');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected accessDenied') throw err;
       expect((err as ReviewError).code).toBe(reviewErrorCodes.accessDenied);
     }
-    const [ver] = await db.select({ status: assetVersion.status }).from(assetVersion).where(eq(assetVersion.id, versionId));
+    const [ver] = await db
+      .select({ status: assetVersion.status })
+      .from(assetVersion)
+      .where(eq(assetVersion.id, versionId));
     expect(ver!.status).toBe('PENDING_REVIEW'); // 状态未被破坏
   });
 
   it('已结案 task 撤回 → 400 review.not_pending', async () => {
     const { taskId } = await makePendingTask(contributorId, '6.0.0');
-    await approveReview(db, audit, { taskId, actorId: ownerId, canApprove: true, isSuperAdmin: false });
+    await approveReview(db, audit, {
+      taskId,
+      actorId: ownerId,
+      canApprove: true,
+      isSuperAdmin: false,
+    });
     try {
-      await withdrawReview(db, audit, { taskId, actorId: contributorId, namespaceRole: 'MEMBER', isSuperAdmin: false });
+      await withdrawReview(db, audit, {
+        taskId,
+        actorId: contributorId,
+        namespaceRole: 'MEMBER',
+        isSuperAdmin: false,
+      });
       throw new Error('expected notPending');
     } catch (err) {
       if (err instanceof Error && err.message === 'expected notPending') throw err;
@@ -375,7 +580,13 @@ describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + �
 
 describe('canWithdrawReview（design §3.5 R6 判定）', () => {
   it('矩阵：提交人/owner/空间 ADMIN/SUPER_ADMIN 可撤；外人拒', () => {
-    const base = { submittedBy: contributorId, assetOwnerId: ownerId, actorId: contributorId, namespaceRole: null, isSuperAdmin: false };
+    const base = {
+      submittedBy: contributorId,
+      assetOwnerId: ownerId,
+      actorId: contributorId,
+      namespaceRole: null,
+      isSuperAdmin: false,
+    };
     expect(canWithdrawReview(base)).toBe(true); // 提交人本人
     expect(canWithdrawReview({ ...base, actorId: ownerId })).toBe(true); // owner
     expect(canWithdrawReview({ ...base, actorId: strangerId, namespaceRole: 'ADMIN' })).toBe(true); // 空间 ADMIN

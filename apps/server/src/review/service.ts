@@ -8,11 +8,17 @@
  * approve/reject/withdraw 在 T4（design §3.3-§3.5）；读面 T5/T6。
  */
 import { and, eq, max } from 'drizzle-orm';
-import type { AuditWriter } from '../audit/audit.js';
-import type { Db } from '../db/client.js';
-import { asset, assetVersion, reviewTask, type NamespaceRole, type VersionStatus } from '../db/schema/index.js';
-import { isSelfReview } from '../auth/rbac.js';
 import { AssetError, assetErrorCodes } from '../assets/errors.js';
+import type { AuditWriter } from '../audit/audit.js';
+import { isSelfReview } from '../auth/rbac.js';
+import type { Db } from '../db/client.js';
+import {
+  asset,
+  assetVersion,
+  type NamespaceRole,
+  reviewTask,
+  type VersionStatus,
+} from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
 
 export interface CanSubmitInput {
@@ -69,12 +75,7 @@ export async function submitVersion(
       const pending = await tx
         .select({ id: reviewTask.id })
         .from(reviewTask)
-        .where(
-          and(
-            eq(reviewTask.assetVersionId, version.id),
-            eq(reviewTask.status, 'PENDING'),
-          ),
-        );
+        .where(and(eq(reviewTask.assetVersionId, version.id), eq(reviewTask.status, 'PENDING')));
       if (pending.length > 0) throw new ReviewError(reviewErrorCodes.alreadyPending);
 
       // review version 重审递增（08 §6：该版本历史 task 最大 version + 1，首次 = 1）
@@ -292,7 +293,12 @@ export function canWithdrawReview(input: CanWithdrawInput): boolean {
 export async function withdrawReview(
   db: Db,
   audit: AuditWriter,
-  input: { taskId: number; actorId: string; namespaceRole: NamespaceRole | null; isSuperAdmin: boolean },
+  input: {
+    taskId: number;
+    actorId: string;
+    namespaceRole: NamespaceRole | null;
+    isSuperAdmin: boolean;
+  },
 ): Promise<void> {
   const { taskId, actorId, namespaceRole, isSuperAdmin } = input;
   const task = await loadPendingTask(db, taskId);

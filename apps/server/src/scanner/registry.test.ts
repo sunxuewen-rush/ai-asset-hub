@@ -20,7 +20,12 @@ describe('governance scanner', () => {
       const result = await scanner.scan({
         type,
         manifestJson: type === 'mcp' ? { servers: [] } : { name: 'x' },
-        files: [{ path: type === 'skill' ? 'SKILL.md' : type === 'mcp' ? 'mcp.json' : 'agent.md', size: 64 }],
+        files: [
+          {
+            path: type === 'skill' ? 'SKILL.md' : type === 'mcp' ? 'mcp.json' : 'agent.md',
+            size: 64,
+          },
+        ],
       });
       expect(result.ok).toBe(true);
     }

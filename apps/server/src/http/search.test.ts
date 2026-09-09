@@ -27,16 +27,16 @@ import {
   labelDefinition,
   namespace,
   namespaceMember,
+  type RoleCode,
   role,
   userAccount,
   userRoleBinding,
-  type RoleCode,
 } from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
-import { rbacContext } from './auth-middleware.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
+import { rbacContext } from './auth-middleware.js';
 
 const PREFIX = 'srch-';
 let db: Db;
@@ -56,7 +56,10 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 async function ensureRole(code: RoleCode) {
-  await db.insert(role).values({ code, name: `r-${code}`, isSystem: true }).onConflictDoNothing();
+  await db
+    .insert(role)
+    .values({ code, name: `r-${code}`, isSystem: true })
+    .onConflictDoNothing();
 }
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'srch-http');
@@ -68,10 +71,14 @@ function buildApp(): Hono {
   app.use('*', sessionMiddleware(sessions));
   app.use('*', csrfProtection({}));
   app.onError((err, c) => {
-    if (err instanceof AuthError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
-    if (err instanceof AssetError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
-    if (err instanceof ReviewError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
-    if (err instanceof LabelError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409);
+    if (err instanceof AuthError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
+    if (err instanceof AssetError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof ReviewError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof LabelError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409);
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/assets', createAssetRoutes({ db, audit, storage, uploadRateLimiter }));
@@ -80,7 +87,10 @@ function buildApp(): Hono {
 
 let seq = 0;
 
-async function seedAsset(slug: string, meta?: { name?: string; description?: string; searchText?: string }): Promise<number> {
+async function seedAsset(
+  slug: string,
+  meta?: { name?: string; description?: string; searchText?: string },
+): Promise<number> {
   const [a] = await db
     .insert(asset)
     .values({ namespaceId: nsId, slug, type: 'skill', ownerId })
@@ -98,7 +108,10 @@ async function seedAsset(slug: string, meta?: { name?: string; description?: str
   return a!.id;
 }
 async function seedLabel(slug: string) {
-  const [r] = await db.insert(labelDefinition).values({ slug, type: 'RECOMMENDED', createdBy: ownerId }).returning({ id: labelDefinition.id });
+  const [r] = await db
+    .insert(labelDefinition)
+    .values({ slug, type: 'RECOMMENDED', createdBy: ownerId })
+    .returning({ id: labelDefinition.id });
   return r!.id;
 }
 async function attach(assetId: number, labelId: number) {
@@ -128,7 +141,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.id, `${PREFIX}%`));
   await db.delete(assetLabel).where(like(assetLabel.createdBy, `${PREFIX}%`));
   await db.delete(labelDefinition).where(like(labelDefinition.createdBy, `${PREFIX}%`));
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
@@ -145,7 +161,10 @@ afterAll(async () => {
 });
 
 async function search(query: string, cookie?: string) {
-  const headers: Record<string, string> = { host: 'localhost:3000', origin: 'http://localhost:3000' };
+  const headers: Record<string, string> = {
+    host: 'localhost:3000',
+    origin: 'http://localhost:3000',
+  };
   if (cookie) headers.cookie = cookie;
   const res = await buildApp().request(`/api/assets?${query}`, { method: 'GET', headers });
   return (await res.json()) as { items: Array<{ slug: string }>; total: number };

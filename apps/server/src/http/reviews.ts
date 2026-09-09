@@ -15,16 +15,22 @@
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { AuditWriter } from '../audit/audit.js';
 import { findNamespaceBySlug } from '../assets/service.js';
+import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
 import { PERMISSIONS } from '../auth/permissions.js';
 import type { Db } from '../db/client.js';
 import { reviewTask } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
+import {
+  getReviewDetail,
+  listMine,
+  listQueue,
+  parseReviewStatus,
+  type QueueFilters,
+} from '../review/query.js';
 import { approveReview, rejectReview, withdrawReview } from '../review/service.js';
-import { getReviewDetail, listMine, listQueue, parseReviewStatus, type QueueFilters } from '../review/query.js';
-import { requireAuth, assertTokenScoped } from './auth-middleware.js';
+import { assertTokenScoped, requireAuth } from './auth-middleware.js';
 
 const PAGE_SCHEMA = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -40,7 +46,10 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   /** task 所在空间 id（路由层权限判定需 ns 上下文；不存在 → 404） */
   async function taskNamespaceId(taskId: number): Promise<number> {
-    const [row] = await db.select({ namespaceId: reviewTask.namespaceId }).from(reviewTask).where(eq(reviewTask.id, taskId));
+    const [row] = await db
+      .select({ namespaceId: reviewTask.namespaceId })
+      .from(reviewTask)
+      .where(eq(reviewTask.id, taskId));
     if (!row) throw new ReviewError(reviewErrorCodes.notFound);
     return row.namespaceId;
   }
@@ -50,10 +59,12 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const principal = c.get('principal')!;
     const rbac = c.get('rbac')!;
     const platformRoles = await rbac.platformRolesOf(principal.userId);
-    const isPlatformReviewer = platformRoles.includes('ASSET_ADMIN') || platformRoles.includes('SUPER_ADMIN');
+    const isPlatformReviewer =
+      platformRoles.includes('ASSET_ADMIN') || platformRoles.includes('SUPER_ADMIN');
 
     const query = PAGE_SCHEMA.safeParse(c.req.query());
-    if (!query.success) return c.json({ code: 'request.invalid', message: 'invalid pagination params' }, 400);
+    if (!query.success)
+      return c.json({ code: 'request.invalid', message: 'invalid pagination params' }, 400);
     const status = parseReviewStatus(c.req.query('status'));
 
     const filters: QueueFilters = { status, limit: query.data.limit, offset: query.data.offset };
@@ -61,7 +72,14 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
     if (!isPlatformReviewer) {
       // 空间管理面：须限定本空间且具 OWNER/ADMIN（05 §6.4 review:approve 行）
-      if (!nsSlug) return c.json({ code: 'review.access_denied', message: 'review queue requires platform reviewer or namespace admin' }, 403);
+      if (!nsSlug)
+        return c.json(
+          {
+            code: 'review.access_denied',
+            message: 'review queue requires platform reviewer or namespace admin',
+          },
+          403,
+        );
       const ns = await findNamespaceBySlug(db, nsSlug);
       if (!ns) throw new ReviewError(reviewErrorCodes.notFound);
       const roles = await rbac.getNamespaceRoles(principal.userId, ns.id);
@@ -75,17 +93,32 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     }
 
     const result = await listQueue(db, filters);
-    return c.json({ items: result.items, total: result.total, limit: query.data.limit, offset: query.data.offset });
+    return c.json({
+      items: result.items,
+      total: result.total,
+      limit: query.data.limit,
+      offset: query.data.offset,
+    });
   });
 
   // 我的提交（登录面）
   app.get('/mine', requireAuth(), async (c) => {
     const principal = c.get('principal')!;
     const query = PAGE_SCHEMA.safeParse(c.req.query());
-    if (!query.success) return c.json({ code: 'request.invalid', message: 'invalid pagination params' }, 400);
+    if (!query.success)
+      return c.json({ code: 'request.invalid', message: 'invalid pagination params' }, 400);
     const status = parseReviewStatus(c.req.query('status'));
-    const result = await listMine(db, principal.userId, { status, limit: query.data.limit, offset: query.data.offset });
-    return c.json({ items: result.items, total: result.total, limit: query.data.limit, offset: query.data.offset });
+    const result = await listMine(db, principal.userId, {
+      status,
+      limit: query.data.limit,
+      offset: query.data.offset,
+    });
+    return c.json({
+      items: result.items,
+      total: result.total,
+      limit: query.data.limit,
+      offset: query.data.offset,
+    });
   });
 
   // 详情（review:approve 面 or 提交人本人——design §9；404/403 服务内）
@@ -98,7 +131,9 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const canApprove =
       platformRoles.includes('ASSET_ADMIN') || platformRoles.includes('SUPER_ADMIN')
         ? true
-        : (await rbac.getNamespaceRoles(principal.userId, await taskNamespaceId(taskId))).some((r) => r === 'OWNER' || r === 'ADMIN');
+        : (await rbac.getNamespaceRoles(principal.userId, await taskNamespaceId(taskId))).some(
+            (r) => r === 'OWNER' || r === 'ADMIN',
+          );
     const detail = await getReviewDetail(db, { taskId, viewerId: principal.userId, canApprove });
     return c.json(detail);
   });
@@ -112,7 +147,9 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     if (!body.success) return c.json({ code: 'request.invalid', message: 'invalid body' }, 400);
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
-    const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, { namespaceId: nsId });
+    const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, {
+      namespaceId: nsId,
+    });
     assertTokenScoped(c, PERMISSIONS.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
     const platformRoles = await rbac.platformRolesOf(principal.userId);
@@ -132,10 +169,13 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const taskId = Number(c.req.param('id'));
     if (!Number.isInteger(taskId) || taskId <= 0) throw new ReviewError(reviewErrorCodes.notFound);
     const body = REJECT_BODY.safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ code: 'request.invalid', message: 'reject requires non-empty comment' }, 400);
+    if (!body.success)
+      return c.json({ code: 'request.invalid', message: 'reject requires non-empty comment' }, 400);
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
-    const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, { namespaceId: nsId });
+    const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, {
+      namespaceId: nsId,
+    });
     assertTokenScoped(c, PERMISSIONS.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
     const platformRoles = await rbac.platformRolesOf(principal.userId);

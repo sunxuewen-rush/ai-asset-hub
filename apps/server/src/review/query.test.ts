@@ -12,7 +12,7 @@ import {
   reviewTask,
   userAccount,
 } from '../db/schema/index.js';
-import { ReviewError, reviewErrorCodes } from './errors.js';
+import { type ReviewError, reviewErrorCodes } from './errors.js';
 import { getReviewDetail, listMine, listQueue } from './query.js';
 
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -42,7 +42,13 @@ async function insertTaskWithVersion(
   reviewedBy?: string,
 ): Promise<number> {
   const versionStatus =
-    taskStatus === 'APPROVED' ? 'PUBLISHED' : taskStatus === 'REJECTED' ? 'REJECTED' : taskStatus === 'WITHDRAWN' ? 'UPLOADED' : 'PENDING_REVIEW';
+    taskStatus === 'APPROVED'
+      ? 'PUBLISHED'
+      : taskStatus === 'REJECTED'
+        ? 'REJECTED'
+        : taskStatus === 'WITHDRAWN'
+          ? 'UPLOADED'
+          : 'PENDING_REVIEW';
   const [v] = await db
     .insert(assetVersion)
     .values({
@@ -77,7 +83,12 @@ beforeAll(async () => {
   strangerId = await makeUser('stranger');
   const [ns] = await db
     .insert(namespace)
-    .values({ slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
+    .values({
+      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
+      displayName: `${PREFIX}ns`,
+      type: 'TEAM',
+      createdBy: ownerId,
+    })
     .returning({ id: namespace.id });
   nsId = ns!.id;
   await db.insert(namespaceMember).values([
@@ -95,7 +106,10 @@ beforeAll(async () => {
 afterAll(async () => {
   // 链序清理：file → review_task → version → asset → member/ns/audit/user
   const versionIds = (
-    await db.select({ id: assetVersion.id }).from(assetVersion).where(eq(assetVersion.assetId, assetId))
+    await db
+      .select({ id: assetVersion.id })
+      .from(assetVersion)
+      .where(eq(assetVersion.assetId, assetId))
   ).map((v) => v.id);
   if (versionIds.length > 0) {
     await db.delete(assetFile).where(inArray(assetFile.versionId, versionIds));
@@ -133,7 +147,12 @@ describe('review 队列/我的/详情读面（design §3.7 R8）', () => {
   });
 
   it('审核队列 status 过滤（PENDING only）', async () => {
-    const { items, total } = await listQueue(db, { namespaceId: nsId, status: 'PENDING', limit: 50, offset: 0 });
+    const { items, total } = await listQueue(db, {
+      namespaceId: nsId,
+      status: 'PENDING',
+      limit: 50,
+      offset: 0,
+    });
     expect(total).toBe(1);
     expect(items[0]!.taskId).toBe(pendingTaskId);
   });
@@ -157,7 +176,11 @@ describe('review 队列/我的/详情读面（design §3.7 R8）', () => {
       sha256: 'a'.repeat(64),
       storageKey: `qr/${assetId}/1.0.0/SKILL.md`,
     });
-    const detail = await getReviewDetail(db, { taskId: pendingTaskId, viewerId: adminId, canApprove: true });
+    const detail = await getReviewDetail(db, {
+      taskId: pendingTaskId,
+      viewerId: adminId,
+      canApprove: true,
+    });
     expect(detail.manifestJson).toMatchObject({ name: 'demo-1.0.0' });
     expect(detail.files).toHaveLength(1);
     expect(detail.files[0]!.sha256).toBe('a'.repeat(64));
@@ -165,7 +188,11 @@ describe('review 队列/我的/详情读面（design §3.7 R8）', () => {
   });
 
   it('详情：提交人本人可读（owner 代提的 WITHDRAWN——本人面）', async () => {
-    const detail = await getReviewDetail(db, { taskId: withdrawnTaskId, viewerId: ownerId, canApprove: false });
+    const detail = await getReviewDetail(db, {
+      taskId: withdrawnTaskId,
+      viewerId: ownerId,
+      canApprove: false,
+    });
     expect(detail.status).toBe('WITHDRAWN');
   });
 

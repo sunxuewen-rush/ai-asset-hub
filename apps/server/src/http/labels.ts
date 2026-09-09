@@ -42,7 +42,10 @@ const UPDATE_BODY = CREATE_BODY.partial().extend({
 });
 
 const REORDER_BODY = z.object({
-  order: z.array(z.object({ slug: labelSlugSchema, sortOrder: z.number().int() })).min(1).max(200),
+  order: z
+    .array(z.object({ slug: labelSlugSchema, sortOrder: z.number().int() }))
+    .min(1)
+    .max(200),
 });
 
 export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
@@ -73,11 +76,15 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
   app.post('/', requireAuth(), async (c) => {
     await assertSuperAdmin(c);
     const body = CREATE_BODY.safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ code: 'request.invalid', message: 'invalid label body' }, 400);
+    if (!body.success)
+      return c.json({ code: 'request.invalid', message: 'invalid label body' }, 400);
     const principal = c.get('principal')!;
     const created = await createLabel(db, audit, {
       ...body.data,
-      translations: body.data.translations?.map((t) => ({ locale: t.locale, displayName: t.displayName })),
+      translations: body.data.translations?.map((t) => ({
+        locale: t.locale,
+        displayName: t.displayName,
+      })),
       createdBy: principal.userId,
     });
     return c.json(created, 201);
@@ -88,13 +95,17 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const slug = c.req.param('slug')!;
     if (!labelSlugSchema.safeParse(slug).success) throw new LabelError(labelErrorCodes.notFound);
     const body = UPDATE_BODY.safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ code: 'request.invalid', message: 'invalid label body' }, 400);
+    if (!body.success)
+      return c.json({ code: 'request.invalid', message: 'invalid label body' }, 400);
     const principal = c.get('principal')!;
     const updated = await updateLabel(db, audit, {
       slug,
       actorId: principal.userId,
       ...body.data,
-      translations: body.data.translations?.map((t) => ({ locale: t.locale, displayName: t.displayName })),
+      translations: body.data.translations?.map((t) => ({
+        locale: t.locale,
+        displayName: t.displayName,
+      })),
     });
     return c.json(updated);
   });
@@ -111,7 +122,8 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
   app.put('/order', requireAuth(), async (c) => {
     await assertSuperAdmin(c);
     const body = REORDER_BODY.safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ code: 'request.invalid', message: 'invalid order body' }, 400);
+    if (!body.success)
+      return c.json({ code: 'request.invalid', message: 'invalid order body' }, 400);
     const principal = c.get('principal')!;
     await reorderLabels(db, audit, { order: body.data.order, actorId: principal.userId });
     return c.body(null, 204);

@@ -14,19 +14,19 @@ import type { SessionManager } from './auth/session.js';
 import { sessionMiddleware } from './auth/session-middleware.js';
 import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
+import { createAssetRoutes, DOWNLOAD_RATE_LIMIT, UPLOAD_RATE_LIMIT } from './http/assets.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
-import { createAssetRoutes, DOWNLOAD_RATE_LIMIT, UPLOAD_RATE_LIMIT } from './http/assets.js';
 import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
+import { createLabelRoutes } from './http/labels.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { requestContextMiddleware } from './http/request-context.js';
 import { createReviewRoutes } from './http/reviews.js';
-import { createLabelRoutes } from './http/labels.js';
-import { ReviewError } from './review/errors.js';
-import { LabelError } from './labels/errors.js';
 import { tokenAuthMiddleware } from './http/token-middleware.js';
 import { createTokenRoutes } from './http/tokens.js';
+import { LabelError } from './labels/errors.js';
+import { ReviewError } from './review/errors.js';
 import type { ObjectStorage } from './storage/types.js';
 
 /**
@@ -86,22 +86,13 @@ export function createApp(deps: AppDeps): Hono {
       );
     }
     if (err instanceof AssetError) {
-      return c.json(
-        { code: err.code, message: err.message },
-        err.status as 400 | 404 | 409 | 413,
-      );
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 404 | 409 | 413);
     }
     if (err instanceof ReviewError) {
-      return c.json(
-        { code: err.code, message: err.message },
-        err.status as 400 | 403 | 404,
-      );
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
     }
     if (err instanceof LabelError) {
-      return c.json(
-        { code: err.code, message: err.message },
-        err.status as 400 | 403 | 404 | 409,
-      );
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409);
     }
     console.error('[server] unhandled error:', err);
     return c.json({ code: 'internal_error', message: 'internal server error' }, 500);
@@ -122,13 +113,21 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db, audit: deps.audit }));
-  app.route('/api/assets', createAssetRoutes({
-    db: deps.db,
-    audit: deps.audit,
-    storage: deps.storage,
-    uploadRateLimiter: deps.uploadRateLimiter ?? new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max),
-    downloadRateLimiter: new InMemoryRateLimiter(DOWNLOAD_RATE_LIMIT.windowMs, DOWNLOAD_RATE_LIMIT.max),
-  }));
+  app.route(
+    '/api/assets',
+    createAssetRoutes({
+      db: deps.db,
+      audit: deps.audit,
+      storage: deps.storage,
+      uploadRateLimiter:
+        deps.uploadRateLimiter ??
+        new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max),
+      downloadRateLimiter: new InMemoryRateLimiter(
+        DOWNLOAD_RATE_LIMIT.windowMs,
+        DOWNLOAD_RATE_LIMIT.max,
+      ),
+    }),
+  );
   app.route('/api/tokens', createTokenRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/reviews', createReviewRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/labels', createLabelRoutes({ db: deps.db, audit: deps.audit }));

@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { eq, inArray, like } from 'drizzle-orm';
@@ -12,10 +11,19 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetFile, assetVersion, auditLog, namespace, namespaceMember, userAccount } from '../db/schema/index.js';
+import {
+  asset,
+  assetFile,
+  assetVersion,
+  auditLog,
+  namespace,
+  namespaceMember,
+  userAccount,
+} from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
-import { buildSkillZip, buildZip } from '../test-utils/zip-builder.js';
-import { AssetError, assetErrorCodes } from './errors.js';
+import { buildSkillZip } from '../test-utils/zip-builder.js';
+import type { AssetError } from './errors.js';
+import { assetErrorCodes } from './errors.js';
 import { createVersion } from './versions.js';
 
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -30,7 +38,9 @@ let userId: string;
 let assetId: number;
 
 beforeAll(async () => {
-  db = createClient(process.env.DATABASE_URL ?? 'postgres://aih:aih@localhost:5433/ai_asset_hub_test');
+  db = createClient(
+    process.env.DATABASE_URL ?? 'postgres://aih:aih@localhost:5433/ai_asset_hub_test',
+  );
   await migrate(db, { migrationsFolder: './drizzle' });
   audit = createAuditWriter(db);
   storageDir = await mkdtemp(join(tmpdir(), 'bun-storage-'));
@@ -39,19 +49,34 @@ beforeAll(async () => {
   await db.insert(userAccount).values({ id: userId, displayName: `${PREFIX}u`, status: 'ACTIVE' });
   const [ns] = await db
     .insert(namespace)
-    .values({ slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: userId })
+    .values({
+      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
+      displayName: `${PREFIX}ns`,
+      type: 'TEAM',
+      createdBy: userId,
+    })
     .returning({ id: namespace.id });
   nsId = ns!.id;
   await db.insert(namespaceMember).values({ namespaceId: nsId, userId, role: 'OWNER' });
   const [a] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug: `${PREFIX}a-${randomUUID().slice(0, 8)}`, type: 'skill', ownerId: userId })
+    .values({
+      namespaceId: nsId,
+      slug: `${PREFIX}a-${randomUUID().slice(0, 8)}`,
+      type: 'skill',
+      ownerId: userId,
+    })
     .returning({ id: asset.id });
   assetId = a!.id;
 });
 
 afterAll(async () => {
-  const versionIds = (await db.select({ id: assetVersion.id }).from(assetVersion).where(eq(assetVersion.assetId, assetId))).map((v) => v.id);
+  const versionIds = (
+    await db
+      .select({ id: assetVersion.id })
+      .from(assetVersion)
+      .where(eq(assetVersion.assetId, assetId))
+  ).map((v) => v.id);
   if (versionIds.length > 0) {
     await db.delete(assetFile).where(inArray(assetFile.versionId, versionIds));
   }
@@ -80,7 +105,10 @@ describe('createVersion bundle 顺存（design §7.1 R13）', () => {
       version: '1.0.0',
     });
     const [ver] = await db
-      .select({ bundleStorageKey: assetVersion.bundleStorageKey, bundleSha256: assetVersion.bundleSha256 })
+      .select({
+        bundleStorageKey: assetVersion.bundleStorageKey,
+        bundleSha256: assetVersion.bundleSha256,
+      })
       .from(assetVersion)
       .where(eq(assetVersion.id, out.id));
     expect(ver!.bundleStorageKey).toContain(`/${out.id}/bundle.zip`);
@@ -97,11 +125,24 @@ describe('SCAN_FAILED 同版本重传豁免（design §3.4 R5）', () => {
     // 覆写清理按 asset_file 收集存储 key——与真实上传路径同构）
     const [oldVer] = await db
       .insert(assetVersion)
-      .values({ assetId, version: '9.9.9', status: 'SCAN_FAILED', createdBy: userId, fileCount: 0, totalSize: 0 })
+      .values({
+        assetId,
+        version: '9.9.9',
+        status: 'SCAN_FAILED',
+        createdBy: userId,
+        fileCount: 0,
+        totalSize: 0,
+      })
       .returning({ id: assetVersion.id });
     const oldKey = `${nsId}/${assetId}/${oldVer!.id}/broken.txt`;
     await storage.put(oldKey, Buffer.from('broken'), { contentType: 'text/plain' });
-    await db.insert(assetFile).values({ versionId: oldVer!.id, filePath: 'broken.txt', fileSize: 7, sha256: 'a'.repeat(64), storageKey: oldKey });
+    await db.insert(assetFile).values({
+      versionId: oldVer!.id,
+      filePath: 'broken.txt',
+      fileSize: 7,
+      sha256: 'a'.repeat(64),
+      storageKey: oldKey,
+    });
 
     const file = zipBytes();
     const out = await createVersion(db, storage, audit, {
@@ -112,7 +153,10 @@ describe('SCAN_FAILED 同版本重传豁免（design §3.4 R5）', () => {
     });
     expect(out.status).toBe('DRAFT');
     // 旧行已删（新行是新 id）
-    const oldRow = await db.select({ id: assetVersion.id }).from(assetVersion).where(eq(assetVersion.id, oldVer!.id));
+    const oldRow = await db
+      .select({ id: assetVersion.id })
+      .from(assetVersion)
+      .where(eq(assetVersion.id, oldVer!.id));
     expect(oldRow).toHaveLength(0);
     // 旧文件存储已清（deleteMany 事后——exists 断言）
     expect(await storage.exists(oldKey)).toBe(false);

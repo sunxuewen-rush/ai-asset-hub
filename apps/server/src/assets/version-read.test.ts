@@ -39,10 +39,24 @@ function viewerFor(
   role: 'OWNER' | 'ADMIN' | 'MEMBER' | null,
   extra?: Partial<VersionViewer>,
 ): VersionViewer {
-  return { viewerId: uid, namespaceRole: role, isSuperAdmin: false, isPlatformReviewer: false, ...extra };
+  return {
+    viewerId: uid,
+    namespaceRole: role,
+    isSuperAdmin: false,
+    isPlatformReviewer: false,
+    ...extra,
+  };
 }
 
-const ALL_STATES: VersionStatus[] = ['DRAFT', 'UPLOADED', 'PENDING_REVIEW', 'SCAN_FAILED', 'REJECTED', 'PUBLISHED', 'YANKED'];
+const ALL_STATES: VersionStatus[] = [
+  'DRAFT',
+  'UPLOADED',
+  'PENDING_REVIEW',
+  'SCAN_FAILED',
+  'REJECTED',
+  'PUBLISHED',
+  'YANKED',
+];
 
 async function seedVersions(): Promise<void> {
   // 每个状态一个版本（版本号 = 状态名小写，createdBy = contributorId）
@@ -66,7 +80,12 @@ beforeAll(async () => {
   strangerId = await makeUser('stranger');
   const [ns] = await db
     .insert(namespace)
-    .values({ slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
+    .values({
+      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
+      displayName: `${PREFIX}ns`,
+      type: 'TEAM',
+      createdBy: ownerId,
+    })
     .returning({ id: namespace.id });
   nsId = ns!.id;
   await db.insert(namespaceMember).values([
@@ -128,7 +147,9 @@ describe('version-read 八态读面（design §3.6 R7——T6 回归：非授权
   });
 
   it('平台 ASSET_ADMIN（非 ns 成员）：全见（R7 审核角色扩展——isPlatformReviewer）', async () => {
-    const statuses = await listStatuses(viewerFor(assetAdminId, null, { isPlatformReviewer: true }));
+    const statuses = await listStatuses(
+      viewerFor(assetAdminId, null, { isPlatformReviewer: true }),
+    );
     expect(statuses).toHaveLength(ALL_STATES.length);
   });
 

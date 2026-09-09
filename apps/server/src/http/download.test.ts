@@ -25,17 +25,17 @@ import {
   auditLog,
   namespace,
   namespaceMember,
+  type RoleCode,
   role,
   userAccount,
   userRoleBinding,
-  type RoleCode,
   type VersionStatus,
 } from '../db/schema/index.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildSkillZip } from '../test-utils/zip-builder.js';
-import { rbacContext } from './auth-middleware.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
+import { rbacContext } from './auth-middleware.js';
 
 const PREFIX = 'dwn-';
 let db: Db;
@@ -60,7 +60,10 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 async function ensureRole(code: RoleCode) {
-  await db.insert(role).values({ code, name: `r-${code}`, isSystem: true }).onConflictDoNothing();
+  await db
+    .insert(role)
+    .values({ code, name: `r-${code}`, isSystem: true })
+    .onConflictDoNothing();
 }
 async function bindRole(userId: string, code: RoleCode) {
   const rows = await db.select().from(role).where(eq(role.code, code));
@@ -76,9 +79,12 @@ function buildApp(): Hono {
   app.use('*', sessionMiddleware(sessions));
   app.use('*', csrfProtection({}));
   app.onError((err, c) => {
-    if (err instanceof AuthError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
-    if (err instanceof AssetError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
-    if (err instanceof ReviewError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof AuthError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
+    if (err instanceof AssetError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof ReviewError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/assets', createAssetRoutes({ db, audit, storage, uploadRateLimiter }));
@@ -88,7 +94,10 @@ const ORIGIN = { origin: 'http://localhost:3000' };
 async function downloadReq(version: string, cookie?: string) {
   const headers: Record<string, string> = { host: 'localhost:3000', ...ORIGIN };
   if (cookie) headers.cookie = cookie;
-  return buildApp().request(`/api/assets/${PREFIX}ns/${assetSlug}/versions/${version}/download`, { method: 'GET', headers });
+  return buildApp().request(`/api/assets/${PREFIX}ns/${assetSlug}/versions/${version}/download`, {
+    method: 'GET',
+    headers,
+  });
 }
 
 let versionSeq = 0;
@@ -98,7 +107,13 @@ async function seedPublishedVersion(status: VersionStatus, createdBy: string): P
   const version = `${versionSeq++}.0.0`;
   const [v] = await db
     .insert(assetVersion)
-    .values({ assetId, version, status, createdBy, publishedAt: status === 'PUBLISHED' ? new Date() : null })
+    .values({
+      assetId,
+      version,
+      status,
+      createdBy,
+      publishedAt: status === 'PUBLISHED' ? new Date() : null,
+    })
     .returning({ id: assetVersion.id });
   const key = `${nsId}/${assetId}/${v!.id}/bundle.zip`;
   await storage.put(key, bundleZip, { contentType: 'application/zip' });
@@ -131,14 +146,22 @@ beforeAll(async () => {
     { namespaceId: nsId, userId: contributorId, role: 'MEMBER' },
   ]);
   assetSlug = `${PREFIX}a`;
-  const [a] = await db.insert(asset).values({ namespaceId: nsId, slug: assetSlug, type: 'skill', visibility: 'PUBLIC', ownerId }).returning({ id: asset.id });
+  const [a] = await db
+    .insert(asset)
+    .values({ namespaceId: nsId, slug: assetSlug, type: 'skill', visibility: 'PUBLIC', ownerId })
+    .returning({ id: asset.id });
   assetId = a!.id;
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.id, `${PREFIX}%`));
   // 本 ns 下全部资产（含 PRIVATE 用例附加资产）链删
-  const allAssetIds = (await db.select({ id: asset.id }).from(asset).where(eq(asset.namespaceId, nsId))).map((a) => a.id);
+  const allAssetIds = (
+    await db.select({ id: asset.id }).from(asset).where(eq(asset.namespaceId, nsId))
+  ).map((a) => a.id);
   if (allAssetIds.length > 0) {
     await db.delete(assetVersion).where(inArray(assetVersion.assetId, allAssetIds));
     await db.delete(asset).where(inArray(asset.id, allAssetIds));
@@ -162,7 +185,10 @@ describe('下载五档授权（design §7.2 R13）', () => {
     expect(res.headers.get('content-type')).toBe('application/zip');
     const bytes = Buffer.from(await res.arrayBuffer());
     expect(bytes.toString('hex')).toBe(bundleZip.toString('hex')); // 原包字节一致
-    const [a] = await db.select({ n: asset.downloadCount }).from(asset).where(eq(asset.id, assetId));
+    const [a] = await db
+      .select({ n: asset.downloadCount })
+      .from(asset)
+      .where(eq(asset.id, assetId));
     expect(a!.n).toBe(1);
   });
 
@@ -190,7 +216,9 @@ describe('下载五档授权（design §7.2 R13）', () => {
     expect(ownerRes.status).toBe(200);
     const strangerRes = await downloadReq(version, await cookieFor(strangerId));
     expect(strangerRes.status).toBe(400);
-    expect(((await strangerRes.json()) as { code: string }).code).toBe('asset.version_not_published');
+    expect(((await strangerRes.json()) as { code: string }).code).toBe(
+      'asset.version_not_published',
+    );
   });
 
   it('UPLOADED：上传者本人（非 owner MEMBER）可下', async () => {
@@ -209,19 +237,37 @@ describe('下载五档授权（design §7.2 R13）', () => {
 
   it('PRIVATE 资产：陌生人下载 → 403 asset.access_denied（资产读面先行）', async () => {
     const privateSlug = `${PREFIX}p`;
-    const [p] = await db.insert(asset).values({ namespaceId: nsId, slug: privateSlug, type: 'skill', visibility: 'PRIVATE', ownerId }).returning({ id: asset.id });
+    const [p] = await db
+      .insert(asset)
+      .values({
+        namespaceId: nsId,
+        slug: privateSlug,
+        type: 'skill',
+        visibility: 'PRIVATE',
+        ownerId,
+      })
+      .returning({ id: asset.id });
     const [v] = await db
       .insert(assetVersion)
-      .values({ assetId: p!.id, version: '1.0.0', status: 'PUBLISHED', createdBy: contributorId, publishedAt: new Date() })
+      .values({
+        assetId: p!.id,
+        version: '1.0.0',
+        status: 'PUBLISHED',
+        createdBy: contributorId,
+        publishedAt: new Date(),
+      })
       .returning({ id: assetVersion.id });
     const key = `${nsId}/${p!.id}/${v!.id}/bundle.zip`;
     await storage.put(key, bundleZip, { contentType: 'application/zip' });
     await db.update(assetVersion).set({ bundleStorageKey: key }).where(eq(assetVersion.id, v!.id));
 
-    const res = await buildApp().request(`/api/assets/${PREFIX}ns/${privateSlug}/versions/1.0.0/download`, {
-      method: 'GET',
-      headers: { host: 'localhost:3000', ...ORIGIN, cookie: await cookieFor(strangerId) },
-    });
+    const res = await buildApp().request(
+      `/api/assets/${PREFIX}ns/${privateSlug}/versions/1.0.0/download`,
+      {
+        method: 'GET',
+        headers: { host: 'localhost:3000', ...ORIGIN, cookie: await cookieFor(strangerId) },
+      },
+    );
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe('asset.access_denied');
   });

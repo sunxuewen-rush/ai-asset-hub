@@ -25,16 +25,16 @@ import {
   labelDefinition,
   namespace,
   namespaceMember,
+  type RoleCode,
   role,
   userAccount,
   userRoleBinding,
-  type RoleCode,
 } from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
-import { rbacContext } from './auth-middleware.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
+import { rbacContext } from './auth-middleware.js';
 import { createLabelRoutes } from './labels.js';
 
 const PREFIX = 'lat-';
@@ -58,7 +58,10 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 async function ensureRole(code: RoleCode) {
-  await db.insert(role).values({ code, name: `r-${code}`, isSystem: true }).onConflictDoNothing();
+  await db
+    .insert(role)
+    .values({ code, name: `r-${code}`, isSystem: true })
+    .onConflictDoNothing();
 }
 async function bindRole(userId: string, code: RoleCode) {
   const rows = await db.select().from(role).where(eq(role.code, code));
@@ -74,10 +77,14 @@ function buildApp(): Hono {
   app.use('*', sessionMiddleware(sessions));
   app.use('*', csrfProtection({}));
   app.onError((err, c) => {
-    if (err instanceof AuthError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
-    if (err instanceof AssetError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
-    if (err instanceof ReviewError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
-    if (err instanceof LabelError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409);
+    if (err instanceof AuthError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
+    if (err instanceof AssetError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof ReviewError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof LabelError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404 | 409);
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/assets', createAssetRoutes({ db, audit, storage, uploadRateLimiter }));
@@ -86,12 +93,18 @@ function buildApp(): Hono {
 }
 const ORIGIN = { origin: 'http://localhost:3000' };
 async function putDel(method: string, url: string, cookie: string) {
-  return buildApp().request(url, { method, headers: { host: 'localhost:3000', ...ORIGIN, cookie } });
+  return buildApp().request(url, {
+    method,
+    headers: { host: 'localhost:3000', ...ORIGIN, cookie },
+  });
 }
 const put = (u: string, c: string) => putDel('PUT', u, c);
 const del = (u: string, c: string) => putDel('DELETE', u, c);
 async function getAssetDetail(slug: string) {
-  return buildApp().request(`/api/assets/${PREFIX}ns/${slug}`, { method: 'GET', headers: { host: 'localhost:3000', ...ORIGIN } });
+  return buildApp().request(`/api/assets/${PREFIX}ns/${slug}`, {
+    method: 'GET',
+    headers: { host: 'localhost:3000', ...ORIGIN },
+  });
 }
 
 let seq = 0;
@@ -128,7 +141,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.id, `${PREFIX}%`));
   await db.delete(asset).where(eq(asset.ownerId, ownerId));
   await db.delete(labelDefinition).where(like(labelDefinition.createdBy, `${PREFIX}%`));
   await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
@@ -154,7 +170,10 @@ describe('资产挂载 API（06 §3/§5.3 + design §5 R11）', () => {
   it('RECOMMENDED：owner 挂载 → 204 + 详情 labels[] 出现', async () => {
     const lab = `rec-${++seq}`;
     await seedLabel(lab);
-    const res = await put(`/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`, await cookieFor(ownerId));
+    const res = await put(
+      `/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`,
+      await cookieFor(ownerId),
+    );
     expect(res.status).toBe(204);
     const detail = (await (await getAssetDetail(assetSlug)).json()) as { labels: string[] };
     expect(detail.labels).toContain(lab);
@@ -163,14 +182,20 @@ describe('资产挂载 API（06 §3/§5.3 + design §5 R11）', () => {
   it('RECOMMENDED：空间 ADMIN（非 owner）可挂', async () => {
     const lab = `adm-${++seq}`;
     await seedLabel(lab);
-    const res = await put(`/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`, await cookieFor(adminId));
+    const res = await put(
+      `/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`,
+      await cookieFor(adminId),
+    );
     expect(res.status).toBe(204);
   });
 
   it('RECOMMENDED：MEMBER 非 owner 挂他人资产 → 403 label.access_denied', async () => {
     const lab = `denied-${++seq}`;
     await seedLabel(lab);
-    const res = await put(`/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`, await cookieFor(memberId));
+    const res = await put(
+      `/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`,
+      await cookieFor(memberId),
+    );
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe('label.access_denied');
   });
@@ -178,14 +203,23 @@ describe('资产挂载 API（06 §3/§5.3 + design §5 R11）', () => {
   it('PRIVILEGED：owner 挂 → 403；SUPER_ADMIN 挂 → 204', async () => {
     const lab = `priv-${++seq}`;
     await seedLabel(lab, 'PRIVILEGED');
-    const ownerRes = await put(`/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`, await cookieFor(ownerId));
+    const ownerRes = await put(
+      `/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`,
+      await cookieFor(ownerId),
+    );
     expect(ownerRes.status).toBe(403);
-    const saRes = await put(`/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`, await cookieFor(superAdmin));
+    const saRes = await put(
+      `/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`,
+      await cookieFor(superAdmin),
+    );
     expect(saRes.status).toBe(204);
   });
 
   it('label 不存在 → 404 label.not_found', async () => {
-    const res = await put(`/api/assets/${PREFIX}ns/${assetSlug}/labels/ghost-label`, await cookieFor(ownerId));
+    const res = await put(
+      `/api/assets/${PREFIX}ns/${assetSlug}/labels/ghost-label`,
+      await cookieFor(ownerId),
+    );
     expect(res.status).toBe(404);
     expect(((await res.json()) as { code: string }).code).toBe('label.not_found');
   });
@@ -233,7 +267,10 @@ describe('资产挂载 API（06 §3/§5.3 + design §5 R11）', () => {
   it('stranger 挂载 → 403（无成员关系非 owner）', async () => {
     const lab = `str-${++seq}`;
     await seedLabel(lab);
-    const res = await put(`/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`, await cookieFor(strangerId));
+    const res = await put(
+      `/api/assets/${PREFIX}ns/${assetSlug}/labels/${lab}`,
+      await cookieFor(strangerId),
+    );
     expect(res.status).toBe(403);
   });
 });

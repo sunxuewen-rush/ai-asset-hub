@@ -14,6 +14,7 @@ import { AssetError } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
+import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
@@ -24,19 +25,17 @@ import {
   auditLog,
   namespace,
   namespaceMember,
+  type RoleCode,
   reviewTask,
   role,
   userAccount,
   userRoleBinding,
-  type RoleCode,
   type VersionStatus,
 } from '../db/schema/index.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
-import { InMemoryRateLimiter } from '../auth/rate-limit.js';
-import { UPLOAD_RATE_LIMIT } from './assets.js';
+import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
 import { rbacContext } from './auth-middleware.js';
-import { createAssetRoutes } from './assets.js';
 
 const PREFIX = 'dsc-';
 let db: Db;
@@ -58,7 +57,10 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 async function ensureRole(code: RoleCode) {
-  await db.insert(role).values({ code, name: `r-${code}`, isSystem: true }).onConflictDoNothing();
+  await db
+    .insert(role)
+    .values({ code, name: `r-${code}`, isSystem: true })
+    .onConflictDoNothing();
 }
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'dsc-http');
@@ -70,9 +72,12 @@ function buildApp(): Hono {
   app.use('*', sessionMiddleware(sessions));
   app.use('*', csrfProtection({}));
   app.onError((err, c) => {
-    if (err instanceof AuthError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
-    if (err instanceof AssetError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
-    if (err instanceof ReviewError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof AuthError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
+    if (err instanceof AssetError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof ReviewError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/assets', createAssetRoutes({ db, audit, storage, uploadRateLimiter }));
@@ -80,7 +85,10 @@ function buildApp(): Hono {
 }
 const ORIGIN = { origin: 'http://localhost:3000' };
 async function delReq(url: string, cookie: string) {
-  return buildApp().request(url, { method: 'DELETE', headers: { host: 'localhost:3000', ...ORIGIN, cookie } });
+  return buildApp().request(url, {
+    method: 'DELETE',
+    headers: { host: 'localhost:3000', ...ORIGIN, cookie },
+  });
 }
 
 let seq = 0;
@@ -140,7 +148,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.id, `${PREFIX}%`));
   await db.delete(reviewTask).where(like(reviewTask.submittedBy, `${PREFIX}%`));
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
@@ -158,53 +169,80 @@ afterAll(async () => {
 describe('版本删除分治矩阵（design §3.4 R5）', () => {
   it('上传者本人（非 owner）删自己的 DRAFT → 204', async () => {
     const { slug } = await mkVersioned(contributorId, 'DRAFT');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(contributorId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(contributorId),
+    );
     expect(res.status).toBe(204);
   });
 
   it('上传者本人删自己的 SCAN_FAILED → 204（草稿族例外扩展）', async () => {
     const { slug } = await mkVersioned(contributorId, 'SCAN_FAILED');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(contributorId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(contributorId),
+    );
     expect(res.status).toBe(204);
   });
 
   it('上传者本人删自己的 REJECTED → 403（已进审核留档——管理面）', async () => {
     const { slug } = await mkVersioned(contributorId, 'REJECTED', 'REJECTED');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(contributorId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(contributorId),
+    );
     expect(res.status).toBe(403);
   });
 
   it('owner 删 REJECTED → 204 + 连带 review_task 行清', async () => {
     const { assetId, slug } = await mkVersioned(contributorId, 'REJECTED', 'REJECTED');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(ownerId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(ownerId),
+    );
     expect(res.status).toBe(204);
-    const tasks = await db.select({ id: reviewTask.id }).from(reviewTask).where(eq(reviewTask.assetVersionId, assetId));
+    const tasks = await db
+      .select({ id: reviewTask.id })
+      .from(reviewTask)
+      .where(eq(reviewTask.assetVersionId, assetId));
     expect(tasks).toHaveLength(0); // 版本删除连带清任务行
   });
 
   it('空间 ADMIN（非 owner 非上传者）删 UPLOADED → 204（管理面）', async () => {
     const { slug } = await mkVersioned(contributorId, 'UPLOADED', 'WITHDRAWN');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(adminId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(adminId),
+    );
     expect(res.status).toBe(204);
   });
 
   it('owner 删 PENDING_REVIEW → 400 version_not_deletable（审核中禁删——防内容蒸发）', async () => {
     const { slug } = await mkVersioned(contributorId, 'PENDING_REVIEW', 'PENDING');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(ownerId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(ownerId),
+    );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_deletable');
   });
 
   it('owner 删 YANKED → 400 version_not_deletable（留档态）', async () => {
     const { slug } = await mkVersioned(contributorId, 'YANKED');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(ownerId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(ownerId),
+    );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_deletable');
   });
 
   it('stranger（非成员非上传者）删 DRAFT → 403 auth.forbidden', async () => {
     const { slug } = await mkVersioned(contributorId, 'DRAFT');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`, await cookieFor(strangerId));
+    const res = await delReq(
+      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
+      await cookieFor(strangerId),
+    );
     expect(res.status).toBe(403);
   });
 });

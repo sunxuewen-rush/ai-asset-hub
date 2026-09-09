@@ -11,9 +11,9 @@ import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import {
   assetLabel,
+  type LabelType,
   labelDefinition,
   labelTranslation,
-  type LabelType,
 } from '../db/schema/index.js';
 import { LabelError, labelErrorCodes } from './errors.js';
 
@@ -72,10 +72,17 @@ async function loadBySlug(db: Db, slug: string): Promise<LabelRow> {
 }
 
 /** 翻译按 label 批量读（定义 CRUD/编辑共用） */
-async function translationsOf(db: Db, labelIds: number[]): Promise<Map<number, Array<{ locale: string; displayName: string }>>> {
+async function translationsOf(
+  db: Db,
+  labelIds: number[],
+): Promise<Map<number, Array<{ locale: string; displayName: string }>>> {
   if (labelIds.length === 0) return new Map();
   const rows = await db
-    .select({ labelId: labelTranslation.labelId, locale: labelTranslation.locale, displayName: labelTranslation.displayName })
+    .select({
+      labelId: labelTranslation.labelId,
+      locale: labelTranslation.locale,
+      displayName: labelTranslation.displayName,
+    })
     .from(labelTranslation)
     .where(inArray(labelTranslation.labelId, labelIds));
   const map = new Map<number, Array<{ locale: string; displayName: string }>>();
@@ -91,7 +98,11 @@ async function translationsOf(db: Db, labelIds: number[]): Promise<Map<number, A
  * 锁两级树校验（06 §5.2）：parent 必须是一级分类；不能挂二级之下；不能自指；
  * 一级不可降级（设 parent）；二级可换域。返回解析后的父级 id（null = 一级）。
  */
-async function resolveParent(db: Db, parentSlug: string | null | undefined, currentSlug?: string): Promise<number | null> {
+async function resolveParent(
+  db: Db,
+  parentSlug: string | null | undefined,
+  currentSlug?: string,
+): Promise<number | null> {
   if (parentSlug === null || parentSlug === undefined || parentSlug === '') return null;
   const parent = await loadBySlug(db, parentSlug); // parent 不存在 → label.not_found
   if (parent.slug === currentSlug) throw new LabelError(labelErrorCodes.invalidParent); // 自指
@@ -115,7 +126,8 @@ export async function createLabel(
   input: CreateLabelInput,
 ): Promise<ManagedLabel> {
   const slug = input.slug.trim();
-  if (!labelSlugSchema.safeParse(slug).success) throw new LabelError(labelErrorCodes.invalidParent, 'invalid slug'); // 复用码？slug 格式错用 request.invalid 更贴——路由层校验；此处防御
+  if (!labelSlugSchema.safeParse(slug).success)
+    throw new LabelError(labelErrorCodes.invalidParent, 'invalid slug'); // 复用码？slug 格式错用 request.invalid 更贴——路由层校验；此处防御
   const parentId = await resolveParent(db, input.parentSlug);
 
   try {
@@ -140,9 +152,15 @@ export async function createLabel(
           createdBy: labelDefinition.createdBy,
         });
       if (input.translations && input.translations.length > 0) {
-        await tx.insert(labelTranslation).values(
-          input.translations.map((t) => ({ labelId: def!.id, locale: t.locale, displayName: t.displayName })),
-        );
+        await tx
+          .insert(labelTranslation)
+          .values(
+            input.translations.map((t) => ({
+              labelId: def!.id,
+              locale: t.locale,
+              displayName: t.displayName,
+            })),
+          );
       }
       return { def: def!, translations: input.translations ?? [] };
     });
@@ -184,7 +202,10 @@ export async function updateLabel(
   if (existing.parentId === null && input.parentSlug && input.parentSlug !== '') {
     throw new LabelError(labelErrorCodes.invalidParent);
   }
-  const parentId = input.parentSlug === undefined ? existing.parentId : await resolveParent(db, input.parentSlug, input.slug);
+  const parentId =
+    input.parentSlug === undefined
+      ? existing.parentId
+      : await resolveParent(db, input.parentSlug, input.slug);
 
   await db.transaction(async (tx) => {
     await tx
@@ -203,7 +224,10 @@ export async function updateLabel(
         await tx
           .insert(labelTranslation)
           .values({ labelId: existing.id, locale: t.locale, displayName: t.displayName })
-          .onConflictDoUpdate({ target: [labelTranslation.labelId, labelTranslation.locale], set: { displayName: t.displayName, updatedAt: new Date() } });
+          .onConflictDoUpdate({
+            target: [labelTranslation.labelId, labelTranslation.locale],
+            set: { displayName: t.displayName, updatedAt: new Date() },
+          });
       }
     }
   });
@@ -213,13 +237,26 @@ export async function updateLabel(
     action: 'label.update',
     targetType: 'label_definition',
     targetId: String(existing.id),
-    detail: { slug: input.slug, changed: Object.keys(input).filter((k) => k !== 'slug' && k !== 'actorId' && input[k as keyof UpdateLabelInput] !== undefined) },
+    detail: {
+      slug: input.slug,
+      changed: Object.keys(input).filter(
+        (k) => k !== 'slug' && k !== 'actorId' && input[k as keyof UpdateLabelInput] !== undefined,
+      ),
+    },
   });
-  return { ...existing, ...(await loadBySlug(db, input.slug)), translations: (await translationsOf(db, [existing.id])).get(existing.id) ?? [] };
+  return {
+    ...existing,
+    ...(await loadBySlug(db, input.slug)),
+    translations: (await translationsOf(db, [existing.id])).get(existing.id) ?? [],
+  };
 }
 
 /** 删除（带子级拒——06 §5.2；翻译/挂载 cascade；无搜索重建——design R11） */
-export async function deleteLabel(db: Db, audit: AuditWriter, input: { slug: string; actorId: string }): Promise<void> {
+export async function deleteLabel(
+  db: Db,
+  audit: AuditWriter,
+  input: { slug: string; actorId: string },
+): Promise<void> {
   const existing = await loadBySlug(db, input.slug);
   const [child] = await db
     .select({ id: labelDefinition.id })
@@ -254,7 +291,10 @@ export async function reorderLabels(
   for (const item of input.order) {
     const id = bySlug.get(item.slug);
     if (!id) throw new LabelError(labelErrorCodes.notFound);
-    await db.update(labelDefinition).set({ sortOrder: item.sortOrder }).where(eq(labelDefinition.id, id));
+    await db
+      .update(labelDefinition)
+      .set({ sortOrder: item.sortOrder })
+      .where(eq(labelDefinition.id, id));
   }
   await audit({
     actorId: input.actorId,
@@ -280,7 +320,10 @@ export async function listPublicLabels(db: Db, locale: string): Promise<PublicLa
     .where(and(eq(labelDefinition.type, 'RECOMMENDED'), eq(labelDefinition.visibleInFilter, true)))
     .orderBy(labelDefinition.sortOrder, labelDefinition.id);
 
-  const translations = await translationsOf(db, defs.map((d) => d.id));
+  const translations = await translationsOf(
+    db,
+    defs.map((d) => d.id),
+  );
   const defRows = new Map(defs.map((d) => [d.id, d.slug]));
 
   return defs.map((d) => {
@@ -290,7 +333,7 @@ export async function listPublicLabels(db: Db, locale: string): Promise<PublicLa
     return {
       slug: d.slug,
       type: d.type,
-      parentId: d.parentId === null ? null : defRows.get(d.parentId) ?? null,
+      parentId: d.parentId === null ? null : (defRows.get(d.parentId) ?? null),
       displayName: hit?.displayName ?? d.slug,
     };
   });
@@ -310,18 +353,24 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
     })
     .from(labelDefinition)
     .orderBy(labelDefinition.sortOrder, labelDefinition.id);
-  const translations = await translationsOf(db, defs.map((d) => d.id));
+  const translations = await translationsOf(
+    db,
+    defs.map((d) => d.id),
+  );
   const parentSlugById = new Map(defs.map((d) => [d.id, d.slug]));
   return defs.map((d) => ({
     ...d,
     parentId: d.parentId === null ? null : d.parentId, // DB 内部 id（管理面可直用——06 §5.2 API 层 slug；管理面简化回 slug？——统一回 slug 更一致）
-    parentSlug: d.parentId === null ? null : parentSlugById.get(d.parentId) ?? null,
+    parentSlug: d.parentId === null ? null : (parentSlugById.get(d.parentId) ?? null),
     translations: translations.get(d.id) ?? [],
   }));
 }
 
 /** label slug 查 label 定义（T11 挂载复用——按 slug 拿内部 id + type） */
-export async function findLabelBySlug(db: Db, slug: string): Promise<{ id: number; slug: string; type: LabelType; parentId: number | null }> {
+export async function findLabelBySlug(
+  db: Db,
+  slug: string,
+): Promise<{ id: number; slug: string; type: LabelType; parentId: number | null }> {
   const row = await loadBySlug(db, slug);
   return { id: row.id, slug: row.slug, type: row.type, parentId: row.parentId };
 }
@@ -335,7 +384,11 @@ export const MAX_LABELS_PER_ASSET = 10;
  * 挂载判定（06 §3——只看 label.type）：RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN
  * （canManageAsset——路由层判定结果）；PRIVILEGED = 仅 SUPER_ADMIN。
  */
-export function canAttachLabel(type: LabelType, canManage: boolean, isSuperAdmin: boolean): boolean {
+export function canAttachLabel(
+  type: LabelType,
+  canManage: boolean,
+  isSuperAdmin: boolean,
+): boolean {
   if (type === 'PRIVILEGED') return isSuperAdmin;
   return canManage || isSuperAdmin;
 }
@@ -348,7 +401,13 @@ export function canAttachLabel(type: LabelType, canManage: boolean, isSuperAdmin
 export async function attachLabel(
   db: Db,
   audit: AuditWriter,
-  input: { assetId: number; labelSlug: string; actorId: string; canManage: boolean; isSuperAdmin: boolean },
+  input: {
+    assetId: number;
+    labelSlug: string;
+    actorId: string;
+    canManage: boolean;
+    isSuperAdmin: boolean;
+  },
 ): Promise<void> {
   const { assetId, labelSlug, actorId } = input;
   const label = await findLabelBySlug(db, labelSlug); // 不存在 → label.not_found
@@ -369,7 +428,8 @@ export async function attachLabel(
         .select({ n: sql<number>`count(*)` })
         .from(assetLabel)
         .where(eq(assetLabel.assetId, assetId));
-      if (Number(cnt?.n ?? 0) >= MAX_LABELS_PER_ASSET) throw new LabelError(labelErrorCodes.limitExceeded);
+      if (Number(cnt?.n ?? 0) >= MAX_LABELS_PER_ASSET)
+        throw new LabelError(labelErrorCodes.limitExceeded);
 
       await tx.insert(assetLabel).values({ assetId, labelId: label.id, createdBy: actorId });
       return 'inserted' as const;
@@ -395,13 +455,21 @@ export async function attachLabel(
 export async function detachLabel(
   db: Db,
   audit: AuditWriter,
-  input: { assetId: number; labelSlug: string; actorId: string; canManage: boolean; isSuperAdmin: boolean },
+  input: {
+    assetId: number;
+    labelSlug: string;
+    actorId: string;
+    canManage: boolean;
+    isSuperAdmin: boolean;
+  },
 ): Promise<void> {
   const label = await findLabelBySlug(db, input.labelSlug);
   if (!canAttachLabel(label.type, input.canManage, input.isSuperAdmin)) {
     throw new LabelError(labelErrorCodes.accessDenied);
   }
-  await db.delete(assetLabel).where(and(eq(assetLabel.assetId, input.assetId), eq(assetLabel.labelId, label.id)));
+  await db
+    .delete(assetLabel)
+    .where(and(eq(assetLabel.assetId, input.assetId), eq(assetLabel.labelId, label.id)));
   await audit({
     actorId: input.actorId,
     action: 'asset.label_detach',

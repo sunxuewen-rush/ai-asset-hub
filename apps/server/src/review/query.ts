@@ -17,8 +17,8 @@ import {
   assetFile,
   assetVersion,
   namespace,
-  reviewTask,
   type ReviewStatus,
+  reviewTask,
 } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
 
@@ -67,7 +67,8 @@ const LIST_SELECT = {
 
 async function baseQuery(filters: QueueFilters, mineViewerId?: string) {
   const conds = [];
-  if (filters.namespaceId !== undefined) conds.push(eq(reviewTask.namespaceId, filters.namespaceId));
+  if (filters.namespaceId !== undefined)
+    conds.push(eq(reviewTask.namespaceId, filters.namespaceId));
   if (filters.status !== undefined) conds.push(eq(reviewTask.status, filters.status));
   if (mineViewerId !== undefined) conds.push(eq(reviewTask.submittedBy, mineViewerId));
   return and(...conds);
@@ -144,7 +145,11 @@ export async function getReviewDetail(
   }
 
   const files = await db
-    .select({ filePath: assetFile.filePath, fileSize: assetFile.fileSize, sha256: assetFile.sha256 })
+    .select({
+      filePath: assetFile.filePath,
+      fileSize: assetFile.fileSize,
+      sha256: assetFile.sha256,
+    })
     .from(assetFile)
     .where(eq(assetFile.versionId, row.versionId))
     .orderBy(assetFile.filePath);

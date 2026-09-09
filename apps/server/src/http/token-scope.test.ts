@@ -7,26 +7,36 @@ import { Hono } from 'hono';
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { AssetError } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
+import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
-import { createClient, type Db } from '../db/client.js';
-import { apiToken, asset, auditLog, namespace, namespaceMember, role, userAccount, userRoleBinding, type RoleCode } from '../db/schema/index.js';
 import { hashToken } from '../auth/tokens.js';
+import { createClient, type Db } from '../db/client.js';
+import {
+  apiToken,
+  asset,
+  auditLog,
+  namespace,
+  namespaceMember,
+  type RoleCode,
+  role,
+  userAccount,
+  userRoleBinding,
+} from '../db/schema/index.js';
+import { createLocalStorage } from '../storage/local.js';
+import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
 import { createAuditRoutes } from './audit.js';
 import { rbacContext } from './auth-middleware.js';
-import { createTokenRoutes } from './tokens.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
-import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
-import { InMemoryRateLimiter } from '../auth/rate-limit.js';
-import { createLocalStorage } from '../storage/local.js';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { createTokenRoutes } from './tokens.js';
 
 const PREFIX = 'tks-';
 let db: Db;
@@ -45,7 +55,10 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 async function ensureRole(code: RoleCode) {
-  await db.insert(role).values({ code, name: `r-${code}`, isSystem: true }).onConflictDoNothing();
+  await db
+    .insert(role)
+    .values({ code, name: `r-${code}`, isSystem: true })
+    .onConflictDoNothing();
 }
 async function bindRole(userId: string, code: RoleCode) {
   const rows = await db.select().from(role).where(eq(role.code, code));
@@ -58,7 +71,12 @@ async function cookieFor(userId: string): Promise<string> {
 async function issueToken(userId: string, scope?: string[]): Promise<string> {
   const res = await buildApp().request('/api/tokens', {
     method: 'POST',
-    headers: { host: 'localhost:3000', origin: 'http://localhost:3000', 'content-type': 'application/json', cookie: await cookieFor(userId) },
+    headers: {
+      host: 'localhost:3000',
+      origin: 'http://localhost:3000',
+      'content-type': 'application/json',
+      cookie: await cookieFor(userId),
+    },
     body: JSON.stringify(scope === undefined ? {} : { scope }),
   });
   expect(res.status).toBe(201);
@@ -76,8 +94,10 @@ function buildApp(): Hono {
   app.use('*', sessionMiddleware(sessions));
   app.use('*', csrfProtection({}));
   app.onError((err, c) => {
-    if (err instanceof AuthError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
-    if (err instanceof AssetError) return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
+    if (err instanceof AuthError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
+    if (err instanceof AssetError)
+      return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/tokens', createTokenRoutes({ db, audit }));
@@ -86,13 +106,24 @@ function buildApp(): Hono {
   return app;
 }
 async function apiAudit(token: string): Promise<Response> {
-  return buildApp().request('/api/audit?limit=1', { method: 'GET', headers: { host: 'localhost:3000', authorization: `Bearer ${token}` } });
+  return buildApp().request('/api/audit?limit=1', {
+    method: 'GET',
+    headers: { host: 'localhost:3000', authorization: `Bearer ${token}` },
+  });
 }
 async function apiRegister(token: string): Promise<Response> {
   return buildApp().request('/api/assets', {
     method: 'POST',
-    headers: { host: 'localhost:3000', 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ namespaceSlug: 'tks-ns', slug: `scope-a-${randomUUID().slice(0, 6)}`, type: 'skill' }),
+    headers: {
+      host: 'localhost:3000',
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      namespaceSlug: 'tks-ns',
+      slug: `scope-a-${randomUUID().slice(0, 6)}`,
+      type: 'skill',
+    }),
   });
 }
 
@@ -112,17 +143,36 @@ beforeAll(async () => {
   await bindRole(auditorId, 'AUDITOR');
   await bindRole(superAdminId, 'SUPER_ADMIN');
   // 注册端点的权限门在 ns 寻址后——建 ns 使 scope 判定真触发
-  await db.insert(namespace).values({ slug: 'tks-ns', displayName: 'tks-ns', type: 'TEAM', createdBy: superAdminId });
-  const [nsRow] = await db.select({ id: namespace.id }).from(namespace).where(eq(namespace.slug, 'tks-ns'));
-  await db.insert(namespaceMember).values({ namespaceId: nsRow!.id, userId: superAdminId, role: 'OWNER' });
+  await db
+    .insert(namespace)
+    .values({ slug: 'tks-ns', displayName: 'tks-ns', type: 'TEAM', createdBy: superAdminId });
+  const [nsRow] = await db
+    .select({ id: namespace.id })
+    .from(namespace)
+    .where(eq(namespace.slug, 'tks-ns'));
+  await db
+    .insert(namespaceMember)
+    .values({ namespaceId: nsRow!.id, userId: superAdminId, role: 'OWNER' });
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: userAccount.id }).from(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  const users = await db
+    .select({ id: userAccount.id })
+    .from(userAccount)
+    .where(like(userAccount.id, `${PREFIX}%`));
   await db.delete(apiToken).where(like(apiToken.userId, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
-  const ownedAssets = await db.select({ id: asset.id }).from(asset).where(like(asset.ownerId, `${PREFIX}%`));
-  if (ownedAssets.length > 0) await db.delete(asset).where(inArray(asset.id, ownedAssets.map((a) => a.id)));
+  const ownedAssets = await db
+    .select({ id: asset.id })
+    .from(asset)
+    .where(like(asset.ownerId, `${PREFIX}%`));
+  if (ownedAssets.length > 0)
+    await db.delete(asset).where(
+      inArray(
+        asset.id,
+        ownedAssets.map((a) => a.id),
+      ),
+    );
   await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
   await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   for (const u of users) {
@@ -136,7 +186,10 @@ afterAll(async () => {
 describe('Token scope 交集过滤（design §8 R14）', () => {
   it("签发 scope=['audit:read'] → 列表回显 scope", async () => {
     const token = await issueToken(auditorId, ['audit:read']);
-    const res = await buildApp().request('/api/tokens', { method: 'GET', headers: { host: 'localhost:3000', cookie: await cookieFor(auditorId) } });
+    const res = await buildApp().request('/api/tokens', {
+      method: 'GET',
+      headers: { host: 'localhost:3000', cookie: await cookieFor(auditorId) },
+    });
     const body = (await res.json()) as { items: Array<{ scope: string }> };
     expect(body.items.some((t) => t.scope === 'audit:read')).toBe(true);
     void token;
@@ -173,7 +226,12 @@ describe('Token scope 交集过滤（design §8 R14）', () => {
   it('非法 scope 码（非十权限值）→ 400 request.invalid', async () => {
     const res = await buildApp().request('/api/tokens', {
       method: 'POST',
-      headers: { host: 'localhost:3000', origin: 'http://localhost:3000', 'content-type': 'application/json', cookie: await cookieFor(auditorId) },
+      headers: {
+        host: 'localhost:3000',
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+        cookie: await cookieFor(auditorId),
+      },
       body: JSON.stringify({ scope: ['nope:code'] }),
     });
     expect(res.status).toBe(400);

@@ -47,7 +47,10 @@ export async function yankVersion(
       .where(and(eq(assetVersion.id, version.id), eq(assetVersion.status, 'PUBLISHED')));
 
     // latest 重算（仅在命中当前指针时——否则不动；skillhub 重算排序同构）
-    const [current] = await tx.select({ latest: asset.latestVersionId }).from(asset).where(eq(asset.id, assetId));
+    const [current] = await tx
+      .select({ latest: asset.latestVersionId })
+      .from(asset)
+      .where(eq(asset.id, assetId));
     if (current?.latest !== version.id) return current?.latest ?? null;
 
     const remaining = await tx
@@ -58,7 +61,10 @@ export async function yankVersion(
       .limit(1);
     const nextLatest = remaining[0]?.id ?? null;
     // updatedAt 同步 bump（T12 排序语义——撤回属内容状态更新）
-    await tx.update(asset).set({ latestVersionId: nextLatest, updatedAt: new Date() }).where(eq(asset.id, assetId));
+    await tx
+      .update(asset)
+      .set({ latestVersionId: nextLatest, updatedAt: new Date() })
+      .where(eq(asset.id, assetId));
     return nextLatest;
   });
 

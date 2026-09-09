@@ -35,10 +35,7 @@ export function canDownloadPreview(
   return viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN';
 }
 
-export type DownloadDecision =
-  | { kind: 'yanked' }
-  | { kind: 'not_published' }
-  | { kind: 'ok' };
+export type DownloadDecision = { kind: 'yanked' } | { kind: 'not_published' } | { kind: 'ok' };
 
 /** 版本态下载判定（纯函数——状态分档 + 授权集；错误码分派由调用方按 kind 落） */
 export function decideDownload(
@@ -54,7 +51,9 @@ export function decideDownload(
       return { kind: 'yanked' };
     case 'UPLOADED':
     case 'PENDING_REVIEW':
-      return canDownloadPreview(viewer, assetOwnerId, version) ? { kind: 'ok' } : { kind: 'not_published' };
+      return canDownloadPreview(viewer, assetOwnerId, version)
+        ? { kind: 'ok' }
+        : { kind: 'not_published' };
     default: // DRAFT / SCANNING / SCAN_FAILED / REJECTED
       return { kind: 'not_published' };
   }
@@ -95,5 +94,9 @@ export async function resolveDownload(
     .set({ downloadCount: sql`${asset.downloadCount} + 1`, updatedAt: new Date() })
     .where(eq(asset.id, assetId))
     .returning({ downloadCount: asset.downloadCount });
-  return { presignedUrl, bundleKey: versionRow.bundleStorageKey, downloadCount: row?.downloadCount ?? 0 };
+  return {
+    presignedUrl,
+    bundleKey: versionRow.bundleStorageKey,
+    downloadCount: row?.downloadCount ?? 0,
+  };
 }

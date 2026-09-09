@@ -3,7 +3,7 @@
  * M3 不做真实安全规则（security_audit 表不随 M3 落库——08 §9「随对应服务引入」；
  * 直通无 findings 可落，不为空转机制造表）。
  */
-import type { ScanInput, ScanResult, Scanner } from './types.js';
+import type { ScanInput, Scanner, ScanResult } from './types.js';
 
 export function createPassThroughScanner(): Scanner {
   return {
