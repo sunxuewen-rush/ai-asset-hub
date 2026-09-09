@@ -16,6 +16,7 @@ import { sessionMiddleware } from './auth/session-middleware.js';
 import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
 import { createAssetRoutes, DOWNLOAD_RATE_LIMIT, UPLOAD_RATE_LIMIT } from './http/assets.js';
+import { createStatsRoutes } from './http/stats.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
 import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
@@ -134,6 +135,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/tokens', createTokenRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/reviews', createReviewRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/labels', createLabelRoutes({ db: deps.db, audit: deps.audit }));
+  app.route('/api/stats', createStatsRoutes({ db: deps.db }));
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // Device Flow（T30-T33；anonymous 端点豁免 CSRF——见装配；approve 走 cookie 通道）
   app.route(
