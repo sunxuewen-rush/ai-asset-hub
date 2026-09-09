@@ -1,7 +1,7 @@
 # M4a 市场门户实现计划
 
 > Date: 2026-09-09
-> Updated: 2026-09-09（v0.7：T11 完成回填——commit hash；首页 SSR 冒烟 12 断言（zh/en 双语）。v0.6：T10 完成回填——commit hash + 板块 B（T7-T10）全部 ✅；SSR 冒烟 12 断言留证。v0.5：T9 完成回填——commit hash；原子组件 SSR 冒烟 17 断言留证。v0.4：T8 完成回填——commit hash + compare.ts 建文件注记（§4.2 树对齐，plan Files 未列）；T6 漂移注记（from=to 实测 200 空 files——测试为真相，非 plan 所写 400；version_compare_invalid 未落地）。v0.3：T7 完成回填——依赖版本入档 + commit hash；注记 I18nProvider 装配归 T8（i18n 层属 T8 交付物）。v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
+> Updated: 2026-09-09（v0.8：T12 完成回填——commit hash；三中心参数化 SSR 冒烟 9 断言（type 注入矩阵 + URL q 还原）。v0.7：T11 完成回填——commit hash；首页 SSR 冒烟 12 断言（zh/en 双语）。v0.6：T10 完成回填——commit hash + 板块 B（T7-T10）全部 ✅；SSR 冒烟 12 断言留证。v0.5：T9 完成回填——commit hash；原子组件 SSR 冒烟 17 断言留证。v0.4：T8 完成回填——commit hash + compare.ts 建文件注记（§4.2 树对齐，plan Files 未列）；T6 漂移注记（from=to 实测 200 空 files——测试为真相，非 plan 所写 400；version_compare_invalid 未落地）。v0.3：T7 完成回填——依赖版本入档 + commit hash；注记 I18nProvider 装配归 T8（i18n 层属 T8 交付物）。v0.2：板块 A（T1-T6）执行完成——任务状态回填 ✅ + commit hash；Status 转执行中。v0.1 修复：R8/R9 错误码注册/T14 YANKED 断言/T6 依赖声明/T11 v0.8 规格/引用链 v0.8）
 > Status: 执行中（已批准；板块 A 完成——T1-T6 全部 ✅ + commit；板块 B 完成——T7-T10 全部 ✅ + commit；当前板块 C 首页）
 > 引用链：本文档 → 设计 docs/designs/2026-09-09-m4a-marketplace-portal-design.md（v0.8，§N 逐 Task 引用）→ 规范 00 §5 · 02/03/04 族协议 · 05 §3.1 · 06 §2.3/§4 · 07 全 · 08 §5/§7（引用不复制，契约以 design v0.8 为准）
 > 命名约定见 docs/plans/README.md
@@ -177,6 +177,7 @@ agents 各自 aria-current、详情页零高亮、壳内容 TopBar 品牌/语言
 ### 板块 D 中心页（design §3/§4.4）
 
 #### T12 CenterPage 骨架（type 参数化单组件）
+✅ 完成（commit `bdc0d5e`；SSR 冒烟 9 断言——三中心 type 注入表标题/副述/占位/徽章 + URL ?q 还原输入框）
 - **Files**: Create pages/Center.tsx（路由参数 type=skill|mcp|agent → 单一 CenterPage）+ 
   market/CenterPage.tsx（CenterHeader：类型图标+标题中英+副述+搜索框+计数徽章——搜索在左
   徽章在右）+ useMarketQuery（URL ?q/?label/?page ↔ 参数同步 300ms 防抖写 URL）
