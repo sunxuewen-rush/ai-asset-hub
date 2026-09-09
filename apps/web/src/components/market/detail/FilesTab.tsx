@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { VersionFileEntry } from '../../../api/types.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
+import { Spinner } from '../../ui/Spinner.js';
 import { FilePreviewDialog } from './FilePreviewDialog.js';
 import styles from './FilesTab.module.css';
 import { FileTree } from './FileTree.js';
@@ -18,13 +19,18 @@ export function FilesTab({
   nsSlug: string;
   slug: string;
   version: string;
-  files: readonly VersionFileEntry[];
+  files: readonly VersionFileEntry[] | null;
 }) {
   const { t } = useI18n();
   const [preview, setPreview] = useState<VersionFileEntry | null>(null);
   return (
     <div>
-      {files.length === 0 ? (
+      {files === null ? (
+        // R2：波 2 文件清单未就 → 加载占位（防误导性「暂无文件」闪烁）
+        <div className={styles.loading}>
+          <Spinner />
+        </div>
+      ) : files.length === 0 ? (
         <p className={styles.empty}>{t('common', 'empty')}</p>
       ) : (
         <FileTree files={files} onOpenFile={setPreview} />

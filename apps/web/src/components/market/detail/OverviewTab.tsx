@@ -46,12 +46,12 @@ export function OverviewTab({
   nsSlug: string;
   slug: string;
   version: string;
-  files: readonly VersionFileEntry[];
+  files: readonly VersionFileEntry[] | null;
   manifest: Record<string, unknown> | null;
   changelog?: string | null;
 }) {
   const { t } = useI18n();
-  const docPath = mainDocPath(type, files);
+  const docPath = mainDocPath(type, files ?? []);
 
   const contentState = useApi(
     (signal) =>
@@ -69,6 +69,14 @@ export function OverviewTab({
 
   if (contentState.error && !showSummary) {
     return <ErrorState error={contentState.error} />;
+  }
+  // R2：波 2 未就且暂无主文档探测依据 → 加载占位（防误导性空摘要闪烁）
+  if (docPath === null && files === null) {
+    return (
+      <div className={styles.loading}>
+        <Spinner />
+      </div>
+    );
   }
   if (showSummary) {
     const fields = manifestFields(manifest);

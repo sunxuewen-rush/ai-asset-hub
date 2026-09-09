@@ -31,6 +31,9 @@ export function useMarketQuery(): MarketQuery {
 
   const [draft, setDraft] = useState(urlQ);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 最新 params 引用（防抖回调防闭包竞态：300ms 窗口内 URL 已变（如点标签）时以最新为准合并）
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
 
   // 外部 URL 变化（回退/前进/分享链接）→ 草稿同步（防输入框与 URL 脱节）
   useEffect(() => {
@@ -58,7 +61,8 @@ export function useMarketQuery(): MarketQuery {
     setDraft(next);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      const p = new URLSearchParams(params);
+      // R2 竞态修复：以最新 URL 参数为基底合并（此前闭包快照会覆盖窗口内标签变更）
+      const p = new URLSearchParams(paramsRef.current);
       if (next.trim()) p.set('q', next.trim());
       else p.delete('q');
       commit(dropPage(p));

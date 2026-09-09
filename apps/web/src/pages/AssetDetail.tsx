@@ -56,11 +56,14 @@ export function AssetDetail() {
       latestVersion
         ? fetchVersionDetail(nsSlug, slug, latestVersion, { signal })
         : Promise.resolve(null),
-    [nsSlug, slug, latestVersion],
+    // R2：retryTick 并入——波 2 独立失败时可随页面重试一并重发
+    [nsSlug, slug, latestVersion, retryTick],
   );
 
   const loading = detailState.loading || versionsState.loading;
-  const error = detailState.error ?? versionsState.error;
+  // R2：波 2 错误并入全局错态（此前静默——文件/总览误显空清单无诊断线索）
+  const error =
+    detailState.error ?? versionsState.error ?? (latestVersion ? latestState.error : null) ?? null;
 
   if (error) {
     return <ErrorState error={error} onRetry={() => setRetryTick((n) => n + 1)} />;
@@ -126,7 +129,8 @@ export function AssetDetail() {
           nsSlug={nsSlug}
           slug={slug}
           version={latestVersion}
-          files={latestState.data?.files ?? []}
+          // R2：波 2 未就 → null（子组件显加载占位而非误导性空清单）
+          files={latestState.data ? latestState.data.files : null}
           manifest={latestState.data?.manifestJson ?? null}
           changelog={latestState.data?.changelog}
         />
@@ -139,7 +143,7 @@ export function AssetDetail() {
           nsSlug={nsSlug}
           slug={slug}
           version={latestVersion}
-          files={latestState.data?.files ?? []}
+          files={latestState.data ? latestState.data.files : null}
         />
       );
     }

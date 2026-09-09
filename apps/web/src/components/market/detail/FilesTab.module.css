@@ -4,6 +4,11 @@
   text-align: center;
   padding: 20px 0;
 }
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 26px 0;
+}
 .hint {
   margin-top: 10px;
   padding-top: 10px;
