@@ -24,6 +24,7 @@ import {
   getAsset,
   listViewableAssets,
   type AssetRow,
+  type AssetViewerContext,
 } from '../assets/service.js';
 import { canViewAsset } from '../assets/visibility.js';
 import { createVersion, deleteVersion } from '../assets/versions.js';
@@ -268,9 +269,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json(assetItem(row, namespaceSlug), 201);
   });
 
-  // GET /api/assets（T3：登录列表——读面可见 SQL 过滤；M3 全文搜索不在此）
-  app.get('/', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
+  // GET /api/assets（M4a R4：匿名放行——viewer 匿名短路 PUBLIC-only；登录态行为零变化）
+  app.get('/', async (c) => {
+    const principal = c.get('principal') ?? null;
     const rbac = c.get('rbac')!;
     const query = c.req.query();
     const parsed = listQuerySchema.safeParse({ ...query, label: c.req.queries('label') ?? undefined });
@@ -278,8 +279,11 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
     const { limit, offset, nsSlug, type, visibility, q, label } = parsed.data;
-    const platformRoles = await rbac.platformRolesOf(principal.userId);
-
+    const platformRoles = principal ? await rbac.platformRolesOf(principal.userId) : [];
+    const viewer: AssetViewerContext = {
+      userId: principal?.userId ?? null,
+      isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
+    };
     const { items, total } = await listViewableAssets(db, {
       limit,
       offset,
@@ -288,7 +292,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       visibility,
       q,
       labelSlugs: label,
-      viewer: { userId: principal.userId, isSuperAdmin: platformRoles.includes('SUPER_ADMIN') },
+      viewer,
     });
     return c.json({ items: items.map((i) => assetItem(i, i.namespaceSlug)), total, limit, offset });
   });

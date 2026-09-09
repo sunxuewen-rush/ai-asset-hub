@@ -436,10 +436,15 @@ describe('GET /api/assets/{ns}/{slug} 详情（可见性——skillhub 对齐分
   });
 });
 
-describe('GET /api/assets 列表（读面过滤）', () => {
-  it('匿名 401（列表需登录；详情才匿名）', async () => {
-    const res = await getReq('/api/assets');
-    expect(res.status).toBe(401);
+describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () => {
+  it('匿名 200：仅 PUBLIC 可见（PUBLIC-only 短路——不泄漏他人 PRIVATE/NAMESPACE_ONLY）', async () => {
+    const res = await getReq('/api/assets?nsSlug=ast-http-ns');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: Array<{ slug: string }> };
+    const slugs = body.items.map((i) => i.slug);
+    expect(slugs).toContain('ast-pub-skill'); // PUBLIC 可见
+    expect(slugs).toContain('ast-new-skill'); // 注册用例产物 PUBLIC
+    expect(slugs).not.toContain('ast-priv-mcp'); // 他人 PRIVATE 不泄漏
   });
 
   it('MEMBER：PUBLIC + 自己 PRIVATE 可见；他人 PRIVATE 不可见', async () => {

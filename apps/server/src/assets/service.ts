@@ -3,7 +3,7 @@
  * 校验职责分层：入参格式（slug/type/visibility）由路由层 zod body schema 把关
  * （复用 protocol slugSchema / schema 枚举）；本层做坐标寻址与冲突判定。
  */
-import { and, count, eq, exists, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, count, eq, exists, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
   asset,
@@ -45,9 +45,9 @@ export interface ListAssetsOptions {
   labelSlugs?: string[];
 }
 
-/** 读面浏览上下文（T3 列表端点：requireAuth 后必有 userId；超管短路全可见） */
+/** 读面浏览上下文（列表端点：登录 userId；匿名 null → PUBLIC-only 短路；超管短路全可见） */
 export interface AssetViewerContext {
-  userId: string;
+  userId: string | null;
   isSuperAdmin: boolean;
 }
 
@@ -148,8 +148,13 @@ export async function listAssets(
   return { items, total: totalRow?.total ?? 0 };
 }
 
-/** 我的空间成员关系子查询（T3 读面过滤共用；roles 限定如 ['OWNER','ADMIN']） */
-function myNamespaceIdsSubquery(db: Db, userId: string, roles?: NamespaceRole[]) {
+/** 我的空间成员关系子查询（T3 读面过滤共用；roles 限定如 ['OWNER','ADMIN']；
+ * M4a R4 匿名 viewer：userId null → 恒空子查询（PUBLIC-only 坍缩语义）） */
+function myNamespaceIdsSubquery(db: Db, userId: string | null, roles?: NamespaceRole[]) {
+  if (!userId) {
+    // 匿名：无成员身份——恒假子查询（drizzle eq null 语义不隐式——显式空）
+    return db.select({ id: namespaceMember.namespaceId }).from(namespaceMember).where(sql`false`);
+  }
   if (roles) {
     return db
       .select({ id: namespaceMember.namespaceId })
@@ -233,18 +238,21 @@ export async function listViewableAssets(
 
   if (!opts.viewer.isSuperAdmin) {
     const viewerId = opts.viewer.userId;
-    const memberNs = myNamespaceIdsSubquery(db, viewerId);
-    const adminNs = myNamespaceIdsSubquery(db, viewerId, ['OWNER', 'ADMIN']);
-    conditions.push(
-      or(
-        eq(asset.visibility, 'PUBLIC'),
-        and(eq(asset.visibility, 'NAMESPACE_ONLY'), inArray(asset.namespaceId, memberNs)),
+    const branches: (SQL | undefined)[] = [eq(asset.visibility, 'PUBLIC')];
+    if (viewerId !== null) {
+      // NAMESPACE_ONLY：我成员的空间；PRIVATE：我 owner 或空间 OWNER/ADMIN
+      const memberNs = myNamespaceIdsSubquery(db, viewerId);
+      const adminNs = myNamespaceIdsSubquery(db, viewerId, ['OWNER', 'ADMIN']);
+      branches.push(
+        and(eq(asset.visibility, 'NAMESPACE_ONLY'), inArray(asset.namespaceId, memberNs))!,
         and(
           eq(asset.visibility, 'PRIVATE'),
-          or(eq(asset.ownerId, viewerId), inArray(asset.namespaceId, adminNs)),
-        ),
-      )!,
-    );
+          or(eq(asset.ownerId, viewerId), inArray(asset.namespaceId, adminNs))!,
+        )!,
+      );
+    }
+    // 匿名 viewer（userId null）：仅 PUBLIC 分支——PUBLIC-only 坍缩（M4a R4）
+    conditions.push(or(...(branches as SQL[]))!);
   }
 
   const where = and(...conditions);
