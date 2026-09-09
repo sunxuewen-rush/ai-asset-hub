@@ -1,0 +1,71 @@
+.tree {
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--fs-13);
+  padding: 5px 0;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.row:hover {
+  color: var(--brand);
+}
+.nm {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.indent {
+  padding-left: 20px;
+}
+.d2 {
+  padding-left: 40px;
+}
+.d3 {
+  padding-left: 60px;
+}
+.dir {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.dir:hover {
+  color: var(--brand);
+}
+.chev {
+  display: inline-block;
+  width: 14px;
+  font-size: 9px;
+  color: var(--text-3);
+  transition: transform 0.12s;
+  flex-shrink: 0;
+}
+.open .chev {
+  transform: rotate(90deg);
+}
+.sz {
+  font-size: var(--fs-11);
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.file:hover .nm {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sha {
+  font-size: var(--fs-10-5);
+  color: var(--text-3);
+  background: var(--sha-bg);
+  padding: 1px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}

@@ -1,0 +1,44 @@
+import { useState } from 'react';
+import type { VersionFileEntry } from '../../../api/types.js';
+import { useI18n } from '../../../i18n/I18nProvider.js';
+import { FilePreviewDialog } from './FilePreviewDialog.js';
+import styles from './FilesTab.module.css';
+import { FileTree } from './FileTree.js';
+
+/**
+ * 文件 tab 编排（design §5.3：目录树来自版本详情文件清单；文件点击 → G7 按 path 拉内容进
+ * 预览对话框——useApi 缓存（语言感知键）重复打开零重拉）。
+ */
+export function FilesTab({
+  nsSlug,
+  slug,
+  version,
+  files,
+}: {
+  nsSlug: string;
+  slug: string;
+  version: string;
+  files: readonly VersionFileEntry[];
+}) {
+  const { t } = useI18n();
+  const [preview, setPreview] = useState<VersionFileEntry | null>(null);
+  return (
+    <div>
+      {files.length === 0 ? (
+        <p className={styles.empty}>{t('common', 'empty')}</p>
+      ) : (
+        <FileTree files={files} onOpenFile={setPreview} />
+      )}
+      <p className={styles.hint}>{t('market', 'filesTreeHint')}</p>
+      {preview && (
+        <FilePreviewDialog
+          file={preview}
+          nsSlug={nsSlug}
+          slug={slug}
+          version={version}
+          onClose={() => setPreview(null)}
+        />
+      )}
+    </div>
+  );
+}

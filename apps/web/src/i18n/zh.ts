@@ -73,6 +73,7 @@ export const zh = {
     cmpHead: '对比版本 (head)',
     filesTreeHint: '目录可点击展开/收起；文件点击预览内容。sha256 截断可核对完整性。',
     binaryPreviewUnsupported: '（二进制文件或预览暂不支持 —— 请下载后查看）',
+    previewTruncated: '内容超长已截断（仅显示前 256KB）',
   },
   common: {
     loading: '加载中…',
