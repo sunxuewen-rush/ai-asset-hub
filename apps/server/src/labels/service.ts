@@ -7,6 +7,7 @@
  */
 import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { getEnv } from '../config/env.js';
 import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
 import {
@@ -61,7 +62,7 @@ export interface ManagedLabel {
   translations: Array<{ locale: string; displayName: string }>;
 }
 
-/** 定义总数上限（skillhub label.max-definitions:100 同构——D1 对标补） */
+/** 定义总数上限默认（skillhub label.max-definitions:100 同构——D1；env 可配 LABEL_MAX_DEFINITIONS——C7） */
 export const MAX_LABEL_DEFINITIONS = 100;
 
 /**
@@ -74,8 +75,8 @@ function normalizeTranslations(translations: Array<{ locale: string; displayName
   for (const t of translations) {
     const locale = t.locale.trim().replaceAll('_', '-').toLowerCase();
     const displayName = t.displayName.trim();
-    if (locale === '' || displayName === '')
-      throw new LabelError(labelErrorCodes.notFound, 'locale/display_name must not be blank');
+    // 理论不可达（路由 zod min(2)/min(1) 已拦）——防御：空入参 400（R2-1：不用 notFound 404）
+    if (locale === '' || displayName === '') throw new LabelError(labelErrorCodes.translationBlank);
     if (seen.has(locale)) throw new LabelError(labelErrorCodes.translationLocaleDuplicate);
     seen.set(locale, displayName);
     out.push({ locale, displayName });
@@ -167,11 +168,11 @@ export async function createLabel(
   const slug = input.slug.trim();
   if (!labelSlugSchema.safeParse(slug).success)
     throw new LabelError(labelErrorCodes.invalidParent, 'invalid slug'); // 复用码？slug 格式错用 request.invalid 更贴——路由层校验；此处防御
-  // D1：定义总数上限（skillhub max-definitions:100 同构）
+  // D1：定义总数上限（skillhub max-definitions:100 同构——env 可配 LABEL_MAX_DEFINITIONS，C7）
   const [total] = await db
     .select({ n: sql<number>`count(*)` })
     .from(labelDefinition);
-  if (Number(total?.n ?? 0) >= MAX_LABEL_DEFINITIONS)
+  if (Number(total?.n ?? 0) >= getEnv().LABEL_MAX_DEFINITIONS)
     throw new LabelError(labelErrorCodes.definitionLimitExceeded);
   const parentId = await resolveParent(db, input.parentSlug);
   // D8/D4：翻译归一（_→- 小写 + locale 重复预检）

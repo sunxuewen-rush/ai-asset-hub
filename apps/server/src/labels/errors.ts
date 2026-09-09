@@ -19,6 +19,8 @@ export const labelErrorCodes = {
   definitionLimitExceeded: 'label.definition_limit_exceeded',
   /** 同批翻译 locale 重复（skillhub label.translation.locale.duplicate 对齐——应用层预检） */
   translationLocaleDuplicate: 'label.translation.locale_duplicate',
+  /** 翻译入参空 locale/displayName（路由 zod 已拦——服务层防御 400；R2-1） */
+  translationBlank: 'label.translation.blank',
 } as const;
 
 export type LabelErrorCode = (typeof labelErrorCodes)[keyof typeof labelErrorCodes];
@@ -33,6 +35,7 @@ export function httpStatusForLabel(code: LabelErrorCode): number {
     case 'label.invalid_parent':
     case 'label.definition_limit_exceeded':
     case 'label.translation.locale_duplicate':
+    case 'label.translation.blank':
       return 400;
     case 'label.slug_taken':
       return 409;

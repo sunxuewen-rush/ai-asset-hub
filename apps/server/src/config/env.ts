@@ -48,6 +48,9 @@ const envSchema = z.object({
   DOWNLOAD_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   DOWNLOAD_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
 
+  // label 定义总数上限（M3 D1：skillhub label.max-definitions:100 同构——env 可配 C7）
+  LABEL_MAX_DEFINITIONS: z.coerce.number().int().positive().default(100),
+
   // 对外基址（OIDC 回调 / Device Flow verificationUri 推导）
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
 
