@@ -1,7 +1,7 @@
 # 资产协议总纲
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.5：§3.2 searchText 正文摘要截断数值补注（≤500 字符——M2 投影实现同步）；v1.4：M0/M1 复验同步——§2 登记表 mcp 族协议版本标注回写 v1.2；v1.3 族协议状态同步——02/03/04 已定稿落地于 packages/protocol；v1.2 生命周期同步扫描态全序）
+> Updated: 2026-09-08（v1.6：§4 生命周期补全八态注记（M3 落地）；v1.5：§3.2 searchText 正文摘要截断数值补注（≤500 字符——M2 投影实现同步）；v1.4：M0/M1 复验同步——§2 登记表 mcp 族协议版本标注回写 v1.2；v1.3 族协议状态同步——02/03/04 已定稿落地于 packages/protocol；v1.2 生命周期同步扫描态全序）
 > Status: 定稿（族协议 02/03/04 已 v1.x 定稿，M1 已按本协议实现 packages/protocol zod schema）
 > Scope: AI Asset Hub 可分发资产的公共协议层 —— 类型登记、包形态、元数据投影、校验器插拔
 
@@ -77,7 +77,8 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 
 - 版本号：semver（族协议可附加限定）
 - 生命周期对所有类型一致：版本全序含扫描态（DRAFT → SCANNING → SCAN_FAILED →
-  UPLOADED → PENDING_REVIEW → PUBLISHED，表结构详见 `08` §7）
+  UPLOADED → PENDING_REVIEW → PUBLISHED，表结构详见 `08` §7；M3 补全八态 +
+  REJECTED（留档）/YANKED（撤回留档）——状态语义见 08 §7）
 - 资产状态独立于版本：ACTIVE / HIDDEN / ARCHIVED
 - 标签通道：`latest` 只读跟随最新 PUBLISHED；`stable`/`beta` 等自定义标签做通道管理
 - 治理（hidden/报告/归档/审计）与类型无关，全部复用
@@ -130,3 +131,4 @@ interface AssetValidator {
 | v1.3 | 2026-09-07 | sunxuewen-rush | 族协议状态同步：02/03/04「待写」→ 已定稿（03 v1.1），Status 改定稿；§6 校验器已落地 packages/protocol |
 | v1.4 | 2026-09-08 | sunxuewen-rush | M0/M1 复验同步：§2 登记表 mcp 行族协议版本标注 v1.1 → v1.2（03 已升版未回写） |
 | v1.5 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§3.2 投影 searchText 补「正文摘要 ≤500 字符」截断数值（T11 D1 拍板落档——族协议文档原无数值） |
+| v1.6 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§4 生命周期补全八态注记（REJECTED/YANKED——M3 治理管线落地，指向 08 §7 状态语义） |

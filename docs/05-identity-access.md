@@ -1,8 +1,8 @@
 # 用户与权限设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.6：M2 实现同步——§6.4 asset:manage 补 DRAFT 上传者删除例外（Q2）、asset:publish 行加 M2 语义注（Q4）；v1.5：M0/M1 复验——§6.2 MEMBER 行措辞收紧，与 §6.4 review:submit 判定区分；v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
-> Status: 定稿（M1 已实现：本地账号/Session/RBAC 判定链/LDAP 企业通道/OIDC 授权码流/Device Flow/API Token，docs/05 §3.1 流程；M2 已按 v1.6 同步 §6.4 DRAFT 上传者删除例外 + asset:publish M2 语义）
+> Updated: 2026-09-08（v1.7：M3 实现同步——审核管线落地注 + withdraw 权限例外 + token scope 交集 + 运营注记；v1.6：M2 实现同步——§6.4 asset:manage 补 DRAFT 上传者删除例外（Q2）、asset:publish 行加 M2 语义注（Q4）；v1.5：M0/M1 复验——§6.2 MEMBER 行措辞收紧，与 §6.4 review:submit 判定区分；v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
+> Status: 定稿（M1 已实现：本地账号/Session/RBAC 判定链/LDAP 企业通道/OIDC 授权码流/Device Flow/API Token，docs/05 §3.1 流程；M2 已按 v1.6 同步 §6.4 DRAFT 上传者删除例外 + asset:publish M2 语义；M3 已按 v1.7 同步审核管线/withdraw/scope 交集/运营注记）
 > Scope: AI Asset Hub 的身份、准入、会话凭证与 RBAC 授权体系
 > 设计来源：企业实战验证的注册中心认证方案（设计决策继承，命名与实现中立化/资产化）
 
@@ -164,6 +164,10 @@
 **防自审规则**（开放协作核心）：审核人不得是提交人本人；本人提交的 review task
 仅 `SUPER_ADMIN` 可审核自己——从机制上杜绝「自提自审」。
 
+**审核运营模型（M3 注记）**：单人自托管 = seed 首管理员 SUPER_ADMIN 自审例外闭环；
+双人互审团队空间需 **≥2 个 ADMIN/OWNER 级成员**（若同伴仅 MEMBER 则其无 review:approve——
+会死锁——05 机制不加特例，运营姿势由空间成员配置保证）。
+
 ### 6.5 权限主轴与离职场景
 
 - **命名空间角色是权限主轴**：空间 ADMIN 对空间内全部资产有完整管理权，不受 owner 限制
@@ -186,3 +190,4 @@
 | v1.4 | 2026-09-08 | sunxuewen-rush | 实现状态同步：M1 阶段二落地——API Token 签发/Bearer（§5）、审计浏览 audit:read（§6.4）、OIDC 授权码流（§3/§5，provision 公共建号/binding 复用）、Device Flow 签发 cli scope token（§5，RFC 8628） |
 | v1.5 | 2026-09-08 | sunxuewen-rush | M0/M1 复验：§6.2 MEMBER 行措辞收紧——「发布新资产（走审核）」独立表达，提交已有版本进审核（review:submit）判定明确指向 §6.4，消除「提交资产」与 §6.4 判定列的阅读张力 |
 | v1.6 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§6.4 asset:manage 补「DRAFT 版本删除可由上传者本人执行（未进审核撤回，Q2）」例外；asset:publish 行加注 M2 语义（含资产注册与草稿上传，Q4） |
+| v1.7 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§6.4 注记——review:submit/approve 码面落地审核管线（submit/approve/reject/withdraw HTTP API + 队列读面）；withdraw 权限（提交人本人/owner/空间 ADMIN/OWNER——业务例外非权限码）；token scope 交集（R14——''/cli 全量兼容）；运营注记：互审团队空间至少 2 个 ADMIN 级成员（单人自托管 SUPER_ADMIN 自审例外闭环——Q1 决议） |

@@ -1,8 +1,8 @@
 # 数据模型设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.3：§7 版本读面可见性补注（DRAFT 授权集 + 400 明示对齐 skillhub——M2 实现同步）；v1.2：实现状态同步——drizzle schema 全表落地；v1.1 schema 蓝图对齐实战模型增补）
-> Status: 定稿（M1 已按本文档 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记）
+> Updated: 2026-09-08（v1.4：M3 实现同步——§5.2 asset_version 补 yank 三列 + bundle 双列、§6 review_task 补 WITHDRAWN 态（withdraw 保留行——version 递增契约优先）、§7 八态补全（REJECTED/YANKED + latest 维护 + 读面分治落地）；v1.3：§7 版本读面可见性补注（DRAFT 授权集 + 400 明示对齐 skillhub——M2 实现同步）；v1.2：实现状态同步——drizzle schema 全表落地；v1.1 schema 蓝图对齐实战模型增补）
+> Status: 定稿（M1 已按 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记；M3 已按 v1.4 同步八态/asset_version 五列/review_task WITHDRAWN/读面分治——schema 全量实现，迁移 0000-0003）
 > Scope: AI Asset Hub 表结构蓝图 —— 用户/空间/资产/版本/文件/审核/label/审计
 > 设计来源：以企业实战验证的注册中心数据模型为基准（同构继承），按 00-07 规范资产化/中立化
 
@@ -90,6 +90,8 @@ asset_version         id · asset_id → asset · version VARCHAR(64)（semver�
                       · changelog · parsed_metadata_json JSONB · manifest_json JSONB
                       · file_count INT · total_size BIGINT（上传后落库）
                       · published_at · created_by/created_at
+                      · yanked_at · yanked_by → user_account · yank_reason（M3：撤回三列）
+                      · bundle_storage_key · bundle_sha256（M3：ZIP 原包副本——08 §5.3 双通道闭环）
                       UNIQUE(asset_id, version)
 ```
 
@@ -112,11 +114,13 @@ asset_file            id · version_id → asset_version · file_path · file_si
 
 ```sql
 review_task           id · asset_version_id → asset_version · namespace_id
-                      · status(PENDING/APPROVED/REJECTED) · version INT（重审计数，递增）
+                      · status(PENDING/APPROVED/REJECTED/WITHDRAWN) · version INT（重审计数，递增）
                       · submitted_by → user_account · reviewed_by → user_account
                       · review_comment · submitted_at · reviewed_at
                       -- 防自审（05 §6.4）：应用层强制 reviewed_by ≠ submitted_by
                       --（SUPER_ADMIN 例外）；重审 = 原版本号不变、review version+1
+                      -- WITHDRAWN（M3）：撤回提审保留行置态（历史留档保 version 递增——
+                      -- 非删行——skillhub 删行是其无递增语义的简化，AIH 08 自有契约优先）
                       · 部分唯一索引 UNIQUE(asset_version_id) WHERE status='PENDING'
                       -- DB 硬约束：同版本不允许并发存在多个待审任务
 
@@ -132,27 +136,32 @@ audit_log             actor_id（可空=匿名）· action · target_type/target
 
 ## 7. 状态机（版本生命周期全序）
 
-版本状态（上传 → 发布，扫描态嵌入；参考实战验证的全序）：
+版本状态（上传 → 发布，扫描态嵌入；参考实战验证的全序；M3 补全八态——REJECTED/YANKED）：
 
 ```
-DRAFT → SCANNING → SCAN_FAILED ──► （修正后回 DRAFT/UPLOADED）
+DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAFT/UPLOADED）
    │        │
    │        ▼
-   │     UPLOADED → PENDING_REVIEW → PUBLISHED → （下线/归档）
-   │                                        │
+   │     UPLOADED → PENDING_REVIEW ──► PUBLISHED → YANKED（撤回分发——留档禁下载）
+   │                      │
+   │                      ▼
+   │                   REJECTED（留档——修正须新版本号）
    └────────────────────────────────────────┘
 ```
 
-- `SCANNING`：安全扫描进行中；`SCAN_FAILED`：扫描未过（可修正重新提交）
-- `UPLOADED`：包可下载但未进审核（draft 与 review 之间）
+- `SCANNING`：安全扫描进行中；`SCAN_FAILED`：扫描未过（同版本重传豁免——M3 扫描直通）
+- `UPLOADED`：包可下载但未进审核（draft 与 review 之间；withdraw 回退停留态）
 - `PENDING_REVIEW` → `PUBLISHED` 需 review_task 通过（防自审见 §6）
+- `REJECTED`：审核拒绝留档；修正走新版本号（R5 分治——与 SCAN_FAILED 同版本重传区分）
+- `YANKED`：撤回分发——已分发消费者留档（详情公开可读禁下载——`asset.version_yanked`）
+- `latest` 指针自动维护：approve 指向 + yank 重算（(published_at, created_at, id) 排序——skillhub 同构）
 - 资产状态独立于版本：`ACTIVE/HIDDEN/ARCHIVED`（隐藏/归档作用于资产整体，不作用于单版本）
 
-**版本读面可见性（M2 补注，2026-09-08 对齐 skillhub）**：`PUBLISHED` 按资产
-visibility 公开；`DRAFT` 仅资产 owner / 版本上传者本人 / 空间 ADMIN+ 可见——列表过滤
-（授权者全见，其他仅见 PUBLISHED）+ 详情无预览权 → 400 `asset.version_not_published`
-明示（对齐 skillhub `error.skill.version.notPublished`；M2 只有 DRAFT 态——全序后续态
-`UPLOADED` 起的预览权在 M3 审核设计时按同构扩展）。
+**版本读面可见性（M2 补注对齐 skillhub → M3 八态显式分治实现，2026-09-08）**：
+`PUBLISHED` 按资产 visibility 公开；`YANKED` 曾公开留档（详情公开可读禁下载）；未公开族
+（DRAFT/SCANNING/SCAN_FAILED/UPLOADED/PENDING_REVIEW/REJECTED）仅资产 owner / 版本上传者本人 /
+空间 ADMIN/OWNER / ASSET_ADMIN（平台审核角色）/ SUPER_ADMIN 可见——列表过滤 + 详情无预览权 →
+400 `asset.version_not_published` 明示（对齐 skillhub `error.skill.version.notPublished`）。
 
 标签通道（01 §4）：`latest` 只读跟随最新 PUBLISHED；自定义标签（stable/beta）
 存 `asset_version` 侧标签位（实现期以表 `asset_version_tag` 或列扩展，M3 定）。
@@ -185,3 +194,4 @@ visibility 公开；`DRAFT` 仅资产 owner / 版本上传者本人 / 空间 ADM
 | v1.1 | 2026-09-07 | sunxuewen-rush | §2 状态列实现形态（VARCHAR+应用层 zod 枚举）；§3 local_credential 补 username/failed_attempts/locked_until、user_account.id 生成注明、identity_binding subject 长度、role/permission/role_permission 三表模型；§6 audit_log 补 request_id/client_ip/user_agent、review_task 补 PENDING 部分唯一索引；§8 汇总表同步；§9 治理扩展表演进说明（对齐实战模型增补） |
 | v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 drizzle schema 四域全表落地（迁移/种子幂等，docs/01 §6 zod 单源消费） |
 | v1.3 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§7 状态机补「版本读面可见性」注记（DRAFT 授权集 owner/上传者/空间 ADMIN+；详情无预览权 400 version_not_published 对齐 skillhub；列表过滤语义） |
+| v1.4 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§5.2 asset_version 补 yank 三列（yanked_at/yanked_by/yank_reason）+ bundle 双列（bundle_storage_key/bundle_sha256）；§6 review_task 补 WITHDRAWN 态（withdraw 保留行置态——历史留档保 review version 递增契约，非 skillhub 删行简化）；§7 状态机补全八态（REJECTED 留档新号分治/SCAN_FAILED 同版本重传豁免/YANKED 禁下载留档/latest approve+yank 自动维护）+ 读面可见性改为八态显式分治（授权集含 ASSET_ADMIN） |

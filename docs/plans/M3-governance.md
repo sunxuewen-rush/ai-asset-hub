@@ -1,7 +1,7 @@
 # M3 治理管线实现计划
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v0.1：初稿——design v1.2 定稿后 Task 清单化）
+> Updated: 2026-09-08（v0.2：T1-T15 全完成 + T16 收尾执行注——规范同步 00 v1.11/01 v1.6/05 v1.7/06 v1.3/08 v1.4 + 冒烟手册见 §6；v0.1：初稿——design v1.2 定稿后 Task 清单化）
 > Status: 定稿（2026-09-08：design v1.2 定稿后起草，用户评审批准；16 Task 按 §3 顺序执行——每 Task 完成 = 断言为真 + 18 维自检 ≥9 + 用户批准后 commit）
 > 引用链：本文档 → 设计 docs/designs/2026-09-08-m3-governance-pipeline-design.md（v1.2，§N 逐 Task 引用）→ 规范 00 §5 · 01 §3/§4 · 05 §5/§6 · 06 §1-§6 · 08 §5/§6/§7/§9（引用不复制，字段契约以规范与 design 为准）
 > 命名约定见 docs/plans/README.md
@@ -362,3 +362,19 @@ T10 → T11 → T12 → T13 → T14 → T15 → T16。
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v0.1 | 2026-09-08 | sunxuewen-rush | 初稿：M3 治理管线计划——design v1.2 定稿后 Task 清单化（板块 A-G 16 Task：八态迁移/扫描 SPI/review 域服务与读面/预览权重构/yank/删除面/标签/搜索/下载/scope/收尾） |
+| v0.2 | 2026-09-08 | sunxuewen-rush | 执行完成注记：T1-T15 全绿（server 514 tests + typecheck 0，M2 401 基线零回归）；T16 规范同步 5 文件 bump（00 v1.11 M3 行完成 / 01 v1.6 八态注 / 05 v1.7 审核管线+scope+运营注 / 06 v1.3 标签管线落地 / 08 v1.4 八态+列+WITHDRAWN）；M3 实现实证修复 M1 bug ×2（asset.latest_version_id / label.parent_id bigserial 误用——迁移 0002/0003）+ design 矛盾 1（R4/R6 withdraw 删行 vs version 递增 → WITHDRAWN 保留行方案）；冒烟手册 §6（分步 curl 验证——用户实跑）；仓级欠账注：lint 全绿不达（biome 默认规则 vs M1/M2 既有 `!` 断言风格 + 全仓 format 未归一——非 M3 引入，待独立 chore/M6 对齐 biome 配置） |
+
+## 6. 冒烟手册（M3 手动验证——分步 curl，预期结果含）
+
+前置：dev 库起（`docker compose up -d db`）+ `.env` 就绪 + `bun run db:migrate` + `bun run --filter=@ai-asset-hub/server dev`（:3000）；seed 首管理员（`SEED_ADMIN_USERNAME/PASSWORD`）。三角色：上传者（空间 MEMBER）/ owner / 审核（空间 ADMIN 或 ASSET_ADMIN 平台角色）。
+
+1. **上传 → 提交审核**（上传者视角）：登录取 cookie → 建空间成员资产（坐标 POST /api/assets 需 asset:publish）→ 上传 zip（multipart POST versions/1.0.0，10MiB 内合法 skill 包）→ 预期 201/200 版本 DRAFT + bundle 顺存 → POST versions/1.0.0/submit → 预期 201 `{taskId, reviewVersion:1}`，版本态 PENDING_REVIEW
+2. **审核队列 → 通过**（审核视角）：GET /api/reviews（审核面）→ 预期含该 task；POST /api/reviews/{id}/approve → 预期 200；资产详情（GET asset）→ `latest_version_id` 指向刚批版本；列表排序靠前（updated_at bump）
+3. **公开下载**（匿名）：GET assets/{ns}/{slug}/versions/1.0.0/download → 预期 200 zip（content-disposition attachment）+ 资产 download_count +1；非授权者访问未公开族版本 → 400 version_not_published；PRIVATE 资产非成员 → 403 access_denied
+4. **撤回分发**（ASSET_ADMIN）：POST versions/1.0.0/yank（body `{reason}`）→ 200 YANKED + latest 重算（多版本场景指回上一 PUBLISHED）；YANKED 下载 → 400 version_yanked；资产删除（DELETE asset）→ 400 has_yanked
+5. **审核撤回**（提交人本人）：submit 后 withdraw → 204，版本回 UPLOADED；再 submit → reviewVersion 2（递增——WITHDRAWN 留档生效）
+6. **标签**（SUPER_ADMIN）：POST /api/labels 建定义（RECOMMENDED + zh 翻译）→ 201；PUT assets/.../labels/{slug} 挂载（owner）→ 204；GET /api/labels（匿名）→ displayName 按 Accept-Language 回退；GET /api/assets?q=...&label=a → 过滤命中
+7. **Token scope**：POST /api/tokens `{scope:['audit:read']}` → 201；Bearer 调 GET /api/audit → 200；调资产写面 → 403（交集拒）；缺省签发（''）与 Device Flow（cli）token → 全量行为不变（M1 回归）
+8. **防自审/并发**：提交人本人 approve 自己 → 403 review.self_review；双审核人并发 approve 同一 task → 仅一人 200 另一人 400 review.not_pending
+
+预期终点：以上每步状态码/响应字段与预期命中；错误码与文档 §9 一致（无 internal_error 500 路径）。

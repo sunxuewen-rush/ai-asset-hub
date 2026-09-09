@@ -1,8 +1,8 @@
 # 标签与分类设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-07（v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
-> Status: 定稿（M1 已落 label_definition/translation/asset_label 表结构；标签管理管线随 M3）
+> Updated: 2026-09-08（v1.3：M3 实现同步——标签管理管线落地（定义 CRUD/挂载/公开列表）；v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
+> Status: 定稿（M1 已落 label_definition/translation/asset_label 表结构；M3 已按 v1.3 落地标签管理管线——定义 CRUD/挂载/公开列表全量实现）
 > Scope: AI Asset Hub 的 label 体系 —— 定义/多语言/两级分类/挂载/筛选语义/权限
 > 设计来源：企业实战验证的 label 方案（Phase 1 基础 + Phase 2 两级分类，设计决策继承，命名资产化）
 
@@ -125,3 +125,4 @@ label 定义 CRUD + 批量排序：
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：label 三表/两级树/多语言/挂载筛选语义/权限矩阵 |
 | v1.1 | 2026-09-04 | sunxuewen-rush | §5.3 API 路径前缀统一 /api |
 | v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 落 label 三表结构（definition/translation/asset_label），管线后置 M3 |
+| v1.3 | 2026-09-08 | sunxuewen-rush | M3 实现同步：标签管理管线落地——定义 CRUD/排序（SUPER_ADMIN，slug_taken 409 补码）、挂载 API（RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN，PRIVILEGED = 仅 SUPER_ADMIN；重复挂幂等 200、≤10 超限 400 label.limit_exceeded、删定义级联挂载） |
