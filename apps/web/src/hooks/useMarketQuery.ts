@@ -48,6 +48,12 @@ export function useMarketQuery(): MarketQuery {
     setParams(next, { replace: true });
   }
 
+  /** 过滤变更即回到第一页（URL 去 page 参数——防旧页越界空态，M4a 终审 🟡1） */
+  function dropPage(p: URLSearchParams): URLSearchParams {
+    p.delete('page');
+    return p;
+  }
+
   function setQ(next: string) {
     setDraft(next);
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -55,7 +61,7 @@ export function useMarketQuery(): MarketQuery {
       const p = new URLSearchParams(params);
       if (next.trim()) p.set('q', next.trim());
       else p.delete('q');
-      commit(p);
+      commit(dropPage(p));
     }, DEBOUNCE_MS);
   }
 
@@ -65,13 +71,13 @@ export function useMarketQuery(): MarketQuery {
     const next = all.includes(label) ? all.filter((l) => l !== label) : [...all, label];
     p.delete('label');
     for (const l of next) p.append('label', l);
-    commit(p);
+    commit(dropPage(p));
   }
 
   function clearLabels() {
     const p = new URLSearchParams(params);
     p.delete('label');
-    commit(p);
+    commit(dropPage(p));
   }
 
   function setPage(next: number) {

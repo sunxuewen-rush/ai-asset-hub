@@ -33,8 +33,11 @@ const CENTER_TITLE_KEY: Record<
  */
 export function AssetDetail() {
   const { nsSlug = '', slug = '' } = useParams();
-  const { t } = useI18n();
+  const { t, tErr } = useI18n();
   const [retryTick, setRetryTick] = useState(0);
+  // 🟡3 受控下载（fetch blob → 前端可反馈 429/瞬时错误；成功走 a.download 保存）
+  const [dlBusy, setDlBusy] = useState(false);
+  const [dlErrorCode, setDlErrorCode] = useState<string | null>(null);
 
   const detailState = useApi(
     (signal) => fetchAssetDetail(nsSlug, slug, { signal }),
@@ -77,6 +80,41 @@ export function AssetDetail() {
     : null;
   const centerPath = CENTER_OF[detail.type];
   const labelTitle = t('market', CENTER_TITLE_KEY[detail.type]);
+
+  /** 🟡3 受控下载：fetch blob 让 429/瞬时错误有前端反馈（成功走 a.download 保存） */
+  async function handleDownload(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (!downloadUrl || isYanked || dlBusy) return;
+    setDlBusy(true);
+    setDlErrorCode(null);
+    try {
+      const res = await fetch(downloadUrl);
+      if (!res.ok) {
+        let code = `http_${res.status}`;
+        try {
+          const body = (await res.json()) as { code?: string };
+          if (typeof body.code === 'string') code = body.code;
+        } catch {
+          // 非 JSON 错误体——保留 http_ 前缀码
+        }
+        setDlErrorCode(code);
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = `${nsSlug}-${slug}-v${latestVersion}.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+    } catch {
+      setDlErrorCode('network');
+    } finally {
+      setDlBusy(false);
+    }
+  }
 
   /** tab 面板注入（总览/文件 = 波 2 latest 消费；versions 待 T17） */
   const renderPane = (tab: DetailTab) => {
@@ -151,8 +189,15 @@ export function AssetDetail() {
         <aside className={styles.side}>
           <div className={`glass ${styles.panel} ${styles.dlCard}`}>
             {downloadUrl && !isYanked ? (
-              <a className={styles.dlBtn} href={downloadUrl}>
-                {t('market', 'dlLatest')} {latestVersion}
+              <a
+                className={`${styles.dlBtn} ${dlBusy ? styles.dlBusy : ''}`}
+                href={downloadUrl}
+                onClick={(event) => void handleDownload(event)}
+                aria-busy={dlBusy}
+              >
+                {dlBusy
+                  ? t('market', 'dlDownloading')
+                  : `${t('market', 'dlLatest')} ${latestVersion}`}
               </a>
             ) : (
               <span className={`${styles.dlBtn} ${styles.dlDisabled}`}>
@@ -170,6 +215,11 @@ export function AssetDetail() {
                 </>
               )}
             </div>
+            {dlErrorCode && (
+              <p className={styles.dlErr} role="alert">
+                {tErr(dlErrorCode)}
+              </p>
+            )}
           </div>
 
           <div className={`glass ${styles.panel}`}>

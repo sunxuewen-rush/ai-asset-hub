@@ -93,6 +93,8 @@ export function CenterPage({ type }: { type: AssetType }) {
 
   const meta = META[type];
   const count = stats?.typeCounts[type];
+  // 🟡2 计数语义区分：徽章 = 该类型全站总量（stats）；结果头在筛选激活时改用「筛选结果」文案
+  const filtersActive = labels.length > 0 || committedQ !== '';
 
   return (
     <div className={styles.page}>
@@ -122,7 +124,11 @@ export function CenterPage({ type }: { type: AssetType }) {
       <FilterStrip selected={labels} onToggle={toggleLabel} onClearAll={clearLabels} />
 
       <div className={styles.resultHead}>
-        <span className={styles.total}>{t('market', meta.total, { n: list?.total ?? 0 })}</span>
+        <span className={styles.total}>
+          {filtersActive
+            ? t('market', 'filteredCount', { n: list?.total ?? 0 })
+            : t('market', meta.total, { n: list?.total ?? 0 })}
+        </span>
         <span className={styles.sort}>{t('market', 'sortRecent')}</span>
       </div>
 

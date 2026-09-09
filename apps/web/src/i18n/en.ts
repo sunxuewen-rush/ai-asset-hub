@@ -52,6 +52,7 @@ export const en: Dict = {
     totalSkills: '{n} skills total',
     totalMcps: '{n} MCP servers total',
     totalAgents: '{n} agents total',
+    filteredCount: 'Filtered: {n}',
     sortRecent: 'Sort: recently updated',
     allLabel: 'All',
     noResult: 'No matching assets found',
@@ -68,6 +69,7 @@ export const en: Dict = {
     installText:
       'Download the zip and extract it; verify file sha256 checksums; YANKED versions cannot be downloaded.',
     dlLatest: 'Download latest',
+    dlDownloading: 'Downloading…',
     dlSubAnon: 'Anonymous download',
     dlSubRate: 'Rate limited: 60/min per IP',
     crumbHome: 'Home',
