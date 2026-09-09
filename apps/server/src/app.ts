@@ -16,7 +16,7 @@ import { UserService } from './auth/users.js';
 import type { Db } from './db/client.js';
 import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
-import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './http/assets.js';
+import { createAssetRoutes, DOWNLOAD_RATE_LIMIT, UPLOAD_RATE_LIMIT } from './http/assets.js';
 import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
@@ -127,6 +127,7 @@ export function createApp(deps: AppDeps): Hono {
     audit: deps.audit,
     storage: deps.storage,
     uploadRateLimiter: deps.uploadRateLimiter ?? new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max),
+    downloadRateLimiter: new InMemoryRateLimiter(DOWNLOAD_RATE_LIMIT.windowMs, DOWNLOAD_RATE_LIMIT.max),
   }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/reviews', createReviewRoutes({ db: deps.db, audit: deps.audit }));

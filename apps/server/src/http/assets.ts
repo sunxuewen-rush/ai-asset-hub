@@ -15,6 +15,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
 import type { RateLimiter } from '../auth/rate-limit.js';
+import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { AssetError, assetErrorCodes, UploadValidationError } from '../assets/errors.js';
 import { canManageAsset } from '../assets/manage.js';
 import {
@@ -33,6 +34,7 @@ import { ReviewError, reviewErrorCodes } from '../review/errors.js';
 import { canSubmitReview, submitVersion } from '../review/service.js';
 import { LabelError, labelErrorCodes } from '../labels/errors.js';
 import { canYank, yankVersion } from '../assets/yank.js';
+import { decideDownload, resolveDownload } from '../assets/download.js';
 import { attachLabel, detachLabel, labelsOfAsset } from '../labels/service.js';
 import { labelSlugSchema } from '../labels/service.js';
 import { getEnv } from '../config/env.js';
@@ -49,6 +51,7 @@ import {
 } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
 import { requireAuth } from './auth-middleware.js';
+import { Readable } from 'node:stream';
 
 export interface AssetRoutesDeps {
   db: Db;
@@ -58,10 +61,15 @@ export interface AssetRoutesDeps {
   storage: ObjectStorage;
   /** 上传限流（每用户窗口——skillhub publish=10 同构；独立实例防与登录共享挤占） */
   uploadRateLimiter: RateLimiter;
+  /** 下载限流（design §7.2 G9——60/分·IP 匿名公开下载面；独立实例；缺省工厂内兜底） */
+  downloadRateLimiter?: RateLimiter;
 }
 
 /** 上传限流配置（T13：10 次/分钟·每用户——常量装配于 app.ts 独立实例） */
 export const UPLOAD_RATE_LIMIT = { windowMs: 60_000, max: 10 } as const;
+
+/** 下载限流配置（M3 design §7.2 G9：60 次/分钟·IP——匿名公开下载面；env 可配同构） */
+export const DOWNLOAD_RATE_LIMIT = { windowMs: 60_000, max: 60 } as const;
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -210,6 +218,8 @@ async function assertManageable(
 export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   const app = new Hono();
   const { db } = deps;
+  // 下载限流兜底（测试 buildApp 可不传——app 工厂装配常量实例）
+  const downloadRateLimiter = deps.downloadRateLimiter ?? new InMemoryRateLimiter(DOWNLOAD_RATE_LIMIT.windowMs, DOWNLOAD_RATE_LIMIT.max);
 
   // POST /api/assets（T3：注册——asset:publish 空间成员判定；FROZEN/ARCHIVED 由 rbac.can 拒）
   app.post('/', requireAuth(), async (c) => {
@@ -718,6 +728,58 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       isSuperAdmin: viewer.isSuperAdmin,
     });
     return c.body(null, 204);
+  });
+
+  // GET /api/assets/{ns}/{slug}/versions/{version}/download（T14：包下载——design §7.2 R13）
+  // 授权序：资产读面（403/404 分层）→ 版本五档判定（PUBLISHED 公开 / UPLOADED·PENDING_REVIEW
+  // 预览授权集 / YANKED → 400 version_yanked / 其余 → 400 version_not_published）→
+  // 限流（60/分·IP——design G9；匿名公开下载面）→ 计数（授权过即 ++）→
+  // presigned 直链 302 / Local 服务端流式 200。下载不入审计。
+  app.get('/:nsSlug/:slug/versions/:version/download', async (c) => {
+    const nsSlug = c.req.param('nsSlug')!;
+    const slug = c.req.param('slug')!;
+    const version = c.req.param('version')!;
+    if (
+      !slugSchema.safeParse(nsSlug).success ||
+      !slugSchema.safeParse(slug).success ||
+      !versionFieldSchema.safeParse(version).success
+    ) {
+      throw new AssetError(assetErrorCodes.notFound);
+    }
+    const { ns, row } = await loadAssetBySlugs(db, nsSlug, slug);
+    const viewer = await assertAssetReadable(c, ns, row);
+    const [versionRow] = await db
+      .select({ id: assetVersion.id, status: assetVersion.status, createdBy: assetVersion.createdBy, bundleStorageKey: assetVersion.bundleStorageKey })
+      .from(assetVersion)
+      .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
+    if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
+
+    // 五档判定（design §7.2——错误码分派按 kind）
+    const decision = decideDownload(versionRow.status, viewer, row.ownerId, versionRow);
+    if (decision.kind === 'yanked') throw new AssetError(assetErrorCodes.versionYanked);
+    if (decision.kind === 'not_published') throw new AssetError(assetErrorCodes.versionNotPublished);
+
+    // 限流（下载独立实例——60/分·IP；design G9 数值）
+    const clientIp = c.get('requestContext')?.clientIp ?? 'unknown';
+    const rl = downloadRateLimiter.hit(`asset-download:${clientIp}`);
+    if (!rl.allowed) {
+      return c.json({ code: 'auth.rate_limited', message: 'download rate limited', retryAfterSec: rl.retryAfterSec }, 429);
+    }
+
+    const resolved = await resolveDownload(db, deps.storage, { assetId: row.id, versionRow });
+    if (resolved.presignedUrl) {
+      return c.redirect(resolved.presignedUrl, 302); // S3 直链路径
+    }
+    // Local 流式兜底：zip 字节流 + attachment（fetch Response——Node 全局类型含 BodyInit）
+    const data = await deps.storage.get(resolved.bundleKey);
+    const stream = data instanceof Buffer ? data : Readable.toWeb(data as import('node:stream').Readable);
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        'content-type': 'application/zip',
+        'content-disposition': `attachment; filename="${row.slug}-${version}.zip"`,
+      },
+    });
   });
 
   return app;

@@ -32,6 +32,8 @@ export const assetErrorCodes = {
   yankReasonRequired: 'asset.yank_reason_required',
   /** 资产已有 YANKED 版本禁删（曾分发即留档——M3 design §4.2 R10） */
   hasYanked: 'asset.has_yanked',
+  /** bundle 缺失（M3 起上传必存——null 为理论不可达态，防 500 明示——design §7.2） */
+  bundleMissing: 'asset.bundle_missing',
   /** 资产已有 PUBLISHED 版本，删除走 M3 治理（防已分发资产静默移除） */
   hasPublished: 'asset.has_published',
   /** zip 布局违规：主文件不在包根 / 带外层目录（root 级契约） */
@@ -61,6 +63,7 @@ export function httpStatusForAsset(code: AssetErrorCode): number {
     case 'asset.version_not_deletable':
     case 'asset.has_published':
     case 'asset.has_yanked':
+    case 'asset.bundle_missing':
     case 'asset.version_not_published':
     case 'asset.version_not_submittable':
     case 'asset.version_yanked':
