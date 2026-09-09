@@ -15,6 +15,10 @@ export const labelErrorCodes = {
   invalidParent: 'label.invalid_parent',
   /** 越权（管理面非 SUPER_ADMIN / PRIVILEGED 挂载非超管——06 §3） */
   accessDenied: 'label.access_denied',
+  /** 定义总数上限（skillhub label.max-definitions:100 同构——防定义无限膨胀） */
+  definitionLimitExceeded: 'label.definition_limit_exceeded',
+  /** 同批翻译 locale 重复（skillhub label.translation.locale.duplicate 对齐——应用层预检） */
+  translationLocaleDuplicate: 'label.translation.locale_duplicate',
 } as const;
 
 export type LabelErrorCode = (typeof labelErrorCodes)[keyof typeof labelErrorCodes];
@@ -27,6 +31,8 @@ export function httpStatusForLabel(code: LabelErrorCode): number {
     case 'label.parent.has_children':
     case 'label.limit_exceeded':
     case 'label.invalid_parent':
+    case 'label.definition_limit_exceeded':
+    case 'label.translation.locale_duplicate':
       return 400;
     case 'label.slug_taken':
       return 409;

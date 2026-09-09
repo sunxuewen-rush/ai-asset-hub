@@ -1,0 +1,1 @@
+CREATE INDEX "idx_label_definition_parent_id" ON "label_definition" USING btree ("parent_id");

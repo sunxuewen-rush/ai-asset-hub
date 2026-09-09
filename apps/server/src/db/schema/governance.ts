@@ -74,13 +74,18 @@ export const labelDefinition = pgTable(
     visibleInFilter: boolean('visible_in_filter').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
     /** 自引用父级（NULL = 一级；06 §2.2 应用层锁两级树）——bigint 可空指针
-     *  （非 bigserial：serial 隐含 NOT NULL + 自增——一级 label 无法表达，M1 bug 修复） */
+     *  （非 bigserial：serial 隐含 NOT NULL + 自增——一级 label 无法表达，M1 bug 修复）；
+     *  索引 idx_label_definition_parent_id 对齐 skillhub V45（D6） */
     parentId: bigint('parent_id', { mode: 'number' }).references((): any => labelDefinition.id),
     createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique('uq_label_definition_slug').on(t.slug)],
+  (t) => [
+    unique('uq_label_definition_slug').on(t.slug),
+    // D6：parent_id 索引（skillhub V45 idx_label_definition_parent_id 对齐——子级检查/换域查询）
+    index('idx_label_definition_parent_id').on(t.parentId),
+  ],
 );
 
 export const labelTranslation = pgTable(

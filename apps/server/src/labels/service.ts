@@ -5,7 +5,7 @@
  * 级联：删 definition → 翻译/挂载 ON DELETE CASCADE（06 §2 表结构）；「搜索文档重建」
  * 句在 AIH 消化掉（无独立搜索索引——design §5 R11：挂载实时 join，删 label 无需重建）。
  */
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
 import type { Db } from '../db/client.js';
@@ -49,9 +49,48 @@ export interface PublicLabel {
   displayName: string;
 }
 
-/** 管理面完整行（含翻译全量——编辑需要） */
-export interface ManagedLabel extends LabelRow {
+/** 管理面完整行（含翻译全量——编辑需要；parentId = 父 slug——06 §5.2 对外 slug 契约，
+ *  与 skillhub LabelDefinitionResponse.parentId(String) 对齐——D2 对标修正） */
+export interface ManagedLabel {
+  id: number;
+  slug: string;
+  type: LabelType;
+  visibleInFilter: boolean;
+  sortOrder: number;
+  parentId: string | null;
   translations: Array<{ locale: string; displayName: string }>;
+}
+
+/** 定义总数上限（skillhub label.max-definitions:100 同构——D1 对标补） */
+export const MAX_LABEL_DEFINITIONS = 100;
+
+/**
+ * 翻译入参归一（skillhub LabelDefinitionService.normalize 同构——D8/D4）：
+ * trim + _→- + 小写（07 BCP47 语言标签）；同批 locale 重复 → 400 明示（防 DB UNIQUE 误报 slug_taken）。
+ */
+function normalizeTranslations(translations: Array<{ locale: string; displayName: string }>): Array<{ locale: string; displayName: string }> {
+  const seen = new Map<string, string>();
+  const out: Array<{ locale: string; displayName: string }> = [];
+  for (const t of translations) {
+    const locale = t.locale.trim().replaceAll('_', '-').toLowerCase();
+    const displayName = t.displayName.trim();
+    if (locale === '' || displayName === '')
+      throw new LabelError(labelErrorCodes.notFound, 'locale/display_name must not be blank');
+    if (seen.has(locale)) throw new LabelError(labelErrorCodes.translationLocaleDuplicate);
+    seen.set(locale, displayName);
+    out.push({ locale, displayName });
+  }
+  return out;
+}
+
+/** 父 id → 父 slug（管理面响应映射——D2） */
+async function parentSlugOf(db: Db, parentId: number | null): Promise<string | null> {
+  if (parentId === null) return null;
+  const [row] = await db
+    .select({ slug: labelDefinition.slug })
+    .from(labelDefinition)
+    .where(eq(labelDefinition.id, parentId));
+  return row?.slug ?? null;
 }
 
 async function loadBySlug(db: Db, slug: string): Promise<LabelRow> {
@@ -128,7 +167,15 @@ export async function createLabel(
   const slug = input.slug.trim();
   if (!labelSlugSchema.safeParse(slug).success)
     throw new LabelError(labelErrorCodes.invalidParent, 'invalid slug'); // 复用码？slug 格式错用 request.invalid 更贴——路由层校验；此处防御
+  // D1：定义总数上限（skillhub max-definitions:100 同构）
+  const [total] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(labelDefinition);
+  if (Number(total?.n ?? 0) >= MAX_LABEL_DEFINITIONS)
+    throw new LabelError(labelErrorCodes.definitionLimitExceeded);
   const parentId = await resolveParent(db, input.parentSlug);
+  // D8/D4：翻译归一（_→- 小写 + locale 重复预检）
+  const translations = normalizeTranslations(input.translations ?? []);
 
   try {
     const created = await db.transaction(async (tx) => {
@@ -151,18 +198,18 @@ export async function createLabel(
           parentId: labelDefinition.parentId,
           createdBy: labelDefinition.createdBy,
         });
-      if (input.translations && input.translations.length > 0) {
+      if (translations.length > 0) {
         await tx
           .insert(labelTranslation)
           .values(
-            input.translations.map((t) => ({
+            translations.map((t) => ({
               labelId: def!.id,
               locale: t.locale,
               displayName: t.displayName,
             })),
           );
       }
-      return { def: def!, translations: input.translations ?? [] };
+      return { def: def!, translations };
     });
 
     await audit({
@@ -172,10 +219,18 @@ export async function createLabel(
       targetId: String(created.def.id),
       detail: { slug, type: input.type, parentSlug: input.parentSlug ?? null },
     });
-    return { ...created.def, translations: created.translations };
+    // D2：响应 parentId = 父 slug（06 §5.2 对外契约——skillhub 同构）
+    const parentSlug = await parentSlugOf(db, created.def.parentId);
+    return { ...created.def, parentId: parentSlug, translations: created.translations };
   } catch (err) {
-    const cause = (err as { cause?: { code?: string } }).cause;
-    if (cause?.code === '23505') throw new LabelError(labelErrorCodes.slugTaken);
+    const cause = (err as { cause?: { code?: string; constraint?: string } }).cause;
+    if (cause?.code === '23505') {
+      // D4：23505 分派——翻译 UNIQUE 冲突（并发/直插同 locale）≠ slug 冲突（skillhub mapConstraintViolation 同构）
+      if (cause.constraint?.includes('label_translation')) {
+        throw new LabelError(labelErrorCodes.translationLocaleDuplicate);
+      }
+      throw new LabelError(labelErrorCodes.slugTaken);
+    }
     throw err;
   }
 }
@@ -188,7 +243,8 @@ export interface UpdateLabelInput {
   sortOrder?: number;
   /** undefined = 不动父级；null/'' = 降为一级（二级可换域/降级？06 §5.2 二级可换域——一级不可降级指原一级不能有 parent；原二级设 null 合法） */
   parentSlug?: string | null;
-  /** 提供时按 locale upsert（不删未列 locale——增量保守） */
+  /** 提供时 = 翻译整组替换（PUT 语义——skillhub replaceTranslations 同构——D3 对标修正：
+   *  删未列 locale 使「移除翻译」可达——原 upsert 增量残留无法清理） */
   translations?: Array<{ locale: string; displayName: string }>;
 }
 
@@ -206,6 +262,9 @@ export async function updateLabel(
     input.parentSlug === undefined
       ? existing.parentId
       : await resolveParent(db, input.parentSlug, input.slug);
+  // D8/D4：翻译归一（提供时——undefined 不动翻译）
+  const nextTranslations =
+    input.translations === undefined ? null : normalizeTranslations(input.translations);
 
   await db.transaction(async (tx) => {
     await tx
@@ -219,14 +278,34 @@ export async function updateLabel(
       })
       .where(eq(labelDefinition.id, existing.id));
 
-    if (input.translations && input.translations.length > 0) {
-      for (const t of input.translations) {
+    if (nextTranslations !== null) {
+      // D3 整组替换：删未列 locale → 插全部（body = 最终态；事务原子）
+      await tx
+        .delete(labelTranslation)
+        .where(
+          and(
+            eq(labelTranslation.labelId, existing.id),
+            nextTranslations.length > 0
+              ? notInArray(
+                  labelTranslation.locale,
+                  nextTranslations.map((t) => t.locale),
+                )
+              : undefined,
+          ),
+        );
+      if (nextTranslations.length > 0) {
         await tx
           .insert(labelTranslation)
-          .values({ labelId: existing.id, locale: t.locale, displayName: t.displayName })
+          .values(
+            nextTranslations.map((t) => ({
+              labelId: existing.id,
+              locale: t.locale,
+              displayName: t.displayName,
+            })),
+          )
           .onConflictDoUpdate({
             target: [labelTranslation.labelId, labelTranslation.locale],
-            set: { displayName: t.displayName, updatedAt: new Date() },
+            set: { displayName: sql`excluded.display_name`, updatedAt: new Date() },
           });
       }
     }
@@ -244,9 +323,11 @@ export async function updateLabel(
       ),
     },
   });
+  const updated = await loadBySlug(db, input.slug);
+  // D2：响应 parentId = 父 slug
   return {
-    ...existing,
-    ...(await loadBySlug(db, input.slug)),
+    ...updated,
+    parentId: await parentSlugOf(db, updated.parentId),
     translations: (await translationsOf(db, [existing.id])).get(existing.id) ?? [],
   };
 }
@@ -328,14 +409,14 @@ export async function listPublicLabels(db: Db, locale: string): Promise<PublicLa
 
   return defs.map((d) => {
     // displayName 回退链：请求 locale 精确 → 主语言前缀（zh-CN → zh）→ en → slug
-    // （06 §2.3 永不空显示；RFC 语言标签前缀匹配——Accept-Language 常带区域码）
+    // （06 §2.3 永不空显示；skillhub LabelLocalizationService 逐字同构——D5：删 t[0] 层，
+    //   en 未命中直落 slug——确定性兜底，多语言无 en 时不再显示随机首翻译）
     const t = translations.get(d.id) ?? [];
     const primary = locale.split('-')[0]!;
     const hit =
       t.find((x) => x.locale === locale) ??
       t.find((x) => x.locale === primary) ??
-      t.find((x) => x.locale === 'en') ??
-      t[0];
+      t.find((x) => x.locale === 'en');
     return {
       slug: d.slug,
       type: d.type,
@@ -365,9 +446,13 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
   );
   const parentSlugById = new Map(defs.map((d) => [d.id, d.slug]));
   return defs.map((d) => ({
-    ...d,
-    parentId: d.parentId === null ? null : d.parentId, // DB 内部 id（管理面可直用——06 §5.2 API 层 slug；管理面简化回 slug？——统一回 slug 更一致）
-    parentSlug: d.parentId === null ? null : (parentSlugById.get(d.parentId) ?? null),
+    id: d.id,
+    slug: d.slug,
+    type: d.type,
+    visibleInFilter: d.visibleInFilter,
+    sortOrder: d.sortOrder,
+    // D2：parentId = 父 slug（06 §5.2 对外契约——skillhub LabelDefinitionResponse 同构）
+    parentId: d.parentId === null ? null : (parentSlugById.get(d.parentId) ?? null),
     translations: translations.get(d.id) ?? [],
   }));
 }

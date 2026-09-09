@@ -121,8 +121,8 @@ describe('label 定义管理（06 §3/§5.2——仅 SUPER_ADMIN）', () => {
     const child = slug('comm');
     const res = await post('/api/labels', { slug: child, type: 'RECOMMENDED', parentSlug: parent }, await cookieFor(superAdmin));
     expect(res.status).toBe(201);
-    // 管理面响应 parentId = 父级内部数字 id（公开列表/挂载响应才转 slug——06 §5.1 服务端映射）
-    expect(((await res.json()) as { parentId: number | null }).parentId).toBeGreaterThan(0);
+    // 管理面响应 parentId = 父 slug（06 §5.2 对外契约——skillhub LabelDefinitionResponse 对齐 D2）
+    expect(((await res.json()) as { parentId: string | null }).parentId).toBe(parent);
   });
 
   it('锁两级校验矩阵：parent 不存在 404 / 挂二级之下 400 / 自指 400', async () => {
@@ -198,5 +198,72 @@ describe('公开列表（06 §5.1——RECOMMENDED + visible_in_filter + display
     const items = (await res.json()) as Array<{ slug: string; displayName: string }>;
     const hit = items.find((i) => i.slug === bare);
     expect(hit!.displayName).toBe(bare);
+  });
+
+  it('D5 对标：无 zh/en 翻译时 fr 请求 → slug 兜底（不显示随机首翻译）', async () => {
+    const sa = await cookieFor(superAdmin);
+    const frOnly = slug('fr-only');
+    await post('/api/labels', { slug: frOnly, type: 'RECOMMENDED', translations: [{ locale: 'fr', displayName: 'Seul' }] }, sa);
+    const res = await get('/api/labels', undefined, 'fr-FR');
+    const items = (await res.json()) as Array<{ slug: string; displayName: string }>;
+    const hit = items.find((i) => i.slug === frOnly);
+    expect(hit!.displayName).toBe('Seul'); // fr 精确命中
+    const resEn = await get('/api/labels', undefined, 'en-US');
+    const itemsEn = (await resEn.json()) as Array<{ slug: string; displayName: string }>;
+    const hitEn = itemsEn.find((i) => i.slug === frOnly);
+    expect(hitEn!.displayName).toBe(frOnly); // en 未命中 → slug（不落首翻译 fr）
+  });
+});
+
+describe('对标 skillhub 修正（D1-D8——源码实证回写）', () => {
+  it('D3 翻译整组替换：PATCH 提供新组 → 未列 locale 被移除', async () => {
+    const sa = await cookieFor(superAdmin);
+    const l = slug('d3');
+    await post('/api/labels', { slug: l, type: 'RECOMMENDED', translations: [{ locale: 'zh', displayName: '旧' }, { locale: 'en', displayName: 'Old' }] }, sa);
+    const up = await patch(`/api/labels/${l}`, { translations: [{ locale: 'zh', displayName: '新' }] }, sa);
+    expect(up.status).toBe(200);
+    const body = (await up.json()) as { translations: Array<{ locale: string; displayName: string }> };
+    expect(body.translations).toHaveLength(1); // en 已移除（整组替换）
+    expect(body.translations[0]).toEqual({ locale: 'zh', displayName: '新' });
+  });
+
+  it('D4 同批翻译 locale 重复 → 400 label.translation.locale_duplicate（非误报 slug_taken）', async () => {
+    const sa = await cookieFor(superAdmin);
+    const res = await post('/api/labels', { slug: slug('d4'), type: 'RECOMMENDED', translations: [{ locale: 'zh', displayName: '一' }, { locale: 'ZH', displayName: '二' }] }, sa);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('label.translation.locale_duplicate');
+  });
+
+  it('D8 locale 归一：zh_CN 入库转 zh-cn（07 BCP47——_→- 小写）', async () => {
+    const sa = await cookieFor(superAdmin);
+    const l = slug('d8');
+    const res = await post('/api/labels', { slug: l, type: 'RECOMMENDED', translations: [{ locale: 'zh_CN', displayName: '中国' }] }, sa);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { translations: Array<{ locale: string }> };
+    expect(body.translations[0]!.locale).toBe('zh-cn');
+  });
+
+  it('D2 管理面 PATCH 换域响应 parentId = 新父 slug', async () => {
+    const sa = await cookieFor(superAdmin);
+    const p1 = slug('d2p1');
+    const p2 = slug('d2p2');
+    await post('/api/labels', { slug: p1, type: 'RECOMMENDED' }, sa);
+    await post('/api/labels', { slug: p2, type: 'RECOMMENDED' }, sa);
+    const child = slug('d2c');
+    await post('/api/labels', { slug: child, type: 'RECOMMENDED', parentSlug: p1 }, sa);
+    const up = await patch(`/api/labels/${child}`, { parentSlug: p2 }, sa);
+    expect(up.status).toBe(200);
+    expect(((await up.json()) as { parentId: string | null }).parentId).toBe(p2);
+  });
+
+  it('D1 定义总数上限：直插满 100 → 第 101 个 400 label.definition_limit_exceeded', async () => {
+    const sa = await cookieFor(superAdmin);
+    // 直插需真实用户（created_by FK）——用 superAdmin；slug like 前缀清理
+    const rows = Array.from({ length: 100 }, (_, i) => ({ slug: `${PREFIX}bulk-${i}`, type: 'RECOMMENDED' as const, createdBy: superAdmin }));
+    await db.insert(labelDefinition).values(rows);
+    const res = await post('/api/labels', { slug: slug('d1'), type: 'RECOMMENDED' }, sa);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('label.definition_limit_exceeded');
+    await db.delete(labelDefinition).where(like(labelDefinition.slug, `${PREFIX}bulk-%`));
   });
 });
