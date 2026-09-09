@@ -123,6 +123,8 @@ function assetItem(row: AssetRow, namespaceSlug: string) {
     visibility: row.visibility,
     status: row.status,
     ownerId: row.ownerId,
+    /** 当前版本指针（M3 起 approve/yank 维护——详情暴露供消费者取 latest） */
+    latestVersionId: row.latestVersionId,
     downloadCount: row.downloadCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

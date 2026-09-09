@@ -327,9 +327,15 @@ export async function listPublicLabels(db: Db, locale: string): Promise<PublicLa
   const defRows = new Map(defs.map((d) => [d.id, d.slug]));
 
   return defs.map((d) => {
-    // displayName 回退链：请求 locale → en → slug（06 §2.3 永不空显示）
+    // displayName 回退链：请求 locale 精确 → 主语言前缀（zh-CN → zh）→ en → slug
+    // （06 §2.3 永不空显示；RFC 语言标签前缀匹配——Accept-Language 常带区域码）
     const t = translations.get(d.id) ?? [];
-    const hit = t.find((x) => x.locale === locale) ?? t.find((x) => x.locale === 'en') ?? t[0];
+    const primary = locale.split('-')[0]!;
+    const hit =
+      t.find((x) => x.locale === locale) ??
+      t.find((x) => x.locale === primary) ??
+      t.find((x) => x.locale === 'en') ??
+      t[0];
     return {
       slug: d.slug,
       type: d.type,
