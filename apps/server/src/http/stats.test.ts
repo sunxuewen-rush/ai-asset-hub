@@ -89,9 +89,9 @@ describe('GET /api/stats（M4a R7——匿名公开聚合）', () => {
     // 增量：本文件 seed 的 PUBLIC 3 个（skill/mcp/agent 各一，下载 100+40+10）；
     // PRIVATE/NAMESPACE_ONLY/HIDDEN/FROZEN 空间一律不计（999 排除）
     expect(body.totalAssets - baseline.totalAssets).toBe(3);
-    expect(body.typeCounts.skill - (baseline.typeCounts.skill ?? 0)).toBe(1);
-    expect(body.typeCounts.mcp - (baseline.typeCounts.mcp ?? 0)).toBe(1);
-    expect(body.typeCounts.agent - (baseline.typeCounts.agent ?? 0)).toBe(1);
+    expect((body.typeCounts.skill ?? 0) - (baseline.typeCounts.skill ?? 0)).toBe(1);
+    expect((body.typeCounts.mcp ?? 0) - (baseline.typeCounts.mcp ?? 0)).toBe(1);
+    expect((body.typeCounts.agent ?? 0) - (baseline.typeCounts.agent ?? 0)).toBe(1);
     expect(body.totalDownloads - baseline.totalDownloads).toBe(150);
   });
 });
