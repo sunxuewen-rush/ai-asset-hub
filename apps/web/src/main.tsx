@@ -1,16 +1,34 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { AssetDetail } from './pages/AssetDetail';
+import { Center, type CenterType } from './pages/Center';
+import { Home } from './pages/Home';
+import './styles/tokens.css';
+import './styles/global.css';
 
-// M4 前的最小占位——市场门户将在此生长
+// M4a 五路由（design §3，类型即路由）——占位；AppShell 于 T10 包壳
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('missing #root mount element');
 }
+
+const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
+  { path: '/skills', type: 'skill' },
+  { path: '/mcps', type: 'mcp' },
+  { path: '/agents', type: 'agent' },
+];
+
 createRoot(rootElement).render(
   <StrictMode>
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem' }}>
-      <h1>AI Asset Hub</h1>
-      <p>Open-source AI asset registry and marketplace.</p>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        {CENTER_ROUTES.map(({ path, type }) => (
+          <Route key={path} path={path} element={<Center type={type} />} />
+        ))}
+        <Route path="/assets/:nsSlug/:slug" element={<AssetDetail />} />
+      </Routes>
+    </BrowserRouter>
   </StrictMode>,
 );
