@@ -186,8 +186,13 @@ describe('GET /api/audit（T20 浏览 + T21 权限面闭环）', () => {
     expect(body.total).toBeGreaterThanOrEqual(3);
     expect(body.limit).toBe(20);
     expect(body.offset).toBe(0);
-    // 倒序：au-ev-3 最新在前（本批 3 条互不干扰其他 run）
-    expect(body.items[0]!.requestId).toBe('au-ev-3');
+    // 倒序语义：au-ev-3（本批最新）在默认页内（并发文件审计行可能更新在前——全局
+    // 无过滤查询不保证自身数据居首——结构性断言：au-ev-3 存在且 au-ev-1 在 au-ev-3 之后）
+    const ids = body.items.map((i) => i.requestId);
+    expect(ids).toContain('au-ev-3');
+    if (ids.includes('au-ev-1') && ids.includes('au-ev-3')) {
+      expect(ids.indexOf('au-ev-3')).toBeLessThan(ids.indexOf('au-ev-1'));
+    }
   });
 
   it('SUPER_ADMIN → 200（短路放行）', async () => {

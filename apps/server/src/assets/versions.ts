@@ -49,11 +49,15 @@ export async function createVersion(
 
   // 1. 版本冲突预检（业务层友好 409；并发兜底在插行 catch 23505）
   // 注意：条件必须 and() 组合——eq(a) && eq(b) 求值为 eq(b)（drizzle 对象 truthy——T14 实证 bug）
+  // T13 SCAN_FAILED 重传豁免（design §3.4 R5 分治）：同版本仅当旧行 status='SCAN_FAILED'
+  // （扫描失败、无审核历史——08 §7 同版本修正重传语义）时允许覆写重传；其余冲突 → 409。
   const existing = await db
-    .select({ id: assetVersion.id })
+    .select({ id: assetVersion.id, status: assetVersion.status })
     .from(assetVersion)
     .where(and(eq(assetVersion.assetId, target.id), eq(assetVersion.version, version)));
-  if (existing.length > 0) throw new AssetError(assetErrorCodes.versionConflict);
+  const replaceScanFailed = existing.length > 0 && existing[0]!.status === 'SCAN_FAILED';
+  if (existing.length > 0 && !replaceScanFailed) throw new AssetError(assetErrorCodes.versionConflict);
+  const replacedVersionId = existing.length > 0 ? existing[0]!.id : null;
 
   // 2. 族校验 + 解析（失败抛 UploadValidationError——issues 全量给端点 400）
   const validation = await validatePackage(target.type, file);
@@ -70,9 +74,22 @@ export async function createVersion(
   const fileCount = files.length;
   const totalSize = validation.validated.entries.reduce((sum, e) => sum + e.size, 0);
 
-  // 4. 事务：插版本行 → 逐文件写存储 + 落 file 行（key = {assetId}/{versionId}/{path}——M1 规则）
+  // 4. 事务：SCAN_FAILED 覆写清理 → 插版本行（含 bundle 列）→ 逐文件/bundle 写存储 + 落行
+  let bundleKey = '';
+  const staleFileKeys: string[] = [];
   try {
     const versionId = await db.transaction(async (tx) => {
+      // 覆写路径：删旧版本行 + 收集旧文件存储 key（事务后 deleteMany——孤儿容忍纪律）
+      if (replaceScanFailed && replacedVersionId !== null) {
+        const staleFiles = await tx
+          .select({ storageKey: assetFile.storageKey })
+          .from(assetFile)
+          .where(eq(assetFile.versionId, replacedVersionId));
+        staleFileKeys.push(...staleFiles.map((s) => s.storageKey));
+        await tx.delete(assetFile).where(eq(assetFile.versionId, replacedVersionId));
+        await tx.delete(assetVersion).where(eq(assetVersion.id, replacedVersionId));
+      }
+
       const [row] = await tx
         .insert(assetVersion)
         .values({
@@ -103,8 +120,23 @@ export async function createVersion(
           storageKey,
         });
       }
+
+      // T13 bundle 顺存（design §7.1 R13——M2 上传持完整 zip Buffer 零压缩成本）：
+      // 原包 zip 副本 + sha256（08 §5.3 zip 双通道校验承诺）+ SCAN_FAILED 覆写时的旧 bundle 一并清
+      bundleKey = `${target.namespaceId}/${target.id}/${vid}/bundle.zip`;
+      const bundleSha256 = createHash('sha256').update(file).digest('hex');
+      await storage.put(bundleKey, file, { contentType: 'application/zip' });
+      await tx
+        .update(assetVersion)
+        .set({ bundleStorageKey: bundleKey, bundleSha256 })
+        .where(eq(assetVersion.id, vid));
       return vid;
     });
+
+    // 事务后清旧文件存储（SCAN_FAILED 覆写——旧 bundle 一并删；deleteMany 容错孤儿容忍）
+    if (staleFileKeys.length > 0) {
+      await storage.deleteMany([...staleFileKeys, replacedVersionId === null ? '' : `${target.namespaceId}/${target.id}/${replacedVersionId}/bundle.zip`].filter(Boolean)).catch(() => {});
+    }
 
     // 5. 审计（动作面 asset.version_upload）
     await audit({
