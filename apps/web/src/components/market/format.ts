@@ -8,6 +8,11 @@ export function compactCount(n: number): string {
   return `${text}K`;
 }
 
+/** ISO 时间 → YYYY-MM-DD（demo 元信息日期形态；UTC 切片） */
+export function formatDate(iso: string): string {
+  return iso.slice(0, 10);
+}
+
 /**
  * 作者展示（§5.2 G6：工号形态 userId（非 usr_ 前缀）→「displayName · userId」；
  * 本地账号只显姓名；无 displayName 时工号裸显、本地空显）

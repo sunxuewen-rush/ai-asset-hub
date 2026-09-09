@@ -92,3 +92,30 @@ export interface CompareFile {
 export interface CompareResponse {
   files: readonly CompareFile[];
 }
+
+/** 版本列表行（listVersions 投影——version-read.ts 实证） */
+export interface VersionListItem {
+  id: number;
+  version: string;
+  status: VersionStatus;
+  fileCount: number;
+  totalSize: number;
+  changelog: string | null;
+  createdAt: string;
+}
+
+export type VersionListResponse = ListEnvelope<VersionListItem>;
+
+/** 版本文件清单条目（storageKey 服务端内部——不消费） */
+export interface VersionFileEntry {
+  filePath: string;
+  fileSize: number;
+  sha256: string;
+}
+
+/** 版本详情（getVersion 实证：manifest/投影/文件清单） */
+export interface VersionDetail extends VersionListItem {
+  manifestJson: Record<string, unknown> | null;
+  parsedMetadataJson: Record<string, unknown> | null;
+  files: readonly VersionFileEntry[];
+}
