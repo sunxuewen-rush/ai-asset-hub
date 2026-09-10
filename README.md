@@ -1,5 +1,7 @@
 # AI Asset Hub
 
+[![CI](https://github.com/sunxuewen-rush/ai-asset-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/sunxuewen-rush/ai-asset-hub/actions/workflows/ci.yml)
+
 > 开源的企业级 AI 资产注册中心与市场 —— 技能、MCP、Agent 等 AI 可复用资产的统一分发平台。
 
 AI Asset Hub 让企业像用「自托管 npm」一样管理 AI 资产：发布、发现、审核、安装，一条链到底。
