@@ -69,6 +69,7 @@ M4a 已收官（538 tests 全绿）。本重构**会改动 M4a 的坐标链路**
 | 管理自己的资产（状态/删除/版本 yank） | `owner 本人` 或 `管理`+ |
 | 管理他人资产 | `管理`+ |
 | 提交版本进审核 | `owner 本人` 或 `管理`+ |
+| 上传草稿版本（`POST /:slug/versions`） | `owner 本人` 或 `管理`+（**执行注记 D4**：原为「空间成员 ∨ 平台权限码」；design 未单列，按「版本级操作归 owner/管理」对齐——放宽为「用户+」会让任意用户往他人资产挂版本。**用户已拍板 2026-09-10：同意**） |
 | 审核发布（approve/reject） | `管理`+ |
 | 撤回自己的提交（withdraw） | 提交人本人（业务例外，非权限码） |
 | 标签定义管理 | `超管` |
@@ -149,8 +150,11 @@ review_task 表（变更）
 | `auth/routes.ts`（`/me`） | 返回 `{ user: { id, displayName }, role: number }`（现状无角色信息；首次引入 `role`） |
 | `http/auth-middleware.ts` | `requirePermission` **删**（双职责拆分）；`requirePlatformRole(roles)` → **`requireRole(minRole, { scope? })`**（层级比较；可选 `scope` 承接原 `requirePermission` 的 token 凭证 scope 门，`assertTokenScoped` 保留供细粒度调用点） |
 | `http/namespaces.ts` | **整文件删除**（617 行） |
-| `http/assets.ts` | 路由 `/:nsSlug/:slug` → `/:slug`（含 versions/files/download/compare 子路由）；删 `listQuerySchema.nsSlug`、`createBodySchema.namespaceSlug`；删 `PATCH /:ns/:slug`（visibility）；注册判定改 `requireRole(USER)` |
-| `http/reviews.ts` | 删 `namespaceSlug` 必填分支与空间审核判定 → `requireRole(ADMIN)` |
+| `http/assets.ts` | 路由 `/:nsSlug/:slug` → `/:slug`（含 versions/files/download/compare 子路由）；删 `listQuerySchema.nsSlug`、`createBodySchema.namespaceSlug`；注册判定改 `requireRole(USER)`。**（修正：`PATCH /:slug`（visibility 修改）不属 S2——其删除归 S3/T10，与 §7 S3 边界一致；S2 仅改其坐标为裸 slug）** |
+| `assets/versions.ts` | 存储 key 去空间段：`{assetId}/{versionId}/{path}` + bundle `{assetId}/{versionId}/bundle.zip`（**存量对象旧 key 不受影响**——key 存于 `asset_file.storage_key`/`bundle_storage_key`） |
+| `assets/download.ts` · `version-read.ts` · `manage.ts` · `visibility.ts` | viewer 输入去 `namespaceRole`/`nsStatus`；`canManageAsset` → owner ∨ `role >= ADMIN`；NAMESPACE_ONLY 过渡为 owner-only（S3 删列） |
+| `http/reviews.ts` · `review/{service,query}.ts` | 审核队列改**全站单队列**（去 namespaceId/namespaceSlug）；队列/详情/审批/撤回判据改 `role >= ADMIN`；`canWithdrawReview` 收 `viewerRole` |
+| `auth/rbac.ts`（S2 追加） | **删 `can()` / `getNamespaceRoles()` / `getNamespaceStatus()` / 空间角色映射**——S1 过渡态在 S2 兑现（D1 闭环） |
 | `http/audit.ts` | `requirePermission(auditRead)` → `requireRole(ADMIN)` |
 | `assets/service.ts` | 删 `namespace 按 slug 寻址`（`:120`）；`registerAsset` 去 namespace 维度；列表查询去 `ns.status`/`asset.status` 双条件中的 ns 部分；序列化去 `namespaceSlug` |
 | `assets/manage.ts` | `canManageAsset(ownerId, viewerId, role)` → owner 本人 ∨ `role >= ADMIN` |
@@ -243,7 +247,7 @@ review_task 表（变更）
 | 阶段 | 边界 | 验收口径 |
 |------|------|---------|
 | **S1 角色模型** | `user_account.role` + 迁移回填 + 删 4 权限表 + 重写 `rbac.ts`（`can()`/`getNamespaceRoles()` **过渡态保留**，S2 删）+ 删 `permissions.ts` + 新增 `token-scopes.ts` + `requireRole` + `/me` 返回 `role` + **15** 测试角色断言改写（实测；原估 21） | 全仓 `typecheck` + `test` 绿；`requireRole` 层级负例覆盖（未登录/用户/管理/超管） |
-| **S2 空间删除** | 删 9 端点 + `namespaces.ts`/`.test.ts` + 2 表 + `asset/review_task.namespace_id` + 坐标改裸 slug（14 服务端源文件 / 39 判定点 + 10 前端文件）+ 审计动作/错误码清理 | 同上；坐标全链路回归（注册→详情→版本→文件→下载→对比）；**M4a 全量 dogfood 重跑（P4，Edge headless 5 路由）** |
+| **S2 空间删除** | 删 9 端点 + `namespaces.ts`/`.test.ts` + 2 表 + `asset/review_task.namespace_id` + 坐标改裸 slug（14 服务端源文件 / 39 判定点 + 10 前端文件）+ 审计动作/错误码清理 + 存储 key 去空间段 + `rbac.ts` 删过渡态面（D1 闭环）+ 上传草稿版本判据收口（D4） | 同上；坐标全链路回归（注册→详情→版本→文件→下载→对比）；**M4a 全量 dogfood 重跑（P4，Edge headless 5 路由）** |
 | **S3 可见性删除** | 删 `asset.visibility` 列 + `visibility.ts` + `PATCH /:ns/:slug` 端点 + 测试矩阵 | 同上；公开读面全匿名可达；非 ACTIVE 语义（R6-b 授权集）单测保留 |
 | **S4 收尾** | 规范同步（01/05/08/00）+ 全量回归 + converge（00 §7 ②） | 文档-代码对齐；8 维重评 ≥9；M4b design 按新模型重写 |
 
@@ -321,5 +325,5 @@ review_task 表（变更）
 |------|------|------|------|
 | v0.1 | 2026-09-10 | sunxuewen-rush | 初稿：J1-J3 拍板落地（先重构后 M4b / 坐标裸 slug / 命名 M4-pre）+ R1-R6 拍板表（4 档角色 / 无空间 / 无可见性 / 无权限码 / 裸 slug / 取最高档迁移）+ 全链路实扫影响面（14 服务端源文件 · 39 空间判定点 · 10 前端文件 · 4 schema 表 · 10 端点 · 6 表 2 列）+ 迁移脚本与校验断言（含 dev 库实测数据）+ 四阶段实施边界 + 影响声明 |
 | v0.2 | 2026-09-10 | sunxuewen-rush | grilling Round 1 闭环：新增 §2.5 实施拍板（P1-P7——阶段划分不拆 S2 / 冲突中止不自动改名 / 赋权靠 seed+SQL 不加 UI / M4a 全量 dogfood 回归 / role 值 0-1-10-100 / 不做 down / 先补 00 定位）；§5 补 P2/P6 策略；§7 S2 验收补 P4 回归口径；§12 规范同步落实到行（00 L50/L51-52/L96/L105 + §8 修订记录，并注明 L93/L94 历史注记不改） |
-| v0.3 | 2026-09-10 | sunxuewen-rush | S1 执行偏离回写（plan v0.2 同源）：**D1** §4.1/§7 —— `can()`/`getNamespaceRoles()` 保留为过渡态（S1 删除会连带动空间逻辑破坏板块绿点；平台侧 `role >= ADMIN` 已逐行核对与旧语义等价，S2/T6 随空间删）；**D2** §2.1 R4/§3/§4.1 —— 权限码 10→0 但 token 凭证 scope 另立 `auth/token-scopes.ts`（5 码，取值逐字一致 → 存量零迁移）；**D3** §4.1/§7 —— `global` 空间种子删除时点归 S2；§4.1 `requireRole(minRole, { scope? })` 双参形态落定。**深度档四轮审查补正**：F3 §11 引用清单补 3 项（`token-scopes.ts`/`http/tokens.ts`/`http/labels.ts`）+ 迁移文件行；F4 `roleOf` 主入口口径（`hasRole` 仅测试消费）；F5 §3/§7 测试数字改实测 15；F6 §7 S1 过渡语义注（注册语义待 S2/T5）。**第二轮四轮审查一次收口**（治根因：design 系实现前估计、逐点补=打地鼠）：**F8** §6:233 测试文件 21→15（涟漪漏 §6）· **F9** §6:234「`can()` 语义消失」与 D1 矛盾 → 改「过渡态语义保留断言」· **F10** §3/§5 迁移由「单个 0005」改「按阶段 3 个」（0005 已执行 / 0006 S2 / 0007 S3 + 各自职责）· **F15** §3/§10「删 2 列」→「**3 列**」（asset: namespace_id/visibility；review_task: namespace_id——§5 step 3 自身列了 3 条 DROP COLUMN）。F11 撤回（§7 `/:ns/:slug` 简写全文一致，非残留） |
+| v0.3 | 2026-09-10 | sunxuewen-rush | S1 执行偏离回写（plan v0.2 同源）：**D1** §4.1/§7 —— `can()`/`getNamespaceRoles()` 保留为过渡态（S1 删除会连带动空间逻辑破坏板块绿点；平台侧 `role >= ADMIN` 已逐行核对与旧语义等价，S2/T6 随空间删）；**D2** §2.1 R4/§3/§4.1 —— 权限码 10→0 但 token 凭证 scope 另立 `auth/token-scopes.ts`（5 码，取值逐字一致 → 存量零迁移）；**D3** §4.1/§7 —— `global` 空间种子删除时点归 S2；§4.1 `requireRole(minRole, { scope? })` 双参形态落定。**S2 深挖自测修复（F17-F20）**：**F17** 注释腐化类清理（26 处——引用已删 `rbac.can()`/`ASSET_ADMIN`/`AUDITOR`/`{ns}` 坐标者全部改写为历史说明式；根因=codemod 不改注释，上轮仅修 1 处属扫类不足）；**F18** §4.1 与 §7 自相矛盾（`PATCH /:slug` 的 visibility 删除归 S2 还是 S3）→ 按 §7/plan T10 归 **S3**，§4.1 已修正（代码现状与之一致）；**F20** 设计 §5 P2 守卫由「仅读代码」升级为**实证**：冲突场景下 0006 中止（exit 3）+ 输出冲突清单 + 表/列未半途破坏 + 消除冲突后成功（首轮脚手架因 `psql` 无 `ON_ERROR_STOP` + 种子列名错误而假 PASS，方法学教训记入 plan）。**S2 执行回写**：§2.2 权限对照表补「上传草稿版本 = owner ∨ 管理」（D4）；§4.1 补 4 行（`versions.ts` 存储 key 去空间段 / `download·version-read·manage·visibility` viewer 去空间角色 / `reviews`+`review/*` 全站单队列 / `rbac.ts` 删过渡态 = D1 闭环）；§7 S2 边界与验收同步；**执行偏离 D5**：`auth/rbac.test.ts` 的 `can()` 空间侧 3 例随源码删除（平台侧 4 例改测 `hasRole`）——用例账 570→521 全可解释。**深度档四轮审查补正**：F3 §11 引用清单补 3 项（`token-scopes.ts`/`http/tokens.ts`/`http/labels.ts`）+ 迁移文件行；F4 `roleOf` 主入口口径（`hasRole` 仅测试消费）；F5 §3/§7 测试数字改实测 15；F6 §7 S1 过渡语义注（注册语义待 S2/T5）。**第二轮四轮审查一次收口**（治根因：design 系实现前估计、逐点补=打地鼠）：**F8** §6:233 测试文件 21→15（涟漪漏 §6）· **F9** §6:234「`can()` 语义消失」与 D1 矛盾 → 改「过渡态语义保留断言」· **F10** §3/§5 迁移由「单个 0005」改「按阶段 3 个」（0005 已执行 / 0006 S2 / 0007 S3 + 各自职责）· **F15** §3/§10「删 2 列」→「**3 列**」（asset: namespace_id/visibility；review_task: namespace_id——§5 step 3 自身列了 3 条 DROP COLUMN）。F11 撤回（§7 `/:ns/:slug` 简写全文一致，非残留） |
 | — | 2026-09-10 | sunxuewen-rush | **定稿**（用户批准；出口标准：8 维自检 9.3 ≥9 + grilling Round 1 闭环）。实施由 `docs/plans/M4-pre-flat-model-refactor.md` 承接。 |

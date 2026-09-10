@@ -7,6 +7,10 @@
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const ok = (n: string, c: boolean, extra = '') => console.log(`${c ? 'PASS' : 'FAIL'} ${n}${extra ? ' :: ' + extra : ''}`);
 const errors: string[] = [];
+/** 可参数化（多实例并存时用）：SMOKE_BASE_URL 指向前端 dev 端口；SMOKE_SHOT_PREFIX 给截图加前缀
+ *  （避免覆盖历史里程碑的 docs/smoke/*.png 产物）。 */
+const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:5173';
+const SHOT_PREFIX = process.env.SMOKE_SHOT_PREFIX ?? '';
 
 async function main() {
   const cwd = process.cwd();
@@ -43,7 +47,7 @@ async function main() {
   const shot = async (name: string) => {
     const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }) as { data: string };
     const { writeFileSync } = await import('node:fs');
-    writeFileSync(`${cwd}/docs/smoke/${name}.png`, Buffer.from(r.data, 'base64'));
+    writeFileSync(`${cwd}/docs/smoke/${SHOT_PREFIX}${name}.png`, Buffer.from(r.data, 'base64'));
   };
   const nav = async (url: string) => {
     errors.length = 0;
@@ -57,10 +61,10 @@ async function main() {
     return false;
   };
 
-  await nav('http://localhost:5173/skills');
+  await nav(`${BASE}/skills`);
   await sleep(2000); // 预热
 
-  await nav('http://localhost:5173/');
+  await nav(`${BASE}/`);
   const homeTxt = () => evalJs('document.body.innerText') as Promise<string>;
   ok('首页 hero', await until(async () => ((await homeTxt()) ?? '').includes('发现和分享AI资源')));
   ok('首页统计 资产总数', await until(async () => /[0-9]/.test(((await homeTxt()) ?? '').split('资产总数')[0]?.slice(-8) ?? '') && ((await homeTxt()) ?? '').includes('最新发布')));
@@ -69,16 +73,17 @@ async function main() {
   ok('首页入口 href 指向三中心', ['/skills', '/mcps', '/agents'].every((p) => homeLinks.includes(p)));
   await shot('1-home');
 
-  await nav('http://localhost:5173/skills');
+  await nav(`${BASE}/skills`);
   ok('中心搜索占位', await until(async () => (await evalJs(`document.querySelector('input[placeholder*="搜索技能"]') !== null`)) === true));
   ok('中心真实数据卡', await until(async () => ((await homeTxt()) ?? '').includes('LangGraph RAG 检索技能')));
   ok('中心计数 共 3 个技能', await until(async () => ((await homeTxt()) ?? '').includes('共 3 个技能')));
   ok('中心排序栏', ((await homeTxt()) ?? '').includes('最近更新'));
   await shot('2-skills');
 
-  await nav('http://localhost:5173/assets/smoke-ns/demo-rag-skill');
+  await nav(`${BASE}/assets/demo-rag-skill`);
   const dtxt = () => evalJs('document.body.innerText') as Promise<string>;
-  ok('详情名/徽章/元信息', await until(async () => ((await dtxt()) ?? '').includes('LangGraph RAG 检索技能') && ((await dtxt()) ?? '').includes('@smoke-ns') && ((await dtxt()) ?? '').includes('元信息')));
+  ok('详情名/元信息（M4-pre：坐标裸 slug）', await until(async () => ((await dtxt()) ?? '').includes('LangGraph RAG 检索技能') && ((await dtxt()) ?? '').includes('元信息')));
+  ok('空间前缀已消失（反证）', !((await dtxt()) ?? '').includes('@smoke-ns'));
   ok('总览 md 渲染', await until(async () => ((await dtxt()) ?? '').includes('模糊前缀匹配')));
   ok('下载按钮（受控）aria-busy', await until(async () => (await evalJs(`document.querySelector('a[aria-busy]') !== null`)) === true));
   await shot('3-skill-detail');
@@ -105,7 +110,7 @@ async function main() {
   ok('diff +/− 行内容', ((await vtxt()) ?? '').includes('searchByPrefix'));
   await shot('5-skill-versions');
 
-  await nav('http://localhost:5173/assets/smoke-ns/demo-http-mcp');
+  await nav(`${BASE}/assets/demo-http-mcp`);
   ok('mcp 总览 README', await until(async () => ((await dtxt()) ?? '').includes('HTTP Echo MCP Server')));
   await evalJs(`[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('版本')).click()`);
   await sleep(1500);
