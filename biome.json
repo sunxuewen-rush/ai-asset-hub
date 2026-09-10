@@ -5,7 +5,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**/*.ts", "**/*.tsx", "**/*.json"]
+    "includes": ["**/*.ts", "**/*.tsx", "**/*.json", "!apps/server/drizzle/meta/**"]
   },
   "formatter": {
     "enabled": true,

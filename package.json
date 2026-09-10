@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI Asset Hub — open-source AI asset registry and marketplace (skill/mcp/agent)",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "packageManager": "bun@1.3.14",
   "engines": {
     "node": ">=22"
@@ -15,7 +18,7 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "format": "biome format --write .",
-    "format:check": "biome format --check .",
+    "format:check": "biome format .",
     "db:migrate": "bun run --filter=@ai-asset-hub/server db:migrate",
     "db:seed": "bun run --filter=@ai-asset-hub/server db:seed",
     "db:studio": "bun run --filter=@ai-asset-hub/server db:studio"
