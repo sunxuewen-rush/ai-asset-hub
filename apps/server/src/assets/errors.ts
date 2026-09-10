@@ -7,8 +7,6 @@
 export const assetErrorCodes = {
   /** 资产不存在（按裸 slug 寻址；HIDDEN/ARCHIVED 同码——活跃面不存在语义） */
   notFound: 'asset.not_found',
-  /** 资产存在但不可见（PRIVATE/NAMESPACE_ONLY 拒——skillhub error.skill.access.denied 对齐 403 明示） */
-  accessDenied: 'asset.access_denied',
   /** slug 跨类型唯一冲突（01 §3.3） */
   slugTaken: 'asset.slug_taken',
   /** 版本号重复（UNIQUE(asset_id, version)，版本不可覆写） */
@@ -51,8 +49,6 @@ export function httpStatusForAsset(code: AssetErrorCode): number {
   switch (code) {
     case 'asset.not_found':
       return 404;
-    case 'asset.access_denied':
-      return 403;
     case 'asset.slug_taken':
     case 'asset.version_conflict':
       return 409;

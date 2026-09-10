@@ -26,10 +26,6 @@ export type AssetType = z.infer<typeof assetTypeSchema>;
 export const assetStatusSchema = z.enum(['ACTIVE', 'HIDDEN', 'ARCHIVED']);
 export type AssetStatus = z.infer<typeof assetStatusSchema>;
 
-/** asset.visibility（08 §5.1，默认 PUBLIC 全站可见） */
-export const visibilitySchema = z.enum(['PUBLIC', 'NAMESPACE_ONLY', 'PRIVATE']);
-export type Visibility = z.infer<typeof visibilitySchema>;
-
 /** asset_version.status 八态全序（08 §7 六态 → M3 补全 REJECTED/YANKED——skillhub 八态同源） */
 export const versionStatusSchema = z.enum([
   'DRAFT',
@@ -55,7 +51,6 @@ export const asset = pgTable(
       .references(() => userAccount.id),
     /** 冗余指针免 join（08 §5.1；应用层事务内回填——approve 指向/yank 重算，不设 DB FK） */
     latestVersionId: bigint('latest_version_id', { mode: 'number' }),
-    visibility: text('visibility').$type<Visibility>().notNull().default('PUBLIC'),
     status: text('status').$type<AssetStatus>().notNull().default('ACTIVE'),
     downloadCount: bigint('download_count', { mode: 'number' }).notNull().default(0),
     createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),

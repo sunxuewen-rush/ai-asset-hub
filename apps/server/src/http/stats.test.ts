@@ -25,7 +25,6 @@ async function makeUser(tag: string): Promise<string> {
 async function insertAsset(
   slug: string,
   type: string,
-  visibility: string,
   status: 'ACTIVE' | 'HIDDEN' | 'ARCHIVED' = 'ACTIVE',
   dl = 0,
 ) {
@@ -35,7 +34,6 @@ async function insertAsset(
       slug,
       type: type as never,
       ownerId,
-      visibility: visibility as never,
       status,
       downloadCount: dl,
     })
@@ -48,15 +46,14 @@ beforeAll(async () => {
   ownerId = await makeUser('owner');
   // 基线快照（共享测试库非隔离——聚合断言用增量：base 紧贴 seed，窗口毫秒级）
   baseline = await getPublicStats(db);
-  // 可见性矩阵：PUBLIC（skill/mcp/agent 各 + 额外一个带下载量）/ PRIVATE / NAMESPACE_ONLY / 非 ACTIVE
-  // （M4-pre：空间维度已删除，原 FROZEN 空间资产现为普通 PUBLIC 计入）
-  await insertAsset('stt-pub-skill', 'skill', 'PUBLIC', 'ACTIVE', 100);
-  await insertAsset('stt-pub-mcp', 'mcp', 'PUBLIC', 'ACTIVE', 40);
-  await insertAsset('stt-pub-agent', 'agent', 'PUBLIC', 'ACTIVE', 10);
-  await insertAsset('stt-priv-skill', 'skill', 'PRIVATE', 'ACTIVE', 999);
-  await insertAsset('stt-ns-only-mcp', 'mcp', 'NAMESPACE_ONLY', 'ACTIVE', 999);
-  await insertAsset('stt-hidden-asset', 'skill', 'PUBLIC', 'HIDDEN', 999);
-  await insertAsset('stt-pub-extra', 'skill', 'PUBLIC', 'ACTIVE', 999);
+  // 语义矩阵（S3）：ACTIVE 全计入（原 PRIVATE/NAMESPACE_ONLY 资产并入普通 ACTIVE）/ HIDDEN 不计入
+  await insertAsset('stt-pub-skill', 'skill', 'ACTIVE', 100);
+  await insertAsset('stt-pub-mcp', 'mcp', 'ACTIVE', 40);
+  await insertAsset('stt-pub-agent', 'agent', 'ACTIVE', 10);
+  await insertAsset('stt-priv-skill', 'skill', 'ACTIVE', 999);
+  await insertAsset('stt-ns-only-mcp', 'mcp', 'ACTIVE', 999);
+  await insertAsset('stt-hidden-asset', 'skill', 'HIDDEN', 999);
+  await insertAsset('stt-pub-extra', 'skill', 'ACTIVE', 999);
 });
 
 afterAll(async () => {
@@ -73,7 +70,7 @@ afterAll(async () => {
 });
 
 describe('GET /api/stats（M4a R7——匿名公开聚合）', () => {
-  it('匿名 200：仅 PUBLIC+ACTIVE 计入；typeCounts 动态键', async () => {
+  it('匿名 200：ACTIVE 全计入（HIDDEN 除外）；typeCounts 动态键', async () => {
     const app = new Hono();
     app.route('/api/stats', createStatsRoutes({ db }));
     const res = await app.request('/api/stats');
@@ -83,12 +80,12 @@ describe('GET /api/stats（M4a R7——匿名公开聚合）', () => {
       totalDownloads: number;
       typeCounts: Record<string, number>;
     };
-    // 增量：本文件 seed 的 PUBLIC+ACTIVE 4 个（skill×2 / mcp×1 / agent×1，下载 100+40+10+999）；
-    // PRIVATE/NAMESPACE_ONLY/HIDDEN 一律不计（999 排除）
-    expect(body.totalAssets - baseline.totalAssets).toBe(4);
-    expect((body.typeCounts.skill ?? 0) - (baseline.typeCounts.skill ?? 0)).toBe(2);
-    expect((body.typeCounts.mcp ?? 0) - (baseline.typeCounts.mcp ?? 0)).toBe(1);
+    // 增量：本文件 seed 的 ACTIVE 6 个（skill×3 / mcp×2 / agent×1，下载 100+40+10+999+999+999）；
+    // HIDDEN 不计入（S3：可见性维度已删）
+    expect(body.totalAssets - baseline.totalAssets).toBe(6);
+    expect((body.typeCounts.skill ?? 0) - (baseline.typeCounts.skill ?? 0)).toBe(3);
+    expect((body.typeCounts.mcp ?? 0) - (baseline.typeCounts.mcp ?? 0)).toBe(2);
     expect((body.typeCounts.agent ?? 0) - (baseline.typeCounts.agent ?? 0)).toBe(1);
-    expect(body.totalDownloads - baseline.totalDownloads).toBe(1149);
+    expect(body.totalDownloads - baseline.totalDownloads).toBe(3147);
   });
 });

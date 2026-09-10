@@ -3,7 +3,6 @@
  * 写面形状 M4b 再补。服务端实现为契约真相，见 apps/server/src/http/*）。
  */
 export type AssetType = 'skill' | 'mcp' | 'agent';
-export type Visibility = 'PUBLIC' | 'PRIVATE' | 'NAMESPACE_ONLY';
 export type AssetStatus = 'ACTIVE' | 'HIDDEN' | 'ARCHIVED';
 /** 版本状态机（M1 六态 + REJECTED；匿名读面仅见 PUBLISHED/YANKED） */
 export type VersionStatus =
@@ -29,7 +28,6 @@ export interface AssetItem {
   id: number;
   slug: string;
   type: AssetType;
-  visibility: Visibility;
   status: AssetStatus;
   ownerId: string;
   latestVersionId: string | null;

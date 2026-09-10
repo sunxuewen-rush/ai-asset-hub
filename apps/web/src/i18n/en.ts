@@ -61,7 +61,6 @@ export const en: Dict = {
     tabVersions: 'Versions',
     metaInfo: 'Metadata',
     author: 'Author',
-    visibility: 'Visibility',
     updatedAt: 'Updated',
     downloads: 'Downloads',
     installTitle: 'Install & usage',
@@ -96,7 +95,6 @@ export const en: Dict = {
   },
   errors: {
     'asset.not_found': 'Asset or version not found',
-    'asset.access_denied': 'You do not have access to this asset',
     'asset.version_not_published': 'This version is not published yet',
     'asset.version_yanked': 'This version was yanked and is no longer available',
     'asset.version_file_not_found': 'File not found or removed',

@@ -57,7 +57,6 @@ export const zh = {
     tabVersions: '版本',
     metaInfo: '元信息',
     author: '作者',
-    visibility: '可见性',
     updatedAt: '更新时间',
     downloads: '累计下载',
     installTitle: '安装与使用',
@@ -90,7 +89,6 @@ export const zh = {
   },
   errors: {
     'asset.not_found': '未找到该资源或版本',
-    'asset.access_denied': '无权访问该资产',
     'asset.version_not_published': '该版本尚未发布',
     'asset.version_yanked': '该版本已撤回，不可访问',
     'asset.version_file_not_found': '文件不存在或已移除',

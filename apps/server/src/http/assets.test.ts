@@ -69,25 +69,17 @@ async function insertAsset(
   slug: string,
   type: AssetType,
   ownerId: string,
-  visibility: string,
   status: 'ACTIVE' | 'HIDDEN' | 'ARCHIVED' = 'ACTIVE',
 ) {
-  await db
-    .insert(asset)
-    .values({ slug, type, ownerId, visibility: visibility as never, status })
-    .returning({ id: asset.id });
+  await db.insert(asset).values({ slug, type, ownerId, status }).returning({ id: asset.id });
 }
 /** 直插并取回 id（版本/文件 seed 依赖） */
 async function insertAssetReturning(
   slug: string,
   type: AssetType,
   ownerId: string,
-  visibility: string,
 ): Promise<{ id: number }> {
-  const rows = await db
-    .insert(asset)
-    .values({ slug, type, ownerId, visibility: visibility as never })
-    .returning({ id: asset.id });
+  const rows = await db.insert(asset).values({ slug, type, ownerId }).returning({ id: asset.id });
   return rows[0]!;
 }
 
@@ -148,16 +140,16 @@ beforeAll(async () => {
   await setRole(assetAdmin, ACCOUNT_ROLE.ADMIN);
   await setRole(superAdmin, ACCOUNT_ROLE.SUPER_ADMIN);
   // 读面 seed：PUBLIC skill（member 传）/ PRIVATE mcp（member 传）/ HIDDEN / 额外 PUBLIC
-  await insertAsset('ast-pub-skill', 'skill', member, 'PUBLIC');
-  await insertAsset('ast-priv-mcp', 'mcp', member, 'PRIVATE');
-  await insertAsset('ast-hidden', 'agent', member, 'PUBLIC', 'HIDDEN');
-  await insertAsset('ast-arch-pub', 'skill', member, 'PUBLIC');
-  await insertAsset('ast-vread', 'skill', member, 'PUBLIC'); // T14 版本读面专用（owner=member）
-  // 管理面 seed：visibility PATCH 目标 / 删除目标（无版本、有 PUBLISHED、DRAFT+文件）
-  await insertAsset('ast-vis-target', 'skill', member, 'PUBLIC');
-  await insertAsset('ast-del-plain', 'skill', member, 'PUBLIC');
-  const delPub = await insertAssetReturning('ast-del-pub', 'skill', member, 'PUBLIC');
-  const delDraft = await insertAssetReturning('ast-del-draft', 'skill', member, 'PUBLIC');
+  await insertAsset('ast-pub-skill', 'skill', member);
+  await insertAsset('ast-priv-mcp', 'mcp', member);
+  await insertAsset('ast-hidden', 'agent', member, 'HIDDEN');
+  await insertAsset('ast-arch-pub', 'skill', member);
+  await insertAsset('ast-vread', 'skill', member); // T14 版本读面专用（owner=member）
+  // 管理面 seed：原 visibility PATCH 目标（S3 端已删，保留作「端点已删 404」证据）/ 删除目标
+  await insertAsset('ast-vis-target', 'skill', member);
+  await insertAsset('ast-del-plain', 'skill', member);
+  const delPub = await insertAssetReturning('ast-del-pub', 'skill', member);
+  const delDraft = await insertAssetReturning('ast-del-draft', 'skill', member);
   const pubVersion = await db
     .insert(assetVersion)
     .values({
@@ -212,7 +204,7 @@ afterAll(async () => {
 });
 
 describe('POST /api/assets 注册', () => {
-  it('登录用户注册 201：owner/visibility 默认 PUBLIC 落位', async () => {
+  it('登录用户注册 201：owner/status 落位（S3：响应无 visibility 字段）', async () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
@@ -223,7 +215,7 @@ describe('POST /api/assets 注册', () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.slug).toBe('ast-new-skill');
     expect(body.type).toBe('skill');
-    expect(body.visibility).toBe('PUBLIC');
+    expect(body.visibility).toBeUndefined(); // M4-pre S3：可见性概念已删
     expect(body.ownerId).toBe(member);
     expect(body.status).toBe('ACTIVE');
   });
@@ -250,7 +242,7 @@ describe('POST /api/assets 注册', () => {
     expect(res.status).toBe(201);
   });
 
-  it('注册 visibility 显式 PRIVATE 落位（08 §5.1）', async () => {
+  it('注册 body 携带已删的 visibility 字段 → 201 且响应无该字段（S3：字段被剥离）', async () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
@@ -258,8 +250,8 @@ describe('POST /api/assets 注册', () => {
       await cookieFor(member),
     );
     expect(res.status).toBe(201);
-    const body = (await res.json()) as { visibility: string };
-    expect(body.visibility).toBe('PRIVATE');
+    const body = (await res.json()) as { visibility?: string };
+    expect(body.visibility).toBeUndefined();
   });
 
   it('缺 slug → 400 request.invalid（路由层 zod 前置）', async () => {
@@ -399,26 +391,26 @@ describe('GET /api/assets/{slug} 详情（可见性——skillhub 对齐分层�
     expect(res.status).toBe(200);
   });
 
-  it('PRIVATE 匿名 403（存在但无权——access_denied）', async () => {
+  it('原 PRIVATE 资产：匿名 200（S3 可见性已删——全公开，无 access_denied 出口）', async () => {
     const res = await getReq('/api/assets/ast-priv-mcp');
-    expect(res.status).toBe(403);
-    const body = (await res.json()) as { code: string };
-    expect(body.code).toBe('asset.access_denied');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { slug: string };
+    expect(body.slug).toBe('ast-priv-mcp');
   });
 
-  it('PRIVATE owner 200', async () => {
+  it('原 PRIVATE 资产：owner 200', async () => {
     const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(member));
     expect(res.status).toBe(200);
   });
 
-  it('PRIVATE 非 owner 403（access_denied）', async () => {
+  it('原 PRIVATE 资产：非 owner 200（S3 后与 owner 同面——读面只有 status 维度）', async () => {
     const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(outsider));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
-  it('PRIVATE 管理档（非 owner 非超管）403（读面仅 owner/超管）', async () => {
+  it('原 PRIVATE 资产：管理档 200（同上——管理档与普通登录用户读面一致）', async () => {
     const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(assetAdmin));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
   it('坐标不存在 404（slug 不存在）', async () => {
@@ -443,24 +435,25 @@ describe('GET /api/assets/{slug} 详情（可见性——skillhub 对齐分层�
     expect(res.status).toBe(200);
   });
 
-  it('PRIVATE SUPER_ADMIN 可见（短路）', async () => {
+  it('原 PRIVATE 资产：SUPER_ADMIN 可见（短路保留）', async () => {
     const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(superAdmin));
     expect(res.status).toBe(200);
   });
 });
 
 describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () => {
-  it('匿名 200：仅 PUBLIC 可见（PUBLIC-only 短路——不泄漏他人 PRIVATE/NAMESPACE_ONLY）', async () => {
+  it('匿名 200：活跃资产全可见（S3 无可见性维度）且 HIDDEN 不出现', async () => {
     const res = await getReq('/api/assets');
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: Array<{ slug: string }> };
     const slugs = body.items.map((i) => i.slug);
-    expect(slugs).toContain('ast-pub-skill'); // PUBLIC 可见
-    expect(slugs).toContain('ast-new-skill'); // 注册用例产物 PUBLIC
-    expect(slugs).not.toContain('ast-priv-mcp'); // 他人 PRIVATE 不泄漏
+    expect(slugs).toContain('ast-pub-skill'); // 活跃资产可见
+    expect(slugs).toContain('ast-new-skill'); // 注册用例产物
+    expect(slugs).toContain('ast-priv-mcp'); // 原 PRIVATE（S3 后公开）
+    expect(slugs).not.toContain('ast-hidden'); // HIDDEN 不进列表（status 维度仍是读面门）
   });
 
-  it('登录用户：PUBLIC + 自己 PRIVATE 可见；他人 PRIVATE 不可见', async () => {
+  it('登录用户：活跃资产全可见（与匿名同面——列表已与 viewer 身份无关）', async () => {
     const res = await getReq('/api/assets', await cookieFor(member));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: Array<{ slug: string }> };
@@ -470,12 +463,12 @@ describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () =>
     expect(slugs).toContain('ast-new-skill'); // 注册用例产物 PUBLIC
   });
 
-  it('outsider（非成员）：PUBLIC 可见、PRIVATE 不可见', async () => {
+  it('outsider：活跃资产全可见（原 PRIVATE 资产同样可见）', async () => {
     const res = await getReq('/api/assets', await cookieFor(outsider));
     const body = (await res.json()) as { items: Array<{ slug: string }> };
     const slugs = body.items.map((i) => i.slug);
     expect(slugs).toContain('ast-pub-skill');
-    expect(slugs).not.toContain('ast-priv-mcp');
+    expect(slugs).toContain('ast-priv-mcp');
   });
 
   it('type 过滤', async () => {
@@ -494,7 +487,6 @@ describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', ()
         slug: 'ast-meta-proj',
         type: 'skill',
         ownerId: member,
-        visibility: 'PUBLIC',
       })
       .returning({ id: asset.id });
     const [v] = await db
@@ -560,7 +552,6 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
         slug: 'ast-file-pub',
         type: 'skill',
         ownerId: member,
-        visibility: 'PUBLIC',
       })
       .returning({ id: asset.id });
     pubAssetId = a!.id;
@@ -606,7 +597,6 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
         slug: 'ast-file-yanked',
         type: 'skill',
         ownerId: member,
-        visibility: 'PUBLIC',
       })
       .returning({ id: asset.id });
     const [vy] = await db
@@ -702,11 +692,15 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
     expect(body.code).toBe('asset.not_found');
   });
 
-  it('PRIVATE 资产文件匿名：403 access_denied（读面分层先行）', async () => {
-    const res = await getReq('/api/assets/ast-priv-mcp/versions/1.0.0/files/SKILL.md');
-    expect(res.status).toBe(403);
+  it('HIDDEN 资产文件匿名：404（读面先行——S3 后无 403 access_denied 出口）', async () => {
+    const res = await getReq('/api/assets/ast-hidden/versions/1.0.0/files/SKILL.md');
+    expect(res.status).toBe(404);
     const body = (await res.json()) as { code: string };
-    expect(body.code).toBe('asset.access_denied');
+    expect(body.code).toBe('asset.not_found');
+    // 原 PRIVATE 资产（S3 后公开）：读面已放行 → 仅因该版本不存在而 404（可见性门已消失）
+    expect((await getReq('/api/assets/ast-priv-mcp/versions/1.0.0/files/SKILL.md')).status).toBe(
+      404,
+    );
   });
 });
 
@@ -719,7 +713,6 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
         slug: 'ast-cmp',
         type: 'skill',
         ownerId: member,
-        visibility: 'PUBLIC',
       })
       .returning({ id: asset.id });
     const mkVersion = async (version: string, files: Array<[string, Buffer, string?]>) => {
@@ -838,55 +831,15 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
   });
 });
 
-describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManageAsset）', () => {
-  it('owner 改 visibility 200 + 审计行（Q3）', async () => {
+describe('管理端点（PATCH status + DELETE——05 §6.4 canManageAsset；S3：visibility 端点已删）', () => {
+  it('visibility 变更端点已删（S3/T10）：PATCH /:slug → 404（唯一 PATCH 面为 /:slug/status）', async () => {
     const res = await jsonRequest(
       'PATCH',
       '/api/assets/ast-vis-target',
       { visibility: 'PRIVATE' },
       await cookieFor(member),
     );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { visibility: string };
-    expect(body.visibility).toBe('PRIVATE');
-    // 改后读面联动：非 owner 详情 403（access_denied）
-    expect((await getReq('/api/assets/ast-vis-target')).status).toBe(403);
-    const auditRows = await db
-      .select({ action: auditLog.action })
-      .from(auditLog)
-      .where(eq(auditLog.actorId, member));
-    expect(auditRows.some((a) => a.action === 'asset.visibility_update')).toBe(true);
-  });
-
-  it('普通用户非 owner 改 visibility → 403', async () => {
-    // assetAdmin 是管理档可改；outsider 非 owner 无管理档 → 403
-    const res = await jsonRequest(
-      'PATCH',
-      '/api/assets/ast-vis-target',
-      { visibility: 'PUBLIC' },
-      await cookieFor(outsider),
-    );
-    expect(res.status).toBe(403);
-  });
-
-  it('管理档改 visibility 200（05 §6.5 管理面）', async () => {
-    const res = await jsonRequest(
-      'PATCH',
-      '/api/assets/ast-vis-target',
-      { visibility: 'NAMESPACE_ONLY' },
-      await cookieFor(assetAdmin),
-    );
-    expect(res.status).toBe(200);
-  });
-
-  it('owner 改自己资产 visibility → 200（原空间归档拒写门已删）', async () => {
-    const res = await jsonRequest(
-      'PATCH',
-      '/api/assets/ast-arch-pub',
-      { visibility: 'PRIVATE' },
-      await cookieFor(member), // member 是该资产 owner
-    );
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(404);
   });
 
   it('owner 状态治理 PATCH status → HIDDEN 200 + 活跃面消失', async () => {

@@ -127,7 +127,7 @@ beforeAll(async () => {
   assetSlug = `${PREFIX}a`;
   const [a] = await db
     .insert(asset)
-    .values({ slug: assetSlug, type: 'skill', visibility: 'PUBLIC', ownerId })
+    .values({ slug: assetSlug, type: 'skill', ownerId })
     .returning({ id: asset.id });
   assetId = a!.id;
 });
@@ -214,14 +214,14 @@ describe('下载五档授权（design §7.2 R13）', () => {
     expect(strangerRes.status).toBe(400);
   });
 
-  it('PRIVATE 资产：陌生人下载 → 403 asset.access_denied（资产读面先行）', async () => {
-    const privateSlug = `${PREFIX}p`;
+  it('HIDDEN 资产：陌生人下载 → 404 asset.not_found（资产读面先行；S3 用 status 语义替代原 PRIVATE）', async () => {
+    const hiddenSlug = `${PREFIX}p`;
     const [p] = await db
       .insert(asset)
       .values({
-        slug: privateSlug,
+        slug: hiddenSlug,
         type: 'skill',
-        visibility: 'PRIVATE',
+        status: 'HIDDEN',
         ownerId,
       })
       .returning({ id: asset.id });
@@ -239,11 +239,11 @@ describe('下载五档授权（design §7.2 R13）', () => {
     await storage.put(key, bundleZip, { contentType: 'application/zip' });
     await db.update(assetVersion).set({ bundleStorageKey: key }).where(eq(assetVersion.id, v!.id));
 
-    const res = await buildApp().request(`/api/assets/${privateSlug}/versions/1.0.0/download`, {
+    const res = await buildApp().request(`/api/assets/${hiddenSlug}/versions/1.0.0/download`, {
       method: 'GET',
       headers: { host: 'localhost:3000', ...ORIGIN, cookie: await cookieFor(strangerId) },
     });
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe('asset.access_denied');
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { code: string }).code).toBe('asset.not_found');
   });
 });

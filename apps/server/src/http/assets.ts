@@ -1,11 +1,12 @@
 /**
  * /api/assets 路由组（M2 T3-T4，design §3/§7/§9）：
- * POST 注册（M4-pre：登录即得——「注册资产 = 用户+」）· GET 列表（读面可见 SQL 过滤）·
- * GET 详情（visibility 判定；PUBLIC 匿名可读）· PATCH visibility/status ·
+ * POST 注册（M4-pre：登录即得——「注册资产 = 用户+」）· GET 列表（读面恒「活跃资产」面）·
+ * GET 详情（读面仅由 status 判定；ACTIVE 匿名可读）· PATCH status ·
  * DELETE（owner 本人 或 管理档，仅无 PUBLISHED）。
  *
- * 读面拒绝语义（design §7，skillhub 对齐）：坐标不存在/非 ACTIVE → 404；
- * visibility 拒 → 403 access_denied（M4-pre：原空间归档语义随空间删除；visibility 本身在 S3 删）。
+ * 读面拒绝语义（design §7 → M4-pre S3 可见性删除后）：坐标不存在 / 非 ACTIVE → 404
+ * （非 ACTIVE 仅 SUPER_ADMIN 可读，owner 与 管理档 同 404）；**无 403 可见性出口**
+ * （access_denied 出口随可见性概念一并消失）。
  * 管理面判定（design §7/05 §6.4 → M4-pre §2.2 两层判定）：owner 本人 ∨ `role >= ADMIN`。
  */
 
@@ -20,7 +21,6 @@ import { canManageAsset } from '../assets/manage.js';
 import {
   type AssetItemMeta,
   type AssetRow,
-  type AssetViewerContext,
   createAsset,
   getAsset,
   listViewableAssets,
@@ -30,7 +30,6 @@ import { compareVersions } from '../assets/version-compare.js';
 import { readVersionFile } from '../assets/version-content.js';
 import { getVersion, listVersions } from '../assets/version-read.js';
 import { createVersion, deleteVersion } from '../assets/versions.js';
-import { canViewAsset } from '../assets/visibility.js';
 import { canYank, yankVersion } from '../assets/yank.js';
 import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
@@ -47,7 +46,6 @@ import {
   assetTypeSchema,
   assetVersion,
   reviewTask,
-  visibilitySchema,
 } from '../db/schema/index.js';
 import { LabelError, labelErrorCodes } from '../labels/errors.js';
 import { attachLabel, detachLabel, labelSlugSchema, labelsOfAsset } from '../labels/service.js';
@@ -78,7 +76,6 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   type: assetTypeSchema.optional(),
-  visibility: visibilitySchema.optional(),
   /** T12 全文检索（design §6 R12） */
   q: z.string().trim().min(1).max(100).optional(),
   /** T12 label 多值 OR（06 §4——?label=a&label=b；上限 20 防滥用） */
@@ -91,15 +88,11 @@ const versionListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-/** POST /api/assets body（注册；visibility 默认 PUBLIC 由服务层兜底） */
+/** POST /api/assets body（注册；M4-pre S3：无可见性字段） */
 const createBodySchema = z.object({
   slug: slugSchema,
   type: assetTypeSchema,
-  visibility: visibilitySchema.optional(),
 });
-
-/** PATCH /:slug body（visibility 修改——Q3） */
-const visibilityBodySchema = z.object({ visibility: visibilitySchema });
 
 /** 版本号（01 §3 semver——基础三段 + 可选 pre-release/build 限定） */
 const versionFieldSchema = z
@@ -120,7 +113,6 @@ function assetItem(row: AssetRow, meta?: AssetItemMeta | null) {
     id: row.id,
     slug: row.slug,
     type: row.type,
-    visibility: row.visibility,
     status: row.status,
     ownerId: row.ownerId,
     /** 当前版本指针（M3 起 approve/yank 维护——详情暴露供消费者取 latest） */
@@ -164,12 +156,13 @@ async function viewerContext(c: import('hono').Context): Promise<{
 
 /**
  * 资产读面前置链（detail + versions 端点共用——403/404 分层语义单点，design §7）：
- * SUPER_ADMIN 短路 → 非 ACTIVE 404（活跃面不存在）→ visibility 拒 403 access_denied。
+ * SUPER_ADMIN 短路 → 非 ACTIVE 404（活跃面不存在）。
+ * M4-pre S3：可见性删除后**无 403 出口**——ACTIVE 即公开可读（含匿名）。
  * 返回 viewer 上下文（授权者身份）。M4-pre：空间归档门随空间删除。
  */
 async function assertAssetReadable(
   c: import('hono').Context,
-  row: { status: string; visibility: string; ownerId: string },
+  row: { status: string; ownerId: string },
 ): Promise<{
   viewerId: string | null;
   viewerRole: AccountRole;
@@ -179,17 +172,6 @@ async function assertAssetReadable(
   const viewer = await viewerContext(c);
   if (viewer.isSuperAdmin) return viewer;
   if (row.status !== 'ACTIVE') throw new AssetError(assetErrorCodes.notFound);
-  if (
-    !canViewAsset({
-      assetStatus: row.status,
-      visibility: row.visibility,
-      ownerId: row.ownerId,
-      viewerId: viewer.viewerId,
-      isSuperAdmin: false,
-    })
-  ) {
-    throw new AssetError(assetErrorCodes.accessDenied);
-  }
   return viewer;
 }
 
@@ -249,7 +231,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
-    const { slug, type, visibility } = parsed.data;
+    const { slug, type } = parsed.data;
 
     // M4-pre §2.2：注册资产 = `用户`+（requireAuth 已保证账号 ACTIVE）；坐标为全局唯一裸 slug
     assertTokenScoped(c, TOKEN_SCOPES.assetPublish); // T15：token scope 交集（R14）
@@ -258,7 +240,6 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       slug,
       type,
       ownerId: principal.userId,
-      visibility,
     });
     await deps.audit({
       ...c.get('requestContext'),
@@ -274,7 +255,6 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // GET /api/assets（M4a R4：匿名放行——viewer 匿名短路 PUBLIC-only；登录态行为零变化）
   app.get('/', async (c) => {
     const principal = c.get('principal') ?? null;
-    const rbac = c.get('rbac')!;
     const query = c.req.query();
     const parsed = listQuerySchema.safeParse({
       ...query,
@@ -283,22 +263,14 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
-    const { limit, offset, type, visibility, q, label } = parsed.data;
-    const role = principal
-      ? ((await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST)
-      : ACCOUNT_ROLE.GUEST;
-    const viewer: AssetViewerContext = {
-      userId: principal?.userId ?? null,
-      isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
-    };
+    const { limit, offset, type, q, label } = parsed.data;
+    // M4-pre S3：列表恒「活跃资产」面，与 viewer 身份无关（可见性已删）
     const { items, total } = await listViewableAssets(db, {
       limit,
       offset,
       type,
-      visibility,
       q,
       labelSlugs: label,
-      viewer,
     });
     // R5/R6：批注入 latest 版本投影 + owner 显示名（两条 inArray 防 N+1）
     const metas = await loadAssetItemMeta(db, items);
@@ -314,7 +286,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // 读面语义对齐 skillhub（SkillQueryService.getSkillDetail 分层）：
   //   asset 不存在（含 HIDDEN/ARCHIVED 非超管）→ 404 asset.not_found
   //   （M4-pre：空间归档语义消失，无 namespace_archived 出口）
-  //   visibility 拒（PRIVATE/NAMESPACE_ONLY）→ 403 asset.access_denied（error.skill.access.denied 对齐）
+  //   （M4-pre S3：可见性删除后无 403 出口——ACTIVE 即公开；非 ACTIVE 走上一行 404）
   app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
     const row = await loadAssetBySlug(db, slug);
@@ -395,7 +367,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const fpStart = rawPath.indexOf(marker);
     const filePath = fpStart >= 0 ? decodeURIComponent(rawPath.slice(fpStart + marker.length)) : '';
     const row = await loadAssetBySlug(db, slug);
-    const viewer = await assertAssetReadable(c, row); // 读面 403/404 分层
+    const viewer = await assertAssetReadable(c, row); // 读面 404 分层（M4-pre S3：无 403 出口）
     const content = await readVersionFile(db, deps.storage, {
       assetId: row.id,
       ownerId: row.ownerId,
@@ -406,44 +378,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json(content);
   });
 
-  // PATCH /api/assets/:slug（T4：visibility 修改——Q3；owner 或管理档。
-  // M4-pre S2：坐标去 ns 段；本端点与 visibility 列随 S3/T10 删除）
-  app.patch('/:slug', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
-    const row = await loadAssetBySlug(db, slug);
-    await assertManageable(c, row);
-
-    let payload: unknown;
-    try {
-      payload = await c.req.json();
-    } catch {
-      return c.json({ code: 'request.invalid', message: 'request body must be valid json' }, 400);
-    }
-    const parsed = visibilityBodySchema.safeParse(payload);
-    if (!parsed.success) {
-      return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
-    }
-    const { visibility } = parsed.data;
-    const from = row.visibility;
-
-    const [updated] = await db
-      .update(asset)
-      .set({ visibility, updatedBy: principal.userId })
-      .where(eq(asset.id, row.id))
-      .returning();
-    await deps.audit({
-      ...c.get('requestContext'),
-      actorId: principal.userId,
-      action: 'asset.visibility_update',
-      targetType: 'asset',
-      targetId: String(row.id),
-      detail: { from, to: visibility },
-    });
-    return c.json(assetItem(updated!));
-  });
-
-  // PATCH /api/assets/{ns}/{slug}/status（T4：状态治理——05 §6.4 asset:manage；
+  // PATCH /api/assets/:slug/status（T4：状态治理——05 §6.4 asset:manage；
   // owner 下架自己资产 / 管理档治理全站；HIDDEN/ARCHIVED 即从活跃读面消失）
   app.patch('/:slug/status', requireAuth(), async (c) => {
     const principal = c.get('principal')!;

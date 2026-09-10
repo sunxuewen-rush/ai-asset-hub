@@ -8,7 +8,7 @@ import { FilesTab } from '../components/market/detail/FilesTab.js';
 import { OverviewTab } from '../components/market/detail/OverviewTab.js';
 import { VersionCompare } from '../components/market/detail/VersionCompare.js';
 import { compactCount, formatDate, ownerText } from '../components/market/format.js';
-import { Badge } from '../components/ui/Badge.js';
+
 import { ErrorState } from '../components/ui/ErrorState.js';
 import { Spinner } from '../components/ui/Spinner.js';
 import { useApi } from '../hooks/useApi.js';
@@ -161,9 +161,6 @@ export function AssetDetail() {
       <div className={`glass ${styles.head}`}>
         <div className={styles.topRow}>
           <h1>{detail.latestName ?? detail.slug}</h1>
-          <Badge tone="success" mono>
-            {detail.visibility}
-          </Badge>
         </div>
         {detail.labels.length > 0 && (
           <div className={styles.tags}>
@@ -221,10 +218,6 @@ export function AssetDetail() {
             <div className={styles.kv}>
               <span>{t('market', 'author')}</span>
               <b>{owner || '—'}</b>
-            </div>
-            <div className={styles.kv}>
-              <span>{t('market', 'visibility')}</span>
-              <b>{detail.visibility}</b>
             </div>
             <div className={styles.kv}>
               <span>{t('market', 'updatedAt')}</span>

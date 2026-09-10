@@ -1,6 +1,6 @@
 /**
  * 资产域服务（M2 design §3/§7：坐标注册/读面查询）。
- * 校验职责分层：入参格式（slug/type/visibility）由路由层 zod body schema 把关
+ * 校验职责分层：入参格式（slug/type——M4-pre S3 后可见性维度已删）由路由层 zod body schema 把关
  * （复用 protocol slugSchema / schema 枚举）；本层做坐标寻址与冲突判定。
  */
 import { and, count, eq, exists, ilike, inArray, or, type SQL, sql } from 'drizzle-orm';
@@ -12,7 +12,6 @@ import {
   assetVersion,
   labelDefinition,
   userAccount,
-  type Visibility,
 } from '../db/schema/index.js';
 import { AssetError, assetErrorCodes } from './errors.js';
 
@@ -26,25 +25,16 @@ export interface CreateAssetInput {
   type: AssetType;
   /** 主要维护人（05 §6.2：创建者 = owner） */
   ownerId: string;
-  /** 默认 PUBLIC（08 §5.1） */
-  visibility?: Visibility;
 }
 
 export interface ListAssetsOptions {
   limit: number;
   offset: number;
   type?: AssetType;
-  visibility?: Visibility;
   /** 全文检索（T12——design §6 R12：slug ILIKE ∪ 版本投影 name/description/searchText——01 §3.2） */
   q?: string;
   /** label 多值 OR（06 §4——命中挂载任一 label 即命中；slug 入参，服务层解 id） */
   labelSlugs?: string[];
-}
-
-/** 读面浏览上下文（列表端点：登录 userId；匿名 null → PUBLIC-only 短路；超管短路全可见） */
-export interface AssetViewerContext {
-  userId: string | null;
-  isSuperAdmin: boolean;
 }
 
 /** assetItem 增强投影（M4a R5/R6：latest 版本展示 + owner 显示名——批注入防 N+1） */
@@ -131,7 +121,6 @@ export async function createAsset(db: Db, input: CreateAssetInput): Promise<Asse
         type: input.type,
         slug: input.slug,
         ownerId: input.ownerId,
-        visibility: input.visibility ?? 'PUBLIC',
         createdBy: input.ownerId,
         updatedBy: input.ownerId,
       })
@@ -148,7 +137,8 @@ export async function createAsset(db: Db, input: CreateAssetInput): Promise<Asse
   }
 }
 
-/** 资产详情（按裸 slug 寻址）；可见性判定在调用层（visibility.ts，T2） */
+/** 资产详情（按裸 slug 寻址）；读面判定（status）在调用层（http/assets.ts assertAssetReadable）；
+ * M4-pre S3：原 `visibility.ts` 判定已删。 */
 export async function getAsset(db: Db, slug: string): Promise<AssetRow | null> {
   const rows = await db.select().from(asset).where(eq(asset.slug, slug)).limit(1);
   return rows[0] ?? null;
@@ -161,7 +151,6 @@ export async function listAssets(
 ): Promise<{ items: AssetRow[]; total: number }> {
   const conditions = [];
   if (opts.type !== undefined) conditions.push(eq(asset.type, opts.type));
-  if (opts.visibility !== undefined) conditions.push(eq(asset.visibility, opts.visibility));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   const [totalRow] = await db.select({ total: count() }).from(asset).where(where);
@@ -177,20 +166,16 @@ export async function listAssets(
 }
 
 /**
- * 读面可见列表（T3 GET /api/assets；08 §5.1 可见性 SQL 过滤）：
- * - ACTIVE 资产（HIDDEN/ARCHIVED 不进任何列表——坐标详情仍可治理访问）
- * - PUBLIC：全站可见
- * - NAMESPACE_ONLY / PRIVATE：我是 owner（M4-pre 过渡语义——空间成员面消失，二者退化为 owner-only，
- *   列与取值本身留待 S3 整体删除）
- * - SUPER_ADMIN：全量可见（含 PRIVATE——不自动含 HIDDEN，列表统一 ACTIVE）
+ * 读面列表（T3 GET /api/assets → M4-pre S3：可见性已删，读面**仅由 status 决定**）：
+ * - 列表恒为「活跃资产」面：`status = ACTIVE`（HIDDEN/ARCHIVED 不进任何列表——坐标详情仍可治理访问）
+ * - 与 viewer 身份**无关**（无可见性维度，故不再需要 viewer 输入；匿名/登录/超管列表一致）
  */
 export async function listViewableAssets(
   db: Db,
-  opts: ListAssetsOptions & { viewer: AssetViewerContext },
+  opts: ListAssetsOptions,
 ): Promise<{ items: AssetRow[]; total: number }> {
   const conditions: ReturnType<typeof eq>[] = [eq(asset.status, 'ACTIVE')];
   if (opts.type !== undefined) conditions.push(eq(asset.type, opts.type));
-  if (opts.visibility !== undefined) conditions.push(eq(asset.visibility, opts.visibility));
 
   // T12 全文检索（design §6 R12）：q 命中 slug 或任一版本的投影字段
   // （parsed_metadata_json → name/description/searchText——01 §3.2 投影落 jsonb）
@@ -242,22 +227,6 @@ export async function listViewableAssets(
         ),
       );
     }
-  }
-
-  if (!opts.viewer.isSuperAdmin) {
-    const viewerId = opts.viewer.userId;
-    const branches: SQL[] = [eq(asset.visibility, 'PUBLIC')];
-    if (viewerId !== null) {
-      // 非公开资产：仅 owner 本人可见（空间管理面随 M4-pre 消失；平台超管走上分支短路）
-      const privateCond = and(
-        inArray(asset.visibility, ['PRIVATE', 'NAMESPACE_ONLY']),
-        eq(asset.ownerId, viewerId),
-      );
-      if (privateCond !== undefined) branches.push(privateCond);
-    }
-    // 匿名 viewer（userId null）：仅 PUBLIC 分支——PUBLIC-only 坍缩（M4a R4）
-    const visible = or(...branches);
-    if (visible !== undefined) conditions.push(visible);
   }
 
   const where = and(...conditions);

@@ -1,7 +1,8 @@
 /**
  * 版本包下载服务（M3 design §7.2 R13——五档授权 + presigned/流式双路径）。
  * 授权语义（design §7.2 分档；资产读面由调用方先行——PUBLIC 匿名可下 00 §2.3）：
- * - PUBLISHED      → 按资产可见性公开下载（到本层即资产读面已过）
+ * - PUBLISHED      → 公开下载（到本层即资产读面已过；M4-pre S3：原「按资产可见性」改为仅由
+ *   asset.status 决定的公开读面）
  * - UPLOADED       → 预览授权集可下（08 §7「包可下载但未进审核」——withdraw 回退定稿自查）
  * - PENDING_REVIEW → 预览授权集可下（审核人取真包审内容——清单 sha256 只验结构不验内容）
  * - DRAFT/SCAN_FAILED/REJECTED → 禁下（未公开留档族——version_not_published 明示）

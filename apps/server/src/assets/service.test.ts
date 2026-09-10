@@ -52,7 +52,7 @@ afterAll(async () => {
 });
 
 describe('createAsset', () => {
-  it('注册成功：裸 slug 坐标/owner/visibility 默认 PUBLIC/status ACTIVE 落位', async () => {
+  it('注册成功：裸 slug 坐标/owner/status ACTIVE 落位（S3：无 visibility 维度）', async () => {
     const row = await createAsset(db, {
       slug: 'ast-hello',
       type: 'skill',
@@ -61,21 +61,21 @@ describe('createAsset', () => {
     expect(row.type).toBe('skill');
     expect(row.slug).toBe('ast-hello');
     expect(row.ownerId).toBe(ownerA);
-    expect(row.visibility).toBe('PUBLIC');
+    expect('visibility' in row).toBe(false); // M4-pre S3：可见性概念已删
     expect(row.status).toBe('ACTIVE');
     expect(row.downloadCount).toBe(0);
     expect(row.createdBy).toBe(ownerA);
     expect(row.latestVersionId).toBeNull();
   });
 
-  it('visibility 显式 PRIVATE 落位（08 §5.1）', async () => {
+  it('createAsset 不接受可见性字段：写入行无 visibility 列（S3）', async () => {
     const row = await createAsset(db, {
       slug: 'ast-private',
       type: 'mcp',
       ownerId: ownerA,
-      visibility: 'PRIVATE',
     });
-    expect(row.visibility).toBe('PRIVATE');
+    expect('visibility' in row).toBe(false);
+    expect(row.status).toBe('ACTIVE');
   });
 
   it('slug 冲突 → asset.slug_taken（跨类型唯一：同 slug 拒绝）', async () => {
@@ -142,23 +142,23 @@ describe('listAssets', () => {
     expect(mine.every((a) => a.type === 'skill')).toBe(true);
   });
 
-  it('visibility 过滤', async () => {
-    const { items } = await listAssets(db, { limit: 20, offset: 0, visibility: 'PRIVATE' });
+  it('type 过滤（原 visibility 维度已删——S3）', async () => {
+    const { items } = await listAssets(db, { limit: 20, offset: 0, type: 'mcp' });
     const mine = items.filter((a) => a.slug.startsWith(PREFIX));
-    expect(mine.length).toBeGreaterThanOrEqual(1); // ast-private
-    expect(mine.every((a) => a.visibility === 'PRIVATE')).toBe(true);
+    expect(mine.length).toBeGreaterThanOrEqual(1); // ast-private（mcp）
+    expect(mine.every((a) => a.type === 'mcp')).toBe(true);
   });
 
-  it('type+visibility 组合不命中 → 空列表', async () => {
+  it('type × label 组合不命中 → 空列表（S3：原 type×visibility 组合已无第二维度）', async () => {
     const { items } = await listAssets(db, {
       limit: 20,
       offset: 0,
       type: 'agent',
-      visibility: 'PRIVATE',
+      labelSlugs: ['nonexistent-label'],
     });
     const mine = items.filter((a) => a.slug.startsWith(PREFIX));
     expect(mine).toHaveLength(0);
-    expect(items.every((a) => a.type === 'agent' && a.visibility === 'PRIVATE')).toBe(true);
+    expect(items.every((a) => a.type === 'agent')).toBe(true);
   });
 
   it('分页 limit/offset + 稳定排序', async () => {

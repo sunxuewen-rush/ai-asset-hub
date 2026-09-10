@@ -7,7 +7,7 @@
  *   400 version_not_published 由调用方明示——不泄露存在性）。
  * - 曾公开族（PUBLISHED/YANKED）：全可见（资产读面已先行过滤——版本读面端点前置资产
  *   可见判定；YANKED 详情留档公开——曾公开族读面，design §4.1 R9）。
- * 资产读面判定（visibility/403 分层）在 http 层前置——本层只做版本状态授权。
+ * 资产读面判定（status/404 分层）在 http 层前置——本层只做版本状态授权（M4-pre S3：可见性已删）。
  * M4-pre：空间角色（OWNER/ADMIN）面随空间删除；「空间 ADMIN/OWNER」判定并入管理档。
  */
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';

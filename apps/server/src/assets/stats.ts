@@ -1,7 +1,7 @@
 /**
  * 公开统计聚合（M4a R7——design §5.2 G6 定案）。
- * 聚合语义与匿名列表同面（仅 PUBLIC 可见性 + ACTIVE 状态；M4-pre：无空间维度）——防泄露：
- * PRIVATE/NAMESPACE_ONLY/非 ACTIVE 一律不计入。
+ * 聚合语义与匿名列表同面（M4-pre S3：**可见性已删**，仅 `status = ACTIVE` + 无空间维度）——防泄露：
+ * HIDDEN/ARCHIVED 一律不计入。
  */
 import { and, count, eq, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
@@ -22,7 +22,7 @@ export async function getPublicStats(db: Db): Promise<PublicStats> {
       downloads: sql<number>`coalesce(sum(${asset.downloadCount}), 0)`,
     })
     .from(asset)
-    .where(and(eq(asset.status, 'ACTIVE'), eq(asset.visibility, 'PUBLIC')))
+    .where(eq(asset.status, 'ACTIVE'))
     .groupBy(asset.type);
 
   const typeCounts: Record<string, number> = {};
