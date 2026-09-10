@@ -1,8 +1,8 @@
 # M4-pre 扁平化重构实施计划
 
 > Date: 2026-09-10
-> Updated: 2026-09-10（v0.4：**板块 C（S3 可见性删除）执行完成回填**——T10-T11 ✅ + 迁移 0007 实测 + 执行偏离 D6 + 修复 F21-F24 + 用例账（494→472 可解释）+ 冒烟/dogfood 留证 + 自检 **9.28**；**板块 C 代码 commit `0bf4ee6`**（本文档为紧随的 docs 回填 commit）；v0.3/v0.3.1：**板块 B（S2 空间删除）执行完成回填**——T5-T9 ✅ + 迁移 0006 实测（含 P2 守卫实证）+ 执行偏离 D4（**用户已拍板 2026-09-10**）/D5 + 用例账（570→521 全可解释）+ dogfood 21/21 + 全链冒烟 24/24 + 深挖自测 **9.32**（F17-F20）；**板块 B 代码 commit `9d6ac57`**（本文档为紧随的 docs 回填 commit——同板 A 惯例）；v0.2：板块 A（T1-T4）执行完成回填——任务状态 ✅ + 断言实测 + 执行偏离注记（D1 `can()` 过渡态保留 / D2 新增 `auth/token-scopes.ts` / D3 `global` 空间种子时点归 S2）+ 深度档自检（18 维 + 四轮审查法，三轮）**8.77 → 9.10**（修复项 F1-F16 见各 Task 修复录 + 修订记录）；四门禁 `--force` 真跑留证（typecheck 4/4 · test 570 · lint 0 · build 4/4）+ F7 测试覆盖口径澄清；**板块 A 代码 commit `59164c1`**（本文档为紧随的 docs 回填 commit——仓库惯例同 M4a 的 `docs: M4a plan mark TN done`；hash 无法自指，故不用 amend））
-> Status: 🔄 执行中（板块 A · S1 ✅ `59164c1`；板块 B · S2 ✅ `9d6ac57`（自检 9.32）；**板块 C · S3 可见性删除：T10-T11 ✅ 四门禁绿（typecheck 4/4 · test 498 = server 472 + protocol 27（1 skip）· lint 0 · build 4/4；均 `--force` 0 cached）+ 全链冒烟 24/24 + dogfood 21/21 + 自检 9.28** · 代码 commit `0bf4ee6`；**板块 D（T12 规范同步 + T13 converge）未开工**；板块顺序 A→B→C→D）
+> Updated: 2026-09-10（v0.6：**最高标准审查轮（深度档：代码 18 维 + 四轮审查法 / 文档 15 维三合一 + 深度 4 维）**——修 F28（`08` Status「13 表」→ 实测 **12 表**）· F29（`GET /api/labels/all` 补 3 例，server 用例 472 → 475）· F30（`hasRole()` 保留 + 注释）；评分 代码 **9.42** · 文档三合一 **9.47** · 深度 4 维 **9.5**；v0.5：**板块 D（S4 规范同步 + converge）执行完成回填**——T12 规范同步落地（01/02/05/06/08/00 + protocol 注释）+ 清单漏项 F25/F26/F27 + T13 converge（design/plan 版本头与状态同步 + 8 维重评）+ M4b design 按扁平模型重写 v1.0；**M4-pre 四板块 A-D 全部完成**；v0.4：**板块 C（S3 可见性删除）执行完成回填**——T10-T11 ✅ + 迁移 0007 实测 + 执行偏离 D6 + 修复 F21-F24 + 用例账（494→472 可解释）+ 冒烟/dogfood 留证 + 自检 **9.28**；**板块 C 代码 commit `0bf4ee6`**（本文档为紧随的 docs 回填 commit）；v0.3/v0.3.1：**板块 B（S2 空间删除）执行完成回填**——T5-T9 ✅ + 迁移 0006 实测（含 P2 守卫实证）+ 执行偏离 D4（**用户已拍板 2026-09-10**）/D5 + 用例账（570→521 全可解释）+ dogfood 21/21 + 全链冒烟 24/24 + 深挖自测 **9.32**（F17-F20）；**板块 B 代码 commit `9d6ac57`**（本文档为紧随的 docs 回填 commit——同板 A 惯例）；v0.2：板块 A（T1-T4）执行完成回填——任务状态 ✅ + 断言实测 + 执行偏离注记（D1 `can()` 过渡态保留 / D2 新增 `auth/token-scopes.ts` / D3 `global` 空间种子时点归 S2）+ 深度档自检（18 维 + 四轮审查法，三轮）**8.77 → 9.10**（修复项 F1-F16 见各 Task 修复录 + 修订记录）；四门禁 `--force` 真跑留证（typecheck 4/4 · test 570 · lint 0 · build 4/4）+ F7 测试覆盖口径澄清；**板块 A 代码 commit `59164c1`**（本文档为紧随的 docs 回填 commit——仓库惯例同 M4a 的 `docs: M4a plan mark TN done`；hash 无法自指，故不用 amend））
+> Status: ✅ **M4-pre 全部完成（板块 A-D）**——A · S1 `59164c1`（自检 9.10）· B · S2 `9d6ac57`（9.32）· C · S3 `0bf4ee6`（9.28）· **D · S4 规范同步 + converge ✅**（T12 六份规范 + protocol 注释同步；T13 版本头/状态/引用回查 + M4b design v1.0 重写）；全仓四门禁 `--force` 绿（typecheck 4/4 · test 502 = server 475 + protocol 27（1 skip）· lint 0 · build 4/4）· 迁移 0005-0007 实落 · 全链冒烟 24/24 · dogfood 21/21 · 00 §5 M4-pre 行 ✅
 > 引用链：本文档 → 设计 `docs/designs/2026-09-10-flat-model-refactor-design.md`（v0.3 定稿，§N 逐 Task 引用）→ 规范 01 §3.3 · 05 §6 · 08 §4/§5/§7 · 00 §2.2/§5/§6（引用不复制）
 > 命名约定见 docs/plans/README.md
 
@@ -282,6 +282,17 @@ PATCH visibility 4→1）；断言静态对比 HEAD 仅 `service.test.ts` +1 / `
   `packages/protocol/src/slug.ts`（注释）
 - **Assert**: 五处规范改动逐行核对（design §12 表）；`L93`/`L94` 历史注记**未被改动**；
   全仓 `grep -rn "@namespace/slug\|命名空间" docs/*.md` 仅余历史注记与 M4-pre 文档自身
+✅ 完成（2026-09-10）。**六份规范 + protocol 注释同步**：`01` §3.3 坐标裸 slug + v1.7 行；`02` §3 name→坐标
+  映射 + v1.2 行；`05` §6 重写（4 档单轴 + §6.2 内容替换为 owner 语义 + §6.3 判定链 + §6.4 矩阵 + §6.5 主轴；
+  **小节编号保持不变**以免打断历史引用）+ §1/架构图/§5 三处空间表述 + v1.8 行；`06` §1/§3/§5.3/§6 + v1.5 行；
+  `08` §3 用户域（删 4 表 → `user_account.role` 4 档列）· §4 空间域整删（留头注保编号）· §5.1 asset ·
+  §6 review_task · §7 读面授权集 · §8 约束表 + v1.5 行；`00` §2.2 L50/L51-52 · §5 新增 **M4-pre 行** ·
+  §6 首期非目标 · §8 v1.13；`packages/protocol/src/slug.ts` 注释。
+  **清单漏项修复（design §12 原列表只列 01/05/08/00）**：**F25** 05 §1/§3 架构图/§5 三处空间表述未列入 ·
+  **F26** 02 §3（`@namespace/slug` 映射）与 06 五处（§1 空间运营 / §3 挂载判定 / §5.3 API 路径 / §6 引用）
+  未列入 · **F27** `AGENTS.md` 里程碑状态 stale（写「下一步 M2」而 M2/M3/M4a/M4-pre 全完成）。
+  **核验**：L93/L94 历史注记**零改动**（`git diff` 实证）；规范层残留扫描——余下命中均为历史完成注记或
+  M4-pre 标注（无 stale 表述）。
 - **Commit**: `docs: sync specs with flat model`
 
 #### T13 converge 与 M4b 重写（design §7 S4 · 00 §7 ②）
@@ -290,6 +301,23 @@ PATCH visibility 4→1）；断言静态对比 HEAD 仅 `service.test.ts` +1 / `
   v0.3 → v1.0）
 - **Assert**: converge 回查通过（版本头/修订记录/引用/状态同步）；8 维重评 ≥9；
   00 §5 M4-pre ✅ + M4b 行更新；M4b design 引用新模型无残留旧概念
+✅ 完成（2026-09-10）。**converge 回查**：design 补 v0.4 行 + Status 改「定稿 + 已实施完成」；本 plan 补
+  v0.5/v0.6 + Status 转 ✅ 完成；`00 §5` **新增 M4-pre 行 ✅** + M4 行更新（M4b 按扁平模型重写）；规范层
+  残留扫描 = 余下命中均为历史注记或 M4-pre 标注（无 stale）。**M4b design 重写 v1.0**（520 行）：头部
+  解除搁置 + §2 拍板表 R1-R9 重写（R5 改「沿用 M4-pre 已交付 `/me` 契约，零服务端改动」；R6/R6-b 授权集
+  改 owner∨管理档；含「修改 05 §6.4 仅超管行」标注并落 §14 同步项）+ 删空间管理整组（路由/组件树/线框/
+  引用清单）+ §7.1 端点表**逐条对照源码并加 file:line 依据列**。**父级亲自核验**：仅目标文件被改 · stale
+  token 只在修订记录 · **file:line 抽验 6/6 精确命中** · §13 引用路径 **25/25 真实存在** · token scope 5 码
+  与稿中引用一致。
+  **最高标准审查轮（深度档：代码 18 维 + 四轮审查法；文档 15 维三合一 + 深度 4 维）**——取证：端点授权面
+  全扫（38 端点/21 写面）· 死导出扫描（117 导出→9 疑似→**全部为同文件内自用，假阳性排除**）· i18n 90/90
+  键零孤儿 · 角色常量单源（web/protocol 零重复）· **全新建库 0000→0007 八迁移实测 + 9 项终态断言** ·
+  审计动作 25 个零空间残留 · 平台敏感代码 0 · 四门禁 `--force` 绿。修复：**F28（🔴）** `08` Status 的
+  「运行库终态 13 表」为**未验证数字**（dev 库与全新建库实测均 **12 表**）→ 已改 12 并注明实测口径；
+  **F29（🟡）** `GET /api/labels/all`（超管 facet 面）**零测试覆盖** → 已补 3 例（超管 200 先验存在性再验
+  形状 / 管理档 403 `label.access_denied` / 匿名 401），server 用例 472 → **475**；**F30（⚪）**
+  `hasRole()` 生产零调用 → 按推荐**保留 + 补保留理由注释**（命令式调用侧 + 11 处单测）。评分：代码
+  **9.40 → 9.42**、文档三合一 **9.37 → 9.47**、深度 4 维 9.5。
 - **Commit**: `docs: converge m4-pre and rewrite m4b design on flat model`
 
 **板块 D 验收**：规范与代码对齐；M4b design 就绪；00 §5 状态翻转。
@@ -317,3 +345,5 @@ PATCH visibility 4→1）；断言静态对比 HEAD 仅 `service.test.ts` +1 / `
 | v0.3 | 2026-09-10 | sunxuewen-rush | **板块 B（S2 空间删除）执行完成回填**：T5-T9 ✅ + 断言实测（迁移 0006 手工重排 3 处 + P2 前置校验 + dev 库 DB 断言 + drizzle 零漂移；web typecheck/build/grep 0；dogfood 21/21 + 全链冒烟 24/24）+ 执行偏离 **D4**（`POST /:slug/versions` 判定改 owner ∨ 管理——design 未单列，按「版本级操作归 owner/管理」；放宽为「用户+」有漏洞）· **D5**（`rbac.test.ts` 的 `can()` 空间侧 3 例随源码删除，平台侧 4 例改测 `hasRole`）+ 用例账（570→521 全部可解释，逐文件零静默下降）+ 冒烟记录 `docs/smoke/2026-09-10-m4-pre-s2.md` |
 | v0.3.1 | 2026-09-10 | sunxuewen-rush | **板块 B 整体自测（深挖轮）修复录 F17-F20**（用户要求「再次整体自测」，换靶：全仓广度 + 注释腐化类 + 未实证断言）：**F17（类）注释腐化**——26 处源码注释仍描述已删语义/引用**已删函数 `rbac.can()`**/已删角色名（`ASSET_ADMIN`/`AUDITOR`）/已删坐标 `{ns}`（分布 `http/assets.ts` 14 · `assets/{yank,version-read,versions}.ts` 6 · `http/audit.ts` 1 · `review/{query,service}.ts` 2 · `labels/service.ts` 1 · 等）→ 全部改写为「原…（已随空间删除）」历史说明式；根因=codemod 只改代码不改注释 + 上轮只修 1 处（**扫类不足**）；**F18** design §4.1 与 §7/本 plan T10 矛盾——`PATCH /:slug`（visibility）删除归属 S2 vs S3（代码现状=仍在，与 S3 一致）→ 已按 S3 修正 design；**F19** 本 plan T6「审计动作删 5 个」表述不精确 → 精确化为「5 个字面量随 `http/namespaces.ts` 整删；`audit.ts` 无中央动作枚举」；**F20（验证方法学）** P2 守卫此前**从未被实证**——首轮脚手架用 `psql` 无 `ON_ERROR_STOP`（出错仍返回 0）+ 种子误用不存在的 `user_account.username` 列 → **假 PASS**；严格重测确认守卫有效（冲突 → 中止 exit 3 + 输出 `@nsA/dup-slug`·`@nsB/dup-slug` 清单 + 表/列未半途破坏 + 消除冲突后成功=归因对照）。**新增已实证断言**：全新建库按序 0000→0006 跑通且终态正确（0 空间表 / 0 `asset.namespace_id` / `UNIQUE(slug)`） |
 | v0.4 | 2026-09-10 | sunxuewen-rush | **板块 C（S3 可见性删除）执行完成回填**：T10-T11 ✅ + 迁移 0007 实测（应用前预检 4 条全 PUBLIC → 无数据可见面放大；应用后 `asset` = 11 列无 `visibility`；drizzle 零漂移）+ 执行偏离 **D6**（T11 原文括注「owner/管理可读」与实现不符——实测**仅 SUPER_ADMIN** 可读）+ 修复 **F21**（计划 Files 漏列 web 三文件：`api/types.ts` · `AssetDetail.tsx` · `i18n/{zh,en}.ts`——API 去字段而 web 不跟进会静默显示旧值）· **F22**（冒烟脚本 `详情 200 + PUBLIC/ACTIVE` 断言未随 S3 同步 → 首跑 `FAIL(1)` 抓出） + 用例账（494→472 全部可解释：`visibility.test.ts` 矩阵 19 例整删 + `assets.test.ts` PATCH visibility 4→1）+ 修复 **F23**（注释腐化类**第三轮复发**：`assets/service.ts:3` 已删入参维度 · `service.ts:140` 引用**已删文件 `visibility.ts`** · `download.ts:4`「按资产可见性」——3 处已改；根因=「修点必扫类」未自动化，已在 `self-review-scoring` 技能沉淀换靶清单）· **F24**（`assetErrorCodes.accessDenied` = `asset.access_denied` 在 S3 后**零生产者**——唯一抛出点即可见性 403 → 彻底删除，含 `httpStatusForAsset` 分支与 web i18n zh/en 孤儿键）+ 冒烟记录 `docs/smoke/2026-09-10-m4-pre-s3.md`（含 dogfood 21/21 + 6 截图） |
+| v0.5 | 2026-09-10 | sunxuewen-rush | **板块 D（S4）执行完成回填**：T12 规范同步落地（01 §3.3 / 02 §3 / 05 §6 重写 / 06 五处 / 08 §3-§8 / 00 §2.2+§5 新增 M4-pre 行 / protocol 注释）+ 清单漏项 **F25**（05 §1/架构图/§5）· **F26**（02 + 06 五处）· **F27**（AGENTS.md 里程碑 stale）；T13 converge（design v0.4 + plan 版本头/状态同步 + M4b design 重写 v1.0 并父级核验 file:line 6/6 · 引用路径 25/25） |
+| v0.6 | 2026-09-10 | sunxuewen-rush | **最高标准审查轮（深度档）**修复：**F28（🔴）** `08` Status「运行库终态 13 表」为未验证数字 → 实测 **12 表**（dev 库 + 全新建库双口径）已修正；**F29（🟡）** `GET /api/labels/all` 零测试覆盖 → 补 3 例（超管 200 / 管理档 403 / 匿名 401，server 472 → 475）；**F30（⚪）** `hasRole()` 生产零调用 → 保留 + 补保留理由注释。取证：端点守卫全扫（38/21）· 死导出 117→9 疑似**全为假阳性**（同文件自用）· i18n 90/90 零孤儿 · 全新库 0000→0007 + 9 项终态断言 · 审计动作 25 个零空间残留 · 平台敏感代码 0。评分：代码 9.40 → **9.42**、文档三合一 9.37 → **9.47**、深度 4 维 **9.5** |
