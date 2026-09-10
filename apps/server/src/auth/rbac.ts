@@ -39,7 +39,14 @@ export class RbacService {
     return row.role;
   }
 
-  /** 层级判定：`role >= minRole`（账号须 ACTIVE） */
+  /**
+   * 层级判定：`role >= minRole`（账号须 ACTIVE）。
+   *
+   * 保留说明（M4-pre 审查 F30）：生产路径当前**无调用者**——HTTP 层统一用
+   * `requireRole(minRole)` 中间件（`http/auth-middleware.ts`）做档位判定；本方法为
+   * **命令式调用侧**（服务内部组合判定，如将来的 M4b 管理面「按档位取激活集」）保留，
+   * 且已有 11 处直接单测（`auth/rbac.test.ts`）。删掉会让服务内判定被迫重复实现层级比较。
+   */
   async hasRole(userId: string, minRole: AccountRole): Promise<boolean> {
     const role = await this.roleOf(userId);
     return role !== null && role >= minRole;

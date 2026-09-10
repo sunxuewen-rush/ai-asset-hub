@@ -367,3 +367,39 @@ describe('对标 skillhub 修正（D1-D8——源码实证回写）', () => {
     await db.delete(labelDefinition).where(like(labelDefinition.slug, `${PREFIX}bulk-%`));
   });
 });
+
+describe('管理全量列表（06 §5.2——GET /api/labels/all 仅 SUPER_ADMIN；F29 补覆盖）', () => {
+  let adminId: string;
+  beforeAll(async () => {
+    adminId = await makeUser('admin');
+    await setRole(adminId, ACCOUNT_ROLE.ADMIN);
+  });
+
+  it('超管 200：先验存在性（刚建定义出现）再验形状（含 translations 数组）', async () => {
+    const sa = await cookieFor(superAdmin);
+    const mine = slug('all-view');
+    expect((await post('/api/labels', { slug: mine, type: 'RECOMMENDED' }, sa)).status).toBe(201);
+
+    const res = await get('/api/labels/all', sa);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<{
+      slug: string;
+      translations: Array<{ locale: string; displayName: string }>;
+    }>;
+    expect(Array.isArray(body)).toBe(true);
+    const found = body.find((l) => l.slug === mine);
+    expect(found).toBeDefined();
+    expect(Array.isArray(found?.translations)).toBe(true);
+  });
+
+  it('管理档（role=ADMIN）→ 403 label.access_denied（facet 面仅超管，非档位阈值判定）', async () => {
+    const res = await get('/api/labels/all', await cookieFor(adminId));
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe('label.access_denied');
+  });
+
+  it('匿名 → 401（requireAuth 前置——未登录不达角色判定）', async () => {
+    const res = await get('/api/labels/all');
+    expect(res.status).toBe(401);
+  });
+});
