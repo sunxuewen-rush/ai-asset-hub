@@ -1,10 +1,9 @@
 import {
   bigserial,
-  boolean,
   index,
   integer,
   pgTable,
-  primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -13,8 +12,9 @@ import {
 import { z } from 'zod';
 
 /**
- * 用户域（08 §3 v1.1）：user_account / identity_binding / local_credential / api_token
- * / user_role_binding / role / permission / role_permission。
+ * 用户域（M4-pre 扁平化后）：user_account / identity_binding / local_credential / api_token。
+ * 平台角色为 `user_account.role` 单值层级列（M4-pre design §2.1）；
+ * 权限码表（role/permission/role_permission/user_role_binding）已随 M4-pre 删除。
  * 枚举列 = VARCHAR + 应用层 zod 枚举（08 §2 形态，不建 PG enum）。
  */
 
@@ -22,9 +22,29 @@ import { z } from 'zod';
 export const userStatusSchema = z.enum(['PENDING', 'ACTIVE', 'DISABLED']);
 export type UserStatus = z.infer<typeof userStatusSchema>;
 
-/** 平台角色 code（05 §6.1，大写蛇形；种子与判定共用） */
-export const roleCodeSchema = z.enum(['SUPER_ADMIN', 'ASSET_ADMIN', 'USER_ADMIN', 'AUDITOR']);
-export type RoleCode = z.infer<typeof roleCodeSchema>;
+/**
+ * 账号角色（M4-pre design §2.1 / §2.5 P5）：单值层级，判定 = `role >= N`。
+ * GUEST 为未登录占位（不可分配）；数值间距预留将来插档。
+ */
+export const ACCOUNT_ROLE = {
+  GUEST: 0,
+  USER: 1,
+  ADMIN: 10,
+  SUPER_ADMIN: 100,
+} as const;
+export type AccountRole = (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE];
+
+/**
+ * 账号角色 zod 校验（仅允许可分配的三档；GUEST 由服务端派生不入库）。
+ * 形态依据 08 §2「枚举列 = VARCHAR/SMALLINT + 应用层 zod 枚举」（不建 PG enum / CHECK）。
+ * 注（M4-pre S1）：当前**无运行时消费者**——唯一写入路径 `db/seed.ts` 用 `ACCOUNT_ROLE` 常量直写；
+ * 角色分配的写入侧校验（M4b / 手工 SQL 走应用层）将消费此表，故**保留不删**（plan F13 处置）。
+ */
+export const accountRoleSchema = z.union([
+  z.literal(ACCOUNT_ROLE.USER),
+  z.literal(ACCOUNT_ROLE.ADMIN),
+  z.literal(ACCOUNT_ROLE.SUPER_ADMIN),
+]);
 
 export const userAccount = pgTable(
   'user_account',
@@ -35,12 +55,15 @@ export const userAccount = pgTable(
     email: varchar('email', { length: 256 }),
     avatarUrl: varchar('avatar_url', { length: 512 }),
     status: text('status').$type<UserStatus>().notNull().default('ACTIVE'),
+    /** 平台角色（M4-pre）：0 未登录 / 1 用户（默认）/ 10 管理 / 100 超管 */
+    role: smallint('role').$type<AccountRole>().notNull().default(ACCOUNT_ROLE.USER),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('idx_user_account_email').on(t.email),
     index('idx_user_account_status').on(t.status),
+    index('idx_user_account_role').on(t.role),
   ],
 );
 
@@ -102,63 +125,5 @@ export const apiToken = pgTable(
   (t) => [
     unique('uq_api_token_token_hash').on(t.tokenHash),
     index('idx_api_token_user_id').on(t.userId),
-  ],
-);
-
-export const role = pgTable(
-  'role',
-  {
-    id: bigserial('id', { mode: 'number' }).primaryKey(),
-    code: varchar('code', { length: 64 }).$type<RoleCode>().notNull(),
-    name: varchar('name', { length: 128 }).notNull(),
-    description: varchar('description', { length: 512 }),
-    /** 内置角色（随种子）系统标记 */
-    isSystem: boolean('is_system').notNull().default(false),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [unique('uq_role_code').on(t.code)],
-);
-
-export const permission = pgTable(
-  'permission',
-  {
-    id: bigserial('id', { mode: 'number' }).primaryKey(),
-    code: varchar('code', { length: 128 }).notNull(),
-    name: varchar('name', { length: 128 }).notNull(),
-    /** 权限面扩展（05 §6.4 码分组：asset/review/namespace/promotion/user/audit） */
-    groupCode: varchar('group_code', { length: 64 }),
-  },
-  (t) => [unique('uq_permission_code').on(t.code)],
-);
-
-export const rolePermission = pgTable(
-  'role_permission',
-  {
-    roleId: bigserial('role_id', { mode: 'number' })
-      .notNull()
-      .references(() => role.id),
-    permissionId: bigserial('permission_id', { mode: 'number' })
-      .notNull()
-      .references(() => permission.id),
-  },
-  (t) => [primaryKey({ columns: [t.roleId, t.permissionId] })],
-);
-
-export const userRoleBinding = pgTable(
-  'user_role_binding',
-  {
-    id: bigserial('id', { mode: 'number' }).primaryKey(),
-    userId: varchar('user_id', { length: 128 })
-      .notNull()
-      .references(() => userAccount.id),
-    roleId: bigserial('role_id', { mode: 'number' })
-      .notNull()
-      .references(() => role.id),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    unique('uq_user_role_binding_user_role').on(t.userId, t.roleId),
-    index('idx_user_role_binding_user_id').on(t.userId),
   ],
 );

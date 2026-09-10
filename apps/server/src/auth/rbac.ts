@@ -1,59 +1,53 @@
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   namespace,
   namespaceMember,
-  permission,
-  role,
-  rolePermission,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
-import { PERMISSIONS } from './permissions.js';
 
 /**
- * RBAC 判定链（05 §6.3 第 1-7 步）：
- * 账号状态（DISABLED/PENDING 拒全部）→ 平台权限 → SUPER_ADMIN 短路 →
- * 命名空间角色（涉及空间资源时）→ 空间状态（FROZEN 拒写）→ 合并判定。
- * owner 本人判定（05 §6.4：asset:manage 空间 ADMIN 以上或 owner）由业务层组合：
- * `can(userId, perm, ns)` 或 `isOwner` + 资源比对。
+ * 角色判定（M4-pre design §2.2）：**唯一轴 4 档线性** —— 0 未登录 / 1 用户 / 10 管理 / 100 超管。
+ *
+ * 判定链：
+ *  ① 账号状态：非 ACTIVE（DISABLED / PENDING / 不存在）→ 无角色（等同未登录）
+ *  ② 层级比较：`role >= minRole`（SUPER_ADMIN = 100 天然覆盖全部，**无需短路分支**）
+ *
+ * 资源级判定（owner 本人可管自己的资产）由业务层组合：`roleOf` + `asset.ownerId` 比对。
+ *
+ * ⚠️ **过渡态（M4-pre S1 → S2 之间）**：`can()` / `getNamespaceRoles()` / 空间状态检查
+ * 暂予保留，供空间相关调用点（publish / submit / approve / space-manage）在 S2 删除空间前
+ * 继续工作——其**平台侧**判定已换为 4 档（`role >= ADMIN`，即原 ASSET_ADMIN / USER_ADMIN /
+ * AUDITOR 三个码表的合并），**空间侧**保持原语义不变。S2（板块 B / T6）随空间一并删除。
  */
 
-/** 命名空间角色 → 权限面（05 §6.2/§6.4）：OWNER/ADMIN 空间内完整管理权（§6.5 主轴） */
-export const NS_ROLE_OWNER_PERMS: readonly string[] = [
-  PERMISSIONS.assetPublish,
-  PERMISSIONS.reviewSubmit,
-  PERMISSIONS.assetManage,
-  PERMISSIONS.assetPromote,
-  PERMISSIONS.reviewApprove,
-  PERMISSIONS.namespaceManage,
-];
-export const NS_ROLE_ADMIN_PERMS: readonly string[] = NS_ROLE_OWNER_PERMS;
-/** MEMBER 仅可发布新资产（05 §6.4：review:submit 需 owner 本人或 ADMIN/OWNER——owner 判定走业务层组合） */
-export const NS_ROLE_MEMBER_PERMS: readonly string[] = [PERMISSIONS.assetPublish];
+/** 空间角色 → 可执行操作面（过渡期映射；S2 随空间删除） */
+const SPACE_ROLE_OPS: Record<string, readonly string[]> = {
+  OWNER: ['asset:publish', 'review:submit', 'asset:manage', 'review:approve', 'namespace:manage'],
+  ADMIN: ['asset:publish', 'review:submit', 'asset:manage', 'review:approve', 'namespace:manage'],
+  MEMBER: ['asset:publish'],
+};
 
-/** 写类权限（FROZEN 空间拒绝 05 §6.3 第 6 步） */
-export const WRITE_PERMISSIONS: ReadonlySet<string> = new Set([
-  PERMISSIONS.assetPublish,
-  PERMISSIONS.reviewSubmit,
-  PERMISSIONS.assetManage,
-  PERMISSIONS.assetPromote,
-  PERMISSIONS.reviewApprove,
-  PERMISSIONS.namespaceManage,
-  PERMISSIONS.userManage,
-  PERMISSIONS.userApprove,
-  PERMISSIONS.promotionApprove,
+/** 写类操作（FROZEN 空间拒写，05 §6.3 第 6 步；过渡期） */
+const WRITE_OPS: ReadonlySet<string> = new Set([
+  'asset:publish',
+  'review:submit',
+  'asset:manage',
+  'review:approve',
+  'namespace:manage',
 ]);
 
 export interface CanContext {
-  /** 涉及命名空间资源时传入（05 §6.3 第 5-6 步） */
+  /** 涉及空间资源时传入（过渡期；S2 删） */
   namespaceId?: number;
 }
 
 export class RbacService {
   constructor(private readonly db: Db) {}
 
-  /** 账号状态查询（05 §4.1；requireAuth 组合判定用） */
+  /** 账号状态（05 §4.1；requireAuth 组合判定用） */
   async getAccountStatus(userId: string): Promise<'PENDING' | 'ACTIVE' | 'DISABLED' | null> {
     const rows = await this.db
       .select({ status: userAccount.status })
@@ -62,74 +56,46 @@ export class RbacService {
     return rows[0]?.status ?? null;
   }
 
-  /** 平台角色 codes + permission codes（role → role_permission → permission 三表 join） */
-  private async platformGrants(
-    userId: string,
-  ): Promise<{ roles: Set<string>; permissions: Set<string> }> {
+  /** 有效角色档位：非 ACTIVE / 账号不存在 → `null`（与未登录同权） */
+  async roleOf(userId: string): Promise<AccountRole | null> {
     const rows = await this.db
-      .select({ roleCode: role.code, permCode: permission.code })
-      .from(userRoleBinding)
-      .innerJoin(role, eq(userRoleBinding.roleId, role.id))
-      .leftJoin(rolePermission, eq(role.id, rolePermission.roleId))
-      .leftJoin(permission, eq(rolePermission.permissionId, permission.id))
-      .where(eq(userRoleBinding.userId, userId));
-    const roles = new Set<string>();
-    const perms = new Set<string>();
-    for (const row of rows) {
-      roles.add(row.roleCode);
-      if (row.permCode) perms.add(row.permCode);
-    }
-    return { roles, permissions: perms };
+      .select({ role: userAccount.role, status: userAccount.status })
+      .from(userAccount)
+      .where(eq(userAccount.id, userId));
+    const row = rows[0];
+    if (!row || row.status !== 'ACTIVE') return null;
+    return row.role;
   }
 
-  /** 平台角色 codes（T1/T3 requirePlatformRole 判定；skillhub 平台角色判定同构） */
-  async platformRolesOf(userId: string): Promise<string[]> {
-    const { roles } = await this.platformGrants(userId);
-    return [...roles];
+  /** 层级判定：`role >= minRole`（账号须 ACTIVE） */
+  async hasRole(userId: string, minRole: AccountRole): Promise<boolean> {
+    const role = await this.roleOf(userId);
+    return role !== null && role >= minRole;
   }
 
-  /** 判定链（05 §6.3 1-7 步） */
-  async can(userId: string, requiredPermission: string, ctx: CanContext = {}): Promise<boolean> {
-    // 1-2：账号状态
-    const status = await this.getAccountStatus(userId);
-    if (status !== 'ACTIVE') return false; // DISABLED/PENDING/不存在 → 拒绝全部
+  /**
+   * 操作判定（**过渡态**，S2 删除）：
+   * 平台侧 = `role >= ADMIN`（原 ASSET_ADMIN / USER_ADMIN / AUDITOR 码表合并后的等价语义）；
+   * 涉及空间时叠加空间状态（FROZEN 拒写 / ARCHIVED 拒绝）与空间角色面。
+   */
+  async can(userId: string, op: string, ctx: CanContext = {}): Promise<boolean> {
+    const role = await this.roleOf(userId);
+    if (role === null) return false; // 非 ACTIVE → 拒绝全部
+    if (role >= ACCOUNT_ROLE.ADMIN) return true; // 管理档：平台侧全权
 
-    // 3：平台角色权限
-    const grants = await this.platformGrants(userId);
-    const { roles: platformRoles, permissions: platformPermissions } = grants;
-
-    // 4：SUPER_ADMIN 短路
-    if (platformRoles.has('SUPER_ADMIN')) return true;
-
-    // 平台权限命中（ASSET_ADMIN/USER_ADMIN/AUDITOR 绑定的 permission）
-    if (platformPermissions.has(requiredPermission)) return true;
-
-    // 5-6：涉及命名空间资源
     if (ctx.namespaceId !== undefined) {
       const nsStatus = await this.getNamespaceStatus(ctx.namespaceId);
-      // 6：FROZEN 拒写
-      if (nsStatus === 'FROZEN' && WRITE_PERMISSIONS.has(requiredPermission)) return false;
+      if (nsStatus === 'FROZEN' && WRITE_OPS.has(op)) return false;
       if (nsStatus === 'ARCHIVED') return false; // 归档对外不可见（05 §6.2）
-
       const nsRoles = await this.getNamespaceRoles(userId, ctx.namespaceId);
-      const allowedByNs = nsRoles.some((roleName) => {
-        const map =
-          roleName === 'OWNER'
-            ? NS_ROLE_OWNER_PERMS
-            : roleName === 'ADMIN'
-              ? NS_ROLE_ADMIN_PERMS
-              : roleName === 'MEMBER'
-                ? NS_ROLE_MEMBER_PERMS
-                : [];
-        return map.includes(requiredPermission);
-      });
-      if (allowedByNs) return true;
+      const allowed = nsRoles.some((r) => (SPACE_ROLE_OPS[r] ?? []).includes(op));
+      if (allowed) return true;
     }
 
     return false;
   }
 
-  /** 命名空间角色（namespace_member join；无成员关系 → 空） */
+  /** 空间角色（**过渡态**，S2 删除） */
   async getNamespaceRoles(userId: string, namespaceId: number): Promise<string[]> {
     const rows = await this.db
       .select({ memberRole: namespaceMember.role })
@@ -146,6 +112,9 @@ export class RbacService {
     return rows[0]?.status ?? null;
   }
 }
+
+export type { AccountRole };
+export { ACCOUNT_ROLE };
 
 /** 防自审助手（05 §6.4：审核人不得是提交人；SUPER_ADMIN 例外由调用方传 isSuperAdmin 放行） */
 export function isSelfReview(

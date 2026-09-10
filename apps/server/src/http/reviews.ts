@@ -18,7 +18,8 @@ import { z } from 'zod';
 import { findNamespaceBySlug } from '../assets/service.js';
 import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
-import { PERMISSIONS } from '../auth/permissions.js';
+import { ACCOUNT_ROLE } from '../auth/rbac.js';
+import { TOKEN_SCOPES } from '../auth/token-scopes.js';
 import type { Db } from '../db/client.js';
 import { reviewTask } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
@@ -58,9 +59,8 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
   app.get('/', requireAuth(), async (c) => {
     const principal = c.get('principal')!;
     const rbac = c.get('rbac')!;
-    const platformRoles = await rbac.platformRolesOf(principal.userId);
-    const isPlatformReviewer =
-      platformRoles.includes('ASSET_ADMIN') || platformRoles.includes('SUPER_ADMIN');
+    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+    const isPlatformReviewer = role >= ACCOUNT_ROLE.ADMIN;
 
     const query = PAGE_SCHEMA.safeParse(c.req.query());
     if (!query.success)
@@ -127,9 +127,9 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const taskId = Number(c.req.param('id'));
     if (!Number.isInteger(taskId) || taskId <= 0) throw new ReviewError(reviewErrorCodes.notFound);
     const rbac = c.get('rbac')!;
-    const platformRoles = await rbac.platformRolesOf(principal.userId);
+    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     const canApprove =
-      platformRoles.includes('ASSET_ADMIN') || platformRoles.includes('SUPER_ADMIN')
+      role >= ACCOUNT_ROLE.ADMIN
         ? true
         : (await rbac.getNamespaceRoles(principal.userId, await taskNamespaceId(taskId))).some(
             (r) => r === 'OWNER' || r === 'ADMIN',
@@ -147,18 +147,18 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     if (!body.success) return c.json({ code: 'request.invalid', message: 'invalid body' }, 400);
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
-    const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, {
+    const canApprove = await rbac.can(principal.userId, TOKEN_SCOPES.reviewApprove, {
       namespaceId: nsId,
     });
-    assertTokenScoped(c, PERMISSIONS.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
+    assertTokenScoped(c, TOKEN_SCOPES.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
-    const platformRoles = await rbac.platformRolesOf(principal.userId);
+    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     const out = await approveReview(db, audit, {
       taskId,
       actorId: principal.userId,
       comment: body.data.comment,
       canApprove: true,
-      isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
+      isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
     });
     return c.json({ taskId: out.taskId, status: 'APPROVED', version: out.publishedVersion }, 200);
   });
@@ -173,18 +173,18 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
       return c.json({ code: 'request.invalid', message: 'reject requires non-empty comment' }, 400);
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
-    const canApprove = await rbac.can(principal.userId, PERMISSIONS.reviewApprove, {
+    const canApprove = await rbac.can(principal.userId, TOKEN_SCOPES.reviewApprove, {
       namespaceId: nsId,
     });
-    assertTokenScoped(c, PERMISSIONS.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
+    assertTokenScoped(c, TOKEN_SCOPES.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
-    const platformRoles = await rbac.platformRolesOf(principal.userId);
+    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     const out = await rejectReview(db, audit, {
       taskId,
       actorId: principal.userId,
       comment: body.data.comment,
       canApprove: true,
-      isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
+      isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
     });
     return c.json({ taskId: out.taskId, status: 'REJECTED', version: out.rejectedVersion }, 200);
   });
@@ -197,14 +197,14 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const rbac = c.get('rbac')!;
     const nsId = await taskNamespaceId(taskId);
     // R14：withdraw 写动作 scope 交集（design §8 ②「submit/withdraw = review:submit」）
-    assertTokenScoped(c, PERMISSIONS.reviewSubmit);
-    const platformRoles = await rbac.platformRolesOf(principal.userId);
+    assertTokenScoped(c, TOKEN_SCOPES.reviewSubmit);
+    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     const nsRole = (await rbac.getNamespaceRoles(principal.userId, nsId))[0] ?? null;
     await withdrawReview(db, audit, {
       taskId,
       actorId: principal.userId,
       namespaceRole: nsRole as 'OWNER' | 'ADMIN' | 'MEMBER' | null,
-      isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
+      isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
     });
     return c.body(null, 204);
   });

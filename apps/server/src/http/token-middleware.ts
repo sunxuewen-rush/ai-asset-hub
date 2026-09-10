@@ -8,7 +8,7 @@ import { apiToken, userAccount } from '../db/schema/index.js';
 /**
  * scope 解析（M3 design §8 R14——交集模型；'' 与 'cli' 维持全量——M1 零破坏）：
  * - null = 全量（scope 空串 / Device Flow 'cli'——05 §5 兼容语义）
- * - Set<string> = permission 码交集面（新签发可设——requirePermission/手写 can 点消费）
+ * - Set<string> = scope 码交集面（新签发可设——requireRole({scope}) / assertTokenScoped 点消费）
  */
 export function parseTokenScope(scope: string | null): Set<string> | null {
   if (scope === null || scope === '' || scope === 'cli') return null;

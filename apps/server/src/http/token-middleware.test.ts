@@ -15,13 +15,12 @@ import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   apiToken,
   namespace,
   namespaceMember,
-  type RoleCode,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
 import { createNamespaceRoutes } from './namespaces.js';
@@ -41,16 +40,8 @@ async function makeUser(
   return id;
 }
 
-async function ensureRole(roleCode: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code: roleCode, name: `role-${roleCode}`, isSystem: true })
-    .onConflictDoNothing();
-}
-
-async function bindRole(userId: string, roleCode: RoleCode) {
-  const rows = await db.select().from(role).where(eq(role.code, roleCode));
-  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 
 async function mintToken(
@@ -114,7 +105,6 @@ afterAll(async () => {
     .where(like(userAccount.displayName, 'bearer-%'));
   for (const u of users) {
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();
@@ -208,10 +198,9 @@ describe('Bearer token 认证中间件（T17）', () => {
   });
 
   it('T18：Bearer 与 session 通道走同一 requirePermission（RBAC 同判）', async () => {
-    await ensureRole('ASSET_ADMIN');
     const admin = await makeUser('bearer-rbac-admin');
     const plainUser = await makeUser('bearer-rbac-plain');
-    await bindRole(admin, 'ASSET_ADMIN');
+    await setRole(admin, ACCOUNT_ROLE.ADMIN);
     const adminToken = await mintToken(admin);
     const plainToken = await mintToken(plainUser);
 

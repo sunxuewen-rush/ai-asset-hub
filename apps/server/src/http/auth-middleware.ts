@@ -1,13 +1,14 @@
 import type { Context, Next } from 'hono';
 import { AuthError } from '../auth/errors.js';
 import type { RbacService } from '../auth/rbac.js';
-import type { RoleCode } from '../db/schema/index.js';
+import type { TokenScopeCode } from '../auth/token-scopes.js';
+import type { AccountRole } from '../db/schema/index.js';
 
 /**
- * 鉴权与授权中间件（T1，05 §6.3 判定链在 HTTP 层的组合）：
- * - requireAuth：principal 存在 + 账号状态 ACTIVE（05 §4.1：DISABLED/PENDING 拒绝全部）
- * - requirePermission(code, {namespaceId?})：rbac.can 判定链（含 SUPER_ADMIN 短路）
- * - requirePlatformRole(roles)：平台角色命中任一（T3 建空间用，skillhub 平台角色判定同构）
+ * 鉴权与授权中间件（M4-pre design §2.2 判定链在 HTTP 层的组合）：
+ * - `requireAuth`：principal 存在 + 账号状态 ACTIVE（05 §4.1：DISABLED/PENDING 拒绝全部）
+ * - `requireRole(minRole, { scope? })`：角色层级 `role >= minRole`（含 SUPER_ADMIN 天然覆盖）；
+ *   可选 token scope 交集（**原 `requirePermission` 的双职责合并**——角色门 + 凭证 scope 门）
  * rbac 实例由装配层经 rbacContext 注入请求上下文（依赖注入便于测试）。
  */
 
@@ -49,44 +50,31 @@ export function requireAuth() {
 
 /**
  * token scope 交集判定（M3 design §8 R14）：session 通道恒过（无 scope）；
- * token 通道 scope 非空时要求含 code（permission 码交集——白名单外拒）。
+ * token 通道 scope 非空时要求含 code（凭证级白名单——白名单外拒）。
  * '' / 'cli'（全量）经 parseTokenScope → null → 恒过（M1 零破坏）。
- * 出口与 RBAC 拒同（auth.forbidden——不泄露 scope 细节）。
+ * 出口与角色拒同（auth.forbidden——不泄露 scope 细节）。
  */
-export function assertTokenScoped(c: Context, code: string): void {
+export function assertTokenScoped(c: Context, code: TokenScopeCode): void {
   const scopes = c.get('tokenScopes');
   if (scopes === undefined || scopes === null) return;
   if (!scopes.has(code)) throw new AuthError('auth.forbidden');
 }
 
-export function requirePermission(code: string, opts: { namespaceId?: number } = {}) {
+/**
+ * 角色门（M4-pre design §2.2）：`role >= minRole`。
+ * - 无 principal / 账号非 ACTIVE → 401 `auth.session_expired`（与未登录同出口）
+ * - 角色不足 → 403 `auth.forbidden`
+ * - 可选 `scope` → 叠加 token scope 交集（token 凭证通道）
+ */
+export function requireRole(minRole: AccountRole, opts: { scope?: TokenScopeCode } = {}) {
   return async (c: Context, next: Next) => {
     const principal = c.get('principal');
     if (!principal) throw new AuthError('auth.session_expired');
     const rbac = requireRbac(c);
-    const allowed = await rbac.can(principal.userId, code, opts);
-    if (!allowed) throw new AuthError('auth.forbidden');
-    assertTokenScoped(c, code); // T15：token scope 交集（RBAC 过 + scope 含码才放行）
-    await next();
-  };
-}
-
-export function requirePlatformRole(roles: readonly RoleCode[]) {
-  return async (c: Context, next: Next) => {
-    const principal = c.get('principal');
-    if (!principal) throw new AuthError('auth.session_expired');
-    const rbac = requireRbac(c);
-    const status = await rbac.getAccountStatus(principal.userId);
-    if (status !== 'ACTIVE') throw new AuthError('auth.session_expired');
-    const userRoles = await rbac.platformRolesOf(principal.userId);
-    // SUPER_ADMIN 隐式短路（05 §6.3：超管全权——调用方无需手动列 SUPER_ADMIN，防漏）
-    if (userRoles.includes('SUPER_ADMIN')) {
-      await next();
-      return;
-    }
-    if (!roles.some((role) => userRoles.includes(role))) {
-      throw new AuthError('auth.forbidden');
-    }
+    const role = await rbac.roleOf(principal.userId);
+    if (role === null) throw new AuthError('auth.session_expired');
+    if (role < minRole) throw new AuthError('auth.forbidden');
+    if (opts.scope !== undefined) assertTokenScoped(c, opts.scope);
     await next();
   };
 }

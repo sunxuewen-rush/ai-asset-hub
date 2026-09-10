@@ -16,12 +16,11 @@ import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   apiToken,
   auditLog,
-  type RoleCode,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
 import { createTokenRoutes } from './tokens.js';
@@ -39,16 +38,8 @@ async function makeUser(displayName: string): Promise<string> {
   return id;
 }
 
-async function ensureRole(roleCode: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code: roleCode, name: `role-${roleCode}`, isSystem: true })
-    .onConflictDoNothing();
-}
-
-async function bindRole(userId: string, roleCode: RoleCode) {
-  const rows = await db.select().from(role).where(eq(role.code, roleCode));
-  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 
 async function cookieFor(userId: string): Promise<string> {
@@ -94,9 +85,8 @@ beforeAll(async () => {
   sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
   audit = createAuditWriter(db);
   u1 = await makeUser('tok-u1');
-  await ensureRole('SUPER_ADMIN');
   superAdmin = await makeUser('tok-super-admin');
-  await bindRole(superAdmin, 'SUPER_ADMIN');
+  await setRole(superAdmin, ACCOUNT_ROLE.SUPER_ADMIN);
 });
 
 afterAll(async () => {
@@ -107,7 +97,6 @@ afterAll(async () => {
   for (const u of users) {
     await db.delete(auditLog).where(eq(auditLog.actorId, u.id)); // T17：审计动作埋点后 FK 序
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();

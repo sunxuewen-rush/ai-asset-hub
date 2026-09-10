@@ -8,16 +8,15 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   asset,
   assetFile,
   assetVersion,
   auditLog,
   namespace,
   namespaceMember,
-  type RoleCode,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildZip } from '../test-utils/zip-builder.js';
@@ -45,9 +44,8 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 
-async function bindRole(userId: string, code: RoleCode): Promise<void> {
-  const [r] = await db.select({ id: role.id }).from(role).where(eq(role.code, code));
-  await db.insert(userRoleBinding).values({ userId, roleId: r!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 
 async function insertNs(slug: string): Promise<number> {
@@ -91,7 +89,7 @@ beforeAll(async () => {
   storageDir = await mkdtemp(join(tmpdir(), 'vup-storage-'));
   storage = createLocalStorage(storageDir);
   owner = await makeUser('owner');
-  await bindRole(owner, 'ASSET_ADMIN');
+  await setRole(owner, ACCOUNT_ROLE.ADMIN);
   nsId = await insertNs('vup-ns');
   await db.insert(namespaceMember).values({ namespaceId: nsId, userId: owner, role: 'OWNER' });
   assetId = await insertAsset('demo-skill');
@@ -129,7 +127,6 @@ afterAll(async () => {
   const userIds = users.map((u) => u.id);
   if (userIds.length > 0) {
     await db.delete(auditLog).where(inArray(auditLog.actorId, userIds));
-    await db.delete(userRoleBinding).where(inArray(userRoleBinding.userId, userIds));
   }
   await db.delete(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
   await rm(storageDir, { recursive: true, force: true });

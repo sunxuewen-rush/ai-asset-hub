@@ -21,15 +21,14 @@ import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   apiToken,
   asset,
   auditLog,
   namespace,
   namespaceMember,
-  type RoleCode,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
@@ -54,15 +53,8 @@ async function makeUser(tag: string): Promise<string> {
   await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
   return id;
 }
-async function ensureRole(code: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code, name: `r-${code}`, isSystem: true })
-    .onConflictDoNothing();
-}
-async function bindRole(userId: string, code: RoleCode) {
-  const rows = await db.select().from(role).where(eq(role.code, code));
-  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'tks-http');
@@ -138,10 +130,8 @@ beforeAll(async () => {
   uploadRateLimiter = new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max);
   auditorId = await makeUser('auditor');
   superAdminId = await makeUser('sa');
-  await ensureRole('AUDITOR');
-  await ensureRole('SUPER_ADMIN');
-  await bindRole(auditorId, 'AUDITOR');
-  await bindRole(superAdminId, 'SUPER_ADMIN');
+  await setRole(auditorId, ACCOUNT_ROLE.ADMIN);
+  await setRole(superAdminId, ACCOUNT_ROLE.SUPER_ADMIN);
   // 注册端点的权限门在 ns 寻址后——建 ns 使 scope 判定真触发
   await db
     .insert(namespace)
@@ -176,7 +166,6 @@ afterAll(async () => {
   await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
   await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   for (const u of users) {
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await rm(storageDir, { recursive: true, force: true });

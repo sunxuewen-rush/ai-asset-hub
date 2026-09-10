@@ -14,13 +14,12 @@ import { RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   auditLog,
   namespace,
   namespaceMember,
-  type RoleCode,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { rbacContext } from './auth-middleware.js';
 import { createNamespaceRoutes } from './namespaces.js';
@@ -73,16 +72,8 @@ async function addMember(nsId: number, userId: string, role: 'OWNER' | 'ADMIN' |
   await db.insert(namespaceMember).values({ namespaceId: nsId, userId, role });
 }
 
-async function ensureRole(roleCode: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code: roleCode, name: `role-${roleCode}`, isSystem: true })
-    .onConflictDoNothing();
-}
-
-async function bindRole(userId: string, roleCode: RoleCode) {
-  const rows = await db.select().from(role).where(eq(role.code, roleCode));
-  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 
 async function cookieFor(userId: string): Promise<string> {
@@ -123,12 +114,10 @@ beforeAll(async () => {
   audit = createAuditWriter(db);
   u1 = await makeUser('ns-u1');
   u2 = await makeUser('ns-u2');
-  await ensureRole('ASSET_ADMIN');
-  await ensureRole('SUPER_ADMIN');
   assetAdmin = await makeUser('ns-asset-admin');
   superAdmin = await makeUser('ns-super-admin');
-  await bindRole(assetAdmin, 'ASSET_ADMIN');
-  await bindRole(superAdmin, 'SUPER_ADMIN');
+  await setRole(assetAdmin, ACCOUNT_ROLE.ADMIN);
+  await setRole(superAdmin, ACCOUNT_ROLE.SUPER_ADMIN);
   const nsActive = await insertNs('t2-active-team');
   const nsOpen = await insertNs('t2-open-team');
   const nsFrozen = await insertNs('t2-frozen-team', 'FROZEN');
@@ -191,7 +180,6 @@ afterAll(async () => {
     .where(like(userAccount.displayName, 'ns-%'));
   for (const u of users) {
     await db.delete(auditLog).where(eq(auditLog.actorId, u.id)); // T16：审计动作埋点后 FK 序（audit 先清）
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   const t6Users = await db
@@ -200,7 +188,6 @@ afterAll(async () => {
     .where(like(userAccount.displayName, 't6-%'));
   for (const u of t6Users) {
     await db.delete(auditLog).where(eq(auditLog.actorId, u.id));
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();

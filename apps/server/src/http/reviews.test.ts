@@ -20,16 +20,15 @@ import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   asset,
   assetVersion,
   auditLog,
   namespace,
   namespaceMember,
-  type RoleCode,
   reviewTask,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -57,15 +56,8 @@ async function makeUser(tag: string): Promise<string> {
   await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
   return id;
 }
-async function ensureRole(code: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code, name: `r-${code}`, isSystem: true })
-    .onConflictDoNothing();
-}
-async function bindRole(userId: string, code: RoleCode) {
-  const rows = await db.select().from(role).where(eq(role.code, code));
-  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'rvh-http');
@@ -147,8 +139,7 @@ beforeAll(async () => {
   spaceAdminId = await makeUser('spaceadmin');
   assetAdminUserId = await makeUser('assetadmin');
   strangerId = await makeUser('stranger');
-  await ensureRole('ASSET_ADMIN');
-  await bindRole(assetAdminUserId, 'ASSET_ADMIN');
+  await setRole(assetAdminUserId, ACCOUNT_ROLE.ADMIN);
   const [ns] = await db
     .insert(namespace)
     .values({ slug: `${PREFIX}ns`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
@@ -173,7 +164,6 @@ afterAll(async () => {
   await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();

@@ -2,7 +2,8 @@ import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
-import { PERMISSIONS } from '../auth/permissions.js';
+import { ACCOUNT_ROLE } from '../auth/rbac.js';
+import { ALL_TOKEN_SCOPES } from '../auth/token-scopes.js';
 import { generateTokenSecret, hashToken } from '../auth/tokens.js';
 import type { Db } from '../db/client.js';
 import { apiToken } from '../db/schema/index.js';
@@ -24,13 +25,11 @@ export interface TokenRoutesDeps {
 const DAY_MS = 86_400_000;
 
 /** POST body（T14：省略 expiresInDays = 永不过期 expiresAt null；1-3650 天，超限 400；
- *  T15：可选 scope = permission 码白名单（交集收窄——R14；省略 = 空 scope 全量） */
+ *  T15：可选 scope = **scope 码**白名单（交集收窄——R14；省略 = 空 scope 全量；
+ *  码表单源 `auth/token-scopes.ts`——M4-pre D2：scope 与角色正交，非权限码） */
 const issueBodySchema = z.object({
   expiresInDays: z.number().int().min(1).max(3650).optional(),
-  scope: z
-    .array(z.enum(Object.values(PERMISSIONS) as [string, ...string[]]))
-    .max(10)
-    .optional(),
+  scope: z.array(z.enum(ALL_TOKEN_SCOPES)).max(10).optional(),
 });
 
 export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
@@ -65,7 +64,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
         userId: principal.userId,
         tokenHash: hashToken(plain),
         // scope 缺省 = 空串 = 全量（05 §5；''/'cli' 认证时全量语义——M1 零破坏）；
-        // 显式 scope = permission 码逗号 join（交集收窄——T15 R14 新签发可设）
+        // 显式 scope = scope 码逗号 join（交集收窄——T15 R14 新签发可设）
         scope: parsed.data.scope === undefined ? '' : parsed.data.scope.join(','),
         expiresAt,
       })
@@ -122,8 +121,8 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
     if (!isOwner) {
       const rbac = c.get('rbac');
       if (!rbac) throw new Error('rbac not injected via rbacContext (app assembly error)');
-      const roles = await rbac.platformRolesOf(principal.userId);
-      isSuperAdmin = roles.includes('SUPER_ADMIN');
+      const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+      isSuperAdmin = role >= ACCOUNT_ROLE.SUPER_ADMIN;
     }
     if (!isOwner && !isSuperAdmin) {
       // 防枚举：他人 token 视同不存在

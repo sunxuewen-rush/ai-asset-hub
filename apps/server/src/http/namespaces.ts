@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
-import { PERMISSIONS } from '../auth/permissions.js';
+import { ACCOUNT_ROLE } from '../auth/rbac.js';
 import type { Db } from '../db/client.js';
 import {
   namespace,
@@ -12,7 +12,7 @@ import {
   namespaceTypeSchema,
   userAccount,
 } from '../db/schema/index.js';
-import { requireAuth, requirePlatformRole } from './auth-middleware.js';
+import { requireAuth, requireRole } from './auth-middleware.js';
 
 /**
  * /api/namespaces 路由组（T2-T7，板块 A；05 §6.2/§6.4）：
@@ -197,7 +197,7 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
   });
 
   // POST /api/namespaces（T3：R2 平台角色建空间——TEAM 需 ASSET_ADMIN+；GLOBAL 仅 SUPER_ADMIN）
-  app.post('/', requireAuth(), requirePlatformRole(['ASSET_ADMIN']), async (c) => {
+  app.post('/', requireAuth(), requireRole(ACCOUNT_ROLE.ADMIN), async (c) => {
     const principal = c.get('principal')!;
     let payload: unknown;
     try {
@@ -212,10 +212,10 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     const { slug, displayName, description, type } = parsed.data;
 
     if (type === 'GLOBAL') {
-      // R2：GLOBAL 仅 SUPER_ADMIN（requirePlatformRole 只放行 ASSET_ADMIN+，此处收紧）
+      // R2：GLOBAL 仅 SUPER_ADMIN（requireRole 放行 ADMIN+，此处收紧）
       const rbac = c.get('rbac')!;
-      const roles = await rbac.platformRolesOf(principal.userId);
-      if (!roles.includes('SUPER_ADMIN')) {
+      const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+      if (role < ACCOUNT_ROLE.SUPER_ADMIN) {
         return c.json({ code: 'auth.forbidden', message: 'auth.forbidden' }, 403);
       }
     }
@@ -300,9 +300,9 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
       return c.json({ code: 'namespace.not_found', message: 'namespace.not_found' }, 404);
     }
 
-    // 权限：namespace:manage（空间 OWNER/ADMIN；SUPER_ADMIN 短路）——FROZEN 拒写由 rbac WRITE_PERMISSIONS 覆盖
+    // 权限：namespace:manage（空间 OWNER/ADMIN；管理档短路）——FROZEN 拒写由 rbac.can 写面判定覆盖
     const rbac = c.get('rbac')!;
-    const allowed = await rbac.can(principal.userId, PERMISSIONS.namespaceManage, {
+    const allowed = await rbac.can(principal.userId, 'namespace:manage', {
       namespaceId: id,
     });
     if (!allowed) throw new AuthError('auth.forbidden');
@@ -323,7 +323,7 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
 
   // PATCH /api/namespaces/:id/status（T5：状态治理——ACTIVE/FROZEN/ARCHIVED，R3 仅 SUPER_ADMIN；
   // 05 §6.2 三态：FROZEN 只读拒写 / ARCHIVED 对外不可见；互转无限制，治理可逆，幂等同态 200）
-  app.patch('/:id/status', requireAuth(), requirePlatformRole(['SUPER_ADMIN']), async (c) => {
+  app.patch('/:id/status', requireAuth(), requireRole(ACCOUNT_ROLE.SUPER_ADMIN), async (c) => {
     const id = parseNamespaceId(c.req.param('id'));
     if (id === null) return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
     let payload: unknown;
@@ -410,7 +410,7 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     const { userId: targetId, role } = parsed.data;
 
     const rbac = c.get('rbac')!;
-    const allowed = await rbac.can(principal.userId, PERMISSIONS.namespaceManage, {
+    const allowed = await rbac.can(principal.userId, 'namespace:manage', {
       namespaceId: id,
     });
     if (!allowed) throw new AuthError('auth.forbidden');
@@ -435,8 +435,8 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
         and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, principal.userId)),
       );
     const callerRole = callerMember[0]?.role;
-    const callerRoles = await rbac.platformRolesOf(principal.userId);
-    const isSuperAdmin = callerRoles.includes('SUPER_ADMIN');
+    const callerPlatformRole = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+    const isSuperAdmin = callerPlatformRole >= ACCOUNT_ROLE.SUPER_ADMIN;
     // OWNER 角色不可经添加产生（转让后置 M2；超管亦走此约束——转让端点后置）
     if (parsed.data.role === 'OWNER') {
       return c.json(
@@ -486,7 +486,7 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     const targetId = c.req.param('userId');
 
     const rbac = c.get('rbac')!;
-    const allowed = await rbac.can(principal.userId, PERMISSIONS.namespaceManage, {
+    const allowed = await rbac.can(principal.userId, 'namespace:manage', {
       namespaceId: id,
     });
     if (!allowed) throw new AuthError('auth.forbidden');
@@ -516,8 +516,8 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
         and(eq(namespaceMember.namespaceId, id), eq(namespaceMember.userId, principal.userId)),
       );
     const callerRole = callerMember[0]?.role;
-    const callerRoles = await rbac.platformRolesOf(principal.userId);
-    const isSuperAdmin = callerRoles.includes('SUPER_ADMIN');
+    const callerPlatformRole = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+    const isSuperAdmin = callerPlatformRole >= ACCOUNT_ROLE.SUPER_ADMIN;
     // ADMIN 仅可移 MEMBER（同级 ADMIN 不可互删——对称添加链；自移亦覆盖）
     if (!isSuperAdmin && callerRole === 'ADMIN' && target.role === 'ADMIN') {
       throw new AuthError('auth.forbidden');
@@ -571,8 +571,8 @@ export function createNamespaceRoutes(deps: NamespaceRoutesDeps): Hono {
     const currentOwner = members.find((m) => m.role === 'OWNER');
     const targetMember = members.find((m) => m.userId === newOwnerId);
 
-    const platformRoles = await c.get('rbac')!.platformRolesOf(principal.userId);
-    const isSuperAdmin = platformRoles.includes('SUPER_ADMIN');
+    const role = (await c.get('rbac')!.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+    const isSuperAdmin = role >= ACCOUNT_ROLE.SUPER_ADMIN;
     // 仅当前 OWNER 发起（超管治理豁免——05 §6.5：空间管理面无空位兜底）
     if (!isSuperAdmin && principal.userId !== currentOwner?.userId) {
       return c.json({ code: 'auth.forbidden', message: 'auth.forbidden' }, 403);

@@ -1,25 +1,15 @@
 import { eq } from 'drizzle-orm';
 import { hashPassword } from '../auth/password.js';
-import {
-  ALL_PERMISSIONS,
-  PERMISSION_GROUPS,
-  PERMISSION_NAMES,
-  PERMISSIONS,
-} from '../auth/permissions.js';
 import { createClient } from './client.js';
-import {
-  localCredential,
-  namespace,
-  permission,
-  role,
-  rolePermission,
-  userAccount,
-  userRoleBinding,
-} from './schema/index.js';
+import { ACCOUNT_ROLE, localCredential, namespace, userAccount } from './schema/index.js';
 
 /**
- * 种子（幂等 upsert）：四平台角色（05 §6.1）+ 权限码十枚（05 §6.4）+ global 空间（08 §4）
- * + SEED_ADMIN（可选，R6）。role/permission 按 code、namespace 按 slug upsert。
+ * 种子（幂等 upsert；M4-pre 扁平化后）：
+ * - `global` 空间（08 §4 → M4-pre design §2.5 G1-A：**保留**作资产坐标锚点）
+ * - `SEED_ADMIN_*`（可选）：建本地账号并**直写** `role = SUPER_ADMIN`
+ *
+ * M4-pre 变更：平台角色不再是独立表 + 权限码矩阵（`role`/`permission`/`role_permission`/
+ * `user_role_binding` 四表已删，design §2.1 R1/R4）——角色为 `user_account.role` 单列 4 档。
  * db 运维脚本只需 DATABASE_URL，不走全量 env。
  */
 const connectionString = process.env.DATABASE_URL;
@@ -29,67 +19,7 @@ if (!connectionString) {
 }
 const db = createClient(connectionString);
 
-const ROLES = [
-  { code: 'SUPER_ADMIN', name: '超级管理员', description: '拥有所有权限（硬判定短路 05 §6.3）' },
-  {
-    code: 'ASSET_ADMIN',
-    name: '资产管理员',
-    description: '全局空间审核、提升审核、隐藏/恢复资产、撤回已发布版本',
-  },
-  {
-    code: 'USER_ADMIN',
-    name: '用户管理员',
-    description: '准入审批、封禁/解封、角色分配（不可分配 SUPER_ADMIN）',
-  },
-  { code: 'AUDITOR', name: '审计员', description: '审计日志只读' },
-] as const;
-
-/** 角色 → 权限绑定矩阵（05 §6.4；SUPER_ADMIN 不绑行——硬判定短路） */
-const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
-  ASSET_ADMIN: [
-    PERMISSIONS.assetPublish,
-    PERMISSIONS.reviewSubmit,
-    PERMISSIONS.assetManage,
-    PERMISSIONS.assetPromote,
-    PERMISSIONS.reviewApprove,
-    PERMISSIONS.promotionApprove,
-  ],
-  USER_ADMIN: [PERMISSIONS.userManage, PERMISSIONS.userApprove],
-  AUDITOR: [PERMISSIONS.auditRead],
-};
-
-async function seedRolesAndPermissions(): Promise<void> {
-  // 角色
-  for (const r of ROLES) {
-    await db
-      .insert(role)
-      .values({ code: r.code, name: r.name, description: r.description, isSystem: true })
-      .onConflictDoNothing({ target: role.code });
-  }
-  // 权限
-  for (const code of ALL_PERMISSIONS) {
-    await db
-      .insert(permission)
-      .values({ code, name: PERMISSION_NAMES[code], groupCode: PERMISSION_GROUPS[code] })
-      .onConflictDoNothing({ target: permission.code });
-  }
-  // 角色-权限绑定
-  const roles = await db.select().from(role);
-  const permissions = await db.select().from(permission);
-  const roleIdByCode = new Map<string, number>(roles.map((r) => [r.code, r.id]));
-  const permissionIdByCode = new Map<string, number>(permissions.map((p) => [p.code, p.id]));
-
-  for (const [roleCode, permCodes] of Object.entries(ROLE_PERMISSIONS)) {
-    const roleId = roleIdByCode.get(roleCode);
-    if (roleId === undefined) throw new Error(`seed: role ${roleCode} not found`);
-    for (const permCode of permCodes) {
-      const permissionId = permissionIdByCode.get(permCode);
-      if (permissionId === undefined) throw new Error(`seed: permission ${permCode} not found`);
-      await db.insert(rolePermission).values({ roleId, permissionId }).onConflictDoNothing();
-    }
-  }
-}
-
+/** global 空间锚点（幂等：按 slug upsert） */
 async function seedGlobalNamespace(): Promise<void> {
   await db
     .insert(namespace)
@@ -103,7 +33,7 @@ async function seedGlobalNamespace(): Promise<void> {
     .onConflictDoNothing({ target: namespace.slug });
 }
 
-/** SEED_ADMIN_* env 存在 → 建本地账号并绑 SUPER_ADMIN（R6；幂等：username 已存在则跳过） */
+/** SEED_ADMIN_* env 存在 → 建本地账号并直写 `role = SUPER_ADMIN`（幂等：username 已存在则跳过） */
 async function seedAdmin(): Promise<void> {
   const username = process.env.SEED_ADMIN_USERNAME;
   const password = process.env.SEED_ADMIN_PASSWORD;
@@ -120,20 +50,21 @@ async function seedAdmin(): Promise<void> {
 
   const adminId = `usr_${crypto.randomUUID()}`;
   await db.transaction(async (tx) => {
-    await tx.insert(userAccount).values({ id: adminId, displayName: username, status: 'ACTIVE' });
+    await tx.insert(userAccount).values({
+      id: adminId,
+      displayName: username,
+      status: 'ACTIVE',
+      role: ACCOUNT_ROLE.SUPER_ADMIN,
+    });
     await tx.insert(localCredential).values({
       userId: adminId,
       username: username.toLowerCase().trim(),
       passwordHash: await hashPassword(password),
     });
-    const superAdmin = await tx.select().from(role).where(eq(role.code, 'SUPER_ADMIN'));
-    if (superAdmin.length === 0) throw new Error('seed: SUPER_ADMIN role not found');
-    await tx.insert(userRoleBinding).values({ userId: adminId, roleId: superAdmin[0]!.id });
   });
-  console.log(`[seed] admin ${username} created with SUPER_ADMIN`);
+  console.log(`[seed] admin ${username} created with role=SUPER_ADMIN`);
 }
 
-await seedRolesAndPermissions();
 await seedGlobalNamespace();
 await seedAdmin();
 console.log('[seed] done');

@@ -22,6 +22,8 @@ import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   type AssetType,
   asset,
   assetFile,
@@ -29,10 +31,7 @@ import {
   auditLog,
   namespace,
   namespaceMember,
-  type RoleCode,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildZip } from '../test-utils/zip-builder.js';
@@ -75,15 +74,8 @@ async function insertNs(
 async function addMember(ns: number, userId: string, roleName: 'OWNER' | 'ADMIN' | 'MEMBER') {
   await db.insert(namespaceMember).values({ namespaceId: ns, userId, role: roleName });
 }
-async function ensureRole(roleCode: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code: roleCode, name: `r-${roleCode}`, isSystem: true })
-    .onConflictDoNothing();
-}
-async function bindRole(userId: string, roleCode: RoleCode) {
-  const rows = await db.select().from(role).where(eq(role.code, roleCode));
-  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'ast-http');
@@ -169,12 +161,10 @@ beforeAll(async () => {
   member = await makeUser('member');
   owner2 = await makeUser('owner2');
   outsider = await makeUser('outsider');
-  await ensureRole('ASSET_ADMIN');
-  await ensureRole('SUPER_ADMIN');
   assetAdmin = await makeUser('asset-admin');
   superAdmin = await makeUser('super-admin');
-  await bindRole(assetAdmin, 'ASSET_ADMIN');
-  await bindRole(superAdmin, 'SUPER_ADMIN');
+  await setRole(assetAdmin, ACCOUNT_ROLE.ADMIN);
+  await setRole(superAdmin, ACCOUNT_ROLE.SUPER_ADMIN);
   nsA = await insertNs('ast-http-ns');
   await insertNs('ast-http-frozen', 'FROZEN');
   const nsB = await insertNs('ast-http-nsb');
@@ -257,7 +247,6 @@ afterAll(async () => {
   const userIds = users.map((u) => u.id);
   if (userIds.length > 0) {
     await db.delete(auditLog).where(inArray(auditLog.actorId, userIds));
-    await db.delete(userRoleBinding).where(inArray(userRoleBinding.userId, userIds));
   }
   await db.delete(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
   await rm(storageDir, { recursive: true, force: true });

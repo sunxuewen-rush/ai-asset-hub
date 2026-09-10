@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
+import { ACCOUNT_ROLE } from '../auth/rbac.js';
 import type { Db } from '../db/client.js';
 import { labelTypeSchema } from '../db/schema/index.js';
 import { LabelError, labelErrorCodes } from '../labels/errors.js';
@@ -56,8 +57,8 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
   async function assertSuperAdmin(c: import('hono').Context): Promise<void> {
     const principal = c.get('principal')!;
     const rbac = c.get('rbac')!;
-    const roles = await rbac.platformRolesOf(principal.userId);
-    if (!roles.includes('SUPER_ADMIN')) throw new LabelError(labelErrorCodes.accessDenied);
+    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+    if (role < ACCOUNT_ROLE.SUPER_ADMIN) throw new LabelError(labelErrorCodes.accessDenied);
   }
 
   // 公开列表（匿名——06 §5.1；displayName 回退 Accept-Language → en → slug）

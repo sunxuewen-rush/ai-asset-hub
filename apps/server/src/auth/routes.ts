@@ -6,6 +6,7 @@ import { AUDIT_ACTIONS } from '../audit/audit.js';
 import type { AuthService, LoginInput } from './auth-service.js';
 import { AuthError } from './errors.js';
 import type { RateLimiter } from './rate-limit.js';
+import { ACCOUNT_ROLE } from './rbac.js';
 import type { SessionManager } from './session.js';
 import { attachSessionCookie, revokeSession } from './session-middleware.js';
 import { PASSWORD_MIN_LENGTH, USERNAME_MAX, USERNAME_PATTERN } from './users.js';
@@ -110,13 +111,14 @@ export function createAuthRoutes(deps: AuthRoutesDeps): Hono {
     return c.body(null, 204);
   });
 
-  // GET /api/auth/me —— 当前用户
-  app.get('/me', (c) => {
+  // GET /api/auth/me —— 当前用户（M4-pre design §8：平台角色改返 `role` 单值 4 档）
+  app.get('/me', async (c) => {
     const principal = c.get('principal');
     if (!principal) {
       return c.json({ code: 'auth.session_expired', message: 'not authenticated' }, 401);
     }
-    return c.json({ user: { id: principal.userId, displayName: principal.displayName } });
+    const role = (await c.get('rbac')!.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+    return c.json({ user: { id: principal.userId, displayName: principal.displayName }, role });
   });
 
   return app;

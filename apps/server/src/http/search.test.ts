@@ -27,10 +27,7 @@ import {
   labelDefinition,
   namespace,
   namespaceMember,
-  type RoleCode,
-  role,
   userAccount,
-  userRoleBinding,
 } from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
 import { ReviewError } from '../review/errors.js';
@@ -54,12 +51,6 @@ async function makeUser(tag: string): Promise<string> {
   const id = `${PREFIX}${tag}_${randomUUID()}`;
   await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
   return id;
-}
-async function ensureRole(code: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code, name: `r-${code}`, isSystem: true })
-    .onConflictDoNothing();
 }
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'srch-http');
@@ -153,7 +144,6 @@ afterAll(async () => {
   await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await rm(storageDir, { recursive: true, force: true });

@@ -36,9 +36,10 @@ import { canViewAsset } from '../assets/visibility.js';
 import { canYank, yankVersion } from '../assets/yank.js';
 import type { AuditWriter } from '../audit/audit.js';
 import { AuthError } from '../auth/errors.js';
-import { PERMISSIONS } from '../auth/permissions.js';
 import type { RateLimiter } from '../auth/rate-limit.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
+import { ACCOUNT_ROLE } from '../auth/rbac.js';
+import { TOKEN_SCOPES } from '../auth/token-scopes.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
@@ -158,12 +159,12 @@ async function viewerContext(
     return { viewerId: null, namespaceRole: null, isSuperAdmin: false, isPlatformReviewer: false };
   const rbac = c.get('rbac')!;
   const roles = await rbac.getNamespaceRoles(principal.userId, namespaceId);
-  const platformRoles = await rbac.platformRolesOf(principal.userId);
+  const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
   return {
     viewerId: principal.userId,
     namespaceRole: (roles[0] as NamespaceRole | undefined) ?? null,
-    isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
-    isPlatformReviewer: platformRoles.includes('ASSET_ADMIN'),
+    isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
+    isPlatformReviewer: role >= ACCOUNT_ROLE.ADMIN,
   };
 }
 
@@ -230,7 +231,7 @@ async function assertManageable(
   const viewer = await viewerContext(c, ns.id);
   // R14 scope 交集先于超管短路（superAdmin + 收窄 scope = 收窄生效——design §8「无 scope 概念」
   // 仅指无码超管面如 label 管理；管理写面有 asset:manage 码可交）
-  assertTokenScoped(c, PERMISSIONS.assetManage);
+  assertTokenScoped(c, TOKEN_SCOPES.assetManage);
   if (viewer.isSuperAdmin) return { isSuperAdmin: true };
   if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden');
   const allowed = canManageAsset({
@@ -269,11 +270,11 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
 
     const ns = await findNamespaceBySlug(db, namespaceSlug);
     if (!ns) throw new AssetError(assetErrorCodes.namespaceNotFound);
-    const allowed = await rbac.can(principal.userId, PERMISSIONS.assetPublish, {
+    const allowed = await rbac.can(principal.userId, TOKEN_SCOPES.assetPublish, {
       namespaceId: ns.id,
     });
     if (!allowed) throw new AuthError('auth.forbidden');
-    assertTokenScoped(c, PERMISSIONS.assetPublish); // T15：token scope 交集（R14）
+    assertTokenScoped(c, TOKEN_SCOPES.assetPublish); // T15：token scope 交集（R14）
 
     const row = await createAsset(db, {
       namespaceSlug,
@@ -306,10 +307,12 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
     const { limit, offset, nsSlug, type, visibility, q, label } = parsed.data;
-    const platformRoles = principal ? await rbac.platformRolesOf(principal.userId) : [];
+    const role = principal
+      ? ((await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST)
+      : ACCOUNT_ROLE.GUEST;
     const viewer: AssetViewerContext = {
       userId: principal?.userId ?? null,
-      isSuperAdmin: platformRoles.includes('SUPER_ADMIN'),
+      isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
     };
     const { items, total } = await listViewableAssets(db, {
       limit,
@@ -616,9 +619,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const ns = await findNamespaceBySlug(db, nsSlug);
     if (!ns) throw new AssetError(assetErrorCodes.notFound);
     const rbac = c.get('rbac')!;
-    const can = await rbac.can(principal.userId, PERMISSIONS.assetPublish, { namespaceId: ns.id });
+    const can = await rbac.can(principal.userId, TOKEN_SCOPES.assetPublish, { namespaceId: ns.id });
     if (!can) throw new AuthError('auth.forbidden');
-    assertTokenScoped(c, PERMISSIONS.assetPublish); // T15：token scope 交集
+    assertTokenScoped(c, TOKEN_SCOPES.assetPublish); // T15：token scope 交集
     const [assetRow] = await db
       .select({ id: asset.id, type: asset.type })
       .from(asset)
@@ -700,7 +703,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       isSuperAdmin: viewer.isSuperAdmin,
     });
     // R14：版本删除（含上传者本人草稿撤回）scope 交集——design §8 ②「删除 = asset:manage」
-    assertTokenScoped(c, PERMISSIONS.assetManage);
+    assertTokenScoped(c, TOKEN_SCOPES.assetManage);
     const uploaderRetract =
       DELETABLE_UPLOADER.has(status) && versionRow.createdBy === principal.userId;
     if (!manager && !uploaderRetract) throw new AuthError('auth.forbidden');
@@ -747,10 +750,10 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       if (ns.status !== 'ACTIVE') throw new AuthError('auth.forbidden'); // 空间写门（05 §6.3）
     }
     const rbac = c.get('rbac')!;
-    const hasReviewSubmit = await rbac.can(principal.userId, PERMISSIONS.reviewSubmit, {
+    const hasReviewSubmit = await rbac.can(principal.userId, TOKEN_SCOPES.reviewSubmit, {
       namespaceId: ns.id,
     });
-    assertTokenScoped(c, PERMISSIONS.reviewSubmit); // T15：token scope 交集（R14——scope 无码即拒）
+    assertTokenScoped(c, TOKEN_SCOPES.reviewSubmit); // T15：token scope 交集（R14——scope 无码即拒）
     if (
       !canSubmitReview({
         assetOwnerId: row.ownerId,
@@ -803,11 +806,11 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
 
     const rbac = c.get('rbac')!;
-    const platformRoles = await rbac.platformRolesOf(principal.userId);
-    if (!canYank(platformRoles.includes('ASSET_ADMIN'), platformRoles.includes('SUPER_ADMIN'))) {
+    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
+    if (!canYank(role >= ACCOUNT_ROLE.ADMIN, role >= ACCOUNT_ROLE.SUPER_ADMIN)) {
       throw new AuthError('auth.forbidden');
     }
-    assertTokenScoped(c, PERMISSIONS.assetManage); // R14：yank 平台治理面 scope 交集（design §8 ②）
+    assertTokenScoped(c, TOKEN_SCOPES.assetManage); // R14：yank 平台治理面 scope 交集（design §8 ②）
     const body = (await c.req.json().catch(() => ({}))) as { reason?: unknown };
     if (typeof body.reason !== 'string' || body.reason.trim() === '') {
       throw new AssetError(assetErrorCodes.yankReasonRequired);
@@ -845,7 +848,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     // R14 scope：RECOMMENDED 挂载 = asset:manage（design §8 ②——service 分判内组合）
     const scopes = c.get('tokenScopes');
     const hasAssetManageScope =
-      scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
+      scopes === undefined || scopes === null || scopes.has(TOKEN_SCOPES.assetManage);
     await attachLabel(db, deps.audit, {
       assetId: row.id,
       labelSlug,
@@ -876,7 +879,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     // R14 scope：移除挂载同挂载权（RECOMMENDED = asset:manage——service 分判内组合）
     const scopes = c.get('tokenScopes');
     const hasAssetManageScope =
-      scopes === undefined || scopes === null || scopes.has(PERMISSIONS.assetManage);
+      scopes === undefined || scopes === null || scopes.has(TOKEN_SCOPES.assetManage);
     await detachLabel(db, deps.audit, {
       assetId: row.id,
       labelSlug,

@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { queryAudit } from '../audit/query.js';
-import { PERMISSIONS } from '../auth/permissions.js';
+import { ACCOUNT_ROLE } from '../auth/rbac.js';
+import { TOKEN_SCOPES } from '../auth/token-scopes.js';
 import type { Db } from '../db/client.js';
-import { requirePermission } from './auth-middleware.js';
+import { requireRole } from './auth-middleware.js';
 
 /**
  * /api/audit 路由组（T20，05 §6.4 audit:read：AUDITOR/SUPER_ADMIN 浏览审计日志）。
@@ -41,7 +42,7 @@ const auditQuerySchema = z.object({
 export function createAuditRoutes(deps: AuditRoutesDeps): Hono {
   const { db } = deps;
   const app = new Hono();
-  app.use('*', requirePermission(PERMISSIONS.auditRead));
+  app.use('*', requireRole(ACCOUNT_ROLE.ADMIN, { scope: TOKEN_SCOPES.auditRead }));
 
   app.get('/', async (c) => {
     const parsed = auditQuerySchema.safeParse(c.req.query());

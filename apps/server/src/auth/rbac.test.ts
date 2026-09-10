@@ -3,67 +3,22 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
-process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
+process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import {
-  namespace,
-  namespaceMember,
-  permission,
-  type RoleCode,
-  role,
-  rolePermission,
-  userAccount,
-  userRoleBinding,
-} from '../db/schema/index.js';
-import {
-  ALL_PERMISSIONS,
-  PERMISSION_GROUPS,
-  PERMISSION_NAMES,
-  PERMISSIONS,
-} from './permissions.js';
-import { isSelfReview, RbacService } from './rbac.js';
+import { type AccountRole, namespace, namespaceMember, userAccount } from '../db/schema/index.js';
+import { ACCOUNT_ROLE, isSelfReview, RbacService } from './rbac.js';
+
+/**
+ * 角色判定测试（M4-pre design §2.2：**唯一轴 4 档线性**，`role >= minRole`）。
+ * - `roleOf` / `hasRole`：新判定入口（四档 + 非 ACTIVE/不存在 → null）
+ * - `can()`：**过渡态**（S1→S2 之间为空间相关调用点保留；平台侧 = 管理档全权，空间侧原语义）
+ */
 
 let db: Db;
 let rbac: RbacService;
 let nsId: number;
-
-/** 幂等基线：角色 4 + 权限 10 + ASSET_ADMIN 绑定（复用 seed 同源常量） */
-async function seedBaseline(): Promise<void> {
-  for (const code of ALL_PERMISSIONS) {
-    await db
-      .insert(permission)
-      .values({ code, name: PERMISSION_NAMES[code], groupCode: PERMISSION_GROUPS[code] })
-      .onConflictDoNothing();
-  }
-  const roles = await db.select().from(role);
-  if (roles.length === 0) {
-    await db.insert(role).values([
-      { code: 'SUPER_ADMIN', name: '超级管理员', isSystem: true },
-      { code: 'ASSET_ADMIN', name: '资产管理员', isSystem: true },
-      { code: 'USER_ADMIN', name: '用户管理员', isSystem: true },
-      { code: 'AUDITOR', name: '审计员', isSystem: true },
-    ]);
-  }
-  const assetAdmin = await db.select().from(role).where(eq(role.code, 'ASSET_ADMIN'));
-  const perms = await db.select().from(permission);
-  const permIdByCode = new Map(perms.map((p) => [p.code, p.id]));
-  const assetPerms = [
-    PERMISSIONS.assetPublish,
-    PERMISSIONS.reviewSubmit,
-    PERMISSIONS.assetManage,
-    PERMISSIONS.assetPromote,
-    PERMISSIONS.reviewApprove,
-    PERMISSIONS.promotionApprove,
-  ];
-  for (const code of assetPerms) {
-    await db
-      .insert(rolePermission)
-      .values({ roleId: assetAdmin[0]!.id, permissionId: permIdByCode.get(code)! })
-      .onConflictDoNothing();
-  }
-}
 
 async function makeUser(displayName: string): Promise<string> {
   const id = `usr_${randomUUID()}`;
@@ -71,9 +26,8 @@ async function makeUser(displayName: string): Promise<string> {
   return id;
 }
 
-async function bindPlatformRole(userId: string, roleCode: RoleCode): Promise<void> {
-  const rows = await db.select().from(role).where(eq(role.code, roleCode));
-  await db.insert(userRoleBinding).values({ userId, roleId: rows[0]!.id });
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 
 async function addNamespaceMember(
@@ -86,7 +40,6 @@ async function addNamespaceMember(
 beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
-  await seedBaseline();
   rbac = new RbacService(db);
   const inserted = await db
     .insert(namespace)
@@ -100,13 +53,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // 精确清理（displayName like 前缀；勿全表删 userRoleBinding/namespaceMember——与其他测试文件并行互踩）
+  // 精确清理（displayName like 前缀；勿全表删 namespaceMember——与其他测试文件并行互踩）
   const mine = await db
     .select({ id: userAccount.id })
     .from(userAccount)
     .where(like(userAccount.displayName, 'rbac-%'));
   for (const u of mine) {
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(namespaceMember).where(eq(namespaceMember.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
@@ -114,82 +66,103 @@ afterAll(async () => {
   await db.$client.end();
 });
 
-describe('RbacService.can — 判定链（05 §6.3）', () => {
-  it('SUPER_ADMIN 短路任意权限', async () => {
+describe('RbacService.roleOf / hasRole —— 4 档层级（M4-pre §2.2）', () => {
+  it('SUPER_ADMIN 档：roleOf=100，hasRole 对任意档为真', async () => {
     const uid = await makeUser('rbac-super');
-    await bindPlatformRole(uid, 'SUPER_ADMIN');
-    await expect(rbac.can(uid, PERMISSIONS.auditRead)).resolves.toBe(true);
-    await expect(rbac.can(uid, PERMISSIONS.assetManage, { namespaceId: nsId })).resolves.toBe(true);
+    await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
+    await expect(rbac.roleOf(uid)).resolves.toBe(ACCOUNT_ROLE.SUPER_ADMIN);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.USER)).resolves.toBe(true);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(true);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.SUPER_ADMIN)).resolves.toBe(true);
   });
 
-  it('平台角色授予其绑定权限（ASSET_ADMIN）', async () => {
-    const uid = await makeUser('rbac-asset-admin');
-    await bindPlatformRole(uid, 'ASSET_ADMIN');
-    await expect(rbac.can(uid, PERMISSIONS.assetPublish)).resolves.toBe(true);
-    await expect(rbac.can(uid, PERMISSIONS.reviewApprove)).resolves.toBe(true);
-    await expect(rbac.can(uid, PERMISSIONS.auditRead)).resolves.toBe(false);
-    await expect(rbac.can(uid, PERMISSIONS.userManage)).resolves.toBe(false);
+  it('ADMIN 档：过 USER/ADMIN 门，不过 SUPER_ADMIN 门', async () => {
+    const uid = await makeUser('rbac-admin');
+    await setRole(uid, ACCOUNT_ROLE.ADMIN);
+    await expect(rbac.roleOf(uid)).resolves.toBe(ACCOUNT_ROLE.ADMIN);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.USER)).resolves.toBe(true);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(true);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.SUPER_ADMIN)).resolves.toBe(false);
   });
 
-  it('无平台角色且非空间成员 → 无权限', async () => {
-    const uid = await makeUser('rbac-plain');
-    await expect(rbac.can(uid, PERMISSIONS.assetPublish)).resolves.toBe(false);
-    await expect(rbac.can(uid, PERMISSIONS.assetPublish, { namespaceId: nsId })).resolves.toBe(
-      false,
-    );
+  it('USER 档（默认）：仅过 USER 门', async () => {
+    const uid = await makeUser('rbac-user');
+    await expect(rbac.roleOf(uid)).resolves.toBe(ACCOUNT_ROLE.USER);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.USER)).resolves.toBe(true);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
   });
 
-  it('空间 MEMBER 可发布但不可提交审核/管理；无空间上下文时平台权限为准', async () => {
-    const uid = await makeUser('rbac-member');
+  it('DISABLED 用户 → roleOf=null，hasRole 全假（即使 role=超管）', async () => {
+    const uid = await makeUser('rbac-disabled');
+    await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
+    await db.update(userAccount).set({ status: 'DISABLED' }).where(eq(userAccount.id, uid));
+    await expect(rbac.roleOf(uid)).resolves.toBeNull();
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.USER)).resolves.toBe(false);
+    await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
+  });
+
+  it('不存在的用户 → roleOf=null', async () => {
+    await expect(rbac.roleOf('usr_no-such-user')).resolves.toBeNull();
+    await expect(rbac.hasRole('usr_no-such-user', ACCOUNT_ROLE.USER)).resolves.toBe(false);
+  });
+});
+
+describe('RbacService.can —— 过渡态兼容（M4-pre S1→S2）', () => {
+  it('管理档：平台侧全权（原 ASSET_ADMIN/USER_ADMIN/AUDITOR 三码表合并）', async () => {
+    const uid = await makeUser('rbac-can-admin');
+    await setRole(uid, ACCOUNT_ROLE.ADMIN);
+    await expect(rbac.can(uid, 'asset:publish')).resolves.toBe(true);
+    await expect(rbac.can(uid, 'review:approve')).resolves.toBe(true);
+    await expect(rbac.can(uid, 'audit:read')).resolves.toBe(true);
+    await expect(rbac.can(uid, 'asset:manage', { namespaceId: nsId })).resolves.toBe(true);
+  });
+
+  it('超管档：任意码 + 任意空间上下文为真', async () => {
+    const uid = await makeUser('rbac-can-super');
+    await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
+    await expect(rbac.can(uid, 'audit:read')).resolves.toBe(true);
+    await expect(rbac.can(uid, 'asset:manage', { namespaceId: nsId })).resolves.toBe(true);
+  });
+
+  it('普通用户且非空间成员 → 全假', async () => {
+    const uid = await makeUser('rbac-can-plain');
+    await expect(rbac.can(uid, 'asset:publish')).resolves.toBe(false);
+    await expect(rbac.can(uid, 'asset:publish', { namespaceId: nsId })).resolves.toBe(false);
+  });
+
+  it('空间 MEMBER 可发布、不可提交审核/管理；无空间上下文时平台侧为准', async () => {
+    const uid = await makeUser('rbac-can-member');
     await addNamespaceMember(uid, 'MEMBER');
-    await expect(rbac.can(uid, PERMISSIONS.assetPublish, { namespaceId: nsId })).resolves.toBe(
-      true,
-    );
-    // 05 §6.4：review:submit 需 owner 本人或 ADMIN/OWNER——普通 MEMBER 无（owner 判定走业务层）
-    await expect(rbac.can(uid, PERMISSIONS.reviewSubmit, { namespaceId: nsId })).resolves.toBe(
-      false,
-    );
-    await expect(rbac.can(uid, PERMISSIONS.assetPublish)).resolves.toBe(false);
-    await expect(rbac.can(uid, PERMISSIONS.assetManage, { namespaceId: nsId })).resolves.toBe(
-      false,
-    );
+    await expect(rbac.can(uid, 'asset:publish', { namespaceId: nsId })).resolves.toBe(true);
+    await expect(rbac.can(uid, 'review:submit', { namespaceId: nsId })).resolves.toBe(false);
+    await expect(rbac.can(uid, 'asset:manage', { namespaceId: nsId })).resolves.toBe(false);
+    await expect(rbac.can(uid, 'asset:publish')).resolves.toBe(false);
   });
 
-  it('空间 ADMIN 可审核/管成员（namespace:manage）', async () => {
-    const uid = await makeUser('rbac-ns-admin');
+  it('空间 ADMIN 可管成员/审核本空间', async () => {
+    const uid = await makeUser('rbac-can-ns-admin');
     await addNamespaceMember(uid, 'ADMIN');
-    await expect(rbac.can(uid, PERMISSIONS.namespaceManage, { namespaceId: nsId })).resolves.toBe(
-      true,
-    );
-    await expect(rbac.can(uid, PERMISSIONS.reviewApprove, { namespaceId: nsId })).resolves.toBe(
-      true,
-    );
+    await expect(rbac.can(uid, 'namespace:manage', { namespaceId: nsId })).resolves.toBe(true);
+    await expect(rbac.can(uid, 'review:approve', { namespaceId: nsId })).resolves.toBe(true);
   });
 
-  it('FROZEN 空间拒写（MEMBER）；SUPER_ADMIN 短路不受限', async () => {
-    const member = await makeUser('rbac-frozen-member');
+  it('FROZEN 空间拒写（普通档）；管理档不受限', async () => {
+    const member = await makeUser('rbac-can-frozen-member');
     await addNamespaceMember(member, 'MEMBER');
     await db.update(namespace).set({ status: 'FROZEN' }).where(eq(namespace.id, nsId));
-    await expect(rbac.can(member, PERMISSIONS.assetPublish, { namespaceId: nsId })).resolves.toBe(
-      false,
-    );
-    const superId = await makeUser('rbac-frozen-super');
-    await bindPlatformRole(superId, 'SUPER_ADMIN');
-    await expect(rbac.can(superId, PERMISSIONS.assetPublish, { namespaceId: nsId })).resolves.toBe(
-      true,
-    );
+    await expect(rbac.can(member, 'asset:publish', { namespaceId: nsId })).resolves.toBe(false);
+    const adminId = await makeUser('rbac-can-frozen-admin');
+    await setRole(adminId, ACCOUNT_ROLE.ADMIN);
+    await expect(rbac.can(adminId, 'asset:publish', { namespaceId: nsId })).resolves.toBe(true);
     await db.update(namespace).set({ status: 'ACTIVE' }).where(eq(namespace.id, nsId));
   });
 
-  it('DISABLED 用户拒绝全部（即使 SUPER_ADMIN）', async () => {
-    const uid = await makeUser('rbac-disabled');
-    await bindPlatformRole(uid, 'SUPER_ADMIN');
+  it('DISABLED 用户 / 不存在用户 → 全假', async () => {
+    const uid = await makeUser('rbac-can-disabled');
+    await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
     await db.update(userAccount).set({ status: 'DISABLED' }).where(eq(userAccount.id, uid));
-    await expect(rbac.can(uid, PERMISSIONS.auditRead)).resolves.toBe(false);
-  });
-
-  it('不存在的用户拒绝', async () => {
-    await expect(rbac.can('usr_no-such-user', PERMISSIONS.auditRead)).resolves.toBe(false);
+    await expect(rbac.can(uid, 'audit:read')).resolves.toBe(false);
+    await expect(rbac.can('usr_no-such-user', 'audit:read')).resolves.toBe(false);
   });
 });
 

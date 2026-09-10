@@ -10,22 +10,12 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 import { createAuditWriter } from '../audit/audit.js';
 import { csrfProtection } from '../auth/csrf.js';
 import { AuthError } from '../auth/errors.js';
-import { PERMISSIONS } from '../auth/permissions.js';
-import { RbacService } from '../auth/rbac.js';
+import { ACCOUNT_ROLE, RbacService } from '../auth/rbac.js';
 import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  apiToken,
-  auditLog,
-  permission,
-  type RoleCode,
-  role,
-  rolePermission,
-  userAccount,
-  userRoleBinding,
-} from '../db/schema/index.js';
+import { type AccountRole, apiToken, auditLog, userAccount } from '../db/schema/index.js';
 import { createAuditRoutes } from './audit.js';
 import { rbacContext } from './auth-middleware.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
@@ -40,27 +30,9 @@ async function makeUser(displayName: string): Promise<string> {
   return id;
 }
 
-async function ensureRole(roleCode: RoleCode) {
-  await db
-    .insert(role)
-    .values({ code: roleCode, name: `role-${roleCode}`, isSystem: true })
-    .onConflictDoNothing();
-}
-
-/** 角色绑权限（05 §6.4：AUDITOR → audit:read）+ 用户绑角色 */
-async function grantRolePermission(userId: string, roleCode: RoleCode, permCode: string) {
-  await ensureRole(roleCode);
-  await db
-    .insert(permission)
-    .values({ code: permCode, name: `perm-${permCode}`, groupCode: permCode.split(':')[0] })
-    .onConflictDoNothing();
-  const [roleRow] = await db.select().from(role).where(eq(role.code, roleCode));
-  const [permRow] = await db.select().from(permission).where(eq(permission.code, permCode));
-  await db
-    .insert(rolePermission)
-    .values({ roleId: roleRow!.id, permissionId: permRow!.id })
-    .onConflictDoNothing();
-  await db.insert(userRoleBinding).values({ userId, roleId: roleRow!.id });
+/** 直写账号角色（M4-pre：`user_account.role` 单列 4 档） */
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 
 async function mintToken(userId: string): Promise<string> {
@@ -103,12 +75,9 @@ beforeAll(async () => {
   auditor = await makeUser('au-auditor');
   superAdmin = await makeUser('au-super-admin');
   plain = await makeUser('au-plain');
-  await grantRolePermission(auditor, 'AUDITOR', PERMISSIONS.auditRead);
-  await ensureRole('SUPER_ADMIN');
-  await db.insert(userRoleBinding).values({
-    userId: superAdmin,
-    roleId: (await db.select().from(role).where(eq(role.code, 'SUPER_ADMIN')))[0]!.id,
-  });
+  // 原 AUDITOR 已并入「管理」档（M4-pre design §2.5 H2：审计浏览 = 管理能力）
+  await setRole(auditor, ACCOUNT_ROLE.ADMIN);
+  await setRole(superAdmin, ACCOUNT_ROLE.SUPER_ADMIN);
 
   // 审计事件数据（requestId au-% 前缀精确清理）
   actor = await makeUser('au-actor');
@@ -146,7 +115,6 @@ afterAll(async () => {
     .where(like(userAccount.displayName, 'au-%'));
   for (const u of users) {
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await db.delete(userRoleBinding).where(eq(userRoleBinding.userId, u.id));
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }
   await db.$client.end();
@@ -163,7 +131,7 @@ describe('GET /api/audit（T20 浏览 + T21 权限面闭环）', () => {
     expect(res.status).toBe(401);
   });
 
-  it('普通用户（无 audit:read）→ 403 auth.forbidden', async () => {
+  it('普通用户（role=USER）→ 403 auth.forbidden', async () => {
     const res = await buildApp().request('/api/audit', {
       headers: { cookie: await cookieFor(plain) },
     });
@@ -172,7 +140,7 @@ describe('GET /api/audit（T20 浏览 + T21 权限面闭环）', () => {
     expect(body.code).toBe('auth.forbidden');
   });
 
-  it('AUDITOR → 200 {items,total,limit,offset}', async () => {
+  it('管理档（原 AUDITOR）→ 200 {items,total,limit,offset}', async () => {
     const res = await buildApp().request('/api/audit', {
       headers: { cookie: await cookieFor(auditor) },
     });
@@ -202,7 +170,7 @@ describe('GET /api/audit（T20 浏览 + T21 权限面闭环）', () => {
     expect(res.status).toBe(200);
   });
 
-  it('Bearer 通道 AUDITOR 同判 → 200（token/session 同一 requirePermission）', async () => {
+  it('Bearer 通道管理档同判 → 200（token/session 同一 requireRole）', async () => {
     const token = await mintToken(auditor);
     const res = await buildApp().request('/api/audit', {
       headers: { authorization: `Bearer ${token}` },
