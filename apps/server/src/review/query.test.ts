@@ -112,23 +112,29 @@ describe('review 队列/我的/详情读面（design §3.7 R8）', () => {
   });
 
   it('审核队列（全站单队列）：全 task 四态可见', async () => {
-    const { items, total } = await listQueue(db, { limit: 50, offset: 0 });
-    expect(total).toBe(4);
-    const statuses = items.map((i) => i.status).sort();
-    expect(statuses).toEqual(['APPROVED', 'PENDING', 'REJECTED', 'WITHDRAWN']);
-    const first = items[0]!;
-    expect(['1.0.0', '2.0.0', '3.0.0', '4.0.0']).toContain(first.assetVersion);
-    expect(first.assetSlug).toBe(`${PREFIX}demo`);
+    const { items } = await listQueue(db, { limit: 200, offset: 0 });
+    // 队列是平台全站的（无空间/资产过滤）——断言只针对本文件的 fixture，
+    // 不依赖「库里只有本文件数据」（AGENTS.md「测试与 CI 约定」第 3 条）
+    const mine = items.filter((i) => i.assetSlug.startsWith(PREFIX));
+    expect(mine).toHaveLength(4);
+    expect(mine.map((i) => i.taskId).sort((a, b) => a - b)).toEqual(
+      [pendingTaskId, approvedTaskId, rejectedTaskId, withdrawnTaskId].sort((a, b) => a - b),
+    );
+    expect(mine.map((i) => i.status).sort()).toEqual([
+      'APPROVED',
+      'PENDING',
+      'REJECTED',
+      'WITHDRAWN',
+    ]);
   });
 
   it('审核队列 status 过滤（PENDING only）', async () => {
-    const { items, total } = await listQueue(db, {
-      status: 'PENDING',
-      limit: 50,
-      offset: 0,
-    });
-    expect(total).toBe(1);
-    expect(items[0]!.taskId).toBe(pendingTaskId);
+    const { items } = await listQueue(db, { status: 'PENDING', limit: 200, offset: 0 });
+    // 过滤语义（返回项全为 PENDING）+ 按本文件前缀定位自己的 pending 任务
+    expect(items.every((i) => i.status === 'PENDING')).toBe(true);
+    expect(items.filter((i) => i.assetSlug.startsWith(PREFIX)).map((i) => i.taskId)).toEqual([
+      pendingTaskId,
+    ]);
   });
 
   it('我的提交（contributor）：本人提交可见、他人提交（owner 的 WITHDRAWN）不可见', async () => {

@@ -473,8 +473,10 @@ describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () =>
 
   it('type 过滤', async () => {
     const res = await getReq('/api/assets?type=mcp', await cookieFor(member));
-    const body = (await res.json()) as { items: Array<{ slug: string }> };
-    expect(body.items.every((i) => i.slug.startsWith('ast-'))).toBe(true);
+    const body = (await res.json()) as { items: Array<{ slug: string; type: string }> };
+    // 断言过滤语义（返回项 type 全为 mcp），不依赖「库里只有本测试的资产」
+    // —— AGENTS.md「测试与 CI 约定」第 3 条
+    expect(body.items.every((i) => i.type === 'mcp')).toBe(true);
     expect(body.items.filter((i) => i.slug === 'ast-priv-mcp').length).toBeGreaterThanOrEqual(1);
   });
 });
