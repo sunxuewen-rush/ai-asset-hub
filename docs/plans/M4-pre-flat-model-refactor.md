@@ -1,8 +1,8 @@
 # M4-pre 扁平化重构实施计划
 
 > Date: 2026-09-10
-> Updated: 2026-09-10（v0.3/v0.3.1：**板块 B（S2 空间删除）执行完成回填**——T5-T9 ✅ + 迁移 0006 实测（含 P2 守卫实证）+ 执行偏离 D4（**用户已拍板 2026-09-10**）/D5 + 用例账（570→521 全可解释）+ dogfood 21/21 + 全链冒烟 24/24 + 深挖自测 **9.32**（F17-F20）；**板块 B 代码 commit `9d6ac57`**（本文档为紧随的 docs 回填 commit——同板 A 惯例）；v0.2：板块 A（T1-T4）执行完成回填——任务状态 ✅ + 断言实测 + 执行偏离注记（D1 `can()` 过渡态保留 / D2 新增 `auth/token-scopes.ts` / D3 `global` 空间种子时点归 S2）+ 深度档自检（18 维 + 四轮审查法，三轮）**8.77 → 9.10**（修复项 F1-F16 见各 Task 修复录 + 修订记录）；四门禁 `--force` 真跑留证（typecheck 4/4 · test 570 · lint 0 · build 4/4）+ F7 测试覆盖口径澄清；**板块 A 代码 commit `59164c1`**（本文档为紧随的 docs 回填 commit——仓库惯例同 M4a 的 `docs: M4a plan mark TN done`；hash 无法自指，故不用 amend））
-> Status: 🔄 执行中（板块 A · S1 ✅ 代码 commit `59164c1`；**板块 B · S2 空间删除：T5-T9 ✅ 四门禁绿（typecheck 4/4 · test 521 = server 494 + protocol 27（1 skip）· lint 0 · build 4/4；均 `--force` 0 cached）+ dogfood 21/21 + 全链冒烟 24/24 + 自检 9.32** · 代码 commit `9d6ac57`；板块 C→D 未开工；板块顺序 A→B→C→D）
+> Updated: 2026-09-10（v0.4：**板块 C（S3 可见性删除）执行完成回填**——T10-T11 ✅ + 迁移 0007 实测 + 执行偏离 D6 + 修复 F21-F24 + 用例账（494→472 可解释）+ 冒烟/dogfood 留证 + 自检 **9.28**；**板块 C 代码 commit `0bf4ee6`**（本文档为紧随的 docs 回填 commit）；v0.3/v0.3.1：**板块 B（S2 空间删除）执行完成回填**——T5-T9 ✅ + 迁移 0006 实测（含 P2 守卫实证）+ 执行偏离 D4（**用户已拍板 2026-09-10**）/D5 + 用例账（570→521 全可解释）+ dogfood 21/21 + 全链冒烟 24/24 + 深挖自测 **9.32**（F17-F20）；**板块 B 代码 commit `9d6ac57`**（本文档为紧随的 docs 回填 commit——同板 A 惯例）；v0.2：板块 A（T1-T4）执行完成回填——任务状态 ✅ + 断言实测 + 执行偏离注记（D1 `can()` 过渡态保留 / D2 新增 `auth/token-scopes.ts` / D3 `global` 空间种子时点归 S2）+ 深度档自检（18 维 + 四轮审查法，三轮）**8.77 → 9.10**（修复项 F1-F16 见各 Task 修复录 + 修订记录）；四门禁 `--force` 真跑留证（typecheck 4/4 · test 570 · lint 0 · build 4/4）+ F7 测试覆盖口径澄清；**板块 A 代码 commit `59164c1`**（本文档为紧随的 docs 回填 commit——仓库惯例同 M4a 的 `docs: M4a plan mark TN done`；hash 无法自指，故不用 amend））
+> Status: 🔄 执行中（板块 A · S1 ✅ `59164c1`；板块 B · S2 ✅ `9d6ac57`（自检 9.32）；**板块 C · S3 可见性删除：T10-T11 ✅ 四门禁绿（typecheck 4/4 · test 498 = server 472 + protocol 27（1 skip）· lint 0 · build 4/4；均 `--force` 0 cached）+ 全链冒烟 24/24 + dogfood 21/21 + 自检 9.28** · 代码 commit `0bf4ee6`；**板块 D（T12 规范同步 + T13 converge）未开工**；板块顺序 A→B→C→D）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-10-flat-model-refactor-design.md`（v0.3 定稿，§N 逐 Task 引用）→ 规范 01 §3.3 · 05 §6 · 08 §4/§5/§7 · 00 §2.2/§5/§6（引用不复制）
 > 命名约定见 docs/plans/README.md
 
@@ -229,18 +229,46 @@
   Modify `apps/server/src/http/assets.ts`（删 `PATCH /api/assets/:slug`（原改 visibility 的端点）；
   列表/详情判定去 visibility 分支）；Modify `assets/{service,version-read,download}.ts`
   （去 visibility 形参与判定）
+  ｜**F21 补（计划 Files 漏列 web）**：`apps/web/src/api/types.ts`（去 `Visibility`/`visibility`）·
+  `apps/web/src/pages/AssetDetail.tsx`（去徽标 + 元信息 KV 行 + 孤儿 `Badge` 导入）·
+  `apps/web/src/i18n/{zh,en}.ts`（去 `market.visibility` 词条）——API 去字段而 web 不跟进会静默显示旧值
 - **Assert**: `asset` 表无 `visibility` 列；公开读面**全匿名可达**（含详情/版本/文件/下载）；
   `grep -rn "visibility\|NAMESPACE_ONLY\|PRIVATE" apps/server/src` 仅余无关命中
+✅ 完成（2026-09-10）。**迁移 0007**（单条 `DROP COLUMN`——无索引/约束依赖，故无需 0006 式重排；头注记录
+  语义后果）：应用前预检 dev 库 4 条全 PUBLIC（**无数据可见面放大**）→ 应用后 `asset` = **11 列无
+  `visibility`** + `drizzle-kit generate` 零漂移。代码面：删 `visibility.ts`（`canViewAsset`）、
+  `PATCH /:slug` 端点、`visibilitySchema`/`Visibility` 类型、`assetItem` 字段、列表 `visibility` 过滤、
+  注册 body 字段、`AssetViewerContext`（列表已与 viewer 身份无关 → 连带清理）+ `stats.ts` 聚合条件
+  收为 `status = ACTIVE`。**web 同步（计划 Files 漏列，F21 已补）**：`api/types.ts`、`AssetDetail.tsx`
+  （徽标 + 元信息 KV 行）、`i18n/{zh,en}.ts`（`market.visibility` + 孤儿 `Badge` 导入）。
+  实证：匿名列表/详情 200 且响应**无 `visibility` 字段**；全链冒烟 24/24（脚本同步新断言）；
+  dogfood 21/21 零 console error（详情页删展示后渲染正常）。
 - **Commit**: `refactor(server): remove asset visibility entirely`
 
 #### T11 测试矩阵改写（design §6）
 - **Files**: Delete `apps/server/src/assets/visibility.test.ts`；Modify 相关读面断言
   （去掉 visibility 维度；补匿名可达断言）；保留非 ACTIVE（HIDDEN/ARCHIVED）语义断言
-  （R6-b 授权集——owner/管理可读，其余 404）
+  （R6-b 授权集——**实测：仅 SUPER_ADMIN 可读，其余（含 owner 与 管理档）404**；D6 修正：原文写
+  「owner/管理可读」与代码/既有断言不符）
 - **Assert**: 全仓绿；匿名读面五端点（列表/详情/版本/文件/下载）全 200；HIDDEN 语义矩阵保留
+✅ 完成（2026-09-10）。整删 `assets/visibility.test.ts`（数据驱动矩阵 19 例——可见性已不存在）；
+  `http/assets.test.ts`：helper 去 `visibility` 形参 + 9 处调用点 + 4 处直插 values 清理；原 PRIVATE
+  详情/列表断言 → 新等价（**公开可达 200** 且 `not.toContain('ast-hidden')` 保留 status 门）；
+  注册 visibility 用例 → 「字段被剥离仍 201」；PATCH visibility 4 例 → **1 例「端点已删 → 404」证据**；
+  文件读面 PRIVATE 403 例 → HIDDEN 读面先行 404 + 原 PRIVATE 资产「读面已放行仅版本不存在」双断言。
+  `assets/service.test.ts` 3 例改写（去 visibility 断言 / 过滤维度改 type / 组合改 type×label）；
+  `http/{download,stats}.test.ts` 插入去字段 + stats 期望值随语义更新（ACTIVE 全计入 6 个 / 下载 3147）。
+  **执行偏离 D6**：本条 Assert 原文括注「HIDDEN/ARCHIVED——owner/管理可读」**与实现不符**（实测**仅
+  SUPER_ADMIN** 可读，owner 与 管理档 同 404）→ 已按代码/既有测试修正（`visibility.test.ts` 原有
+  「HIDDEN × owner → 不可见」即实证）。**修复 F22**：`docs/smoke/scripts/m4a-chain-smoke.ts` 的
+  `详情 200 + PUBLIC/ACTIVE` 断言改「ACTIVE + 无 visibility 字段」（首跑 FAIL(1) 抓出）。
 - **Commit**: `test(server): update read-face assertions after visibility removal`
 
-**板块 C 验收**：全仓绿；公开读面全匿名；非 ACTIVE 授权集语义不变。
+**板块 C 验收**：全仓绿（`--force` 四门禁）；公开读面全匿名可达（列表/详情/版本/文件/下载——全链冒烟
+24/24 + 匿名 API 实测 200 且响应无 `visibility` 字段）；非 ACTIVE 授权集语义不变（仅 SUPER_ADMIN 可读，
+HIDDEN 不进列表）。**用例账**：494 → 472（−22 = `visibility.test.ts` 矩阵 19 例整删 + `assets.test.ts`
+PATCH visibility 4→1）；断言静态对比 HEAD 仅 `service.test.ts` +1 / `assets.test.ts` −4（同因），其余零下降。
+留证：`docs/smoke/2026-09-10-m4-pre-s3.md`（迁移实测 + 冒烟 + dogfood 21/21 + 6 截图）。
 
 ---
 
@@ -288,3 +316,4 @@
 | v0.2 | 2026-09-10 | sunxuewen-rush | 板块 A（T1-T4）执行完成回填：任务状态 ✅ + 断言实测（迁移回填 / `/me` 兼容实据 / 四门禁 `--force` 真跑：typecheck 4/4 · test 570 · lint 0 · build 4/4）+ 执行偏离注记 D1（`can()` 过渡态保留，S2 删）· D2（新增 `token-scopes.ts` 5 码，取值逐字一致 → token 零迁移）· D3（`global` 空间种子保留至 S2）+ 修复录（`role` 补 `.$type<AccountRole>()` 消断言泄漏）+ 深度档自检（18 维 + 四轮审查法，两轮）修复 F1（T3 Files 矛盾 → D3 登记）· F2（T2/§3 断言改可实测口径）· F5（测试文件数 21 → 实测 15）· F6（T2 补过渡期注册语义注）· **F7（§3 覆盖口径——web 无 bun test，改以 typecheck+build+dogfood 兜底；T8 Assert 补 build）**· **F12（T2 Files/Steps 仍写「删 `can()`」→ 改标过渡态保留，与其自身 D1 对齐）**· **F13（`accountRoleSchema` 零消费者 → 保留 + 注释：08 §2 形态的写入侧校验器，M4b 消费）**· **F14（M4b design 加搁置声明 + 修订记录行；`platformRoles`/空间管理章节作废指向 S4/T13）**。Status 转执行中 |
 | v0.3 | 2026-09-10 | sunxuewen-rush | **板块 B（S2 空间删除）执行完成回填**：T5-T9 ✅ + 断言实测（迁移 0006 手工重排 3 处 + P2 前置校验 + dev 库 DB 断言 + drizzle 零漂移；web typecheck/build/grep 0；dogfood 21/21 + 全链冒烟 24/24）+ 执行偏离 **D4**（`POST /:slug/versions` 判定改 owner ∨ 管理——design 未单列，按「版本级操作归 owner/管理」；放宽为「用户+」有漏洞）· **D5**（`rbac.test.ts` 的 `can()` 空间侧 3 例随源码删除，平台侧 4 例改测 `hasRole`）+ 用例账（570→521 全部可解释，逐文件零静默下降）+ 冒烟记录 `docs/smoke/2026-09-10-m4-pre-s2.md` |
 | v0.3.1 | 2026-09-10 | sunxuewen-rush | **板块 B 整体自测（深挖轮）修复录 F17-F20**（用户要求「再次整体自测」，换靶：全仓广度 + 注释腐化类 + 未实证断言）：**F17（类）注释腐化**——26 处源码注释仍描述已删语义/引用**已删函数 `rbac.can()`**/已删角色名（`ASSET_ADMIN`/`AUDITOR`）/已删坐标 `{ns}`（分布 `http/assets.ts` 14 · `assets/{yank,version-read,versions}.ts` 6 · `http/audit.ts` 1 · `review/{query,service}.ts` 2 · `labels/service.ts` 1 · 等）→ 全部改写为「原…（已随空间删除）」历史说明式；根因=codemod 只改代码不改注释 + 上轮只修 1 处（**扫类不足**）；**F18** design §4.1 与 §7/本 plan T10 矛盾——`PATCH /:slug`（visibility）删除归属 S2 vs S3（代码现状=仍在，与 S3 一致）→ 已按 S3 修正 design；**F19** 本 plan T6「审计动作删 5 个」表述不精确 → 精确化为「5 个字面量随 `http/namespaces.ts` 整删；`audit.ts` 无中央动作枚举」；**F20（验证方法学）** P2 守卫此前**从未被实证**——首轮脚手架用 `psql` 无 `ON_ERROR_STOP`（出错仍返回 0）+ 种子误用不存在的 `user_account.username` 列 → **假 PASS**；严格重测确认守卫有效（冲突 → 中止 exit 3 + 输出 `@nsA/dup-slug`·`@nsB/dup-slug` 清单 + 表/列未半途破坏 + 消除冲突后成功=归因对照）。**新增已实证断言**：全新建库按序 0000→0006 跑通且终态正确（0 空间表 / 0 `asset.namespace_id` / `UNIQUE(slug)`） |
+| v0.4 | 2026-09-10 | sunxuewen-rush | **板块 C（S3 可见性删除）执行完成回填**：T10-T11 ✅ + 迁移 0007 实测（应用前预检 4 条全 PUBLIC → 无数据可见面放大；应用后 `asset` = 11 列无 `visibility`；drizzle 零漂移）+ 执行偏离 **D6**（T11 原文括注「owner/管理可读」与实现不符——实测**仅 SUPER_ADMIN** 可读）+ 修复 **F21**（计划 Files 漏列 web 三文件：`api/types.ts` · `AssetDetail.tsx` · `i18n/{zh,en}.ts`——API 去字段而 web 不跟进会静默显示旧值）· **F22**（冒烟脚本 `详情 200 + PUBLIC/ACTIVE` 断言未随 S3 同步 → 首跑 `FAIL(1)` 抓出） + 用例账（494→472 全部可解释：`visibility.test.ts` 矩阵 19 例整删 + `assets.test.ts` PATCH visibility 4→1）+ 修复 **F23**（注释腐化类**第三轮复发**：`assets/service.ts:3` 已删入参维度 · `service.ts:140` 引用**已删文件 `visibility.ts`** · `download.ts:4`「按资产可见性」——3 处已改；根因=「修点必扫类」未自动化，已在 `self-review-scoring` 技能沉淀换靶清单）· **F24**（`assetErrorCodes.accessDenied` = `asset.access_denied` 在 S3 后**零生产者**——唯一抛出点即可见性 403 → 彻底删除，含 `httpStatusForAsset` 分支与 web i18n zh/en 孤儿键）+ 冒烟记录 `docs/smoke/2026-09-10-m4-pre-s3.md`（含 dogfood 21/21 + 6 截图） |

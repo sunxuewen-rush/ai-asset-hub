@@ -18,7 +18,8 @@ ok('列表含 demo-http-mcp', slugs.includes('demo-http-mcp'));
 
 const detail = await json('/assets/demo-rag-skill');
 const d = detail.body;
-ok('详情 200 + PUBLIC/ACTIVE', detail.status === 200 && d.visibility === 'PUBLIC' && d.status === 'ACTIVE');
+// M4-pre S3：可见性已删 —— 断言改为「详情 200 + ACTIVE 且响应无 visibility 字段」
+ok('详情 200 + ACTIVE（S3：无 visibility 字段）', detail.status === 200 && d.status === 'ACTIVE' && d.visibility === undefined);
 ok('详情 latestVersion 1.1.0', d.latestVersion === '1.1.0');
 ok('详情 latestName 投影', d.latestName === 'LangGraph RAG 检索技能');
 ok('详情 downloadCount ≥1284（下载自增）', d.downloadCount >= 1284);

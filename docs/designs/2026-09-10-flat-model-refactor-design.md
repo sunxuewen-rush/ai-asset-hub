@@ -248,7 +248,7 @@ review_task 表（变更）
 |------|------|---------|
 | **S1 角色模型** | `user_account.role` + 迁移回填 + 删 4 权限表 + 重写 `rbac.ts`（`can()`/`getNamespaceRoles()` **过渡态保留**，S2 删）+ 删 `permissions.ts` + 新增 `token-scopes.ts` + `requireRole` + `/me` 返回 `role` + **15** 测试角色断言改写（实测；原估 21） | 全仓 `typecheck` + `test` 绿；`requireRole` 层级负例覆盖（未登录/用户/管理/超管） |
 | **S2 空间删除** | 删 9 端点 + `namespaces.ts`/`.test.ts` + 2 表 + `asset/review_task.namespace_id` + 坐标改裸 slug（14 服务端源文件 / 39 判定点 + 10 前端文件）+ 审计动作/错误码清理 + 存储 key 去空间段 + `rbac.ts` 删过渡态面（D1 闭环）+ 上传草稿版本判据收口（D4） | 同上；坐标全链路回归（注册→详情→版本→文件→下载→对比）；**M4a 全量 dogfood 重跑（P4，Edge headless 5 路由）** |
-| **S3 可见性删除** | 删 `asset.visibility` 列 + `visibility.ts` + `PATCH /:ns/:slug` 端点 + 测试矩阵 | 同上；公开读面全匿名可达；非 ACTIVE 语义（R6-b 授权集）单测保留 |
+| **S3 可见性删除** | 删 `asset.visibility` 列 + `visibility.ts` + `PATCH /:slug` 端点 + 测试矩阵 + **web 同步**（`api/types.ts` 去 `Visibility`/`visibility` · `AssetDetail.tsx` 去徽标与元信息 KV 行 · `i18n/{zh,en}.ts` 去 `market.visibility`）——**S3 执行回写（F21：原边界漏列 web）** | 同上；公开读面全匿名可达；非 ACTIVE 语义单测保留（**实测口径：仅 SUPER_ADMIN 可读，owner 与 管理档 同 404**——D6） |
 | **S4 收尾** | 规范同步（01/05/08/00）+ 全量回归 + converge（00 §7 ②） | 文档-代码对齐；8 维重评 ≥9；M4b design 按新模型重写 |
 
 **每阶段独立 commit**（Conventional Commits），阶段内测试绿方可进入下一阶段；S2 为最大风险段。
