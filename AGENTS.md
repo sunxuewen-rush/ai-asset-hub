@@ -38,7 +38,7 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 | 单包操作 | `bun run --filter=<pkg> <script>`（包：`@ai-asset-hub/protocol` / `server` / `web` / `cli`） |
 | 起 dev 数据库 | `docker compose up -d db`（postgres，宿主端口 5433，连接串样例见 `.env.example`） |
 | 迁移 | `bun run db:migrate`（forward-only；drizzle-kit 生成，迁移文件入库） |
-| 种子 | `bun run db:seed`（幂等：四角色/十权限/global 空间；设 `SEED_ADMIN_USERNAME`/`SEED_ADMIN_PASSWORD` 建首管理员） |
+| 种子 | `bun run db:seed`（幂等；设 `SEED_ADMIN_USERNAME`/`SEED_ADMIN_PASSWORD` 建首管理员并直写 `role=SUPER_ADMIN`——M4-pre 后无角色表/权限码/global 空间） |
 | 起本地服务 | `bun run --filter=@ai-asset-hub/server dev`（先按 `.env.example` 建 `.env`：`DATABASE_URL`/`SESSION_SECRET` 必填） |
 
 注：db 运维脚本（migrate/seed）只需 `DATABASE_URL` 环境变量，不走全量 env。
