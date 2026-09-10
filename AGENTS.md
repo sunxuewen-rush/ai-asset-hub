@@ -67,5 +67,8 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 ## 里程碑
 
 见 `docs/00` §5 的 M0-M6 追踪表与出口标准（追踪表 = 状态唯一源）。当前：
-M0 ✅（骨架）、M1 ✅（平台底座，两阶段完成，注记见 docs/00 §5）；
-下一步：M2 资产域（先对齐范围再立 plan）。
+M0 ✅（骨架）· M1 ✅（平台底座）· M2 ✅（资产域）· M3 ✅（治理管线）· M4a ✅（市场门户）·
+**M4-pre ✅（扁平化重构：4 档角色 / 删空间域 / 删可见性 / 坐标改全局唯一裸 slug — 2026-09-10，
+迁移 0005-0007，design/plan 见 `docs/designs/2026-09-10-flat-model-refactor-design.md` +
+`docs/plans/M4-pre-flat-model-refactor.md`）**；
+下一步：M4b 管理后台（design 已按扁平模型重写 v1.0，先对齐范围再立 plan）。

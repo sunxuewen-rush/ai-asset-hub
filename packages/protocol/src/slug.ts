@@ -3,7 +3,7 @@ import { protocolErrorCodes } from './errors.js';
 
 /**
  * slug 规则（01 §3.3）：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，长度 1-64，不含连续 `--`。
- * 跨类型唯一坐标 `@namespace/slug` 的 slug 段。
+ * 跨类型唯一坐标的 slug 段（M4-pre 扁平化：坐标即**全局唯一裸 slug**，无命名空间段）。
  */
 export const SLUG_REGEX = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 

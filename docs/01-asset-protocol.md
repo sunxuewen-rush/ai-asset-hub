@@ -67,9 +67,9 @@ AI Asset Hub 分发「包型 AI 资产」：技能（skill）、MCP Server（mcp
 
 ### 3.3 坐标与命名
 
-- 寻址：`@namespace/slug`，对所有类型一致
+- 寻址：**裸 `slug`（全局唯一）**，对所有类型一致 —— M4-pre 扁平化：无命名空间维度（原 `@namespace/slug` 中的空间段已删除）
 - slug 规则：`[a-z0-9]([a-z0-9-]*[a-z0-9])?`，长度 1-64，不含连续 `--`
-- **slug 跨类型唯一**（同 namespace 下 skill 与 mcp 不得同名）：安装目录以目录名寻址，
+- **slug 跨类型唯一**（**全局范围内** skill 与 mcp 不得同名）：安装目录以目录名寻址，
   目录名冲突会造成客户端歧义；slug 语义与类型无关
 - 安装后目录名 = slug（不携带类型信息，类型差异体现在安装位置）
 
@@ -132,3 +132,4 @@ interface AssetValidator {
 | v1.4 | 2026-09-08 | sunxuewen-rush | M0/M1 复验同步：§2 登记表 mcp 行族协议版本标注 v1.1 → v1.2（03 已升版未回写） |
 | v1.5 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§3.2 投影 searchText 补「正文摘要 ≤500 字符」截断数值（T11 D1 拍板落档——族协议文档原无数值） |
 | v1.6 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§4 生命周期补全八态注记（REJECTED/YANKED——M3 治理管线落地，指向 08 §7 状态语义） |
+| v1.7 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§3.3 坐标由 `@namespace/slug` 改为**全局唯一裸 slug**（空间段删除；slug 跨类型唯一范围由「同 namespace 下」改为「全局」）；可见性维度删除（资产对外恒公开，读面仅由 `status` 决定）——迁移 0005/0006/0007、design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |

@@ -1,7 +1,7 @@
 # 标签与分类设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-09（v1.4：复盘对标 21-skillhub 源码修正——管理面响应 slug 契约/定义上限/翻译整组替换/locale 归一/parent_id 索引；v1.3（2026-09-08）：M3 实现同步——标签管理管线落地（定义 CRUD/挂载/公开列表）；v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
+> Updated: 2026-09-10（v1.5：**M4-pre 扁平化重构同步**——§1 去「空间运营」；§3 挂载 RECOMMENDED 判定改「owner 本人 / 管理档」；§5.3 API 路径去命名空间段；§6 引用同步；v1.4：复盘对标 21-skillhub 源码修正——管理面响应 slug 契约/定义上限/翻译整组替换/locale 归一/parent_id 索引；v1.3（2026-09-08）：M3 实现同步——标签管理管线落地（定义 CRUD/挂载/公开列表）；v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
 > Status: 定稿（M1 已落 label_definition/translation/asset_label 表结构；M3 已按 v1.3-v1.4 落地标签管理管线——定义 CRUD/挂载/公开列表全量实现 + skillhub 对标修正）
 > Scope: AI Asset Hub 的 label 体系 —— 定义/多语言/两级分类/挂载/筛选语义/权限
 > 设计来源：企业实战验证的 label 方案（Phase 1 基础 + Phase 2 两级分类，设计决策继承，命名资产化）
@@ -11,7 +11,7 @@
 label 是资产的**横切分类与运营标记**体系，独立于 type 维度：
 
 - type（skill/mcp/agent）= 资产「是什么」，协议层固定
-- label = 资产「归哪类/有何标记」，由平台与空间运营，跨类型通用（skill/mcp/agent 均可挂）
+- label = 资产「归哪类/有何标记」，由平台运营，跨类型通用（skill/mcp/agent 均可挂；M4-pre：原「空间运营」随空间域删除）
 - label 承担两类职责：**功能分类**（业务域/方向的两级导航）与**运营标记**（RECOMMENDED 推荐位）
 
 挂载上限：每资产最多 10 个 label。
@@ -56,7 +56,7 @@ asset_label             资产挂载（asset_id + label_id，ON DELETE CASCADE�
 | 操作 | 权限 |
 |------|------|
 | label 定义 CRUD（含 parentId 设置） | 仅 `SUPER_ADMIN` |
-| 挂载 `RECOMMENDED` | owner / 命名空间 ADMIN / SUPER_ADMIN |
+| 挂载 `RECOMMENDED` | owner 本人 / 管理档（`role >= ADMIN`）/ `SUPER_ADMIN`（M4-pre：原「命名空间 ADMIN」并入管理档） |
 | 挂载 `PRIVILEGED` | 仅 `SUPER_ADMIN` |
 | 移除挂载 | 同挂载权限 |
 
@@ -110,9 +110,9 @@ label 定义 CRUD + 批量排序：
   （无搜索文档重建——实时 join 模型）
 - 展示排序：一级按 `sort_order`、二级在父级下按 `sort_order`（服务端层级序，前端直接消费）
 
-### 5.3 资产 label API（owner/空间管理员）
+### 5.3 资产 label API（owner / 管理档）
 
-挂载/移除：`PUT/DELETE /api/assets/{namespace}/{slug}/labels/{labelSlug}` —— 按 §3 权限校验，
+挂载/移除：`PUT/DELETE /api/assets/:slug/labels/:labelSlug` —— 按 §3 权限校验（M4-pre：坐标去命名空间段），
 层级无关。查询响应含 `parentId`（该 label 定义侧的层级归属，`null` = 一级）。
 **幂等**：重复挂已挂 label → 200 成功（不重复计数、不超上限判定）；移除不存在的挂载 → 204
 （DELETE 语义——RESTful 幂等；上限 ≤10 只对新增生效）。
@@ -123,7 +123,7 @@ label 定义 CRUD + 批量排序：
 
 - `01` §3.2 元数据投影的 category 落点 = 本体系（category 挂载 = 资产挂 label）
 - `04` frontmatter 的 `category` 字段：发布时解析映射为挂载（RECOMMENDED 型一级/二级 label）
-- `05` §6 用户角色：挂载权限所需的 owner/空间 ADMIN/SUPER_ADMIN 见用户设计
+- `05` §6 用户角色：挂载权限所需的 `owner 本人 / 管理档 / SUPER_ADMIN` 见用户设计（M4-pre 同步）
 
 ## 7. 修订记录
 
@@ -134,3 +134,4 @@ label 定义 CRUD + 批量排序：
 | v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 落 label 三表结构（definition/translation/asset_label），管线后置 M3 |
 | v1.3 | 2026-09-08 | sunxuewen-rush | M3 实现同步：标签管理管线落地——定义 CRUD/排序（SUPER_ADMIN，slug_taken 409 补码）、挂载 API（RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN，PRIVILEGED = 仅 SUPER_ADMIN；重复挂幂等 200、≤10 超限 400 label.limit_exceeded、删定义级联挂载） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | 复盘对标 21-skillhub 源码修正：§5.2 管理面响应 parentId 回父 slug（LabelDefinitionResponse 同构）；定义总数 ≤100（definition_limit_exceeded）；翻译整组替换（PUT 语义——删未列 locale）；locale 归一与去重预检（translation.locale_duplicate）；parent_id 索引 + 搜索重建句改「无重建——实时 join 模型」落实 |
+| v1.5 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§1 「空间运营」去空间维度；§3 挂载 `RECOMMENDED` 判定「命名空间 ADMIN」→ **管理档（`role >= ADMIN`）**；§5.3 API 路径去命名空间段（`/api/assets/:slug/labels/:labelSlug`）；§6 `05` §6 引用同步 |

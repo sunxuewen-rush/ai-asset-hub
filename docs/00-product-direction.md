@@ -1,7 +1,7 @@
 # AI Asset Hub 产品定位与方向
 
 > Date: 2026-09-04
-> Updated: 2026-09-09（v1.12：§5 M4 行注记——M4a 市场门户完成 ✅（2026-09-09 收尾：portal design v0.8 定稿落地，T1-T19 全绿 538 tests，联调 dogfood 记录 docs/smoke/2026-09-09-m4a-t18.md）；M4b 管理后台拆为待办 ⬜）；v1.11：§5 M3 行完成注记（治理管线闭环 2026-09-08）；v1.10：§5 M2 行完成注记（资产域闭环 2026-09-08）+ M3 行治理语义注记；v1.9：§7 ② 设计层 8 段 → 7 段骨架（删任务清单段）；v1.8：§7 ② 补实施完成重评（converge）约定；v1.7：M1 阶段二完成注记；v1.6 Status 同步定稿；v1.5 M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
+> Updated: 2026-09-10（v1.13：**M4-pre 扁平化重构同步**——§2.2 L50/L51-52 坐标与审核主体（去命名空间/空间管理员）；§5 新增 **M4-pre 里程碑行**（✅ 2026-09-10）+ M4 行 M4b 范围更新；§6 首期非目标补「多租户/空间隔离」；v1.12：§5 M4 行注记——M4a 市场门户完成 ✅（2026-09-09 收尾：portal design v0.8 定稿落地，T1-T19 全绿 538 tests，联调 dogfood 记录 docs/smoke/2026-09-09-m4a-t18.md）；M4b 管理后台拆为待办 ⬜）；v1.11：§5 M3 行完成注记（治理管线闭环 2026-09-08）；v1.10：§5 M2 行完成注记（资产域闭环 2026-09-08）+ M3 行治理语义注记；v1.9：§7 ② 设计层 8 段 → 7 段骨架（删任务清单段）；v1.8：§7 ② 补实施完成重评（converge）约定；v1.7：M1 阶段二完成注记；v1.6 Status 同步定稿；v1.5 M1 阶段一 platform-core 完成注记；v1.4 M6 补 CHANGELOG/runbook）
 > Status: 定稿（项目方向决定板；里程碑出口状态见 §5 追踪表）
 > Scope: 全新开源项目 —— AI 资产注册中心与市场（多类型 AI 可复用资产）
 
@@ -47,9 +47,9 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 
 ### 2.2 治理模型
 
-- 命名空间坐标 `@namespace/slug`：团队空间 + 全局空间，slug 跨类型唯一
+- 坐标 **`slug`（全局唯一，跨类型）**：无命名空间维度（M4-pre 扁平化重构——原 `@namespace/slug` 的空间段已删）
 - **开放协作**：任何人可向任意资产提交更新；非 owner 提交走 `PENDING_REVIEW` 审核；
-  owner/空间管理员审核；全局空间由平台管理员治理 —— Git 式协作，非 owner 独占
+  owner / 平台管理员审核 —— Git 式协作，非 owner 独占（M4-pre：原「空间管理员」「全局空间由平台管理员治理」随空间域删除）
 - 生命周期：版本全序含扫描态（DRAFT → SCANNING → SCAN_FAILED → UPLOADED →
   PENDING_REVIEW → PUBLISHED，详见 08 §7）；资产状态 ACTIVE/HIDDEN/ARCHIVED；
   版本化 + 标签通道（latest 只读，回滚走自定义标签）
@@ -93,7 +93,8 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | M1 | 平台底座：schema/用户认证(本地+SSO 适配)/命名空间/对象存储/审计 | ✅ 阶段一 platform-core + 阶段二 五板块完成（命名空间 HTTP API / 对象存储 Local SPI / API Token 签发-Bearer / 审计浏览 / OIDC 授权码流 / Device Flow；T28/T34 冒烟记录于 M1-phase2 plan） |
 | M2 | 资产域：skill/mcp/agent 三类资产坐标注册 + 族协议校验器/解析器 + 版本上传（DRAFT） | ✅ 2026-09-08 完成（资产域闭环：坐标注册/管理、三族校验器+解析投影、版本上传 DRAFT+读面/删除、空间 OWNER 转让、审计补全——design/plan 见 `2026-09-08-m2-asset-domain-design` + `M2-assets.md`；converge 重评见 docs/00 §7 ②） |
 | M3 | 治理管线：SCANNING→PUBLISHED 状态流转（扫描/审核/发布）+ 标签/搜索/下载/统计 | ✅ 2026-09-08 完成（治理闭环：版本八态 schema+迁移、审核管线（submit/approve/reject/withdraw + 队列读面 + HTTP API）、yank 撤回与 latest 维护、删除面放宽、label 管理/挂载、搜索（q/标签/排序）、下载五档授权+限流、bundle 顺存、token scope 交集——design/plan 见 `2026-09-08-m3-governance-pipeline-design` + `M3-governance.md`；T1-T15 全绿 514 tests） |
-| M4 | 前端：市场门户（类型化浏览/搜索/详情）+ 管理后台 | M4a ✅ 2026-09-09（市场门户：类型化浏览/搜索/详情三 tab + 行级版本对比——design/plan 见 `2026-09-09-m4a-marketplace-portal-design` + `M4a-marketplace.md`；T1-T19 全绿 538 tests；联调 dogfood 截图/记录 docs/smoke/2026-09-09-m4a-t18.md；修复录：useApi StrictMode abort / server lint 债全清）。M4b ⬜ 管理后台（标签/生命周期/审核 UI——待立项） |
+| M4 | 前端：市场门户（类型化浏览/搜索/详情）+ 管理后台 | M4a ✅ 2026-09-09（市场门户：类型化浏览/搜索/详情三 tab + 行级版本对比——design/plan 见 `2026-09-09-m4a-marketplace-portal-design` + `M4a-marketplace.md`；T1-T19 全绿 538 tests；联调 dogfood 截图/记录 docs/smoke/2026-09-09-m4a-t18.md；修复录：useApi StrictMode abort / server lint 债全清）。M4b ⬜ 管理后台（标签/生命周期/审核 UI——按扁平模型重写 design v1.0，待立项） |
+| **M4-pre** | **前置重构（扁平化）**：4 档角色（未登录/用户/管理/超管）· 删空间域 · 删可见性 · 坐标改全局唯一裸 slug · 删权限码矩阵 | ✅ 2026-09-10 完成（迁移 0005/0006/0007 三阶段实落；四门禁全绿 `--force`；全链冒烟 24/24 + 浏览器 dogfood 21/21 零 console error——design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md`；冒烟记录 docs/smoke/2026-09-10-m4-pre-s2.md · `-s3.md`；板块 A-D 自检 9.10/9.32/9.28 + 收尾 converge） |
 | M5 | CLI：安装/发布/搜索（对齐 OpenSkills/ClawHub 习惯） | ⬜ |
 | M6 | 开源发布完善：贡献指南/CI/文档站/CHANGELOG.md + runbook 事故手册惯例 + 可选存量中心迁移工具 | ⬜ |
 
@@ -102,7 +103,7 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 
 ## 6. 首期非目标
 
-- 多租户 SaaS、计费/额度体系（网关层职责，不做）
+- 多租户 / 空间隔离、计费/额度体系（网关层职责，不做——M4-pre 已删空间域，明确不做租户隔离）
 - 在线资产编辑器
 - 社交面（评分/评论/关注）—— 只保留下载统计与收藏所需最小集
 - 与 Den/ClawHub/OpenSkills 服务端的协议级互联（格式兼容即可，互联后置）
@@ -156,3 +157,4 @@ AI Asset Hub = 多类型资产原生设计 + 开放协作审核治理 + TS 全�
 | v1.10 | 2026-09-08 | sunxuewen-rush | §5 M2 行完成注记（资产域闭环——坐标注册/管理、三族校验器、DRAFT 上传+版本读面/删除、OWNER 转让、审计补全）；M3 行补治理语义注记（六态推进——上传即 DRAFT 已落 M2） |
 | v1.11 | 2026-09-08 | sunxuewen-rush | §5 M3 行完成注记（治理管线闭环 2026-09-08——八态/审核管线/yank/删除面/label/搜索/下载/bundle/scope；T1-T15 全绿） |
 | v1.12 | 2026-09-09 | sunxuewen-rush | §5 M4 行注记：M4a 市场门户完成 ✅（portal design v0.8 落地；T1-T19 全绿 538 tests；dogfood 记录 docs/smoke/2026-09-09-m4a-t18.md）；M4b 管理后台拆待办 |
+| v1.13 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§2.2 坐标改「全局唯一裸 slug，无命名空间维度」+ 审核主体去「空间管理员/全局空间治理」；§5 **新增 M4-pre 行 ✅**（4 档角色/删空间域/删可见性/裸 slug；迁移 0005-0007；四门禁 + 全链冒烟 24/24 + dogfood 21/21）+ M4b 范围更新（按扁平模型重写 design）；§6 首期非目标补「多租户 / 空间隔离」；**L93/L94 历史完成注记不改**（已发生事实，重构记录由 M4-pre 行承担）——design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |

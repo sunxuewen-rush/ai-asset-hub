@@ -1,7 +1,7 @@
 # Skill 族协议
 
 > Date: 2026-09-04
-> Updated: 2026-09-07（v1.1：实现状态同步——M1 已按本文档落地 packages/protocol 的 skill manifest）
+> Updated: 2026-09-10（v1.2：**M4-pre 扁平化重构同步**——§3 name→坐标映射表述去 `@namespace/slug`（坐标改全局唯一裸 slug）；v1.1：实现状态同步——M1 已按本文档落地 packages/protocol 的 skill manifest）
 > Status: 定稿（M1 已实现 packages/protocol 的 skill 族 zod schema，docs/01 §6 单源）
 > Scope: `skill` 类型资产的包协议 —— 兼容 OpenSkills / Claude 技能生态
 
@@ -43,7 +43,7 @@ description: When to use  # 必需，1-2 句，搜索/列表摘要
 
 解析规则：
 
-- `name` 缺失/非法则校验失败；映射为 `@namespace/slug` 的 slug（首版固定，后续版本不可变更）
+- `name` 缺失/非法则校验失败；映射为资产坐标的 slug（**全局唯一裸 slug**，M4-pre 扁平化后无命名空间段；首版固定，后续版本不可变更）
 - `description` 缺失则校验失败；映射为列表/搜索摘要
 - frontmatter 完整解析结果持久化（`parsed_metadata_json`），未来扩展字段向后兼容
 
@@ -101,3 +101,4 @@ agent 是声明型（行为 + 模型偏好 + 技能引用，无执行代码）�
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：OpenSkills 兼容的 skill 包协议（含与其他资产类型的差异对照） |
 | v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol skill manifest 落地（name/description/slug 规则） |
+| v1.2 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§3 name→坐标映射表述去 `@namespace/slug`（坐标改**全局唯一裸 slug**，无命名空间段）——design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |
