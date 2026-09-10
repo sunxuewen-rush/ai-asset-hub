@@ -63,7 +63,9 @@ function offlineClient(): Configuration {
 }
 
 function withBaseEnv() {
-  process.env.DATABASE_URL = 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
+  // env 注入优先（CI / 自定义库），未注入时才兜底本地测试库。
+  // 注意：**不得无条件改写全局 env**——bun test 多文件共享同一进程，无条件写入会污染后续所有文件。
+  process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
   process.env.SESSION_SECRET = 'x'.repeat(40);
 }
 

@@ -48,6 +48,11 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 build → db:migrate → test 顺序跑；本地复现同一顺序即可。**测试库必须先迁移**——各测试文件在
 beforeAll 各自 `migrate()`，冷库并发迁移会互相踩（CI 用预迁移步骤消除该竞态）。
 
+注：CI **只**建一个库（`ai_asset_hub`，与 docker-compose 同名）。这是有意的守门设计——本地自建的
+`ai_asset_hub_test`（多个测试文件的 `??=` 兜底库名）在 CI 不存在，任何「忽略注入的 `DATABASE_URL`」
+或「依赖本地自建库」的写法都会在 CI 立即暴露。**测试文件不得无条件改写全局 env**
+（bun test 多文件共享进程；用 `??=` 兜底），本地跑绿不足以证明——请按 CI 的库条件验证。
+
 注：格式化与生成物的所有权边界——`bun run format` / `bun run format:check` 由 biome 覆盖
 `**/*.ts|tsx|json`，但**排除 `apps/server/drizzle/meta/**`**（drizzle-kit 生成的迁移快照：
 生成物归生成器；若纳入格式化，每次 `db:migrate` 都会重新引入未格式化快照并让 format:check 翻红）。

@@ -9,8 +9,11 @@ import { createOidcClient, getOidcClient, oidcRedirectUrl, resetOidcClientCache 
  */
 
 function withBaseEnv() {
-  // bun test 每文件独立进程；同文件用例互不依赖 env 基线
-  process.env.DATABASE_URL = 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
+  // env 注入优先（CI / 自定义库），未注入时才兜底本地测试库。
+  // 注意：**不得无条件改写全局 env**——bun test 多文件共享同一进程，无条件写入会污染后续所有
+  // 文件（CI 实证：本地存在的 ai_asset_hub_test 掩盖该缺陷，CI 仅建 ai_asset_hub → 53 个文件
+  // 的 beforeAll 因「database "ai_asset_hub_test" does not exist」集体失败）。
+  process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
   process.env.SESSION_SECRET = 'x'.repeat(40);
 }
 

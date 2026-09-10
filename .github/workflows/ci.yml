@@ -36,7 +36,7 @@ jobs:
       SESSION_SECRET: ci-only-session-secret-placeholder-32chars
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
         with:
