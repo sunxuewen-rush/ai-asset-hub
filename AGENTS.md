@@ -11,6 +11,7 @@ Agent 定义等资产的分发平台，带开放协作审核治理。
 docs/                 设计与协议文档（见下方「文档体系」）
 packages/protocol     资产协议 zod schema（单一事实源，M1 落地）
 apps/                 server / web / cli（M1 落地）
+.github/workflows     CI 流水线（push main + PR：校验门禁，见「命令」注）
 README.md · LICENSE   Apache 2.0
 ```
 
@@ -33,8 +34,8 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 
 | 任务 | 命令 |
 |------|------|
-| 依赖安装 | `bun install`（workspace 定义在根 package.json `workspaces`；构建脚本白名单在 `bunfig.toml` `trustedDependencies`） |
-| 全仓校验 | `bun run typecheck` / `bun run test` / `bun run lint` / `bun run build`（turbo 按包并行；测试 = bun test） |
+| 依赖安装 | `bun install`（workspace 定义在根 package.json `workspaces`；构建脚本白名单在 `bunfig.toml` `trustedDependencies`；CI 用 `bun install --frozen-lockfile`，本地等价可加同参数） |
+| 全仓校验 | `bun run typecheck` / `bun run lint` / `bun run format:check` / `bun run build` / `bun run test`（turbo 按包并行；测试 = bun test，需 `DATABASE_URL` 指向**已迁移**的库——先 `bun run db:migrate`） |
 | 单包操作 | `bun run --filter=<pkg> <script>`（包：`@ai-asset-hub/protocol` / `server` / `web` / `cli`） |
 | 起 dev 数据库 | `docker compose up -d db`（postgres，宿主端口 5433，连接串样例见 `.env.example`） |
 | 迁移 | `bun run db:migrate`（forward-only；drizzle-kit 生成，迁移文件入库） |
@@ -43,10 +44,19 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 
 注：db 运维脚本（migrate/seed）只需 `DATABASE_URL` 环境变量，不走全量 env。
 
+注：CI（`.github/workflows/ci.yml`，push main + PR）按 install → typecheck → lint → format:check →
+build → db:migrate → test 顺序跑；本地复现同一顺序即可。**测试库必须先迁移**——各测试文件在
+beforeAll 各自 `migrate()`，冷库并发迁移会互相踩（CI 用预迁移步骤消除该竞态）。
+
+注：格式化与生成物的所有权边界——`bun run format` / `bun run format:check` 由 biome 覆盖
+`**/*.ts|tsx|json`，但**排除 `apps/server/drizzle/meta/**`**（drizzle-kit 生成的迁移快照：
+生成物归生成器；若纳入格式化，每次 `db:migrate` 都会重新引入未格式化快照并让 format:check 翻红）。
+调整 biome 规则时保持这条边界。
+
 ## 协作约定
 
 - Conventional Commits（`feat:` / `fix:` / `docs:` / `chore:` / `refactor:`）
-- 提交前验证：typecheck + 全量测试绿。测试是上游契约——不为本地 hack 改弱测试
+- 提交前验证：typecheck + lint + format:check + 全量测试绿（CI 在 push/PR 复跑同一套，见 `.github/workflows/ci.yml`）。测试是上游契约——不为本地 hack 改弱测试
 - 协议变更先改 `packages/protocol` 的 zod schema（docs/01 §6），两端（server + web）
   消费更新后的类型
 - 文档定稿门禁：8 维自检 ≥9（docs/00 §7）后才允许写实现代码
