@@ -26,26 +26,24 @@ const CENTER_TITLE_KEY: Record<
 };
 
 /**
- * 资产详情页（design §3 v0.7：面包屑 → 头部（名称 + 可见性 pill + @ns + 标签行）→
+ * 资产详情页（design §3 v0.7：面包屑 → 头部（名称 + 可见性 pill + 标签行）→
  * 宽版双栏（三 Tab 玻璃卡主列 + 320px 右栏粘性 下载/元信息））。
+ * 坐标 = 全局唯一裸 slug（M4-pre R5）。
  * 数据编排 §5.3 两波：波 1 = 详情 ∥ 版本列表（并发）；波 2 = latest 版本详情（依赖波 1
  * latestVersion，天然串行——文件清单/统计）。YANKED latest → 下载禁用 + 友好提示。
  */
 export function AssetDetail() {
-  const { nsSlug = '', slug = '' } = useParams();
+  const { slug = '' } = useParams();
   const { t, tErr } = useI18n();
   const [retryTick, setRetryTick] = useState(0);
   // 🟡3 受控下载（fetch blob → 前端可反馈 429/瞬时错误；成功走 a.download 保存）
   const [dlBusy, setDlBusy] = useState(false);
   const [dlErrorCode, setDlErrorCode] = useState<string | null>(null);
 
-  const detailState = useApi(
-    (signal) => fetchAssetDetail(nsSlug, slug, { signal }),
-    [nsSlug, slug, retryTick],
-  );
+  const detailState = useApi((signal) => fetchAssetDetail(slug, { signal }), [slug, retryTick]);
   const versionsState = useApi(
-    (signal) => fetchVersionList(nsSlug, slug, { limit: 100 }, { signal }),
-    [nsSlug, slug, retryTick],
+    (signal) => fetchVersionList(slug, { limit: 100 }, { signal }),
+    [slug, retryTick],
   );
 
   const detail = detailState.data;
@@ -53,11 +51,9 @@ export function AssetDetail() {
   // 波 2：latest 版本详情（latestVersion 到位才发；无版本资产 resolve null——不产错误噪音）
   const latestState = useApi(
     (signal) =>
-      latestVersion
-        ? fetchVersionDetail(nsSlug, slug, latestVersion, { signal })
-        : Promise.resolve(null),
+      latestVersion ? fetchVersionDetail(slug, latestVersion, { signal }) : Promise.resolve(null),
     // R2：retryTick 并入——波 2 独立失败时可随页面重试一并重发
-    [nsSlug, slug, latestVersion, retryTick],
+    [slug, latestVersion, retryTick],
   );
 
   const loading = detailState.loading || versionsState.loading;
@@ -79,7 +75,7 @@ export function AssetDetail() {
   const owner = ownerText(detail);
   const isYanked = latestState.data?.status === 'YANKED';
   const downloadUrl = latestVersion
-    ? `/api/assets/${encodeURIComponent(nsSlug)}/${encodeURIComponent(slug)}/versions/${encodeURIComponent(latestVersion)}/download`
+    ? `/api/assets/${encodeURIComponent(slug)}/versions/${encodeURIComponent(latestVersion)}/download`
     : null;
   const centerPath = CENTER_OF[detail.type];
   const labelTitle = t('market', CENTER_TITLE_KEY[detail.type]);
@@ -107,7 +103,7 @@ export function AssetDetail() {
       const objectUrl = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
-      anchor.download = `${nsSlug}-${slug}-v${latestVersion}.zip`;
+      anchor.download = `${slug}-v${latestVersion}.zip`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -126,7 +122,6 @@ export function AssetDetail() {
       return (
         <OverviewTab
           type={detail.type}
-          nsSlug={nsSlug}
           slug={slug}
           version={latestVersion}
           // R2：波 2 未就 → null（子组件显加载占位而非误导性空清单）
@@ -140,7 +135,6 @@ export function AssetDetail() {
       if (!latestVersion) return <p className={styles.paneNote}>—</p>;
       return (
         <FilesTab
-          nsSlug={nsSlug}
           slug={slug}
           version={latestVersion}
           files={latestState.data ? latestState.data.files : null}
@@ -150,7 +144,6 @@ export function AssetDetail() {
     // versions tab：波 1 版本列表数据源（历史 + 对比）
     return (
       <VersionCompare
-        nsSlug={nsSlug}
         slug={slug}
         versions={versionsState.data?.items ?? []}
         latestVersion={detail.latestVersion}
@@ -162,9 +155,7 @@ export function AssetDetail() {
     <div className={styles.page}>
       <div className={styles.crumb}>
         <Link to="/">{t('market', 'crumbHome')}</Link> / <Link to={centerPath}>{labelTitle}</Link> /{' '}
-        <b>
-          @{nsSlug}/{slug}
-        </b>
+        <b>{slug}</b>
       </div>
 
       <div className={`glass ${styles.head}`}>
@@ -173,7 +164,6 @@ export function AssetDetail() {
           <Badge tone="success" mono>
             {detail.visibility}
           </Badge>
-          <span className={styles.nsPill}>@{detail.namespaceSlug}</span>
         </div>
         {detail.labels.length > 0 && (
           <div className={styles.tags}>
@@ -231,10 +221,6 @@ export function AssetDetail() {
             <div className={styles.kv}>
               <span>{t('market', 'author')}</span>
               <b>{owner || '—'}</b>
-            </div>
-            <div className={styles.kv}>
-              <span>{t('market', 'namespace')}</span>
-              <b className={styles.mono}>@{detail.namespaceSlug}</b>
             </div>
             <div className={styles.kv}>
               <span>{t('market', 'visibility')}</span>

@@ -469,7 +469,7 @@ export async function findLabelBySlug(
 export const MAX_LABELS_PER_ASSET = 10;
 
 /**
- * 挂载判定（06 §3——只看 label.type）：RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN
+ * 挂载判定（06 §3——只看 label.type）：RECOMMENDED = owner/管理档/SUPER_ADMIN（M4-pre：原空间 ADMIN 面并入管理档）
  * （canManageAsset——路由层判定结果）+ scope 交集（R14：RECOMMENDED 挂载 = asset:manage——
  * design §8 ②——收窄 token 无码即拒，owner 分支形同虚设防白设）；PRIVILEGED = 仅 SUPER_ADMIN
  * （无码超管面——scope 不收窄）。

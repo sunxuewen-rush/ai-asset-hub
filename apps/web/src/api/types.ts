@@ -1,6 +1,6 @@
 /**
  * API 响应类型（design §5.1/§5.2 契约形状一一对应——字段 camelCase 照抄服务端序列化；
- * 命名空间/版本等写面形状 M4b 再补。服务端实现为契约真相，见 apps/server/src/http/*）。
+ * 写面形状 M4b 再补。服务端实现为契约真相，见 apps/server/src/http/*）。
  */
 export type AssetType = 'skill' | 'mcp' | 'agent';
 export type Visibility = 'PUBLIC' | 'PRIVATE' | 'NAMESPACE_ONLY';
@@ -24,11 +24,9 @@ export interface LabelDto {
   displayName: string | null;
 }
 
-/** 列表/详情资产项（R5/R6：latest* 投影 + ownerDisplayName——匿名可见面） */
+/** 列表/详情资产项（R5/R6：latest* 投影 + ownerDisplayName——匿名可见面；扁平坐标 = 裸 slug） */
 export interface AssetItem {
   id: number;
-  namespaceId: number;
-  namespaceSlug: string;
   slug: string;
   type: AssetType;
   visibility: Visibility;

@@ -25,8 +25,6 @@ import {
   assetVersion,
   auditLog,
   labelDefinition,
-  namespace,
-  namespaceMember,
   userAccount,
 } from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
@@ -40,7 +38,6 @@ let db: Db;
 let sessions: SessionManager;
 let rbac: RbacService;
 let ownerId: string;
-let nsId: number;
 let audit!: ReturnType<typeof createAuditWriter>;
 let storageDir: string;
 let storage!: ReturnType<typeof createLocalStorage>;
@@ -84,7 +81,7 @@ async function seedAsset(
 ): Promise<number> {
   const [a] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug, type: 'skill', ownerId })
+    .values({ slug, type: 'skill', ownerId })
     .returning({ id: asset.id });
   if (meta) {
     await db.insert(assetVersion).values({
@@ -120,15 +117,6 @@ beforeAll(async () => {
   uploadRateLimiter = new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max);
   ownerId = await makeUser('owner');
   viewerUser = await makeUser('viewer');
-  const [ns] = await db
-    .insert(namespace)
-    .values({ slug: `${PREFIX}ns`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values([
-    { namespaceId: nsId, userId: ownerId, role: 'OWNER' },
-    { namespaceId: nsId, userId: viewerUser, role: 'MEMBER' },
-  ]);
 });
 
 afterAll(async () => {
@@ -140,8 +128,6 @@ afterAll(async () => {
   await db.delete(labelDefinition).where(like(labelDefinition.createdBy, `${PREFIX}%`));
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
     await db.delete(userAccount).where(eq(userAccount.id, u.id));

@@ -7,7 +7,7 @@ import type { Db } from '../db/client.js';
 import { requireRole } from './auth-middleware.js';
 
 /**
- * /api/audit 路由组（T20，05 §6.4 audit:read：AUDITOR/SUPER_ADMIN 浏览审计日志）。
+ * /api/audit 路由组（T20 → M4-pre：管理档（`role >= ADMIN`）浏览审计日志；原 AUDITOR 角色已并入管理档）。
  * 页码分页（R9：审计浏览低频，limit/offset 简单优先）+ 过滤面（S4）与 T19 query 对齐。
  */
 

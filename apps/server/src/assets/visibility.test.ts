@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { canViewAsset, type VisibilityInput } from './visibility.js';
 
-/** 数据驱动矩阵（design §7/08 §5.1 读面语义逐格验证） */
+/** 数据驱动矩阵（design §7/08 §5.1 读面语义逐格验证；M4-pre S2：空间维度已删除） */
 function cases(): Array<{ name: string; input: VisibilityInput; expected: boolean }> {
   const owner = 'usr_owner';
   const other = 'usr_other';
   const base = {
-    nsStatus: 'ACTIVE',
     assetStatus: 'ACTIVE',
     ownerId: owner,
   } as const;
@@ -19,7 +18,6 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         ...base,
         visibility: 'PUBLIC',
         viewerId: null,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: true,
@@ -30,19 +28,17 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         ...base,
         visibility: 'PUBLIC',
         viewerId: other,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: true,
     },
-    // —— NAMESPACE_ONLY：空间成员可见 ——
+    // —— NAMESPACE_ONLY：空间成员面已删 → 退化为 owner-only（M4-pre §2.3）——
     {
       name: 'NAMESPACE_ONLY × 非成员 → 不可见',
       input: {
         ...base,
         visibility: 'NAMESPACE_ONLY',
         viewerId: other,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: false,
@@ -53,41 +49,37 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         ...base,
         visibility: 'NAMESPACE_ONLY',
         viewerId: null,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: false,
     },
     {
-      name: 'NAMESPACE_ONLY × MEMBER → 可见',
+      name: 'NAMESPACE_ONLY × 非 owner 登录（原空间成员面已删）→ 不可见',
       input: {
         ...base,
         visibility: 'NAMESPACE_ONLY',
         viewerId: other,
-        namespaceRole: 'MEMBER',
         isSuperAdmin: false,
       },
-      expected: true,
+      expected: false,
     },
     {
-      name: 'NAMESPACE_ONLY × ADMIN → 可见',
+      name: 'NAMESPACE_ONLY × 非 owner 管理档（原空间管理面已删）→ 不可见',
       input: {
         ...base,
         visibility: 'NAMESPACE_ONLY',
         viewerId: other,
-        namespaceRole: 'ADMIN',
         isSuperAdmin: false,
       },
-      expected: true,
+      expected: false,
     },
-    // —— PRIVATE：owner 或空间 ADMIN+ ——
+    // —— PRIVATE：owner-only（空间管理面随空间删除）——
     {
       name: 'PRIVATE × owner → 可见',
       input: {
         ...base,
         visibility: 'PRIVATE',
         viewerId: owner,
-        namespaceRole: 'MEMBER',
         isSuperAdmin: false,
       },
       expected: true,
@@ -98,7 +90,6 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         ...base,
         visibility: 'PRIVATE',
         viewerId: owner,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: true,
@@ -109,43 +100,39 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         ...base,
         visibility: 'PRIVATE',
         viewerId: null,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: false,
     },
     {
-      name: 'PRIVATE × 非 owner MEMBER → 不可见',
+      name: 'PRIVATE × 非 owner → 不可见',
       input: {
         ...base,
         visibility: 'PRIVATE',
         viewerId: other,
-        namespaceRole: 'MEMBER',
         isSuperAdmin: false,
       },
       expected: false,
     },
     {
-      name: 'PRIVATE × 非 owner ADMIN → 可见（05 §6.5 管理面）',
+      name: 'PRIVATE × 非 owner 管理档（原空间管理面已删）→ 不可见',
       input: {
         ...base,
         visibility: 'PRIVATE',
         viewerId: other,
-        namespaceRole: 'ADMIN',
         isSuperAdmin: false,
       },
-      expected: true,
+      expected: false,
     },
     {
-      name: 'PRIVATE × 非 owner 空间 OWNER → 可见',
+      name: 'PRIVATE × 非 owner（原空间 OWNER 面已删）→ 不可见',
       input: {
         ...base,
         visibility: 'PRIVATE',
         viewerId: other,
-        namespaceRole: 'OWNER',
         isSuperAdmin: false,
       },
-      expected: true,
+      expected: false,
     },
     // —— asset.status：HIDDEN/ARCHIVED 仅超管 ——
     {
@@ -155,7 +142,6 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         visibility: 'PUBLIC',
         assetStatus: 'HIDDEN',
         viewerId: owner,
-        namespaceRole: 'OWNER',
         isSuperAdmin: false,
       },
       expected: false,
@@ -167,7 +153,6 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         visibility: 'PUBLIC',
         assetStatus: 'HIDDEN',
         viewerId: other,
-        namespaceRole: null,
         isSuperAdmin: true,
       },
       expected: true,
@@ -179,57 +164,47 @@ function cases(): Array<{ name: string; input: VisibilityInput; expected: boolea
         visibility: 'PUBLIC',
         assetStatus: 'ARCHIVED',
         viewerId: other,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: false,
     },
-    // —— namespace.status ARCHIVED：空间对外关闭 ——
+    // —— 原空间状态门（ns ARCHIVED/FROZEN）随空间删除——PUBLIC 全站可见语义不受影响 ——
     {
-      name: 'ns ARCHIVED × PUBLIC 非成员 → 不可见',
+      name: 'PUBLIC × 非 owner（原空间归档门已删）→ 可见',
       input: {
         ...base,
         visibility: 'PUBLIC',
-        nsStatus: 'ARCHIVED',
         viewerId: other,
-        namespaceRole: null,
-        isSuperAdmin: false,
-      },
-      expected: false,
-    },
-    {
-      name: 'ns ARCHIVED × PUBLIC 成员 → 可见',
-      input: {
-        ...base,
-        visibility: 'PUBLIC',
-        nsStatus: 'ARCHIVED',
-        viewerId: other,
-        namespaceRole: 'MEMBER',
         isSuperAdmin: false,
       },
       expected: true,
     },
     {
-      name: 'ns ARCHIVED × SUPER_ADMIN → 可见',
+      name: 'PUBLIC × 非 owner（原空间状态维度已删）→ 可见',
+      input: {
+        ...base,
+        visibility: 'PUBLIC',
+        viewerId: other,
+        isSuperAdmin: false,
+      },
+      expected: true,
+    },
+    {
+      name: 'PRIVATE × SUPER_ADMIN（原空间归档门已删，超管短路）→ 可见',
       input: {
         ...base,
         visibility: 'PRIVATE',
-        nsStatus: 'ARCHIVED',
         viewerId: null,
-        namespaceRole: null,
         isSuperAdmin: true,
       },
       expected: true,
     },
-    // —— ns FROZEN：只读不影响读面 ——
     {
-      name: 'ns FROZEN × PUBLIC 匿名 → 可见（只读）',
+      name: 'PUBLIC × 匿名（原空间只读态已删）→ 可见',
       input: {
         ...base,
         visibility: 'PUBLIC',
-        nsStatus: 'FROZEN',
         viewerId: null,
-        namespaceRole: null,
         isSuperAdmin: false,
       },
       expected: true,

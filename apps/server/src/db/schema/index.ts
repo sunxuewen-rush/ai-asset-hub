@@ -2,5 +2,4 @@
 
 export * from './assets.js';
 export * from './governance.js';
-export * from './namespaces.js';
 export * from './users.js';

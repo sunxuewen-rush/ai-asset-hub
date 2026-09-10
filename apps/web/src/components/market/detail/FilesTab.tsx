@@ -11,12 +11,10 @@ import { FileTree } from './FileTree.js';
  * 预览对话框——useApi 缓存（语言感知键）重复打开零重拉）。
  */
 export function FilesTab({
-  nsSlug,
   slug,
   version,
   files,
 }: {
-  nsSlug: string;
   slug: string;
   version: string;
   files: readonly VersionFileEntry[] | null;
@@ -39,7 +37,6 @@ export function FilesTab({
       {preview && (
         <FilePreviewDialog
           file={preview}
-          nsSlug={nsSlug}
           slug={slug}
           version={version}
           onClose={() => setPreview(null)}

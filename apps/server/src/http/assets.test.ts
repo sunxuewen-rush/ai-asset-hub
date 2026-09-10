@@ -29,8 +29,6 @@ import {
   assetFile,
   assetVersion,
   auditLog,
-  namespace,
-  namespaceMember,
   userAccount,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -42,13 +40,11 @@ const PREFIX = 'ast-';
 let db: Db;
 let sessions: SessionManager;
 let rbac: RbacService;
-let member: string; // ns-a MEMBER（有 asset:publish）
-let owner2: string; // ns-b owner（另一坐标空间）
+let member: string; // 普通用户（资产 owner / 上传者）
+let owner2: string; // 另一普通用户（非 owner 上传者视角）
 let outsider: string; // 无成员关系
-let assetAdmin: string; // ns-a ADMIN
+let assetAdmin: string; // 管理档（原空间 ADMIN 面并入）
 let superAdmin: string;
-let nsA: number;
-let nsArch: number;
 let storageDir: string;
 let storage!: ReturnType<typeof createLocalStorage>;
 let audit!: ReturnType<typeof createAuditWriter>;
@@ -60,19 +56,6 @@ async function makeUser(tag: string): Promise<string> {
   const id = `usr_${randomUUID()}`;
   await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
   return id;
-}
-async function insertNs(
-  slug: string,
-  status: 'ACTIVE' | 'FROZEN' | 'ARCHIVED' = 'ACTIVE',
-): Promise<number> {
-  const rows = await db
-    .insert(namespace)
-    .values({ slug, displayName: `${PREFIX}${slug}`, type: 'TEAM', status })
-    .returning({ id: namespace.id });
-  return rows[0]!.id;
-}
-async function addMember(ns: number, userId: string, roleName: 'OWNER' | 'ADMIN' | 'MEMBER') {
-  await db.insert(namespaceMember).values({ namespaceId: ns, userId, role: roleName });
 }
 async function setRole(userId: string, role: AccountRole): Promise<void> {
   await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
@@ -87,12 +70,11 @@ async function insertAsset(
   type: AssetType,
   ownerId: string,
   visibility: string,
-  nsIdArg = nsA,
   status: 'ACTIVE' | 'HIDDEN' | 'ARCHIVED' = 'ACTIVE',
 ) {
   await db
     .insert(asset)
-    .values({ namespaceId: nsIdArg, slug, type, ownerId, visibility: visibility as never, status })
+    .values({ slug, type, ownerId, visibility: visibility as never, status })
     .returning({ id: asset.id });
 }
 /** 直插并取回 id（版本/文件 seed 依赖） */
@@ -104,7 +86,7 @@ async function insertAssetReturning(
 ): Promise<{ id: number }> {
   const rows = await db
     .insert(asset)
-    .values({ namespaceId: nsA, slug, type, ownerId, visibility: visibility as never })
+    .values({ slug, type, ownerId, visibility: visibility as never })
     .returning({ id: asset.id });
   return rows[0]!;
 }
@@ -165,20 +147,11 @@ beforeAll(async () => {
   superAdmin = await makeUser('super-admin');
   await setRole(assetAdmin, ACCOUNT_ROLE.ADMIN);
   await setRole(superAdmin, ACCOUNT_ROLE.SUPER_ADMIN);
-  nsA = await insertNs('ast-http-ns');
-  await insertNs('ast-http-frozen', 'FROZEN');
-  const nsB = await insertNs('ast-http-nsb');
-  nsArch = await insertNs('ast-http-arch', 'ARCHIVED');
-  await addMember(nsA, member, 'MEMBER');
-  await addMember(nsA, assetAdmin, 'ADMIN');
-  await addMember(nsA, owner2, 'MEMBER'); // T14：非 owner 上传者视角（nsA 普通成员）
-  await addMember(nsB, owner2, 'OWNER');
-  await addMember(nsB, member, 'MEMBER');
-  // 读面 seed：PUBLIC skill（member 传）/ PRIVATE mcp（member 传）/ HIDDEN / archived 空间 PUBLIC
+  // 读面 seed：PUBLIC skill（member 传）/ PRIVATE mcp（member 传）/ HIDDEN / 额外 PUBLIC
   await insertAsset('ast-pub-skill', 'skill', member, 'PUBLIC');
   await insertAsset('ast-priv-mcp', 'mcp', member, 'PRIVATE');
-  await insertAsset('ast-hidden', 'agent', member, 'PUBLIC', nsA, 'HIDDEN');
-  await insertAsset('ast-arch-ns-pub', 'skill', member, 'PUBLIC', nsArch);
+  await insertAsset('ast-hidden', 'agent', member, 'PUBLIC', 'HIDDEN');
+  await insertAsset('ast-arch-pub', 'skill', member, 'PUBLIC');
   await insertAsset('ast-vread', 'skill', member, 'PUBLIC'); // T14 版本读面专用（owner=member）
   // 管理面 seed：visibility PATCH 目标 / 删除目标（无版本、有 PUBLISHED、DRAFT+文件）
   await insertAsset('ast-vis-target', 'skill', member, 'PUBLIC');
@@ -199,7 +172,7 @@ beforeAll(async () => {
     .insert(assetVersion)
     .values({ assetId: delDraft.id, version: '0.1.0', status: 'DRAFT', fileCount: 1, totalSize: 3 })
     .returning({ id: assetVersion.id });
-  const draftKey = `${nsA}/${delDraft.id}/${draftVersion[0]!.id}/SKILL.md`;
+  const draftKey = `${delDraft.id}/${draftVersion[0]!.id}/SKILL.md`;
   draftSeedKey = draftKey;
   const draftContent = Buffer.from('---\nname: ast-del-draft\n---\n');
   await storage.put(draftKey, draftContent, { contentType: 'text/markdown' });
@@ -214,51 +187,36 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const nsRows = await db
-    .select({ id: namespace.id })
-    .from(namespace)
-    .where(like(namespace.slug, `${PREFIX}%`));
-  const ids = nsRows.map((n) => n.id);
-  if (ids.length > 0) {
-    // FK 序：asset_file → asset_version → asset → member → namespace
+  // 本文件专属用户（各唯一 tag）——按 ownerId 精确定位资产，避免与他文件的 ast- 前缀资产互踩
+  const ownerIds = [member, owner2, outsider, assetAdmin, superAdmin].filter(Boolean);
+  // FK 序：asset_file → asset_version → asset → audit → user
+  const ownedAssetIds = (
+    await db.select({ id: asset.id }).from(asset).where(inArray(asset.ownerId, ownerIds))
+  ).map((a) => a.id);
+  if (ownedAssetIds.length > 0) {
     const versionRows = await db
       .select({ id: assetVersion.id })
       .from(assetVersion)
-      .where(
-        inArray(
-          assetVersion.assetId,
-          db.select({ id: asset.id }).from(asset).where(inArray(asset.namespaceId, ids)),
-        ),
-      );
+      .where(inArray(assetVersion.assetId, ownedAssetIds));
     const vIds = versionRows.map((v) => v.id);
     if (vIds.length > 0) {
       await db.delete(assetFile).where(inArray(assetFile.versionId, vIds));
       await db.delete(assetVersion).where(inArray(assetVersion.id, vIds));
     }
-    await db.delete(asset).where(inArray(asset.namespaceId, ids));
-    await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, ids));
-    await db.delete(namespace).where(inArray(namespace.id, ids));
+    await db.delete(asset).where(inArray(asset.id, ownedAssetIds));
   }
-  // FK 序：role_binding → user（前缀用户含 asset-admin/super-admin 的绑定）
-  const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, `${PREFIX}%`));
-  const userIds = users.map((u) => u.id);
-  if (userIds.length > 0) {
-    await db.delete(auditLog).where(inArray(auditLog.actorId, userIds));
-  }
-  await db.delete(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
+  await db.delete(auditLog).where(inArray(auditLog.actorId, ownerIds));
+  await db.delete(userAccount).where(inArray(userAccount.id, ownerIds));
   await rm(storageDir, { recursive: true, force: true });
   await db.$client.end();
 });
 
 describe('POST /api/assets 注册', () => {
-  it('MEMBER 注册 201：owner/visibility 默认 PUBLIC 落位', async () => {
+  it('登录用户注册 201：owner/visibility 默认 PUBLIC 落位', async () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
-      { namespaceSlug: 'ast-http-ns', slug: 'ast-new-skill', type: 'skill' },
+      { slug: 'ast-new-skill', type: 'skill' },
       await cookieFor(member),
     );
     expect(res.status).toBe(201);
@@ -274,7 +232,7 @@ describe('POST /api/assets 注册', () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
-      { namespaceSlug: 'ast-http-ns', slug: 'ast-pub-skill', type: 'agent' },
+      { slug: 'ast-pub-skill', type: 'agent' },
       await cookieFor(member),
     );
     expect(res.status).toBe(409);
@@ -282,55 +240,52 @@ describe('POST /api/assets 注册', () => {
     expect(body.code).toBe('asset.slug_taken');
   });
 
-  it('非空间成员 403（asset:publish 需成员——05 §6.4）', async () => {
+  it('任一登录用户即可注册 201（原空间成员门已删——注册 = 用户+）', async () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
-      { namespaceSlug: 'ast-http-ns', slug: 'ast-x', type: 'skill' },
+      { slug: 'ast-outsider-skill', type: 'skill' },
       await cookieFor(outsider),
     );
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
   });
 
-  it('FROZEN 空间拒写 403（rbac.can 判定链）', async () => {
-    // member 非 ast-http-frozen 成员 → 403（FROZEN 与成员双拒路径合并验证）
+  it('注册 visibility 显式 PRIVATE 落位（08 §5.1）', async () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
-      { namespaceSlug: 'ast-http-frozen', slug: 'ast-x', type: 'skill' },
+      { slug: 'ast-priv-reg', type: 'mcp', visibility: 'PRIVATE' },
       await cookieFor(member),
     );
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { visibility: string };
+    expect(body.visibility).toBe('PRIVATE');
   });
 
-  it('namespace 不存在 404', async () => {
+  it('缺 slug → 400 request.invalid（路由层 zod 前置）', async () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
-      { namespaceSlug: 'ast-no-ns', slug: 'ast-x', type: 'skill' },
+      { type: 'skill' },
       await cookieFor(member),
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string };
-    expect(body.code).toBe('asset.namespace_not_found');
+    expect(body.code).toBe('request.invalid');
   });
 
   it('body 非法 400（slug 大写）', async () => {
     const res = await jsonRequest(
       'POST',
       '/api/assets',
-      { namespaceSlug: 'ast-http-ns', slug: 'Bad-Slug', type: 'skill' },
+      { slug: 'Bad-Slug', type: 'skill' },
       await cookieFor(member),
     );
     expect(res.status).toBe(400);
   });
 
   it('未登录 401', async () => {
-    const res = await jsonRequest('POST', '/api/assets', {
-      namespaceSlug: 'ast-http-ns',
-      slug: 'ast-x',
-      type: 'skill',
-    });
+    const res = await jsonRequest('POST', '/api/assets', { slug: 'ast-x', type: 'skill' });
     expect(res.status).toBe(401);
   });
 });
@@ -368,7 +323,7 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
   it('201 全链（member 上传合法包——DRAFT + fileCount）', async () => {
     const res = await uploadZip(
       await cookieFor(member),
-      'ast-http-ns/ast-pub-skill',
+      'ast-pub-skill',
       uploadSkillZip(),
       '3.1.0',
       'via http',
@@ -382,7 +337,7 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
 
   it('校验失败 400 + issues 全量（首错误码）', async () => {
     const bad = buildZip([{ name: 'SKILL.md', content: 'no frontmatter\n' }]);
-    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-pub-skill', bad, '3.2.0');
+    const res = await uploadZip(await cookieFor(member), 'ast-pub-skill', bad, '3.2.0');
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string; issues: Array<{ code: string }> };
     expect(body.issues.length).toBeGreaterThan(0);
@@ -390,20 +345,15 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
   });
 
   it('version 非 semver → 400 request.invalid', async () => {
-    const res = await uploadZip(
-      await cookieFor(member),
-      'ast-http-ns/ast-pub-skill',
-      uploadSkillZip(),
-      'v3',
-    );
+    const res = await uploadZip(await cookieFor(member), 'ast-pub-skill', uploadSkillZip(), 'v3');
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('request.invalid');
   });
 
-  it('非空间成员上传 → 403', async () => {
+  it('非 owner 非管理档上传他人资产 → 403', async () => {
     const res = await uploadZip(
       await cookieFor(outsider),
-      'ast-http-ns/ast-pub-skill',
+      'ast-pub-skill',
       uploadSkillZip(),
       '3.3.0',
     );
@@ -411,12 +361,7 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
   });
 
   it('资产不存在 → 404', async () => {
-    const res = await uploadZip(
-      await cookieFor(member),
-      'ast-http-ns/ast-missing',
-      uploadSkillZip(),
-      '3.4.0',
-    );
+    const res = await uploadZip(await cookieFor(member), 'ast-missing', uploadSkillZip(), '3.4.0');
     expect(res.status).toBe(404);
   });
 
@@ -425,7 +370,7 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
       { name: 'SKILL.md', content: '---\nname: big\ndescription: big\n---\nbody\n' },
       { name: 'blob.bin', content: Buffer.alloc(11 * 1024 * 1024, 1) },
     ]);
-    const res = await uploadZip(await cookieFor(member), 'ast-http-ns/ast-pub-skill', big, '3.5.0');
+    const res = await uploadZip(await cookieFor(member), 'ast-pub-skill', big, '3.5.0');
     expect(res.status).toBe(413);
     expect(((await res.json()) as { code: string }).code).toBe('asset.package_too_large');
   });
@@ -435,7 +380,7 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
     for (let i = 0; i < 7; i++) uploadRateLimiter.hit(`asset-upload:${member}`);
     const res = await uploadZip(
       await cookieFor(member),
-      'ast-http-ns/ast-pub-skill',
+      'ast-pub-skill',
       uploadSkillZip(),
       '9.9.9',
     );
@@ -443,80 +388,70 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
   });
 
   it('未登录 401', async () => {
-    const res = await uploadZip('', 'ast-http-ns/ast-pub-skill', uploadSkillZip(), '3.6.0');
+    const res = await uploadZip('', 'ast-pub-skill', uploadSkillZip(), '3.6.0');
     expect(res.status).toBe(401);
   });
 });
 
-describe('GET /api/assets/{ns}/{slug} 详情（可见性——skillhub 对齐分层）', () => {
+describe('GET /api/assets/{slug} 详情（可见性——skillhub 对齐分层）', () => {
   it('PUBLIC 匿名 200', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-pub-skill');
+    const res = await getReq('/api/assets/ast-pub-skill');
     expect(res.status).toBe(200);
   });
 
   it('PRIVATE 匿名 403（存在但无权——access_denied）', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-priv-mcp');
+    const res = await getReq('/api/assets/ast-priv-mcp');
     expect(res.status).toBe(403);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('asset.access_denied');
   });
 
   it('PRIVATE owner 200', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-priv-mcp', await cookieFor(member));
+    const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(member));
     expect(res.status).toBe(200);
   });
 
-  it('PRIVATE 非 owner 非成员 403（access_denied）', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-priv-mcp', await cookieFor(outsider));
+  it('PRIVATE 非 owner 403（access_denied）', async () => {
+    const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(outsider));
     expect(res.status).toBe(403);
   });
 
-  it('PRIVATE 空间 ADMIN 200（05 §6.5 管理面）', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-priv-mcp', await cookieFor(assetAdmin));
-    expect(res.status).toBe(200);
+  it('PRIVATE 管理档（非 owner 非超管）403（读面仅 owner/超管）', async () => {
+    const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(assetAdmin));
+    expect(res.status).toBe(403);
   });
 
-  it('坐标不存在 404（ns 不存在 / slug 不存在）', async () => {
-    expect((await getReq('/api/assets/ast-http-ns/ast-no-such')).status).toBe(404);
-    expect((await getReq('/api/assets/ast-no-ns/ast-pub-skill')).status).toBe(404);
+  it('坐标不存在 404（slug 不存在）', async () => {
+    expect((await getReq('/api/assets/ast-no-such')).status).toBe(404);
+    expect((await getReq('/api/assets/ast-no-such-slug')).status).toBe(404);
   });
 
   it('HIDDEN 资产：登录用户 404（活跃面不存在）；SUPER_ADMIN 200', async () => {
-    expect(
-      (await getReq('/api/assets/ast-http-ns/ast-hidden', await cookieFor(member))).status,
-    ).toBe(404);
-    expect(
-      (await getReq('/api/assets/ast-http-ns/ast-hidden', await cookieFor(superAdmin))).status,
-    ).toBe(200);
+    expect((await getReq('/api/assets/ast-hidden', await cookieFor(member))).status).toBe(404);
+    expect((await getReq('/api/assets/ast-hidden', await cookieFor(superAdmin))).status).toBe(200);
   });
 
-  it('ns ARCHIVED 且非成员：403 namespace_archived（明示空间归档）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-arch/ast-arch-ns-pub',
-      await cookieFor(outsider),
-    );
-    expect(res.status).toBe(403);
-    const body = (await res.json()) as { code: string };
-    expect(body.code).toBe('asset.namespace_archived');
+  it('PUBLIC 资产：非 owner 登录用户 200（原空间归档门已删）', async () => {
+    const res = await getReq('/api/assets/ast-arch-pub', await cookieFor(outsider));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { slug: string };
+    expect(body.slug).toBe('ast-arch-pub');
   });
 
-  it('ns ARCHIVED：SUPER_ADMIN 可见', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-arch/ast-arch-ns-pub',
-      await cookieFor(superAdmin),
-    );
+  it('PUBLIC 资产：SUPER_ADMIN 可见', async () => {
+    const res = await getReq('/api/assets/ast-arch-pub', await cookieFor(superAdmin));
     expect(res.status).toBe(200);
   });
 
   it('PRIVATE SUPER_ADMIN 可见（短路）', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-priv-mcp', await cookieFor(superAdmin));
+    const res = await getReq('/api/assets/ast-priv-mcp', await cookieFor(superAdmin));
     expect(res.status).toBe(200);
   });
 });
 
 describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () => {
   it('匿名 200：仅 PUBLIC 可见（PUBLIC-only 短路——不泄漏他人 PRIVATE/NAMESPACE_ONLY）', async () => {
-    const res = await getReq('/api/assets?nsSlug=ast-http-ns');
+    const res = await getReq('/api/assets');
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: Array<{ slug: string }> };
     const slugs = body.items.map((i) => i.slug);
@@ -525,8 +460,8 @@ describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () =>
     expect(slugs).not.toContain('ast-priv-mcp'); // 他人 PRIVATE 不泄漏
   });
 
-  it('MEMBER：PUBLIC + 自己 PRIVATE 可见；他人 PRIVATE 不可见', async () => {
-    const res = await getReq('/api/assets?nsSlug=ast-http-ns', await cookieFor(member));
+  it('登录用户：PUBLIC + 自己 PRIVATE 可见；他人 PRIVATE 不可见', async () => {
+    const res = await getReq('/api/assets', await cookieFor(member));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: Array<{ slug: string }> };
     const slugs = body.items.map((i) => i.slug);
@@ -536,7 +471,7 @@ describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () =>
   });
 
   it('outsider（非成员）：PUBLIC 可见、PRIVATE 不可见', async () => {
-    const res = await getReq('/api/assets?nsSlug=ast-http-ns', await cookieFor(outsider));
+    const res = await getReq('/api/assets', await cookieFor(outsider));
     const body = (await res.json()) as { items: Array<{ slug: string }> };
     const slugs = body.items.map((i) => i.slug);
     expect(slugs).toContain('ast-pub-skill');
@@ -556,7 +491,6 @@ describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', ()
     const [a] = await db
       .insert(asset)
       .values({
-        namespaceId: nsA,
         slug: 'ast-meta-proj',
         type: 'skill',
         ownerId: member,
@@ -576,7 +510,7 @@ describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', ()
       .returning({ id: assetVersion.id });
     await db.update(asset).set({ latestVersionId: v!.id }).where(eq(asset.id, a!.id));
 
-    const res = await getReq('/api/assets/ast-http-ns/ast-meta-proj'); // 匿名（PUBLIC）
+    const res = await getReq('/api/assets/ast-meta-proj'); // 匿名（PUBLIC）
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.latestVersion).toBe('2.1.0');
@@ -587,7 +521,7 @@ describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', ()
   });
 
   it('列表：批注入字段与详情一致（防 N+1 同语义）', async () => {
-    const res = await getReq('/api/assets?nsSlug=ast-http-ns&type=skill'); // 匿名
+    const res = await getReq('/api/assets?type=skill'); // 匿名
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       items: Array<{
@@ -605,7 +539,7 @@ describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', ()
   });
 
   it('无版本资产：R5 字段 null（形状稳定）；owner 名仍返回', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-pub-skill'); // seed 无版本
+    const res = await getReq('/api/assets/ast-pub-skill'); // seed 无版本
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.latestVersion).toBeNull();
@@ -623,7 +557,6 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
     const [a] = await db
       .insert(asset)
       .values({
-        namespaceId: nsA,
         slug: 'ast-file-pub',
         type: 'skill',
         ownerId: member,
@@ -644,7 +577,7 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
     vids.push(v!.id);
     await db.update(asset).set({ latestVersionId: v!.id }).where(eq(asset.id, a!.id));
     const putFile = async (path: string, buf: Buffer, contentType?: string) => {
-      const key = `${nsA}/${a!.id}/${v!.id}/${path}`;
+      const key = `${a!.id}/${v!.id}/${path}`;
       await storage.put(key, buf, contentType ? { contentType } : undefined);
       await db.insert(assetFile).values({
         versionId: v!.id,
@@ -670,7 +603,6 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
     const [ay] = await db
       .insert(asset)
       .values({
-        namespaceId: nsA,
         slug: 'ast-file-yanked',
         type: 'skill',
         ownerId: member,
@@ -690,7 +622,7 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
         yankReason: 't5',
       })
       .returning({ id: assetVersion.id });
-    const keyY = `${nsA}/${ay!.id}/${vy!.id}/SKILL.md`;
+    const keyY = `${ay!.id}/${vy!.id}/SKILL.md`;
     await storage.put(keyY, Buffer.from('yanked 内容'), { contentType: 'text/markdown' });
     await db.insert(assetFile).values({
       versionId: vy!.id,
@@ -703,7 +635,7 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
   });
 
   it('PUBLISHED 文本文件匿名可读（content/binary:false）', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/SKILL.md');
+    const res = await getReq('/api/assets/ast-file-pub/versions/1.0.0/files/SKILL.md');
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       path: string;
@@ -718,9 +650,7 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
   });
 
   it('超大文件：截断 truncated:true（content ≤ 256KB）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/reference/big.txt',
-    );
+    const res = await getReq('/api/assets/ast-file-pub/versions/1.0.0/files/reference/big.txt');
     expect(res.status).toBe(200);
     const body = (await res.json()) as { truncated: boolean; content: string };
     expect(body.truncated).toBe(true);
@@ -728,9 +658,7 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
   });
 
   it('二进制文件：binary:true 无 content', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/assets/blob.bin',
-    );
+    const res = await getReq('/api/assets/ast-file-pub/versions/1.0.0/files/assets/blob.bin');
     expect(res.status).toBe(200);
     const body = (await res.json()) as { binary: boolean; content?: string };
     expect(body.binary).toBe(true);
@@ -738,18 +666,14 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
   });
 
   it('YANKED 版本：400 version_yanked', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-file-yanked/versions/2.0.0/files/SKILL.md',
-    );
+    const res = await getReq('/api/assets/ast-file-yanked/versions/2.0.0/files/SKILL.md');
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('asset.version_yanked');
   });
 
   it('不存在文件：404 version_file_not_found', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-file-pub/versions/1.0.0/files/NO-SUCH.md',
-    );
+    const res = await getReq('/api/assets/ast-file-pub/versions/1.0.0/files/NO-SUCH.md');
     expect(res.status).toBe(404);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('asset.version_file_not_found');
@@ -772,14 +696,14 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
   });
 
   it('不存在版本：404 asset.not_found', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-file-pub/versions/9.9.9/files/SKILL.md');
+    const res = await getReq('/api/assets/ast-file-pub/versions/9.9.9/files/SKILL.md');
     expect(res.status).toBe(404);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('asset.not_found');
   });
 
   it('PRIVATE 资产文件匿名：403 access_denied（读面分层先行）', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-priv-mcp/versions/1.0.0/files/SKILL.md');
+    const res = await getReq('/api/assets/ast-priv-mcp/versions/1.0.0/files/SKILL.md');
     expect(res.status).toBe(403);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('asset.access_denied');
@@ -792,7 +716,6 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
     const [a] = await db
       .insert(asset)
       .values({
-        namespaceId: nsA,
         slug: 'ast-cmp',
         type: 'skill',
         ownerId: member,
@@ -811,7 +734,7 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
         })
         .returning({ id: assetVersion.id });
       for (const [p, buf, ct] of files) {
-        const key = `${nsA}/${a!.id}/${v!.id}/${p}`;
+        const key = `${a!.id}/${v!.id}/${p}`;
         await storage.put(key, buf, ct ? { contentType: ct } : undefined);
         await db.insert(assetFile).values({
           versionId: v!.id,
@@ -839,9 +762,7 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
   });
 
   it('MODIFIED 行级 hunks：DELETE+ADD 行号正确', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=1.1.0',
-    );
+    const res = await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=1.1.0');
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       files: Array<{
@@ -875,9 +796,7 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
   });
 
   it('ADDED/DELETED 文件 + 未变文件不列', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=1.1.0',
-    );
+    const res = await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=1.1.0');
     const body = (await res.json()) as {
       files: Array<{
         path: string;
@@ -895,30 +814,24 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
   });
 
   it('参数缺失：400 request.invalid', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0');
+    const res = await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0');
     expect(res.status).toBe(400);
   });
 
   it('版本不存在：404 asset.not_found', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=9.9.9',
-    );
+    const res = await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=9.9.9');
     expect(res.status).toBe(404);
   });
 
   it('YANKED 版本对比：400 version_yanked（两版本均存在——同版自比触发 yanked 判定）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-file-yanked/versions/compare?from=2.0.0&to=2.0.0',
-    );
+    const res = await getReq('/api/assets/ast-file-yanked/versions/compare?from=2.0.0&to=2.0.0');
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('asset.version_yanked');
   });
 
   it('同版本对比：无差异文件（空 files）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-cmp/versions/compare?from=1.0.0&to=1.0.0',
-    );
+    const res = await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=1.0.0');
     expect(res.status).toBe(200);
     const body = (await res.json()) as { files: unknown[] };
     expect(body.files).toEqual([]);
@@ -929,7 +842,7 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
   it('owner 改 visibility 200 + 审计行（Q3）', async () => {
     const res = await jsonRequest(
       'PATCH',
-      '/api/assets/ast-http-ns/ast-vis-target',
+      '/api/assets/ast-vis-target',
       { visibility: 'PRIVATE' },
       await cookieFor(member),
     );
@@ -937,7 +850,7 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
     const body = (await res.json()) as { visibility: string };
     expect(body.visibility).toBe('PRIVATE');
     // 改后读面联动：非 owner 详情 403（access_denied）
-    expect((await getReq('/api/assets/ast-http-ns/ast-vis-target')).status).toBe(403);
+    expect((await getReq('/api/assets/ast-vis-target')).status).toBe(403);
     const auditRows = await db
       .select({ action: auditLog.action })
       .from(auditLog)
@@ -945,41 +858,41 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
     expect(auditRows.some((a) => a.action === 'asset.visibility_update')).toBe(true);
   });
 
-  it('MEMBER 非 owner 改 visibility → 403', async () => {
-    // assetAdmin 是 nsA ADMIN 可改；outsider 无成员关系 → 403
+  it('普通用户非 owner 改 visibility → 403', async () => {
+    // assetAdmin 是管理档可改；outsider 非 owner 无管理档 → 403
     const res = await jsonRequest(
       'PATCH',
-      '/api/assets/ast-http-ns/ast-vis-target',
+      '/api/assets/ast-vis-target',
       { visibility: 'PUBLIC' },
       await cookieFor(outsider),
     );
     expect(res.status).toBe(403);
   });
 
-  it('空间 ADMIN 改 visibility 200（05 §6.5 管理面）', async () => {
+  it('管理档改 visibility 200（05 §6.5 管理面）', async () => {
     const res = await jsonRequest(
       'PATCH',
-      '/api/assets/ast-http-ns/ast-vis-target',
+      '/api/assets/ast-vis-target',
       { visibility: 'NAMESPACE_ONLY' },
       await cookieFor(assetAdmin),
     );
     expect(res.status).toBe(200);
   });
 
-  it('owner 在 ARCHIVED 空间改 visibility → 403（空间归档拒写，owner 不绕过）', async () => {
+  it('owner 改自己资产 visibility → 200（原空间归档拒写门已删）', async () => {
     const res = await jsonRequest(
       'PATCH',
-      '/api/assets/ast-http-arch/ast-arch-ns-pub',
+      '/api/assets/ast-arch-pub',
       { visibility: 'PRIVATE' },
       await cookieFor(member), // member 是该资产 owner
     );
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 
   it('owner 状态治理 PATCH status → HIDDEN 200 + 活跃面消失', async () => {
     const res = await jsonRequest(
       'PATCH',
-      '/api/assets/ast-http-ns/ast-pub-skill/status',
+      '/api/assets/ast-pub-skill/status',
       { status: 'HIDDEN' },
       await cookieFor(member),
     );
@@ -987,28 +900,26 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
     const body = (await res.json()) as { status: string };
     expect(body.status).toBe('HIDDEN');
     // HIDDEN 后：匿名/登录读面 404（活跃面不存在），owner 亦不可读（详情语义）
-    expect((await getReq('/api/assets/ast-http-ns/ast-pub-skill')).status).toBe(404);
-    expect(
-      (await getReq('/api/assets/ast-http-ns/ast-pub-skill', await cookieFor(member))).status,
-    ).toBe(404);
+    expect((await getReq('/api/assets/ast-pub-skill')).status).toBe(404);
+    expect((await getReq('/api/assets/ast-pub-skill', await cookieFor(member))).status).toBe(404);
   });
 
   it('状态治理 owner 恢复 ACTIVE 200', async () => {
     const res = await jsonRequest(
       'PATCH',
-      '/api/assets/ast-http-ns/ast-pub-skill/status',
+      '/api/assets/ast-pub-skill/status',
       { status: 'ACTIVE' },
       await cookieFor(member),
     );
     expect(res.status).toBe(200);
-    expect((await getReq('/api/assets/ast-http-ns/ast-pub-skill')).status).toBe(200);
+    expect((await getReq('/api/assets/ast-pub-skill')).status).toBe(200);
   });
 
-  it('MEMBER 非 owner PATCH status → 403', async () => {
-    // nsB 的 MEMBER（owner2 的空间）对 nsA 资产无角色 → 403
+  it('普通用户非 owner PATCH status → 403', async () => {
+    // owner2 非资产 owner 且无管理档 → 403
     const res = await jsonRequest(
       'PATCH',
-      '/api/assets/ast-http-ns/ast-priv-mcp/status',
+      '/api/assets/ast-priv-mcp/status',
       { status: 'HIDDEN' },
       await cookieFor(owner2),
     );
@@ -1018,14 +929,12 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
   it('DELETE 无版本资产 204 + 详情 404 + 审计（Q5）', async () => {
     const res = await jsonRequest(
       'DELETE',
-      '/api/assets/ast-http-ns/ast-del-plain',
+      '/api/assets/ast-del-plain',
       undefined,
       await cookieFor(member),
     );
     expect(res.status).toBe(204);
-    expect(
-      (await getReq('/api/assets/ast-http-ns/ast-del-plain', await cookieFor(member))).status,
-    ).toBe(404);
+    expect((await getReq('/api/assets/ast-del-plain', await cookieFor(member))).status).toBe(404);
     const auditRows = await db
       .select({ action: auditLog.action })
       .from(auditLog)
@@ -1036,7 +945,7 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
   it('DELETE 有 PUBLISHED 版本 → 400 has_published（防已分发资产静默移除）', async () => {
     const res = await jsonRequest(
       'DELETE',
-      '/api/assets/ast-http-ns/ast-del-pub',
+      '/api/assets/ast-del-pub',
       undefined,
       await cookieFor(member),
     );
@@ -1048,7 +957,7 @@ describe('管理端点（PATCH visibility/status + DELETE——05 §6.4 canManag
   it('DELETE DRAFT 版本资产：版本/文件行清理 + 存储文件删除', async () => {
     const res = await jsonRequest(
       'DELETE',
-      '/api/assets/ast-http-ns/ast-del-draft',
+      '/api/assets/ast-del-draft',
       undefined,
       await cookieFor(member),
     );
@@ -1091,7 +1000,7 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
       [assetAdmin, '3.0.0'],
     ] as const) {
       await createVersion(db, storage, audit, {
-        asset: { id: vreadAssetIdRef, namespaceId: nsA, type: 'skill' },
+        asset: { id: vreadAssetIdRef, type: 'skill' },
         uploaderId: uploader,
         file: vreadZip('ast-vread'),
         version,
@@ -1100,10 +1009,7 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
   });
 
   it('owner（member）看自己传的 DRAFT 详情 200（manifest/files 齐全）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/1.0.0',
-      await cookieFor(member),
-    );
+    const res = await getReq('/api/assets/ast-vread/versions/1.0.0', await cookieFor(member));
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       status: string;
@@ -1116,95 +1022,65 @@ describe('版本读面（T14 Q1——DRAFT 状态可见性过滤）', () => {
   });
 
   it('owner 看他人上传的 DRAFT（2.0.0 owner2 传）也 200（owner 面）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/2.0.0',
-      await cookieFor(member),
-    );
+    const res = await getReq('/api/assets/ast-vread/versions/2.0.0', await cookieFor(member));
     expect(res.status).toBe(200);
   });
 
   it('上传者（owner2 非 owner 非 ADMIN）看自己 DRAFT 200', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/2.0.0',
-      await cookieFor(owner2),
-    );
+    const res = await getReq('/api/assets/ast-vread/versions/2.0.0', await cookieFor(owner2));
     expect(res.status).toBe(200);
   });
 
   it('上传者看他人 DRAFT（1.0.0）→ 400 version_not_published（对齐 skillhub notPublished 明示）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/1.0.0',
-      await cookieFor(owner2),
-    );
+    const res = await getReq('/api/assets/ast-vread/versions/1.0.0', await cookieFor(owner2));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_published');
   });
 
-  it('空间 ADMIN 看任意 DRAFT 200（管理面）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/1.0.0',
-      await cookieFor(assetAdmin),
-    );
+  it('管理档看任意 DRAFT 200（管理面——isPlatformReviewer）', async () => {
+    const res = await getReq('/api/assets/ast-vread/versions/1.0.0', await cookieFor(assetAdmin));
     expect(res.status).toBe(200);
   });
 
-  it('空间外用户看 DRAFT → 400 version_not_published（PUBLIC 资产也 400——明示未发布）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/1.0.0',
-      await cookieFor(outsider),
-    );
+  it('普通用户看 DRAFT → 400 version_not_published（PUBLIC 资产也 400——明示未发布）', async () => {
+    const res = await getReq('/api/assets/ast-vread/versions/1.0.0', await cookieFor(outsider));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_published');
   });
 
   it('匿名看 DRAFT → 400 version_not_published', async () => {
-    const res = await getReq('/api/assets/ast-http-ns/ast-vread/versions/1.0.0');
+    const res = await getReq('/api/assets/ast-vread/versions/1.0.0');
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_published');
   });
 
   it('SUPER_ADMIN 看 DRAFT 200（短路）', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/1.0.0',
-      await cookieFor(superAdmin),
-    );
+    const res = await getReq('/api/assets/ast-vread/versions/1.0.0', await cookieFor(superAdmin));
     expect(res.status).toBe(200);
   });
 
   it('列表：owner 见全部 3 版本；上传者仅见自己的；outsider 空列表', async () => {
-    const ownerRes = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions',
-      await cookieFor(member),
-    );
+    const ownerRes = await getReq('/api/assets/ast-vread/versions', await cookieFor(member));
     const ownerBody = (await ownerRes.json()) as { items: Array<{ version: string }> };
     expect(ownerBody.items.map((i) => i.version).sort()).toEqual(['1.0.0', '2.0.0', '3.0.0']);
 
-    const uploaderRes = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions',
-      await cookieFor(owner2),
-    );
+    const uploaderRes = await getReq('/api/assets/ast-vread/versions', await cookieFor(owner2));
     const uploaderBody = (await uploaderRes.json()) as { items: Array<{ version: string }> };
     expect(uploaderBody.items.map((i) => i.version)).toEqual(['2.0.0']);
 
-    const outsiderRes = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions',
-      await cookieFor(outsider),
-    );
+    const outsiderRes = await getReq('/api/assets/ast-vread/versions', await cookieFor(outsider));
     expect(outsiderRes.status).toBe(200);
     expect(((await outsiderRes.json()) as { items: unknown[] }).items).toEqual([]);
   });
 
   it('不存在版本 → 404', async () => {
-    const res = await getReq(
-      '/api/assets/ast-http-ns/ast-vread/versions/99.0.0',
-      await cookieFor(member),
-    );
+    const res = await getReq('/api/assets/ast-vread/versions/99.0.0', await cookieFor(member));
     expect(res.status).toBe(404);
   });
 });
 
 describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => {
-  const delUrl = (version: string) => `/api/assets/ast-http-ns/ast-vread/versions/${version}`;
+  const delUrl = (version: string) => `/api/assets/ast-vread/versions/${version}`;
 
   it('上传者删自己的 DRAFT → 204 + 行/文件/存储/审计全链', async () => {
     // 2.0.0 由 owner2（非 owner 普通成员）上传——撤回权实测
@@ -1231,7 +1107,7 @@ describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => 
     expect(res.status).toBe(204);
   });
 
-  it('空间 ADMIN 删 DRAFT → 204（管理面 05 §6.4）', async () => {
+  it('管理档删 DRAFT → 204（管理面 05 §6.4）', async () => {
     const res = await jsonRequest(
       'DELETE',
       delUrl('3.0.0'),
@@ -1244,7 +1120,7 @@ describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => 
   it('非上传者普通成员删他人 DRAFT → 403（owner2 删 assetAdmin 传的——无撤回权）', async () => {
     // 3.0.0 已被上面删——用 T15 seed 专用新版本？——重建：assetAdmin 再传 8.0.0
     await createVersion(db, storage, audit, {
-      asset: { id: vreadAssetIdRef, namespaceId: nsA, type: 'skill' },
+      asset: { id: vreadAssetIdRef, type: 'skill' },
       uploaderId: assetAdmin,
       file: buildZip([{ name: 'SKILL.md', content: '---\nname: x\ndescription: x\n---\nbody\n' }]),
       version: '8.0.0',
@@ -1253,7 +1129,7 @@ describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => 
     expect(res.status).toBe(403);
   });
 
-  it('空间外用户删 DRAFT → 403', async () => {
+  it('普通用户删他人 DRAFT → 403', async () => {
     const res = await jsonRequest('DELETE', delUrl('8.0.0'), undefined, await cookieFor(outsider));
     expect(res.status).toBe(403);
   });
@@ -1261,7 +1137,7 @@ describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => 
   it('删 PUBLISHED 版本 → 400 version_not_deletable（禁删态替代 M2 draft_only——member 是 ast-del-pub owner）', async () => {
     const res = await jsonRequest(
       'DELETE',
-      '/api/assets/ast-http-ns/ast-del-pub/versions/1.0.0',
+      '/api/assets/ast-del-pub/versions/1.0.0',
       undefined,
       await cookieFor(member),
     );

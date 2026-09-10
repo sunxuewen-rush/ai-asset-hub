@@ -11,9 +11,6 @@ import {
   assetLabel,
   assetVersion,
   labelDefinition,
-  type NamespaceRole,
-  namespace,
-  namespaceMember,
   userAccount,
   type Visibility,
 } from '../db/schema/index.js';
@@ -25,7 +22,6 @@ const PG_UNIQUE_VIOLATION = '23505';
 export type AssetRow = typeof asset.$inferSelect;
 
 export interface CreateAssetInput {
-  namespaceSlug: string;
   slug: string;
   type: AssetType;
   /** 主要维护人（05 §6.2：创建者 = owner） */
@@ -37,7 +33,6 @@ export interface CreateAssetInput {
 export interface ListAssetsOptions {
   limit: number;
   offset: number;
-  namespaceSlug?: string;
   type?: AssetType;
   visibility?: Visibility;
   /** 全文检索（T12——design §6 R12：slug ILIKE ∪ 版本投影 name/description/searchText——01 §3.2） */
@@ -117,28 +112,15 @@ export async function loadAssetItemMeta(
   return map;
 }
 
-/** namespace 按 slug 寻址（坐标第一跳；不存在 → 404） */
-export async function findNamespaceBySlug(db: Db, slug: string) {
-  const rows = await db
-    .select({ id: namespace.id, status: namespace.status })
-    .from(namespace)
-    .where(eq(namespace.slug, slug))
-    .limit(1);
-  return rows[0] ?? null;
-}
-
 /**
- * 注册资产（T1）：坐标 @namespaceSlug/slug 跨类型唯一（01 §3.3）。
+ * 注册资产（T1 → M4-pre §2.3）：坐标为**全局唯一裸 slug**（`UNIQUE(slug)`，跨类型唯一）。
  * 冲突预检给友好 409（asset.slug_taken）；DB 唯一键 23505 兜底并发窗口。
  */
 export async function createAsset(db: Db, input: CreateAssetInput): Promise<AssetRow> {
-  const ns = await findNamespaceBySlug(db, input.namespaceSlug);
-  if (!ns) throw new AssetError(assetErrorCodes.namespaceNotFound);
-
   const existing = await db
     .select({ id: asset.id })
     .from(asset)
-    .where(and(eq(asset.namespaceId, ns.id), eq(asset.slug, input.slug)))
+    .where(eq(asset.slug, input.slug))
     .limit(1);
   if (existing.length > 0) throw new AssetError(assetErrorCodes.slugTaken);
 
@@ -146,7 +128,6 @@ export async function createAsset(db: Db, input: CreateAssetInput): Promise<Asse
     const rows = await db
       .insert(asset)
       .values({
-        namespaceId: ns.id,
         type: input.type,
         slug: input.slug,
         ownerId: input.ownerId,
@@ -167,19 +148,10 @@ export async function createAsset(db: Db, input: CreateAssetInput): Promise<Asse
   }
 }
 
-/** 资产详情（按坐标寻址）；可见性判定在调用层（visibility.ts，T2） */
-export async function getAsset(
-  db: Db,
-  namespaceSlug: string,
-  slug: string,
-): Promise<AssetRow | null> {
-  const rows = await db
-    .select({ asset: asset })
-    .from(asset)
-    .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
-    .where(and(eq(namespace.slug, namespaceSlug), eq(asset.slug, slug)))
-    .limit(1);
-  return rows[0]?.asset ?? null;
+/** 资产详情（按裸 slug 寻址）；可见性判定在调用层（visibility.ts，T2） */
+export async function getAsset(db: Db, slug: string): Promise<AssetRow | null> {
+  const rows = await db.select().from(asset).where(eq(asset.slug, slug)).limit(1);
+  return rows[0] ?? null;
 }
 
 /** 资产列表（分页 + 简单结构过滤；M3 全文搜索不在此） */
@@ -188,12 +160,6 @@ export async function listAssets(
   opts: ListAssetsOptions,
 ): Promise<{ items: AssetRow[]; total: number }> {
   const conditions = [];
-  if (opts.namespaceSlug !== undefined) {
-    const ns = await findNamespaceBySlug(db, opts.namespaceSlug);
-    // namespace 不存在 → 空结果（非 404：列表语义）
-    if (!ns) return { items: [], total: 0 };
-    conditions.push(eq(asset.namespaceId, ns.id));
-  }
   if (opts.type !== undefined) conditions.push(eq(asset.type, opts.type));
   if (opts.visibility !== undefined) conditions.push(eq(asset.visibility, opts.visibility));
 
@@ -203,53 +169,26 @@ export async function listAssets(
     .select()
     .from(asset)
     .where(where)
-    // 稳定排序（同 namespaces：createdAt desc + id desc 破平）
+    // 稳定排序（createdAt desc + id desc 破平）
     .orderBy(sql`${asset.createdAt} desc, ${asset.id} desc`)
     .limit(opts.limit)
     .offset(opts.offset);
   return { items, total: totalRow?.total ?? 0 };
 }
 
-/** 我的空间成员关系子查询（T3 读面过滤共用；roles 限定如 ['OWNER','ADMIN']；
- * M4a R4 匿名 viewer：userId null → 恒空子查询（PUBLIC-only 坍缩语义）） */
-function myNamespaceIdsSubquery(db: Db, userId: string | null, roles?: NamespaceRole[]) {
-  if (!userId) {
-    // 匿名：无成员身份——恒假子查询（drizzle eq null 语义不隐式——显式空）
-    return db.select({ id: namespaceMember.namespaceId }).from(namespaceMember).where(sql`false`);
-  }
-  if (roles) {
-    return db
-      .select({ id: namespaceMember.namespaceId })
-      .from(namespaceMember)
-      .where(and(eq(namespaceMember.userId, userId), inArray(namespaceMember.role, roles)));
-  }
-  return db
-    .select({ id: namespaceMember.namespaceId })
-    .from(namespaceMember)
-    .where(eq(namespaceMember.userId, userId));
-}
-
 /**
  * 读面可见列表（T3 GET /api/assets；08 §5.1 可见性 SQL 过滤）：
- * - ACTIVE 空间中的 ACTIVE 资产（HIDDEN/ARCHIVED 不进任何列表——坐标详情仍可治理访问）
+ * - ACTIVE 资产（HIDDEN/ARCHIVED 不进任何列表——坐标详情仍可治理访问）
  * - PUBLIC：全站可见
- * - NAMESPACE_ONLY：我成员的空间
- * - PRIVATE：我是 owner，或我在空间的角色为 OWNER/ADMIN（05 §6.5 管理面）
+ * - NAMESPACE_ONLY / PRIVATE：我是 owner（M4-pre 过渡语义——空间成员面消失，二者退化为 owner-only，
+ *   列与取值本身留待 S3 整体删除）
  * - SUPER_ADMIN：全量可见（含 PRIVATE——不自动含 HIDDEN，列表统一 ACTIVE）
  */
 export async function listViewableAssets(
   db: Db,
   opts: ListAssetsOptions & { viewer: AssetViewerContext },
-): Promise<{ items: Array<AssetRow & { namespaceSlug: string }>; total: number }> {
-  const conditions: ReturnType<typeof eq>[] = [
-    eq(namespace.status, 'ACTIVE'),
-    eq(asset.status, 'ACTIVE'),
-  ];
-  if (opts.namespaceSlug !== undefined) {
-    const ns = await findNamespaceBySlug(db, opts.namespaceSlug);
-    if (!ns) return { items: [], total: 0 };
-    conditions.push(eq(asset.namespaceId, ns.id));
-  }
+): Promise<{ items: AssetRow[]; total: number }> {
+  const conditions: ReturnType<typeof eq>[] = [eq(asset.status, 'ACTIVE')];
   if (opts.type !== undefined) conditions.push(eq(asset.type, opts.type));
   if (opts.visibility !== undefined) conditions.push(eq(asset.visibility, opts.visibility));
 
@@ -309,18 +248,11 @@ export async function listViewableAssets(
     const viewerId = opts.viewer.userId;
     const branches: SQL[] = [eq(asset.visibility, 'PUBLIC')];
     if (viewerId !== null) {
-      // NAMESPACE_ONLY：我成员的空间；PRIVATE：我 owner 或空间 OWNER/ADMIN
-      const memberNs = myNamespaceIdsSubquery(db, viewerId);
-      const adminNs = myNamespaceIdsSubquery(db, viewerId, ['OWNER', 'ADMIN']);
-      const nsOnly = and(
-        eq(asset.visibility, 'NAMESPACE_ONLY'),
-        inArray(asset.namespaceId, memberNs),
+      // 非公开资产：仅 owner 本人可见（空间管理面随 M4-pre 消失；平台超管走上分支短路）
+      const privateCond = and(
+        inArray(asset.visibility, ['PRIVATE', 'NAMESPACE_ONLY']),
+        eq(asset.ownerId, viewerId),
       );
-      const privateOwner = or(eq(asset.ownerId, viewerId), inArray(asset.namespaceId, adminNs));
-      const privateCond =
-        privateOwner === undefined ? undefined : and(eq(asset.visibility, 'PRIVATE'), privateOwner);
-      // 不可达守卫（子查询常真——SQL 构造 undefined 仅类型联合）——防泄漏保底跳过分支
-      if (nsOnly !== undefined) branches.push(nsOnly);
       if (privateCond !== undefined) branches.push(privateCond);
     }
     // 匿名 viewer（userId null）：仅 PUBLIC 分支——PUBLIC-only 坍缩（M4a R4）
@@ -329,22 +261,14 @@ export async function listViewableAssets(
   }
 
   const where = and(...conditions);
-  const [totalRow] = await db
-    .select({ total: count() })
-    .from(asset)
-    .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
-    .where(where);
+  const [totalRow] = await db.select({ total: count() }).from(asset).where(where);
   const items = await db
-    .select({ a: asset, nsSlug: namespace.slug })
+    .select()
     .from(asset)
-    .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
     .where(where)
     // T12 排序 updated_at desc（design §6 R12——最近更新优先；id desc 破平）
     .orderBy(sql`${asset.updatedAt} desc, ${asset.id} desc`)
     .limit(opts.limit)
     .offset(opts.offset);
-  return {
-    items: items.map((r) => ({ ...r.a, namespaceSlug: r.nsSlug })),
-    total: totalRow?.total ?? 0,
-  };
+  return { items, total: totalRow?.total ?? 0 };
 }

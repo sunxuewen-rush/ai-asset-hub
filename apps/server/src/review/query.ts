@@ -1,7 +1,7 @@
 /**
  * review 读面服务（M3 design §3.7 R8——审核队列/我的提交/详情）。
  * 授权语义（design §9 接口表 + skillhub ReviewPortalAppService 三视图形态）：
- * - 审核队列 listQueue：review:approve 面（空间 ADMIN/OWNER → 本空间；ASSET_ADMIN/
+ * - 审核队列 listQueue：管理档面（M4-pre：**全站单队列**；原「空间 ADMIN/OWNER → 本空间」与
  *   SUPER_ADMIN → 全平台）——调用方（路由层）判 can('review:approve', nsCtx) 后传参；
  * - 我的提交 listMine：任何登录者看自己的提交（无权限码——身份面）；
  * - 详情 getReviewDetail：review:approve 面 or submitted_by 本人——无权 403 review.access_denied
@@ -16,15 +16,13 @@ import {
   asset,
   assetFile,
   assetVersion,
-  namespace,
   type ReviewStatus,
   reviewTask,
 } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
 
 export interface QueueFilters {
-  /** null = 全平台（ASSET_ADMIN/SUPER_ADMIN 面）；非空 = 限定空间（空间 ADMIN/OWNER 面） */
-  namespaceId?: number;
+  /** M4-pre：审核队列为**全站单队列**（空间维度已删除） */
   status?: ReviewStatus;
   limit: number;
   offset: number;
@@ -37,8 +35,7 @@ export interface ReviewListItem {
   reviewVersion: number;
   submittedBy: string;
   submittedAt: Date;
-  /** 资产坐标与版本信息（审核人决策所需） */
-  namespaceSlug: string;
+  /** 资产坐标与版本信息（审核人决策所需；M4-pre：坐标 = 全局唯一裸 slug） */
   assetSlug: string;
   assetVersion: string;
   /** 版本当前状态（PENDING_REVIEW 等——队列中通常 PENDING） */
@@ -58,7 +55,6 @@ const LIST_SELECT = {
   reviewVersion: reviewTask.version,
   submittedBy: reviewTask.submittedBy,
   submittedAt: reviewTask.submittedAt,
-  namespaceSlug: namespace.slug,
   assetSlug: asset.slug,
   assetVersion: assetVersion.version,
   versionStatus: assetVersion.status,
@@ -67,14 +63,12 @@ const LIST_SELECT = {
 
 async function baseQuery(filters: QueueFilters, mineViewerId?: string) {
   const conds = [];
-  if (filters.namespaceId !== undefined)
-    conds.push(eq(reviewTask.namespaceId, filters.namespaceId));
   if (filters.status !== undefined) conds.push(eq(reviewTask.status, filters.status));
   if (mineViewerId !== undefined) conds.push(eq(reviewTask.submittedBy, mineViewerId));
   return and(...conds);
 }
 
-/** 审核队列（review:approve 面——路由层判 can 后调用；namespaceId 限定空间管理面） */
+/** 审核队列（管理档面——路由层判 role 后调用；M4-pre：全站单队列） */
 export async function listQueue(
   db: Db,
   filters: QueueFilters,
@@ -86,7 +80,6 @@ export async function listQueue(
       .from(reviewTask)
       .innerJoin(assetVersion, eq(reviewTask.assetVersionId, assetVersion.id))
       .innerJoin(asset, eq(assetVersion.assetId, asset.id))
-      .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
       .where(where)
       .orderBy(desc(reviewTask.submittedAt), desc(reviewTask.id))
       .limit(filters.limit)
@@ -100,7 +93,7 @@ export async function listQueue(
 export async function listMine(
   db: Db,
   viewerId: string,
-  filters: Omit<QueueFilters, 'namespaceId'>,
+  filters: QueueFilters,
 ): Promise<{ items: ReviewListItem[]; total: number }> {
   const where = await baseQuery(filters, viewerId);
   const [items, totalRows] = await Promise.all([
@@ -109,7 +102,6 @@ export async function listMine(
       .from(reviewTask)
       .innerJoin(assetVersion, eq(reviewTask.assetVersionId, assetVersion.id))
       .innerJoin(asset, eq(assetVersion.assetId, asset.id))
-      .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
       .where(where)
       .orderBy(desc(reviewTask.submittedAt), desc(reviewTask.id))
       .limit(filters.limit)
@@ -136,7 +128,6 @@ export async function getReviewDetail(
     .from(reviewTask)
     .innerJoin(assetVersion, eq(reviewTask.assetVersionId, assetVersion.id))
     .innerJoin(asset, eq(assetVersion.assetId, asset.id))
-    .innerJoin(namespace, eq(asset.namespaceId, namespace.id))
     .where(eq(reviewTask.id, taskId));
   const row = rows[0];
   if (!row) throw new ReviewError(reviewErrorCodes.notFound);

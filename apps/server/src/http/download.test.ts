@@ -25,8 +25,6 @@ import {
   asset,
   assetVersion,
   auditLog,
-  namespace,
-  namespaceMember,
   userAccount,
   type VersionStatus,
 } from '../db/schema/index.js';
@@ -41,10 +39,9 @@ let db: Db;
 let sessions: SessionManager;
 let rbac: RbacService;
 let ownerId: string;
-let contributorId: string; // 上传者（MEMBER）
+let contributorId: string; // 上传者（非 owner）
 let assetAdminUserId: string; // 平台 ASSET_ADMIN
 let strangerId: string;
-let nsId: number;
 let assetId: number;
 let assetSlug: string;
 let audit!: ReturnType<typeof createAuditWriter>;
@@ -86,7 +83,7 @@ const ORIGIN = { origin: 'http://localhost:3000' };
 async function downloadReq(version: string, cookie?: string) {
   const headers: Record<string, string> = { host: 'localhost:3000', ...ORIGIN };
   if (cookie) headers.cookie = cookie;
-  return buildApp().request(`/api/assets/${PREFIX}ns/${assetSlug}/versions/${version}/download`, {
+  return buildApp().request(`/api/assets/${assetSlug}/versions/${version}/download`, {
     method: 'GET',
     headers,
   });
@@ -107,7 +104,7 @@ async function seedPublishedVersion(status: VersionStatus, createdBy: string): P
       publishedAt: status === 'PUBLISHED' ? new Date() : null,
     })
     .returning({ id: assetVersion.id });
-  const key = `${nsId}/${assetId}/${v!.id}/bundle.zip`;
+  const key = `${assetId}/${v!.id}/bundle.zip`;
   await storage.put(key, bundleZip, { contentType: 'application/zip' });
   await db.update(assetVersion).set({ bundleStorageKey: key }).where(eq(assetVersion.id, v!.id));
   return version;
@@ -127,19 +124,10 @@ beforeAll(async () => {
   assetAdminUserId = await makeUser('assetadmin');
   strangerId = await makeUser('stranger');
   await setRole(assetAdminUserId, ACCOUNT_ROLE.ADMIN);
-  const [ns] = await db
-    .insert(namespace)
-    .values({ slug: `${PREFIX}ns`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values([
-    { namespaceId: nsId, userId: ownerId, role: 'OWNER' },
-    { namespaceId: nsId, userId: contributorId, role: 'MEMBER' },
-  ]);
   assetSlug = `${PREFIX}a`;
   const [a] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug: assetSlug, type: 'skill', visibility: 'PUBLIC', ownerId })
+    .values({ slug: assetSlug, type: 'skill', visibility: 'PUBLIC', ownerId })
     .returning({ id: asset.id });
   assetId = a!.id;
 });
@@ -149,16 +137,17 @@ afterAll(async () => {
     .select({ id: userAccount.id })
     .from(userAccount)
     .where(like(userAccount.id, `${PREFIX}%`));
-  // 本 ns 下全部资产（含 PRIVATE 用例附加资产）链删
+  // 本文件前缀资产（含 PRIVATE 用例附加资产）链删
   const allAssetIds = (
-    await db.select({ id: asset.id }).from(asset).where(eq(asset.namespaceId, nsId))
+    await db
+      .select({ id: asset.id })
+      .from(asset)
+      .where(like(asset.slug, `${PREFIX}%`))
   ).map((a) => a.id);
   if (allAssetIds.length > 0) {
     await db.delete(assetVersion).where(inArray(assetVersion.assetId, allAssetIds));
     await db.delete(asset).where(inArray(asset.id, allAssetIds));
   }
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
@@ -211,7 +200,7 @@ describe('下载五档授权（design §7.2 R13）', () => {
     );
   });
 
-  it('UPLOADED：上传者本人（非 owner MEMBER）可下', async () => {
+  it('UPLOADED：上传者本人（非 owner）可下', async () => {
     const version = await seedPublishedVersion('UPLOADED', contributorId);
     const res = await downloadReq(version, await cookieFor(contributorId));
     expect(res.status).toBe(200);
@@ -230,7 +219,6 @@ describe('下载五档授权（design §7.2 R13）', () => {
     const [p] = await db
       .insert(asset)
       .values({
-        namespaceId: nsId,
         slug: privateSlug,
         type: 'skill',
         visibility: 'PRIVATE',
@@ -247,17 +235,14 @@ describe('下载五档授权（design §7.2 R13）', () => {
         publishedAt: new Date(),
       })
       .returning({ id: assetVersion.id });
-    const key = `${nsId}/${p!.id}/${v!.id}/bundle.zip`;
+    const key = `${p!.id}/${v!.id}/bundle.zip`;
     await storage.put(key, bundleZip, { contentType: 'application/zip' });
     await db.update(assetVersion).set({ bundleStorageKey: key }).where(eq(assetVersion.id, v!.id));
 
-    const res = await buildApp().request(
-      `/api/assets/${PREFIX}ns/${privateSlug}/versions/1.0.0/download`,
-      {
-        method: 'GET',
-        headers: { host: 'localhost:3000', ...ORIGIN, cookie: await cookieFor(strangerId) },
-      },
-    );
+    const res = await buildApp().request(`/api/assets/${privateSlug}/versions/1.0.0/download`, {
+      method: 'GET',
+      headers: { host: 'localhost:3000', ...ORIGIN, cookie: await cookieFor(strangerId) },
+    });
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe('asset.access_denied');
   });

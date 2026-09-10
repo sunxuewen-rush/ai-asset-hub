@@ -25,8 +25,6 @@ import {
   asset,
   assetVersion,
   auditLog,
-  namespace,
-  namespaceMember,
   reviewTask,
   userAccount,
 } from '../db/schema/index.js';
@@ -40,12 +38,11 @@ const PREFIX = 'rvh-';
 let db: Db;
 let sessions: SessionManager;
 let rbac: RbacService;
-let ownerId: string; // ns OWNER + 资产 owner
-let contributorId: string; // MEMBER 上传者/提交人
-let spaceAdminId: string; // 空间 ADMIN
+let ownerId: string; // 资产 owner
+let contributorId: string; // 上传者/提交人
+let exSpaceAdminId: string; // 原空间 ADMIN（无平台角色——空间面已删）
 let assetAdminUserId: string; // 平台 ASSET_ADMIN
 let strangerId: string;
-let nsId: number;
 let storageDir: string;
 let storage!: ReturnType<typeof createLocalStorage>;
 let audit!: ReturnType<typeof createAuditWriter>;
@@ -107,18 +104,14 @@ let slugSeq = 0;
 /** 建资产 + DRAFT 版本（createdBy=uploader）→ 走 API submit → taskId */
 async function submitFlow(uploaderCookie: string, uploaderId: string) {
   const slug = `${PREFIX}a${++slugSeq}-${randomUUID().slice(0, 6)}`;
-  await db.insert(asset).values({ namespaceId: nsId, slug, type: 'skill', ownerId });
+  await db.insert(asset).values({ slug, type: 'skill', ownerId });
   await db.insert(assetVersion).values({
     assetId: (await db.select({ id: asset.id }).from(asset).where(eq(asset.slug, slug)))[0]!.id,
     version: '1.0.0',
     status: 'DRAFT',
     createdBy: uploaderId,
   });
-  const res = await postJson(
-    `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0/submit`,
-    {},
-    uploaderCookie,
-  );
+  const res = await postJson(`/api/assets/${slug}/versions/1.0.0/submit`, {}, uploaderCookie);
   expect(res.status).toBe(201);
   const body = (await res.json()) as { taskId: number; reviewVersion: number; status: string };
   expect(body.status).toBe('PENDING_REVIEW');
@@ -136,20 +129,10 @@ beforeAll(async () => {
   uploadRateLimiter = new InMemoryRateLimiter(UPLOAD_RATE_LIMIT.windowMs, UPLOAD_RATE_LIMIT.max);
   ownerId = await makeUser('owner');
   contributorId = await makeUser('contributor');
-  spaceAdminId = await makeUser('spaceadmin');
+  exSpaceAdminId = await makeUser('spaceadmin');
   assetAdminUserId = await makeUser('assetadmin');
   strangerId = await makeUser('stranger');
   await setRole(assetAdminUserId, ACCOUNT_ROLE.ADMIN);
-  const [ns] = await db
-    .insert(namespace)
-    .values({ slug: `${PREFIX}ns`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values([
-    { namespaceId: nsId, userId: ownerId, role: 'OWNER' },
-    { namespaceId: nsId, userId: contributorId, role: 'MEMBER' },
-    { namespaceId: nsId, userId: spaceAdminId, role: 'ADMIN' },
-  ]);
 });
 
 afterAll(async () => {
@@ -160,8 +143,6 @@ afterAll(async () => {
   await db.delete(reviewTask).where(like(reviewTask.submittedBy, `${PREFIX}%`));
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
@@ -187,13 +168,13 @@ describe('submit 端点（M3 design §3.1 R2——API 面）', () => {
 
   it('stranger（非成员非上传者非 owner）submit → 403 review.access_denied', async () => {
     const slug = `${PREFIX}x${++slugSeq}`;
-    await db.insert(asset).values({ namespaceId: nsId, slug, type: 'skill', ownerId });
+    await db.insert(asset).values({ slug, type: 'skill', ownerId });
     const [a] = await db.select({ id: asset.id }).from(asset).where(eq(asset.slug, slug));
     await db
       .insert(assetVersion)
       .values({ assetId: a!.id, version: '1.0.0', status: 'DRAFT', createdBy: ownerId });
     const res = await postJson(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0/submit`,
+      `/api/assets/${slug}/versions/1.0.0/submit`,
       {},
       await cookieFor(strangerId),
     );
@@ -203,13 +184,13 @@ describe('submit 端点（M3 design §3.1 R2——API 面）', () => {
   });
 
   it('匿名 submit → 401', async () => {
-    const res = await postJson(`/api/assets/${PREFIX}ns/x/versions/1.0.0/submit`, {});
+    const res = await postJson('/api/assets/x/versions/1.0.0/submit', {});
     expect(res.status).toBe(401);
   });
 });
 
 describe('审核队列/详情/动作（M3 design §3.7/§9 R8——API 面）', () => {
-  it('平台 ASSET_ADMIN 全量队列可见（含空间 ADMIN 面 task）', async () => {
+  it('平台管理档全量队列可见（全站单队列）', async () => {
     const contributorCookie = await cookieFor(contributorId);
     const { taskId } = await submitFlow(contributorCookie, contributorId);
     const res = await getReq('/api/reviews', await cookieFor(assetAdminUserId));
@@ -218,15 +199,15 @@ describe('审核队列/详情/动作（M3 design §3.7/§9 R8——API 面）', 
     expect(body.items.some((i) => i.taskId === taskId)).toBe(true);
   });
 
-  it('空间 ADMIN 面：带 namespaceSlug 可见本空间队列；不带 → 403', async () => {
-    const spaceAdminCookie = await cookieFor(spaceAdminId);
-    const ok = await getReq(`/api/reviews?namespaceSlug=${PREFIX}ns`, spaceAdminCookie);
-    expect(ok.status).toBe(200);
-    const denied = await getReq('/api/reviews', spaceAdminCookie);
-    expect(denied.status).toBe(403);
+  it('原空间 ADMIN（无平台角色）：带/不带 namespaceSlug 均 403（队列仅管理档）', async () => {
+    const exSpaceAdminCookie = await cookieFor(exSpaceAdminId);
+    const withParam = await getReq(`/api/reviews?namespaceSlug=${PREFIX}ns`, exSpaceAdminCookie);
+    expect(withParam.status).toBe(403);
+    const global = await getReq('/api/reviews', exSpaceAdminCookie);
+    expect(global.status).toBe(403);
   });
 
-  it('MEMBER 无审核面：GET /api/reviews → 403 review.access_denied（队列是审核面端点，mine 才是本人面）', async () => {
+  it('普通用户无审核面：GET /api/reviews → 403 review.access_denied（队列是审核面端点，mine 才是本人面）', async () => {
     const res = await getReq('/api/reviews', await cookieFor(contributorId));
     expect(res.status).toBe(403);
   });
@@ -240,13 +221,13 @@ describe('审核队列/详情/动作（M3 design §3.7/§9 R8——API 面）', 
     expect(body.items.some((i) => i.taskId === taskId)).toBe(true);
   });
 
-  it('approve：空间 ADMIN 批准 → 200 + 版本 PUBLISHED（latest 指针落位）', async () => {
+  it('approve：管理档批准 → 200 + 版本 PUBLISHED（latest 指针落位）', async () => {
     const contributorCookie = await cookieFor(contributorId);
     const { slug, taskId } = await submitFlow(contributorCookie, contributorId);
     const res = await postJson(
       `/api/reviews/${taskId}/approve`,
       { comment: 'ok' },
-      await cookieFor(spaceAdminId),
+      await cookieFor(assetAdminUserId),
     );
     expect(res.status).toBe(200);
     const [a] = await db.select({ id: asset.id }).from(asset).where(eq(asset.slug, slug));
@@ -263,7 +244,7 @@ describe('审核队列/详情/动作（M3 design §3.7/§9 R8——API 面）', 
     const res = await postJson(
       `/api/reviews/${taskId}/reject`,
       { comment: '' },
-      await cookieFor(spaceAdminId),
+      await cookieFor(assetAdminUserId),
     );
     expect(res.status).toBe(400);
   });
@@ -274,7 +255,7 @@ describe('审核队列/详情/动作（M3 design §3.7/§9 R8——API 面）', 
     const res = await postJson(
       `/api/reviews/${taskId}/reject`,
       { comment: 'license missing' },
-      await cookieFor(spaceAdminId),
+      await cookieFor(assetAdminUserId),
     );
     expect(res.status).toBe(200);
     expect(((await res.json()) as { status: string }).status).toBe('REJECTED');

@@ -20,7 +20,6 @@ import { createAuditRoutes } from './http/audit.js';
 import { rbacContext } from './http/auth-middleware.js';
 import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createLabelRoutes } from './http/labels.js';
-import { createNamespaceRoutes } from './http/namespaces.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { requestContextMiddleware } from './http/request-context.js';
 import { createReviewRoutes } from './http/reviews.js';
@@ -114,7 +113,6 @@ export function createApp(deps: AppDeps): Hono {
     }),
   );
 
-  app.route('/api/namespaces', createNamespaceRoutes({ db: deps.db, audit: deps.audit }));
   app.route(
     '/api/assets',
     createAssetRoutes({

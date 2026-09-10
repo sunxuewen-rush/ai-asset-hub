@@ -60,12 +60,6 @@
   text-overflow: ellipsis;
   transition: color 0.15s;
 }
-.ns {
-  font-family: var(--font-mono);
-  font-size: var(--fs-10-5);
-  color: var(--brand);
-  flex-shrink: 0;
-}
 .meta {
   display: flex;
   align-items: center;

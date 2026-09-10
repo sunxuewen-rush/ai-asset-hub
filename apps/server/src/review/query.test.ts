@@ -3,15 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createClient, type Db } from '../db/client.js';
-import {
-  asset,
-  assetFile,
-  assetVersion,
-  namespace,
-  namespaceMember,
-  reviewTask,
-  userAccount,
-} from '../db/schema/index.js';
+import { asset, assetFile, assetVersion, reviewTask, userAccount } from '../db/schema/index.js';
 import { type ReviewError, reviewErrorCodes } from './errors.js';
 import { getReviewDetail, listMine, listQueue } from './query.js';
 
@@ -21,11 +13,10 @@ const PREFIX = 'qr-';
 const dbUrl = process.env.DATABASE_URL ?? 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 
 let db!: Db;
-let nsId: number;
-let ownerId: string; // ns OWNER（审核面）
-let contributorId: string; // 提交人（MEMBER）
-let adminId: string; // 空间 ADMIN（审核面）
-let strangerId: string; // ns 外用户（无审核面）
+let ownerId: string; // 资产 owner（审核面）
+let contributorId: string; // 提交人
+let adminId: string; // 管理档（审核面）
+let strangerId: string; // 外人（无审核面）
 let assetId: number;
 
 async function makeUser(tag: string): Promise<string> {
@@ -63,7 +54,6 @@ async function insertTaskWithVersion(
     .insert(reviewTask)
     .values({
       assetVersionId: v!.id,
-      namespaceId: nsId,
       status: taskStatus,
       version: 1,
       submittedBy,
@@ -81,24 +71,9 @@ beforeAll(async () => {
   contributorId = await makeUser('contributor');
   adminId = await makeUser('admin');
   strangerId = await makeUser('stranger');
-  const [ns] = await db
-    .insert(namespace)
-    .values({
-      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
-      displayName: `${PREFIX}ns`,
-      type: 'TEAM',
-      createdBy: ownerId,
-    })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values([
-    { namespaceId: nsId, userId: ownerId, role: 'OWNER' },
-    { namespaceId: nsId, userId: contributorId, role: 'MEMBER' },
-    { namespaceId: nsId, userId: adminId, role: 'ADMIN' },
-  ]);
   const [a] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug: `${PREFIX}demo`, type: 'skill', ownerId })
+    .values({ slug: `${PREFIX}demo`, type: 'skill', ownerId })
     .returning({ id: asset.id });
   assetId = a!.id;
 });
@@ -114,11 +89,11 @@ afterAll(async () => {
   if (versionIds.length > 0) {
     await db.delete(assetFile).where(inArray(assetFile.versionId, versionIds));
   }
-  await db.delete(reviewTask).where(eq(reviewTask.namespaceId, nsId));
+  if (versionIds.length > 0) {
+    await db.delete(reviewTask).where(inArray(reviewTask.assetVersionId, versionIds));
+  }
   await db.delete(assetVersion).where(eq(assetVersion.assetId, assetId));
   await db.delete(asset).where(eq(asset.id, assetId));
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(userAccount).where(like(userAccount.id, `${PREFIX}%`));
   await db.$client.end();
 });
@@ -136,19 +111,18 @@ describe('review 队列/我的/详情读面（design §3.7 R8）', () => {
     withdrawnTaskId = await insertTaskWithVersion('WITHDRAWN', '4.0.0', ownerId);
   });
 
-  it('审核队列（空间 ADMIN 面 + namespaceId）：本空间全 task 四态可见', async () => {
-    const { items, total } = await listQueue(db, { namespaceId: nsId, limit: 50, offset: 0 });
+  it('审核队列（全站单队列）：全 task 四态可见', async () => {
+    const { items, total } = await listQueue(db, { limit: 50, offset: 0 });
     expect(total).toBe(4);
     const statuses = items.map((i) => i.status).sort();
     expect(statuses).toEqual(['APPROVED', 'PENDING', 'REJECTED', 'WITHDRAWN']);
     const first = items[0]!;
-    expect(first.namespaceSlug).toContain(PREFIX);
+    expect(['1.0.0', '2.0.0', '3.0.0', '4.0.0']).toContain(first.assetVersion);
     expect(first.assetSlug).toBe(`${PREFIX}demo`);
   });
 
   it('审核队列 status 过滤（PENDING only）', async () => {
     const { items, total } = await listQueue(db, {
-      namespaceId: nsId,
       status: 'PENDING',
       limit: 50,
       offset: 0,

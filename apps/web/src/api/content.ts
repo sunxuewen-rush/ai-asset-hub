@@ -3,12 +3,11 @@ import { type ApiGetOptions, apiGet } from './client.js';
 import type { FileContentResponse } from './types.js';
 
 export async function fetchVersionFile(
-  nsSlug: string,
   slug: string,
   version: string,
   path: string,
   opts?: ApiGetOptions,
 ): Promise<FileContentResponse> {
-  const base = `/api/assets/${encodeURIComponent(nsSlug)}/${encodeURIComponent(slug)}/versions/${encodeURIComponent(version)}/files/`;
+  const base = `/api/assets/${encodeURIComponent(slug)}/versions/${encodeURIComponent(version)}/files/`;
   return apiGet<FileContentResponse>(`${base}${encodeURIComponent(path)}`, opts);
 }

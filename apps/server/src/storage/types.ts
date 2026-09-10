@@ -4,7 +4,8 @@ import type { Readable } from 'node:stream';
  * 对象存储 SPI（08 §5.3 storage_key 契约；M1 只立接口 + Local 实现，
  * M3 上传/下载管线消费，S3 实现按需后置）。
  *
- * key 规则：服务端拼装 `{namespaceId}/{assetId}/{versionId}/{filename}`；
+ * key 规则：服务端拼装 `{assetId}/{versionId}/{filename}`（M4-pre：坐标扁平化去空间段；
+ * 存量对象的旧 key（含空间段）不受影响——key 存于 `asset_file.storage_key`）；
  * 所有实现必须经 `assertSafeKey` 校验后方可触达底层存储（防路径穿越）。
  */
 

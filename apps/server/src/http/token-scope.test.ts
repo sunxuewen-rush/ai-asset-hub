@@ -26,8 +26,6 @@ import {
   apiToken,
   asset,
   auditLog,
-  namespace,
-  namespaceMember,
   userAccount,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -112,7 +110,6 @@ async function apiRegister(token: string): Promise<Response> {
       authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      namespaceSlug: 'tks-ns',
       slug: `scope-a-${randomUUID().slice(0, 6)}`,
       type: 'skill',
     }),
@@ -132,17 +129,6 @@ beforeAll(async () => {
   superAdminId = await makeUser('sa');
   await setRole(auditorId, ACCOUNT_ROLE.ADMIN);
   await setRole(superAdminId, ACCOUNT_ROLE.SUPER_ADMIN);
-  // 注册端点的权限门在 ns 寻址后——建 ns 使 scope 判定真触发
-  await db
-    .insert(namespace)
-    .values({ slug: 'tks-ns', displayName: 'tks-ns', type: 'TEAM', createdBy: superAdminId });
-  const [nsRow] = await db
-    .select({ id: namespace.id })
-    .from(namespace)
-    .where(eq(namespace.slug, 'tks-ns'));
-  await db
-    .insert(namespaceMember)
-    .values({ namespaceId: nsRow!.id, userId: superAdminId, role: 'OWNER' });
 });
 
 afterAll(async () => {
@@ -163,8 +149,6 @@ afterAll(async () => {
         ownedAssets.map((a) => a.id),
       ),
     );
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   for (const u of users) {
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
   }

@@ -1,8 +1,7 @@
 /**
  * review 域服务：submit（M3 design §3.1 R2——显式提交审核）。
  * 判定模型（canSubmitReview 纯函数——路由层组装输入，canManageAsset 先例）：
- *   hasReviewSubmit（= can('review:submit', nsId)——空间 ADMIN/OWNER（NS_ROLE 映射）+
- *   ASSET_ADMIN（平台 permission）+ SUPER_ADMIN（短路），FROZEN/ARCHIVED 拒写已含）
+ *   hasReviewSubmit（= `role >= ADMIN`——M4-pre §2.2 管理档；原空间 ADMIN/OWNER + 权限码面已随空间删除）
  *   ∪ 版本上传者本人（开放协作例外——05 §6.4 收尾同步项，R2 拍板）
  *   ∪ 资产 owner 本人（05 §6.4 review:submit 行——owner 判定不进角色矩阵，业务组合）。
  * approve/reject/withdraw 在 T4（design §3.3-§3.5）；读面 T5/T6。
@@ -10,15 +9,9 @@
 import { and, eq, max } from 'drizzle-orm';
 import { AssetError, assetErrorCodes } from '../assets/errors.js';
 import type { AuditWriter } from '../audit/audit.js';
-import { isSelfReview } from '../auth/rbac.js';
+import { ACCOUNT_ROLE, type AccountRole, isSelfReview } from '../auth/rbac.js';
 import type { Db } from '../db/client.js';
-import {
-  asset,
-  assetVersion,
-  type NamespaceRole,
-  reviewTask,
-  type VersionStatus,
-} from '../db/schema/index.js';
+import { asset, assetVersion, reviewTask, type VersionStatus } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
 
 export interface CanSubmitInput {
@@ -27,7 +20,7 @@ export interface CanSubmitInput {
   /** 版本上传者（created_by——开放协作例外对象） */
   versionCreatedBy: string | null;
   actorId: string;
-  /** 路由层判定：can('review:submit', namespaceId)（SUPER_ADMIN 短路已含） */
+  /** 路由层判定：`role >= ADMIN`（M4-pre §2.2 管理档；SUPER_ADMIN 天然覆盖） */
   hasReviewSubmit: boolean;
 }
 
@@ -39,7 +32,7 @@ export function canSubmitReview(input: CanSubmitInput): boolean {
 }
 
 export interface SubmitVersionInput {
-  asset: { id: number; namespaceId: number; ownerId: string };
+  asset: { id: number; ownerId: string };
   version: { id: number; version: string; status: VersionStatus; createdBy: string | null };
   submitterId: string;
 }
@@ -89,7 +82,6 @@ export async function submitVersion(
         .insert(reviewTask)
         .values({
           assetVersionId: version.id,
-          namespaceId: target.namespaceId,
           status: 'PENDING',
           version: reviewVersion,
           submittedBy: submitterId,
@@ -127,7 +119,7 @@ export interface ReviewActionInput {
   taskId: number;
   actorId: string;
   comment?: string;
-  /** 路由层判定：can('review:approve', nsId)——空间 ADMIN/OWNER + ASSET_ADMIN + SUPER_ADMIN（05 §6.4） */
+  /** 路由层判定：`role >= ADMIN`（M4-pre §2.2；原 can('review:approve', nsId) 已随空间删除） */
   canApprove: boolean;
   /** 防自审例外（05 §6.4：SUPER_ADMIN 可审自己的提交——调用方显式放行） */
   isSuperAdmin: boolean;
@@ -272,23 +264,21 @@ export interface CanWithdrawInput {
   /** 资产 owner（05 §6.4 owner 业务分支） */
   assetOwnerId: string;
   actorId: string;
-  /** viewer 在空间的角色（路由层查） */
-  namespaceRole: NamespaceRole | null;
-  isSuperAdmin: boolean;
+  /** viewer 平台角色档位（路由层查——管理档 ≥ ADMIN 可撤回他人提审） */
+  viewerRole: AccountRole;
 }
 
-/** 撤回提审判定（design §3.5 R6：提交人本人 / asset owner / 空间 ADMIN/OWNER / SUPER_ADMIN） */
+/** 撤回提审判定（design §3.5 R6 → M4-pre：提交人本人 / asset owner / 管理档（≥ ADMIN）） */
 export function canWithdrawReview(input: CanWithdrawInput): boolean {
-  if (input.isSuperAdmin) return true;
   if (input.actorId === input.submittedBy) return true;
   if (input.actorId === input.assetOwnerId) return true;
-  return input.namespaceRole === 'OWNER' || input.namespaceRole === 'ADMIN';
+  return input.viewerRole >= ACCOUNT_ROLE.ADMIN;
 }
 
 /**
  * 撤回提审：PENDING_REVIEW → UPLOADED + 删 PENDING task 行（design §3.5 R6；
  * skillhub 代码实证——withdraw 回 UPLOADED 非文档写的 DRAFT）。
- * 判定收服务内（task → version → asset ownerId 链路），路由层传 nsRole/isSuperAdmin。
+ * 判定收服务内（task → version → asset ownerId 链路），路由层传 viewerRole（平台角色档位）。
  */
 export async function withdrawReview(
   db: Db,
@@ -296,11 +286,10 @@ export async function withdrawReview(
   input: {
     taskId: number;
     actorId: string;
-    namespaceRole: NamespaceRole | null;
-    isSuperAdmin: boolean;
+    viewerRole: AccountRole;
   },
 ): Promise<void> {
-  const { taskId, actorId, namespaceRole, isSuperAdmin } = input;
+  const { taskId, actorId, viewerRole } = input;
   const task = await loadPendingTask(db, taskId);
   if (task.status !== 'PENDING') throw new ReviewError(reviewErrorCodes.notPending);
 
@@ -313,8 +302,7 @@ export async function withdrawReview(
     submittedBy: task.submittedBy,
     assetOwnerId: ownerRow?.ownerId ?? '',
     actorId,
-    namespaceRole,
-    isSuperAdmin,
+    viewerRole,
   });
   if (!canWithdraw) throw new ReviewError(reviewErrorCodes.accessDenied);
 

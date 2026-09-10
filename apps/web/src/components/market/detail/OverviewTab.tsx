@@ -35,7 +35,6 @@ export function manifestFields(manifest: Record<string, unknown> | null): Array<
 /** 总览 tab（v0.7：主文档 markdown 正文 + manifest 摘要回退——缺主文档不空窗） */
 export function OverviewTab({
   type,
-  nsSlug,
   slug,
   version,
   files,
@@ -43,7 +42,6 @@ export function OverviewTab({
   changelog,
 }: {
   type: AssetType;
-  nsSlug: string;
   slug: string;
   version: string;
   files: readonly VersionFileEntry[] | null;
@@ -55,10 +53,8 @@ export function OverviewTab({
 
   const contentState = useApi(
     (signal) =>
-      docPath
-        ? fetchVersionFile(nsSlug, slug, version, docPath, { signal })
-        : Promise.resolve(null),
-    [nsSlug, slug, version, docPath],
+      docPath ? fetchVersionFile(slug, version, docPath, { signal }) : Promise.resolve(null),
+    [slug, version, docPath],
   );
 
   const notFound =

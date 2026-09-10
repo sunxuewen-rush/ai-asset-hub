@@ -20,11 +20,11 @@ import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
+  type AccountRole,
   asset,
   assetVersion,
   auditLog,
-  namespace,
-  namespaceMember,
   reviewTask,
   userAccount,
   type VersionStatus,
@@ -39,10 +39,9 @@ let db: Db;
 let sessions: SessionManager;
 let rbac: RbacService;
 let ownerId: string;
-let contributorId: string; // 上传者（MEMBER——非 owner）
-let adminId: string; // 空间 ADMIN（非 owner 非上传者）
+let contributorId: string; // 上传者（非 owner）
+let adminId: string; // 管理档（非 owner 非上传者）
 let strangerId: string;
-let nsId: number;
 let audit!: ReturnType<typeof createAuditWriter>;
 let storageDir: string;
 let storage!: ReturnType<typeof createLocalStorage>;
@@ -52,6 +51,9 @@ async function makeUser(tag: string): Promise<string> {
   const id = `${PREFIX}${tag}_${randomUUID()}`;
   await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
   return id;
+}
+async function setRole(userId: string, role: AccountRole): Promise<void> {
+  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 async function cookieFor(userId: string): Promise<string> {
   const sid = await sessions.createSession(userId, 'dsc-http');
@@ -93,7 +95,7 @@ async function mkVersioned(
   const slug = `${PREFIX}a${++seq}-${randomUUID().slice(0, 6)}`;
   const [a] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug, type: 'skill', ownerId })
+    .values({ slug, type: 'skill', ownerId })
     .returning({ id: asset.id });
   const [v] = await db
     .insert(assetVersion)
@@ -102,7 +104,6 @@ async function mkVersioned(
   if (taskStatus) {
     await db.insert(reviewTask).values({
       assetVersionId: v!.id,
-      namespaceId: nsId,
       status: taskStatus,
       version: 1,
       submittedBy: uploaderId,
@@ -126,16 +127,7 @@ beforeAll(async () => {
   contributorId = await makeUser('contributor');
   adminId = await makeUser('admin');
   strangerId = await makeUser('stranger');
-  const [ns] = await db
-    .insert(namespace)
-    .values({ slug: `${PREFIX}ns`, displayName: `${PREFIX}ns`, type: 'TEAM', createdBy: ownerId })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values([
-    { namespaceId: nsId, userId: ownerId, role: 'OWNER' },
-    { namespaceId: nsId, userId: contributorId, role: 'MEMBER' },
-    { namespaceId: nsId, userId: adminId, role: 'ADMIN' },
-  ]);
+  await setRole(adminId, ACCOUNT_ROLE.ADMIN); // 管理档（原空间 ADMIN 面并入）
 });
 
 afterAll(async () => {
@@ -146,8 +138,6 @@ afterAll(async () => {
   await db.delete(reviewTask).where(like(reviewTask.submittedBy, `${PREFIX}%`));
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
     await db.delete(userAccount).where(eq(userAccount.id, u.id));
@@ -159,37 +149,25 @@ afterAll(async () => {
 describe('版本删除分治矩阵（design §3.4 R5）', () => {
   it('上传者本人（非 owner）删自己的 DRAFT → 204', async () => {
     const { slug } = await mkVersioned(contributorId, 'DRAFT');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(contributorId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(contributorId));
     expect(res.status).toBe(204);
   });
 
   it('上传者本人删自己的 SCAN_FAILED → 204（草稿族例外扩展）', async () => {
     const { slug } = await mkVersioned(contributorId, 'SCAN_FAILED');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(contributorId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(contributorId));
     expect(res.status).toBe(204);
   });
 
   it('上传者本人删自己的 REJECTED → 403（已进审核留档——管理面）', async () => {
     const { slug } = await mkVersioned(contributorId, 'REJECTED', 'REJECTED');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(contributorId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(contributorId));
     expect(res.status).toBe(403);
   });
 
   it('owner 删 REJECTED → 204 + 连带 review_task 行清', async () => {
     const { assetId, slug } = await mkVersioned(contributorId, 'REJECTED', 'REJECTED');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(ownerId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(ownerId));
     expect(res.status).toBe(204);
     const tasks = await db
       .select({ id: reviewTask.id })
@@ -198,41 +176,29 @@ describe('版本删除分治矩阵（design §3.4 R5）', () => {
     expect(tasks).toHaveLength(0); // 版本删除连带清任务行
   });
 
-  it('空间 ADMIN（非 owner 非上传者）删 UPLOADED → 204（管理面）', async () => {
+  it('管理档（非 owner 非上传者）删 UPLOADED → 204（管理面）', async () => {
     const { slug } = await mkVersioned(contributorId, 'UPLOADED', 'WITHDRAWN');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(adminId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(adminId));
     expect(res.status).toBe(204);
   });
 
   it('owner 删 PENDING_REVIEW → 400 version_not_deletable（审核中禁删——防内容蒸发）', async () => {
     const { slug } = await mkVersioned(contributorId, 'PENDING_REVIEW', 'PENDING');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(ownerId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(ownerId));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_deletable');
   });
 
   it('owner 删 YANKED → 400 version_not_deletable（留档态）', async () => {
     const { slug } = await mkVersioned(contributorId, 'YANKED');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(ownerId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(ownerId));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.version_not_deletable');
   });
 
   it('stranger（非成员非上传者）删 DRAFT → 403 auth.forbidden', async () => {
     const { slug } = await mkVersioned(contributorId, 'DRAFT');
-    const res = await delReq(
-      `/api/assets/${PREFIX}ns/${slug}/versions/1.0.0`,
-      await cookieFor(strangerId),
-    );
+    const res = await delReq(`/api/assets/${slug}/versions/1.0.0`, await cookieFor(strangerId));
     expect(res.status).toBe(403);
   });
 });
@@ -240,14 +206,14 @@ describe('版本删除分治矩阵（design §3.4 R5）', () => {
 describe('资产删除条件升级（design §4.2 R10）', () => {
   it('有 YANKED 版本 → 400 has_yanked（曾分发即留档——资产不可删）', async () => {
     const { slug } = await mkVersioned(contributorId, 'YANKED');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}`, await cookieFor(ownerId));
+    const res = await delReq(`/api/assets/${slug}`, await cookieFor(ownerId));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('asset.has_yanked');
   });
 
   it('仅 DRAFT（无 PUBLISHED/YANKED）→ 204 可删', async () => {
     const { slug } = await mkVersioned(contributorId, 'DRAFT');
-    const res = await delReq(`/api/assets/${PREFIX}ns/${slug}`, await cookieFor(ownerId));
+    const res = await delReq(`/api/assets/${slug}`, await cookieFor(ownerId));
     expect(res.status).toBe(204);
   });
 });

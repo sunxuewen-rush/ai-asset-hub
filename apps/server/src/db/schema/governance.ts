@@ -15,7 +15,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { asset, assetVersion } from './assets.js';
-import { namespace } from './namespaces.js';
 import { userAccount } from './users.js';
 
 /**
@@ -40,9 +39,6 @@ export const reviewTask = pgTable(
     assetVersionId: bigserial('asset_version_id', { mode: 'number' })
       .notNull()
       .references(() => assetVersion.id),
-    namespaceId: bigserial('namespace_id', { mode: 'number' })
-      .notNull()
-      .references(() => namespace.id),
     status: text('status').$type<ReviewStatus>().notNull().default('PENDING'),
     /** 重审计数，递增（08 §6：原版本号不变、review version+1） */
     version: integer('version').notNull().default(1),
@@ -59,7 +55,8 @@ export const reviewTask = pgTable(
     uniqueIndex('uq_review_task_version_pending')
       .on(t.assetVersionId)
       .where(sql`status = 'PENDING'`),
-    index('idx_review_task_namespace_status').on(t.namespaceId, t.status),
+    // M4-pre：审核队列不再按空间过滤（去 namespace_id）→ 全站单队列
+    index('idx_review_task_status').on(t.status),
     index('idx_review_task_submitted_by_status').on(t.submittedBy, t.status),
   ],
 );

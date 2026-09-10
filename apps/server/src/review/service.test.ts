@@ -6,11 +6,10 @@ import { AssetError, assetErrorCodes } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
 import {
+  ACCOUNT_ROLE,
   asset,
   assetVersion,
   auditLog,
-  namespace,
-  namespaceMember,
   reviewTask,
   userAccount,
 } from '../db/schema/index.js';
@@ -31,10 +30,9 @@ const dbUrl = process.env.DATABASE_URL ?? 'postgres://aih:aih@localhost:5433/ai_
 
 let db!: Db;
 let audit!: ReturnType<typeof createAuditWriter>;
-let nsId: number;
-let ownerId: string; // 资产 owner（ns OWNER 成员）
-let contributorId: string; // 非 owner 上传者（ns MEMBER——无 review:submit 权限面）
-let strangerId: string; // ns 外成员
+let ownerId: string; // 资产 owner
+let contributorId: string; // 非 owner 上传者（普通用户——无管理档）
+let strangerId: string; // 外人
 
 async function makeUser(tag: string): Promise<string> {
   const id = `rvw_${tag}_${randomUUID()}`;
@@ -42,24 +40,10 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 
-async function insertNs(): Promise<number> {
-  const [r] = await db
-    .insert(namespace)
-    .values({
-      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
-      displayName: `${PREFIX}ns`,
-      type: 'TEAM',
-      createdBy: ownerId,
-    })
-    .returning({ id: namespace.id });
-  return r!.id;
-}
-
 async function insertAsset(slug: string): Promise<number> {
   const [r] = await db
     .insert(asset)
     .values({
-      namespaceId: nsId,
       slug: `${PREFIX}${slug}-${randomUUID().slice(0, 8)}`,
       type: 'skill',
       ownerId,
@@ -87,11 +71,9 @@ async function insertVersion(
   return r!;
 }
 
-async function assetRow(
-  assetId: number,
-): Promise<{ id: number; namespaceId: number; ownerId: string }> {
+async function assetRow(assetId: number): Promise<{ id: number; ownerId: string }> {
   const [r] = await db
-    .select({ id: asset.id, namespaceId: asset.namespaceId, ownerId: asset.ownerId })
+    .select({ id: asset.id, ownerId: asset.ownerId })
     .from(asset)
     .where(eq(asset.id, assetId));
   return r!;
@@ -104,11 +86,6 @@ beforeAll(async () => {
   ownerId = await makeUser('owner');
   contributorId = await makeUser('contributor');
   strangerId = await makeUser('stranger');
-  nsId = await insertNs();
-  await db.insert(namespaceMember).values([
-    { namespaceId: nsId, userId: ownerId, role: 'OWNER' },
-    { namespaceId: nsId, userId: contributorId, role: 'MEMBER' },
-  ]);
 });
 
 afterAll(async () => {
@@ -116,15 +93,13 @@ afterAll(async () => {
   await db.delete(reviewTask).where(like(reviewTask.submittedBy, 'rvw_%'));
   await db.delete(assetVersion).where(like(assetVersion.createdBy, 'rvw_%'));
   await db.delete(asset).where(like(asset.ownerId, 'rvw_%'));
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, 'rvw_%'));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, 'rvw_%'));
   await db.delete(userAccount).where(like(userAccount.id, 'rvw_%'));
   await db.$client.end();
 });
 
 describe('canSubmitReview（design §3.1 R2 判定——05 §6.4 + 上传者本人例外）', () => {
-  it('hasReviewSubmit（空间 ADMIN/OWNER + ASSET_ADMIN + SUPER_ADMIN——can() 结果）→ 可提', () => {
+  it('hasReviewSubmit（管理档 role >= ADMIN）→ 可提', () => {
     expect(
       canSubmitReview({
         assetOwnerId: ownerId,
@@ -135,7 +110,7 @@ describe('canSubmitReview（design §3.1 R2 判定——05 §6.4 + 上传者本�
     ).toBe(true);
   });
 
-  it('上传者本人例外（非 owner 非权限——MEMBER 贡献者提自己稿）', () => {
+  it('上传者本人例外（非 owner 普通用户提自己稿）', () => {
     expect(
       canSubmitReview({
         assetOwnerId: ownerId,
@@ -266,7 +241,6 @@ describe('submitVersion（design §3.1 R2）', () => {
     // 历史结案任务（version 1，APPROVED——模拟 withdraw 前一轮）
     await db.insert(reviewTask).values({
       assetVersionId: v.id,
-      namespaceId: nsId,
       status: 'APPROVED',
       version: 1,
       submittedBy: contributorId,
@@ -488,8 +462,7 @@ describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + �
     await withdrawReview(db, audit, {
       taskId,
       actorId: contributorId,
-      namespaceRole: 'MEMBER',
-      isSuperAdmin: false,
+      viewerRole: ACCOUNT_ROLE.USER,
     });
     const [ver] = await db
       .select({ status: assetVersion.status })
@@ -524,8 +497,7 @@ describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + �
     await withdrawReview(db, audit, {
       taskId,
       actorId: ownerId,
-      namespaceRole: 'OWNER',
-      isSuperAdmin: false,
+      viewerRole: ACCOUNT_ROLE.USER,
     });
     const [ver] = await db
       .select({ status: assetVersion.status })
@@ -534,14 +506,13 @@ describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + �
     expect(ver!.status).toBe('UPLOADED');
   });
 
-  it('外人（非提交人非 owner 非空间 ADMIN）→ 403 review.access_denied', async () => {
+  it('外人（非提交人非 owner 无管理档）→ 403 review.access_denied', async () => {
     const { taskId, versionId } = await makePendingTask(contributorId, '5.0.0');
     try {
       await withdrawReview(db, audit, {
         taskId,
         actorId: strangerId,
-        namespaceRole: null,
-        isSuperAdmin: false,
+        viewerRole: ACCOUNT_ROLE.USER,
       });
       throw new Error('expected accessDenied');
     } catch (err) {
@@ -567,8 +538,7 @@ describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + �
       await withdrawReview(db, audit, {
         taskId,
         actorId: contributorId,
-        namespaceRole: 'MEMBER',
-        isSuperAdmin: false,
+        viewerRole: ACCOUNT_ROLE.USER,
       });
       throw new Error('expected notPending');
     } catch (err) {
@@ -579,18 +549,21 @@ describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + �
 });
 
 describe('canWithdrawReview（design §3.5 R6 判定）', () => {
-  it('矩阵：提交人/owner/空间 ADMIN/SUPER_ADMIN 可撤；外人拒', () => {
+  it('矩阵：提交人/owner/管理档/SUPER_ADMIN 可撤；外人拒', () => {
     const base = {
       submittedBy: contributorId,
       assetOwnerId: ownerId,
       actorId: contributorId,
-      namespaceRole: null,
-      isSuperAdmin: false,
+      viewerRole: ACCOUNT_ROLE.USER,
     };
     expect(canWithdrawReview(base)).toBe(true); // 提交人本人
     expect(canWithdrawReview({ ...base, actorId: ownerId })).toBe(true); // owner
-    expect(canWithdrawReview({ ...base, actorId: strangerId, namespaceRole: 'ADMIN' })).toBe(true); // 空间 ADMIN
+    expect(
+      canWithdrawReview({ ...base, actorId: strangerId, viewerRole: ACCOUNT_ROLE.ADMIN }),
+    ).toBe(true); // 管理档
     expect(canWithdrawReview({ ...base, actorId: strangerId })).toBe(false); // 外人
-    expect(canWithdrawReview({ ...base, actorId: contributorId, isSuperAdmin: true })).toBe(true); // 超管
+    expect(
+      canWithdrawReview({ ...base, actorId: contributorId, viewerRole: ACCOUNT_ROLE.SUPER_ADMIN }),
+    ).toBe(true); // 超管
   });
 });

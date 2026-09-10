@@ -41,14 +41,14 @@ export function Home() {
           {(latest?.items ?? []).map((item) => (
             <Link
               key={item.id}
-              to={`/assets/${encodeURIComponent(item.namespaceSlug)}/${encodeURIComponent(item.slug)}`}
+              to={`/assets/${encodeURIComponent(item.slug)}`}
               className={styles.lrow}
             >
               <span className={styles.dot} style={{ background: TYPE_DOT[item.type] }} />
               <span className={styles.tt}>
                 <b>{item.latestName ?? item.slug}</b>
                 <span className={styles.coord}>
-                  @{item.namespaceSlug}/{item.slug}
+                  {item.slug}
                   {item.latestVersion ? ` · v${item.latestVersion}` : ''}
                 </span>
               </span>

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, inArray, like } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 
@@ -14,16 +14,9 @@ import { InMemorySessionStore, SessionManager } from '../auth/session.js';
 import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  ACCOUNT_ROLE,
-  type AccountRole,
-  apiToken,
-  namespace,
-  namespaceMember,
-  userAccount,
-} from '../db/schema/index.js';
+import { ACCOUNT_ROLE, type AccountRole, apiToken, userAccount } from '../db/schema/index.js';
+import { createAuditRoutes } from './audit.js';
 import { rbacContext } from './auth-middleware.js';
-import { createNamespaceRoutes } from './namespaces.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 
@@ -78,7 +71,7 @@ function buildApp(): Hono {
     return c.json({ code: 'internal_error' }, 500);
   });
   app.route('/api/tokens', createTokenRoutes({ db }));
-  app.route('/api/namespaces', createNamespaceRoutes({ db }));
+  app.route('/api/audit', createAuditRoutes({ db }));
   return app;
 }
 
@@ -90,15 +83,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const nss = await db
-    .select({ id: namespace.id })
-    .from(namespace)
-    .where(like(namespace.slug, 't18-%'));
-  const nsIds = nss.map((n) => n.id);
-  if (nsIds.length > 0) {
-    await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, nsIds));
-    await db.delete(namespace).where(inArray(namespace.id, nsIds));
-  }
   const users = await db
     .select({ id: userAccount.id })
     .from(userAccount)
@@ -205,26 +189,16 @@ describe('Bearer token 认证中间件（T17）', () => {
     const plainToken = await mintToken(plainUser);
 
     const origin = { origin: 'http://localhost:3000', host: 'localhost:3000' };
-    // ASSET_ADMIN + Bearer → 201（session 通道同权限已在 namespaces.test 覆盖，此处对照同判）
-    const ok = await buildApp().request('/api/namespaces', {
-      method: 'POST',
-      headers: {
-        ...origin,
-        authorization: `Bearer ${adminToken.plain}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ slug: 't18-bearer-admin', displayName: 't18 bearer admin' }),
+    // 管理档 + Bearer → 200（requireRole(ADMIN) 门通过——session 通道同门同判）
+    const ok = await buildApp().request('/api/audit?limit=1', {
+      method: 'GET',
+      headers: { ...origin, authorization: `Bearer ${adminToken.plain}` },
     });
-    expect(ok.status).toBe(201);
+    expect(ok.status).toBe(200);
     // 普通用户 + Bearer → 403 forbidden（与 session 通道同一 403 码）
-    const denied = await buildApp().request('/api/namespaces', {
-      method: 'POST',
-      headers: {
-        ...origin,
-        authorization: `Bearer ${plainToken.plain}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ slug: 't18-bearer-plain', displayName: 't18 bearer plain' }),
+    const denied = await buildApp().request('/api/audit?limit=1', {
+      method: 'GET',
+      headers: { ...origin, authorization: `Bearer ${plainToken.plain}` },
     });
     expect(denied.status).toBe(403);
     const body = (await denied.json()) as { code: string };

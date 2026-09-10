@@ -37,12 +37,10 @@ function initialPair(listLength: number, latestIdx: number): Pair {
  * 折叠 + +N−M + 行级三列（GitHub 亮色）。
  */
 export function VersionCompare({
-  nsSlug,
   slug,
   versions,
   latestVersion,
 }: {
-  nsSlug: string;
   slug: string;
   versions: readonly VersionListItem[];
   latestVersion: string | null;
@@ -66,9 +64,9 @@ export function VersionCompare({
   const { data, loading, error } = useApi<CompareResponse | null>(
     (signal) =>
       pairValid && base && head
-        ? fetchCompare(nsSlug, slug, base.version, head.version, { signal })
+        ? fetchCompare(slug, base.version, head.version, { signal })
         : Promise.resolve(null),
-    [nsSlug, slug, pairValid, base?.version, head?.version],
+    [slug, pairValid, base?.version, head?.version],
   );
   const files = data?.files ?? [];
 

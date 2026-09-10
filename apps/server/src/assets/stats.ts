@@ -1,11 +1,11 @@
 /**
  * 公开统计聚合（M4a R7——design §5.2 G6 定案）。
- * 聚合语义与匿名列表同面（仅 PUBLIC 可见性 + ACTIVE 状态 + ACTIVE 空间）——防泄露：
+ * 聚合语义与匿名列表同面（仅 PUBLIC 可见性 + ACTIVE 状态；M4-pre：无空间维度）——防泄露：
  * PRIVATE/NAMESPACE_ONLY/非 ACTIVE 一律不计入。
  */
-import { and, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { asset, namespace } from '../db/schema/index.js';
+import { asset } from '../db/schema/index.js';
 
 export interface PublicStats {
   totalAssets: number;
@@ -15,10 +15,6 @@ export interface PublicStats {
 }
 
 export async function getPublicStats(db: Db): Promise<PublicStats> {
-  const nsActive = db
-    .select({ id: namespace.id })
-    .from(namespace)
-    .where(eq(namespace.status, 'ACTIVE'));
   const rows = await db
     .select({
       type: asset.type,
@@ -26,13 +22,7 @@ export async function getPublicStats(db: Db): Promise<PublicStats> {
       downloads: sql<number>`coalesce(sum(${asset.downloadCount}), 0)`,
     })
     .from(asset)
-    .where(
-      and(
-        eq(asset.status, 'ACTIVE'),
-        eq(asset.visibility, 'PUBLIC'),
-        inArray(asset.namespaceId, nsActive),
-      ),
-    )
+    .where(and(eq(asset.status, 'ACTIVE'), eq(asset.visibility, 'PUBLIC')))
     .groupBy(asset.type);
 
   const typeCounts: Record<string, number> = {};

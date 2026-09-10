@@ -11,12 +11,11 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { namespace } from './namespaces.js';
 import { userAccount } from './users.js';
 
 /**
  * 资产域（08 §5）：asset / asset_version / asset_file。
- * 本 plan 只落表（M2/M3 管线消费），slug 跨类型唯一键 type 不入（01 §3.3）。
+ * M4-pre 扁平化：坐标去命名空间维度 → **全局唯一裸 `slug`**（`UNIQUE(slug)`，type 不入唯一键，01 §3.3）。
  */
 
 /** 资产类型（01 §2 类型登记：skill/mcp/agent） */
@@ -48,12 +47,9 @@ export const asset = pgTable(
   'asset',
   {
     id: bigserial('id', { mode: 'number' }).primaryKey(),
-    namespaceId: bigserial('namespace_id', { mode: 'number' })
-      .notNull()
-      .references(() => namespace.id),
     type: text('type').$type<AssetType>().notNull(),
     slug: varchar('slug', { length: 64 }).notNull(),
-    /** 主要维护人（05 §6.5：空间 ADMIN 完整管理权不依赖 owner） */
+    /** 主要维护人（05 §6.5 → M4-pre：owner 本人 ∨ `role >= ADMIN` 可管，无空间角色） */
     ownerId: varchar('owner_id', { length: 128 })
       .notNull()
       .references(() => userAccount.id),
@@ -68,9 +64,9 @@ export const asset = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    // 01 §3.3：slug 跨类型唯一（type 不在唯一键）
-    unique('uq_asset_namespace_slug').on(t.namespaceId, t.slug),
-    index('idx_asset_namespace_status').on(t.namespaceId, t.status),
+    // 01 §3.3 → M4-pre §2.3：全局唯一坐标（跨类型唯一，type 不在唯一键）
+    unique('uq_asset_slug').on(t.slug),
+    index('idx_asset_status').on(t.status),
   ],
 );
 

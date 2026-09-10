@@ -11,15 +11,7 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  asset,
-  assetFile,
-  assetVersion,
-  auditLog,
-  namespace,
-  namespaceMember,
-  userAccount,
-} from '../db/schema/index.js';
+import { asset, assetFile, assetVersion, auditLog, userAccount } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildSkillZip } from '../test-utils/zip-builder.js';
 import type { AssetError } from './errors.js';
@@ -33,7 +25,6 @@ let db!: Db;
 let audit!: ReturnType<typeof createAuditWriter>;
 let storage!: ReturnType<typeof createLocalStorage>;
 let storageDir: string;
-let nsId: number;
 let userId: string;
 let assetId: number;
 
@@ -47,21 +38,9 @@ beforeAll(async () => {
   storage = createLocalStorage(storageDir);
   userId = `${PREFIX}u_${randomUUID()}`;
   await db.insert(userAccount).values({ id: userId, displayName: `${PREFIX}u`, status: 'ACTIVE' });
-  const [ns] = await db
-    .insert(namespace)
-    .values({
-      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
-      displayName: `${PREFIX}ns`,
-      type: 'TEAM',
-      createdBy: userId,
-    })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values({ namespaceId: nsId, userId, role: 'OWNER' });
   const [a] = await db
     .insert(asset)
     .values({
-      namespaceId: nsId,
       slug: `${PREFIX}a-${randomUUID().slice(0, 8)}`,
       type: 'skill',
       ownerId: userId,
@@ -82,8 +61,6 @@ afterAll(async () => {
   }
   await db.delete(assetVersion).where(eq(assetVersion.assetId, assetId));
   await db.delete(asset).where(eq(asset.id, assetId));
-  await db.delete(namespaceMember).where(eq(namespaceMember.userId, userId));
-  await db.delete(namespace).where(eq(namespace.id, nsId));
   await db.delete(auditLog).where(eq(auditLog.actorId, userId));
   await db.delete(userAccount).where(eq(userAccount.id, userId));
   await rm(storageDir, { recursive: true, force: true });
@@ -99,7 +76,7 @@ describe('createVersion bundle 顺存（design §7.1 R13）', () => {
   it('上传 → bundle_storage_key/bundle_sha256 落位（zip 原包 + 双通道校验承诺）', async () => {
     const file = zipBytes();
     const out = await createVersion(db, storage, audit, {
-      asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+      asset: { id: assetId, type: 'skill' },
       uploaderId: userId,
       file,
       version: '1.0.0',
@@ -134,7 +111,7 @@ describe('SCAN_FAILED 同版本重传豁免（design §3.4 R5）', () => {
         totalSize: 0,
       })
       .returning({ id: assetVersion.id });
-    const oldKey = `${nsId}/${assetId}/${oldVer!.id}/broken.txt`;
+    const oldKey = `${assetId}/${oldVer!.id}/broken.txt`;
     await storage.put(oldKey, Buffer.from('broken'), { contentType: 'text/plain' });
     await db.insert(assetFile).values({
       versionId: oldVer!.id,
@@ -146,7 +123,7 @@ describe('SCAN_FAILED 同版本重传豁免（design §3.4 R5）', () => {
 
     const file = zipBytes();
     const out = await createVersion(db, storage, audit, {
-      asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+      asset: { id: assetId, type: 'skill' },
       uploaderId: userId,
       file,
       version: '9.9.9', // 同号
@@ -165,7 +142,7 @@ describe('SCAN_FAILED 同版本重传豁免（design §3.4 R5）', () => {
   it('DRAFT 同号重传 → 409 version_conflict（豁免仅 SCAN_FAILED）', async () => {
     const file = zipBytes();
     const first = await createVersion(db, storage, audit, {
-      asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+      asset: { id: assetId, type: 'skill' },
       uploaderId: userId,
       file,
       version: '8.8.8',
@@ -173,7 +150,7 @@ describe('SCAN_FAILED 同版本重传豁免（design §3.4 R5）', () => {
     void first;
     try {
       await createVersion(db, storage, audit, {
-        asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+        asset: { id: assetId, type: 'skill' },
         uploaderId: userId,
         file,
         version: '8.8.8',

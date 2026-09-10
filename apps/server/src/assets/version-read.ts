@@ -2,29 +2,23 @@
  * 版本读面服务（M2 T14 → M3 T6 重构；design §3.6 R7——八态显式态分类）。
  * 授权语义（未公开族 vs 曾公开族分治——M3 六态 → 八态后状态全序显式化）：
  * - 未公开族（DRAFT/SCANNING/SCAN_FAILED/UPLOADED/PENDING_REVIEW/REJECTED）：仅
- *   资产 owner / 版本上传者（created_by）/ 空间 ADMIN/OWNER / 平台审核角色（ASSET_ADMIN，
- *   R7 扩展——审核待审/历史面）/ SUPER_ADMIN 可见；无权限者不可见（列表过滤 + 详情
+ *   资产 owner / 版本上传者（created_by）/ 平台审核角色（管理档，R7 扩展——审核待审/历史面）
+ *   / SUPER_ADMIN 可见；无权限者不可见（列表过滤 + 详情
  *   400 version_not_published 由调用方明示——不泄露存在性）。
  * - 曾公开族（PUBLISHED/YANKED）：全可见（资产读面已先行过滤——版本读面端点前置资产
  *   可见判定；YANKED 详情留档公开——曾公开族读面，design §4.1 R9）。
- * 资产读面判定（ns/visibility/403 分层）在 http 层前置——本层只做版本状态授权。
+ * 资产读面判定（visibility/403 分层）在 http 层前置——本层只做版本状态授权。
+ * M4-pre：空间角色（OWNER/ADMIN）面随空间删除；「空间 ADMIN/OWNER」判定并入管理档。
  */
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import {
-  assetFile,
-  assetVersion,
-  type NamespaceRole,
-  type VersionStatus,
-} from '../db/schema/index.js';
+import { assetFile, assetVersion, type VersionStatus } from '../db/schema/index.js';
 
 export interface VersionViewer {
   /** null = 匿名（未公开族面恒不可见） */
   viewerId: string | null;
-  /** 资产所在空间角色（null = 非成员） */
-  namespaceRole: NamespaceRole | null;
   isSuperAdmin: boolean;
-  /** 平台审核角色（ASSET_ADMIN——R7 预览授权集扩展：待审/历史面审核人可见） */
+  /** 管理档（`role >= ADMIN`——R7 预览授权集扩展：待审/历史面审核人可见；原 ASSET_ADMIN 码） */
   isPlatformReviewer: boolean;
 }
 
@@ -62,8 +56,8 @@ const NON_PUBLIC: ReadonlySet<VersionStatus> = new Set([
 ]);
 
 /**
- * 未公开族授权（内存判定——行级：上传者本人 or 资产 owner or 空间 ADMIN/OWNER or
- * 平台审核角色 ASSET_ADMIN；曾公开族恒可见。design §3.6 R7 授权集）。
+ * 未公开族授权（内存判定——行级：上传者本人 or 资产 owner or 管理档 or
+ * 平台审核角色（即 `isPlatformReviewer`）；曾公开族恒可见。design §3.6 R7 授权集）。
  */
 function canViewNonPublic(
   assetOwnerId: string,
@@ -74,13 +68,12 @@ function canViewNonPublic(
   if (viewer.viewerId === null) return false; // 匿名无未公开族面
   if (viewer.viewerId === row.createdBy) return true; // 上传者本人（协作语义）
   if (viewer.viewerId === assetOwnerId) return true; // 资产 owner
-  if (viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN') return true;
-  return viewer.isPlatformReviewer; // ASSET_ADMIN（R7）
+  return viewer.isPlatformReviewer; // 管理档（R7——含原空间 ADMIN/OWNER 面）
 }
 
 /**
  * 未公开族授权 SQL（列表过滤——viewer 身份是调用方已知常量，拼接进 OR：
- * 曾公开族恒见 + createdBy 本人 + owner/空间 ADMIN/ASSET_ADMIN 常量短路）。
+ * 曾公开族恒见 + createdBy 本人 + owner/管理档常量短路）。
  * 匿名（viewerId null）→ 仅曾公开族分支（无创建者面）。
  */
 function nonPublicVisibleWhere(assetOwnerId: string, viewer: VersionViewer): ReturnType<typeof or> {
@@ -89,12 +82,10 @@ function nonPublicVisibleWhere(assetOwnerId: string, viewer: VersionViewer): Ret
     return publicFacing;
   }
   const isOwner = assetOwnerId === viewer.viewerId;
-  const isAdmin = viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN';
   return or(
     publicFacing,
     eq(assetVersion.createdBy, viewer.viewerId),
     isOwner ? sql`true` : sql`false`,
-    isAdmin ? sql`true` : sql`false`,
     viewer.isPlatformReviewer ? sql`true` : sql`false`,
   );
 }

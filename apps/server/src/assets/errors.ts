@@ -5,12 +5,8 @@
  */
 
 export const assetErrorCodes = {
-  /** 目标 namespace 不存在（按 slug 寻址） */
-  namespaceNotFound: 'asset.namespace_not_found',
-  /** 资产不存在（按坐标寻址；HIDDEN/ARCHIVED 同码——活跃面不存在语义） */
+  /** 资产不存在（按裸 slug 寻址；HIDDEN/ARCHIVED 同码——活跃面不存在语义） */
   notFound: 'asset.not_found',
-  /** 空间已归档且非成员（skillhub error.namespace.archived 对齐——403 明示） */
-  namespaceArchived: 'asset.namespace_archived',
   /** 资产存在但不可见（PRIVATE/NAMESPACE_ONLY 拒——skillhub error.skill.access.denied 对齐 403 明示） */
   accessDenied: 'asset.access_denied',
   /** slug 跨类型唯一冲突（01 §3.3） */
@@ -54,9 +50,7 @@ export type AssetErrorCode = (typeof assetErrorCodes)[keyof typeof assetErrorCod
 export function httpStatusForAsset(code: AssetErrorCode): number {
   switch (code) {
     case 'asset.not_found':
-    case 'asset.namespace_not_found':
       return 404;
-    case 'asset.namespace_archived':
     case 'asset.access_denied':
       return 403;
     case 'asset.slug_taken':

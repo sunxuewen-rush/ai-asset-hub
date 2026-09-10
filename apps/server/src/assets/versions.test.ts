@@ -14,8 +14,6 @@ import {
   assetFile,
   assetVersion,
   auditLog,
-  namespace,
-  namespaceMember,
   userAccount,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -32,7 +30,6 @@ let db!: Db;
 let storageDir: string;
 let storage!: ReturnType<typeof createLocalStorage>;
 let audit!: ReturnType<typeof createAuditWriter>;
-let nsId: number;
 let owner: string;
 let assetId: number;
 
@@ -48,18 +45,10 @@ async function setRole(userId: string, role: AccountRole): Promise<void> {
   await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
 }
 
-async function insertNs(slug: string): Promise<number> {
-  const [r] = await db
-    .insert(namespace)
-    .values({ slug, displayName: `${PREFIX}${slug}`, type: 'TEAM', createdBy: owner })
-    .returning({ id: namespace.id });
-  return r!.id;
-}
-
 async function insertAsset(slug: string): Promise<number> {
   const [r] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug, type: 'skill', ownerId: owner })
+    .values({ slug, type: 'skill', ownerId: owner })
     .returning({ id: asset.id });
   return r!.id;
 }
@@ -90,36 +79,21 @@ beforeAll(async () => {
   storage = createLocalStorage(storageDir);
   owner = await makeUser('owner');
   await setRole(owner, ACCOUNT_ROLE.ADMIN);
-  nsId = await insertNs('vup-ns');
-  await db.insert(namespaceMember).values({ namespaceId: nsId, userId: owner, role: 'OWNER' });
   assetId = await insertAsset('demo-skill');
 });
 
 afterAll(async () => {
-  const nsRows = await db
-    .select({ id: namespace.id })
-    .from(namespace)
-    .where(like(namespace.slug, `${PREFIX}%`));
-  const ids = nsRows.map((n) => n.id);
-  if (ids.length > 0) {
-    const vRows = await db
-      .select({ id: assetVersion.id })
-      .from(assetVersion)
-      .where(
-        inArray(
-          assetVersion.assetId,
-          db.select({ id: asset.id }).from(asset).where(inArray(asset.namespaceId, ids)),
-        ),
-      );
-    const vIds = vRows.map((v) => v.id);
-    if (vIds.length > 0) {
-      await db.delete(assetFile).where(inArray(assetFile.versionId, vIds));
-      await db.delete(assetVersion).where(inArray(assetVersion.id, vIds));
-    }
-    await db.delete(asset).where(inArray(asset.namespaceId, ids));
-    await db.delete(namespaceMember).where(inArray(namespaceMember.namespaceId, ids));
-    await db.delete(namespace).where(inArray(namespace.id, ids));
+  // FK 序：asset_file → asset_version → asset（坐标 = 全局唯一裸 slug，无空间维度）
+  const vRows = await db
+    .select({ id: assetVersion.id })
+    .from(assetVersion)
+    .where(eq(assetVersion.assetId, assetId));
+  const vIds = vRows.map((v) => v.id);
+  if (vIds.length > 0) {
+    await db.delete(assetFile).where(inArray(assetFile.versionId, vIds));
+    await db.delete(assetVersion).where(inArray(assetVersion.id, vIds));
   }
+  await db.delete(asset).where(eq(asset.id, assetId));
   const users = await db
     .select({ id: userAccount.id })
     .from(userAccount)
@@ -159,7 +133,7 @@ describe('createVersion 上传服务（design §6 先验后落）', () => {
   it('合法 skill 包全链：DRAFT 版本行 + file 行 + 存储文件 + sha256 一致 + 投影落库', async () => {
     const zip = validSkillZip();
     const created = await createVersion(db, storage, audit, {
-      asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+      asset: { id: assetId, type: 'skill' },
       uploaderId: owner,
       file: zip,
       version: '1.0.0',
@@ -203,7 +177,7 @@ describe('createVersion 上传服务（design §6 先验后落）', () => {
   it('版本冲突 409（同资产同版本号不可覆写）', async () => {
     try {
       await createVersion(db, storage, audit, {
-        asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+        asset: { id: assetId, type: 'skill' },
         uploaderId: owner,
         file: validSkillZip(),
         version: '1.0.0',
@@ -221,7 +195,7 @@ describe('createVersion 上传服务（design §6 先验后落）', () => {
     const beforeVersions = await versionCount();
     try {
       await createVersion(db, storage, audit, {
-        asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+        asset: { id: assetId, type: 'skill' },
         uploaderId: owner,
         file: badSkillZip(),
         version: '9.9.9',
@@ -243,7 +217,7 @@ describe('createVersion 上传服务（design §6 先验后落）', () => {
 
   it('多版本独立落库（版本号演进 + file 行各自归属）', async () => {
     const v2 = await createVersion(db, storage, audit, {
-      asset: { id: assetId, namespaceId: nsId, type: 'skill' },
+      asset: { id: assetId, type: 'skill' },
       uploaderId: owner,
       file: validSkillZip(),
       version: '2.0.0',

@@ -10,7 +10,7 @@ import { compactCount, ownerText } from './format.js';
  * demo v0.5 网格卡数值——radius 16 / min-h 158 / desc clamp2；完整卡可点 → 详情路由）
  */
 export function AssetCard({ item }: { item: AssetItem }) {
-  const to = `/assets/${encodeURIComponent(item.namespaceSlug)}/${encodeURIComponent(item.slug)}`;
+  const to = `/assets/${encodeURIComponent(item.slug)}`;
   const displayName = item.latestName ?? item.slug;
   const author = ownerText(item);
   return (
@@ -20,7 +20,6 @@ export function AssetCard({ item }: { item: AssetItem }) {
         <div className={styles.titles}>
           <div className={styles.title}>
             <h3 className={styles.main}>{displayName}</h3>
-            <span className={styles.ns}>@{item.namespaceSlug}</span>
           </div>
           <div className={styles.meta}>
             <span className={styles.dl}>⇣ {compactCount(item.downloadCount)}</span>

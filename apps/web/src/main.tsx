@@ -32,7 +32,8 @@ createRoot(rootElement).render(
             {CENTER_ROUTES.map(({ path, type }) => (
               <Route key={path} path={path} element={<Center type={type} />} />
             ))}
-            <Route path="/assets/:nsSlug/:slug" element={<AssetDetail />} />
+            {/* 扁平化坐标：全局唯一裸 slug（M4-pre R5） */}
+            <Route path="/assets/:slug" element={<AssetDetail />} />
           </Route>
         </Routes>
       </BrowserRouter>

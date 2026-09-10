@@ -13,21 +13,19 @@ import { formatBytes } from './fileTreeNodes.js';
  */
 export function FilePreviewDialog({
   file,
-  nsSlug,
   slug,
   version,
   onClose,
 }: {
   file: { filePath: string; fileSize: number };
-  nsSlug: string;
   slug: string;
   version: string;
   onClose: () => void;
 }) {
   const { t } = useI18n();
   const { data, error, loading } = useApi(
-    (signal) => fetchVersionFile(nsSlug, slug, version, file.filePath, { signal }),
-    [nsSlug, slug, version, file.filePath],
+    (signal) => fetchVersionFile(slug, version, file.filePath, { signal }),
+    [slug, version, file.filePath],
   );
 
   useEffect(() => {

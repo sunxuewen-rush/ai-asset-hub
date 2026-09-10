@@ -1,7 +1,7 @@
 /**
  * 版本撤回分发（M3 design §4.1 R9——PUBLISHED → YANKED + latest 重算）。
- * 判定：仅平台治理面（ASSET_ADMIN/SUPER_ADMIN——05 §6.4「撤回已发布版本」行；
- * 非 owner/空间 ADMIN——撤回影响已分发消费者，治理最严面）——路由层判定后收授权输入。
+ * 判定：管理档（`role >= ADMIN`——M4-pre §2.2；原 ASSET_ADMIN/SUPER_ADMIN 面，05 §6.4「撤回已发布版本」行；
+ * 非 owner/管理档——撤回影响已分发消费者，治理最严面）——路由层判定后收授权输入。
  * skillhub 同构（SkillGovernanceService.yankVersion：3 列留痕 + latest 重算 + 审计
  * YANK_SKILL_VERSION）；AIH 差异：downloadReady 布尔列不需要（状态即标记——YANKED 禁下载
  * 由下载授权五档判定，design §7.2 R13）。
@@ -12,7 +12,7 @@ import type { Db } from '../db/client.js';
 import { asset, assetVersion, type VersionStatus } from '../db/schema/index.js';
 import { AssetError, assetErrorCodes } from './errors.js';
 
-/** yank 判定（纯函数——路由层组装：仅平台 ASSET_ADMIN/SUPER_ADMIN 治理面，05 §6.4） */
+/** yank 判定（纯函数——路由层组装：仅管理档治理面（`role >= ADMIN`），05 §6.4） */
 export function canYank(isPlatformAdmin: boolean, isSuperAdmin: boolean): boolean {
   return isPlatformAdmin || isSuperAdmin;
 }

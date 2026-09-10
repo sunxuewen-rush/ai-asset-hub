@@ -4,14 +4,7 @@ import { and, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  asset,
-  assetVersion,
-  auditLog,
-  namespace,
-  namespaceMember,
-  userAccount,
-} from '../db/schema/index.js';
+import { asset, assetVersion, auditLog, userAccount } from '../db/schema/index.js';
 import { type AssetError, assetErrorCodes } from './errors.js';
 import { canYank, yankVersion } from './yank.js';
 
@@ -22,7 +15,6 @@ const dbUrl = process.env.DATABASE_URL ?? 'postgres://aih:aih@localhost:5433/ai_
 
 let db!: Db;
 let audit!: ReturnType<typeof createAuditWriter>;
-let nsId: number;
 let ownerId: string;
 
 async function makeUser(tag: string): Promise<string> {
@@ -40,7 +32,6 @@ async function insertAssetAndVersion(
   const [a] = await db
     .insert(asset)
     .values({
-      namespaceId: nsId,
       slug: `${PREFIX}a-${randomUUID().slice(0, 8)}`,
       type: 'skill',
       ownerId,
@@ -64,35 +55,22 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: './drizzle' });
   audit = createAuditWriter(db);
   ownerId = await makeUser('owner');
-  const [ns] = await db
-    .insert(namespace)
-    .values({
-      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
-      displayName: `${PREFIX}ns`,
-      type: 'TEAM',
-      createdBy: ownerId,
-    })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values({ namespaceId: nsId, userId: ownerId, role: 'OWNER' });
 });
 
 afterAll(async () => {
-  // 链序：version → asset → member → ns → audit → user
+  // 链序：version → asset → audit → user
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   await db.delete(userAccount).where(like(userAccount.id, `${PREFIX}%`));
   await db.$client.end();
 });
 
 describe('canYank（design §4.1 R9——仅平台治理面）', () => {
-  it('矩阵：ASSET_ADMIN/SUPER_ADMIN 可 yank；owner/空间 ADMIN 不可', () => {
-    expect(canYank(true, false)).toBe(true); // ASSET_ADMIN
+  it('矩阵：管理档/超管可 yank；owner/普通用户不可', () => {
+    expect(canYank(true, false)).toBe(true); // 管理档（原 ASSET_ADMIN 面）
     expect(canYank(false, true)).toBe(true); // SUPER_ADMIN
-    expect(canYank(false, false)).toBe(false); // owner/空间 ADMIN/MEMBER——治理最严面
+    expect(canYank(false, false)).toBe(false); // owner/普通用户——治理最严面
   });
 });
 
@@ -143,7 +121,6 @@ describe('yankVersion（design §4.1 R9——PUBLISHED → YANKED + latest 重�
     const [a] = await db
       .insert(asset)
       .values({
-        namespaceId: nsId,
         slug: `${PREFIX}m-${randomUUID().slice(0, 8)}`,
         type: 'skill',
         ownerId,

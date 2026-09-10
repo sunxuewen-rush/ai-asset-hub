@@ -3,29 +3,21 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createClient, type Db } from '../db/client.js';
-import {
-  asset,
-  assetVersion,
-  namespace,
-  namespaceMember,
-  userAccount,
-  type VersionStatus,
-} from '../db/schema/index.js';
+import { asset, assetVersion, userAccount, type VersionStatus } from '../db/schema/index.js';
 import type { VersionViewer } from './version-read.js';
 import { getVersion, listVersions } from './version-read.js';
 
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 const PREFIX = 'vrw-';
-const dbUrl = process.env.DATABASE_URL ?? 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
+const dbUrl = process.env.DATABASE_URL ?? 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 
 let db!: Db;
-let nsId: number;
 let ownerId: string;
-let contributorId: string; // 版本上传者（ns MEMBER）
-let adminId: string; // 空间 ADMIN（非 owner 非上传者）
-let assetAdminId: string; // 平台 ASSET_ADMIN（非 ns 成员）
-let strangerId: string; // ns 外用户
+let contributorId: string; // 版本上传者（非 owner）
+let exSpaceAdminId: string; // 原空间 ADMIN（无平台角色——空间面已删）
+let assetAdminId: string; // 平台审核角色（isPlatformReviewer）
+let strangerId: string; // 外人
 let assetId: number;
 
 async function makeUser(tag: string): Promise<string> {
@@ -34,14 +26,9 @@ async function makeUser(tag: string): Promise<string> {
   return id;
 }
 
-function viewerFor(
-  uid: string | null,
-  role: 'OWNER' | 'ADMIN' | 'MEMBER' | null,
-  extra?: Partial<VersionViewer>,
-): VersionViewer {
+function viewerFor(uid: string | null, extra?: Partial<VersionViewer>): VersionViewer {
   return {
     viewerId: uid,
-    namespaceRole: role,
     isSuperAdmin: false,
     isPlatformReviewer: false,
     ...extra,
@@ -75,27 +62,12 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: './drizzle' });
   ownerId = await makeUser('owner');
   contributorId = await makeUser('contributor');
-  adminId = await makeUser('admin');
+  exSpaceAdminId = await makeUser('admin');
   assetAdminId = await makeUser('platform');
   strangerId = await makeUser('stranger');
-  const [ns] = await db
-    .insert(namespace)
-    .values({
-      slug: `${PREFIX}ns-${randomUUID().slice(0, 8)}`,
-      displayName: `${PREFIX}ns`,
-      type: 'TEAM',
-      createdBy: ownerId,
-    })
-    .returning({ id: namespace.id });
-  nsId = ns!.id;
-  await db.insert(namespaceMember).values([
-    { namespaceId: nsId, userId: ownerId, role: 'OWNER' },
-    { namespaceId: nsId, userId: contributorId, role: 'MEMBER' },
-    { namespaceId: nsId, userId: adminId, role: 'ADMIN' },
-  ]);
   const [a] = await db
     .insert(asset)
-    .values({ namespaceId: nsId, slug: `${PREFIX}demo`, type: 'skill', ownerId })
+    .values({ slug: `${PREFIX}demo`, type: 'skill', ownerId })
     .returning({ id: asset.id });
   assetId = a!.id;
   await seedVersions();
@@ -104,8 +76,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(assetVersion).where(eq(assetVersion.assetId, assetId));
   await db.delete(asset).where(eq(asset.id, assetId));
-  await db.delete(namespaceMember).where(like(namespaceMember.userId, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(userAccount).where(like(userAccount.id, `${PREFIX}%`));
   await db.$client.end();
 });
@@ -117,51 +87,49 @@ async function listStatuses(viewer: VersionViewer): Promise<string[]> {
 
 describe('version-read 八态读面（design §3.6 R7——T6 回归：非授权者零泄露未公开族）', () => {
   it('匿名：仅见曾公开族 PUBLISHED/YANKED（六未公开态全过滤）', async () => {
-    const statuses = await listStatuses(viewerFor(null, null));
+    const statuses = await listStatuses(viewerFor(null));
     expect(statuses.sort()).toEqual(['PUBLISHED', 'YANKED']);
   });
 
   it('非成员登录（无角色非上传者）：同匿名——仅曾公开族', async () => {
-    const statuses = await listStatuses(viewerFor(strangerId, null));
+    const statuses = await listStatuses(viewerFor(strangerId));
     expect(statuses.sort()).toEqual(['PUBLISHED', 'YANKED']);
   });
 
-  it('ns MEMBER 非上传者：仅曾公开族（成员身份不扩版本读面）', async () => {
-    const statuses = await listStatuses(viewerFor(strangerId, 'MEMBER'));
+  it('原空间成员（无角色非上传者）：仅曾公开族（成员身份维度已删）', async () => {
+    const statuses = await listStatuses(viewerFor(strangerId));
     expect(statuses.sort()).toEqual(['PUBLISHED', 'YANKED']);
   });
 
-  it('上传者本人（contributor——非 owner MEMBER）：全见未公开族', async () => {
-    const statuses = await listStatuses(viewerFor(contributorId, 'MEMBER'));
+  it('上传者本人（contributor——非 owner）：全见未公开族', async () => {
+    const statuses = await listStatuses(viewerFor(contributorId));
     expect(statuses).toHaveLength(ALL_STATES.length);
   });
 
   it('asset owner：全见', async () => {
-    const statuses = await listStatuses(viewerFor(ownerId, 'OWNER'));
+    const statuses = await listStatuses(viewerFor(ownerId));
     expect(statuses).toHaveLength(ALL_STATES.length);
   });
 
-  it('空间 ADMIN（非 owner 非上传者）：全见', async () => {
-    const statuses = await listStatuses(viewerFor(adminId, 'ADMIN'));
-    expect(statuses).toHaveLength(ALL_STATES.length);
+  it('原空间 ADMIN（无平台角色——空间管理面已删）：仅曾公开族', async () => {
+    const statuses = await listStatuses(viewerFor(exSpaceAdminId));
+    expect(statuses.sort()).toEqual(['PUBLISHED', 'YANKED']);
   });
 
-  it('平台 ASSET_ADMIN（非 ns 成员）：全见（R7 审核角色扩展——isPlatformReviewer）', async () => {
-    const statuses = await listStatuses(
-      viewerFor(assetAdminId, null, { isPlatformReviewer: true }),
-    );
+  it('平台审核角色（非 owner 非上传者）：全见（R7 审核角色扩展——isPlatformReviewer）', async () => {
+    const statuses = await listStatuses(viewerFor(assetAdminId, { isPlatformReviewer: true }));
     expect(statuses).toHaveLength(ALL_STATES.length);
   });
 
   it('SUPER_ADMIN 短路：全见', async () => {
-    const statuses = await listStatuses(viewerFor(ownerId, null, { isSuperAdmin: true }));
+    const statuses = await listStatuses(viewerFor(ownerId, { isSuperAdmin: true }));
     expect(statuses).toHaveLength(ALL_STATES.length);
   });
 });
 
 describe('getVersion 详情授权（三态：null / restricted / detail）', () => {
   it('匿名详情：PUBLISHED/YANKED 可读（曾公开留档）；未公开族 → restricted', async () => {
-    const anon = viewerFor(null, null);
+    const anon = viewerFor(null);
     const published = await getVersion(db, assetId, ownerId, '6.0.0', anon);
     expect(published).not.toBeNull();
     expect(published).not.toBe('restricted');
@@ -173,7 +141,7 @@ describe('getVersion 详情授权（三态：null / restricted / detail）', () 
   });
 
   it('上传者本人详情：未公开族全可读（含自身 PENDING_REVIEW/REJECTED）', async () => {
-    const viewer = viewerFor(contributorId, 'MEMBER');
+    const viewer = viewerFor(contributorId);
     for (const v of ['1.0.0', '2.0.0', '3.0.0', '4.0.0', '5.0.0', '6.0.0', '7.0.0']) {
       const d = await getVersion(db, assetId, ownerId, v, viewer);
       expect(d).not.toBeNull();
@@ -182,6 +150,6 @@ describe('getVersion 详情授权（三态：null / restricted / detail）', () 
   });
 
   it('版本不存在 → null', async () => {
-    expect(await getVersion(db, assetId, ownerId, '9.9.9', viewerFor(null, null))).toBeNull();
+    expect(await getVersion(db, assetId, ownerId, '9.9.9', viewerFor(null))).toBeNull();
   });
 });

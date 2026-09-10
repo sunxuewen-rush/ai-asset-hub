@@ -6,7 +6,8 @@
  * 原子性语义：校验失败/投影失败发生在事务前——无孤儿行/文件（design §6）；
  * 事务内存储写失败 → DB 回滚干净，已写存储文件容忍孤儿残留（对象存储无事务——
  * 与 T4 删除同纪律，残留可后清）。
- * 权限判定在路由层（T13 与注册同判定：asset:publish 空间成员 + 空间 ACTIVE）——
+ * 权限判定在路由层（T13 → M4-pre D4：owner 本人 ∨ 管理档；原「asset:publish 空间成员 +
+ * 空间 ACTIVE」判定已随空间删除）——
  * 服务层收授权后输入。
  */
 import { createHash } from 'node:crypto';
@@ -21,7 +22,7 @@ import { AssetError, assetErrorCodes, UploadValidationError } from './errors.js'
 import { projectAsset } from './projection.js';
 
 export interface CreateVersionInput {
-  asset: { id: number; namespaceId: number; type: AssetType };
+  asset: { id: number; type: AssetType };
   uploaderId: string;
   /** zip 包体（multipart 前置已界 ≤10MiB——T13） */
   file: Buffer;
@@ -110,8 +111,8 @@ export async function createVersion(
 
       const contents = await extractAllFor(files, file);
       for (const f of contents) {
-        // M1 key 规则（design §6）：{namespaceId}/{assetId}/{versionId}/{path}
-        const storageKey = `${target.namespaceId}/${target.id}/${vid}/${f.path}`;
+        // key 规则（design §6 → M4-pre：去空间段）：{assetId}/{versionId}/{path}
+        const storageKey = `${target.id}/${vid}/${f.path}`;
         const sha256 = createHash('sha256').update(f.content).digest('hex');
         await storage.put(storageKey, f.content, { contentType: contentTypeFor(f.path) });
         await tx.insert(assetFile).values({
@@ -125,7 +126,7 @@ export async function createVersion(
 
       // T13 bundle 顺存（design §7.1 R13——M2 上传持完整 zip Buffer 零压缩成本）：
       // 原包 zip 副本 + sha256（08 §5.3 zip 双通道校验承诺）+ SCAN_FAILED 覆写时的旧 bundle 一并清
-      bundleKey = `${target.namespaceId}/${target.id}/${vid}/bundle.zip`;
+      bundleKey = `${target.id}/${vid}/bundle.zip`;
       const bundleSha256 = createHash('sha256').update(file).digest('hex');
       await storage.put(bundleKey, file, { contentType: 'application/zip' });
       await tx
@@ -141,9 +142,7 @@ export async function createVersion(
         .deleteMany(
           [
             ...staleFileKeys,
-            replacedVersionId === null
-              ? ''
-              : `${target.namespaceId}/${target.id}/${replacedVersionId}/bundle.zip`,
+            replacedVersionId === null ? '' : `${target.id}/${replacedVersionId}/bundle.zip`,
           ].filter(Boolean),
         )
         .catch(() => {});
@@ -211,7 +210,7 @@ function contentTypeFor(path: string): string {
 
 /**
  * 删除版本（M2 T15；Q2——DRAFT 撤回/治理）。判定在路由层完成（上传者本人/
- * owner/空间 ADMIN+ + DRAFT 检查）——本服务执行清理：事务删 file 行 + 版本行，
+ * owner/管理档 + DRAFT 检查）——本服务执行清理：事务删 file 行 + 版本行，
  * 事后存储 deleteMany（孤儿文件容忍——与 T4 资产删除同纪律）。
  */
 export async function deleteVersion(

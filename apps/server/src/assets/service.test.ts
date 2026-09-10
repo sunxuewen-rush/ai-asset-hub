@@ -3,11 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
-process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
+process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import { asset, namespace, userAccount } from '../db/schema/index.js';
+import { asset, userAccount } from '../db/schema/index.js';
 import { AssetError, type AssetErrorCode, assetErrorCodes } from './errors.js';
 import { createAsset, getAsset, listAssets } from './service.js';
 
@@ -15,22 +15,12 @@ let db: Db;
 
 /** 本测试造的用户 displayName 前缀（afterAll 按前缀清理，禁全表 delete） */
 const PREFIX = 'ast-';
-let nsA: number; // 坐标空间
-let nsB: number;
 let ownerA: string;
 
 async function makeUser(tag: string): Promise<string> {
   const id = `usr_${randomUUID()}`;
   await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
   return id;
-}
-
-async function insertNs(slug: string): Promise<number> {
-  const rows = await db
-    .insert(namespace)
-    .values({ slug, displayName: `${PREFIX}${slug}`, type: 'TEAM' })
-    .returning({ id: namespace.id });
-  return rows[0]!.id;
 }
 
 /** 捕获 AssetError 并断言 code（非 AssetError 原样抛出） */
@@ -52,22 +42,18 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   ownerA = await makeUser('owner-a');
-  nsA = await insertNs('ast-ns-a');
-  nsB = await insertNs('ast-ns-b');
 });
 
 afterAll(async () => {
-  // 按前缀清理（M1 纪律：禁全表 delete；FK 序：asset → namespace → user）
+  // 按前缀清理（M1 纪律：禁全表 delete；FK 序：asset → user）
   await db.delete(asset).where(like(asset.slug, `${PREFIX}%`));
-  await db.delete(namespace).where(like(namespace.slug, `${PREFIX}%`));
   await db.delete(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
   await db.$client.end();
 });
 
 describe('createAsset', () => {
-  it('注册成功：坐标/owner/visibility 默认 PUBLIC/status ACTIVE 落位', async () => {
+  it('注册成功：裸 slug 坐标/owner/visibility 默认 PUBLIC/status ACTIVE 落位', async () => {
     const row = await createAsset(db, {
-      namespaceSlug: 'ast-ns-a',
       slug: 'ast-hello',
       type: 'skill',
       ownerId: ownerA,
@@ -79,12 +65,11 @@ describe('createAsset', () => {
     expect(row.status).toBe('ACTIVE');
     expect(row.downloadCount).toBe(0);
     expect(row.createdBy).toBe(ownerA);
-    expect(row.namespaceId).toBe(nsA);
+    expect(row.latestVersionId).toBeNull();
   });
 
   it('visibility 显式 PRIVATE 落位（08 §5.1）', async () => {
     const row = await createAsset(db, {
-      namespaceSlug: 'ast-ns-a',
       slug: 'ast-private',
       type: 'mcp',
       ownerId: ownerA,
@@ -93,10 +78,9 @@ describe('createAsset', () => {
     expect(row.visibility).toBe('PRIVATE');
   });
 
-  it('slug 冲突 → asset.slug_taken（跨类型唯一：同 ns 同 slug 拒绝）', async () => {
+  it('slug 冲突 → asset.slug_taken（跨类型唯一：同 slug 拒绝）', async () => {
     await expectAssetCode(
       createAsset(db, {
-        namespaceSlug: 'ast-ns-a',
         slug: 'ast-hello',
         type: 'agent', // 换 type 仍冲突（type 不入唯一键，01 §3.3）
         ownerId: ownerA,
@@ -105,41 +89,40 @@ describe('createAsset', () => {
     );
   });
 
-  it('不同 namespace 同 slug 可注册（坐标含空间维度）', async () => {
-    const row = await createAsset(db, {
-      namespaceSlug: 'ast-ns-b',
-      slug: 'ast-hello',
-      type: 'skill',
-      ownerId: ownerA,
-    });
-    expect(row.namespaceId).toBe(nsB);
-  });
-
-  it('namespace 不存在 → asset.namespace_not_found', async () => {
+  it('slug 全局唯一（坐标无空间维度）：重复注册 → asset.slug_taken', async () => {
     await expectAssetCode(
       createAsset(db, {
-        namespaceSlug: 'ast-no-such',
-        slug: 'ast-x',
+        slug: 'ast-hello', // 已由本测试先注册（M4-pre：global 唯一裸 slug）
         type: 'skill',
         ownerId: ownerA,
       }),
-      assetErrorCodes.namespaceNotFound,
+      assetErrorCodes.slugTaken,
     );
+  });
+
+  it('未注册 slug 直接注册成功（无空间维度门）', async () => {
+    const row = await createAsset(db, {
+      slug: 'ast-fresh',
+      type: 'skill',
+      ownerId: ownerA,
+    });
+    expect(row.slug).toBe('ast-fresh');
+    expect(row.type).toBe('skill');
   });
 });
 
 describe('getAsset', () => {
-  it('按坐标命中', async () => {
-    const row = await getAsset(db, 'ast-ns-a', 'ast-hello');
+  it('按裸 slug 命中', async () => {
+    const row = await getAsset(db, 'ast-hello');
     expect(row).not.toBeNull();
     expect(row!.slug).toBe('ast-hello');
     expect(row!.type).toBe('skill');
   });
 
-  it('坐标缺失 → null（slug 错 / namespace 错）', async () => {
-    expect(await getAsset(db, 'ast-ns-a', 'ast-missing')).toBeNull();
-    expect(await getAsset(db, 'ast-ns-b', 'ast-hello')).not.toBeNull(); // ns-b 自己有
-    expect(await getAsset(db, 'ast-ns-a', 'ast-private')).not.toBeNull();
+  it('slug 缺失 → null', async () => {
+    expect(await getAsset(db, 'ast-missing')).toBeNull();
+    expect(await getAsset(db, 'ast-hello')).not.toBeNull();
+    expect(await getAsset(db, 'ast-private')).not.toBeNull();
   });
 });
 
@@ -155,30 +138,32 @@ describe('listAssets', () => {
   it('type 过滤', async () => {
     const { items } = await listAssets(db, { limit: 20, offset: 0, type: 'skill' });
     const mine = items.filter((a) => a.slug.startsWith(PREFIX));
-    expect(mine.length).toBeGreaterThanOrEqual(2); // ast-hello × 2 空间
+    expect(mine.length).toBeGreaterThanOrEqual(2); // ast-hello + ast-fresh
     expect(mine.every((a) => a.type === 'skill')).toBe(true);
   });
 
-  it('namespaceSlug 过滤', async () => {
-    const { items } = await listAssets(db, { limit: 20, offset: 0, namespaceSlug: 'ast-ns-a' });
+  it('visibility 过滤', async () => {
+    const { items } = await listAssets(db, { limit: 20, offset: 0, visibility: 'PRIVATE' });
     const mine = items.filter((a) => a.slug.startsWith(PREFIX));
-    expect(mine.length).toBeGreaterThanOrEqual(2); // ast-hello + ast-private
-    expect(mine.every((a) => a.namespaceId === nsA)).toBe(true);
+    expect(mine.length).toBeGreaterThanOrEqual(1); // ast-private
+    expect(mine.every((a) => a.visibility === 'PRIVATE')).toBe(true);
   });
 
-  it('namespace 不存在 → 空列表（非 404：列表语义）', async () => {
-    const { items, total } = await listAssets(db, {
+  it('type+visibility 组合不命中 → 空列表', async () => {
+    const { items } = await listAssets(db, {
       limit: 20,
       offset: 0,
-      namespaceSlug: 'ast-no-such',
+      type: 'agent',
+      visibility: 'PRIVATE',
     });
-    expect(items).toHaveLength(0);
-    expect(total).toBe(0);
+    const mine = items.filter((a) => a.slug.startsWith(PREFIX));
+    expect(mine).toHaveLength(0);
+    expect(items.every((a) => a.type === 'agent' && a.visibility === 'PRIVATE')).toBe(true);
   });
 
   it('分页 limit/offset + 稳定排序', async () => {
-    const page1 = await listAssets(db, { limit: 1, offset: 0, namespaceSlug: 'ast-ns-a' });
-    const page2 = await listAssets(db, { limit: 1, offset: 1, namespaceSlug: 'ast-ns-a' });
+    const page1 = await listAssets(db, { limit: 1, offset: 0, type: 'skill' });
+    const page2 = await listAssets(db, { limit: 1, offset: 1, type: 'skill' });
     expect(page1.items).toHaveLength(1);
     expect(page2.items).toHaveLength(1);
     // 稳定排序：createdAt desc + id desc（不重叠分页）

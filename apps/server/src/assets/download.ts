@@ -17,12 +17,12 @@ import { AssetError, assetErrorCodes } from './errors.js';
 /** 下载判定输入（路由层组装——复用 assertAssetReadable 的 viewer 上下文） */
 export interface DownloadViewer {
   viewerId: string | null;
-  namespaceRole: 'OWNER' | 'ADMIN' | 'MEMBER' | null;
   isSuperAdmin: boolean;
   isPlatformReviewer: boolean;
 }
 
-/** 预览授权集（design §3.6 R7 同集——owner/上传者/空间 ADMIN/OWNER/ASSET_ADMIN/SUPER_ADMIN） */
+/** 预览授权集（design §3.6 R7 同集 → M4-pre：owner / 上传者 / 管理档（isPlatformReviewer）/ 超管；
+ *  原空间 ADMIN/OWNER 面随空间删除） */
 export function canDownloadPreview(
   viewer: DownloadViewer,
   assetOwnerId: string,
@@ -32,7 +32,7 @@ export function canDownloadPreview(
   if (viewer.viewerId === null) return false;
   if (viewer.viewerId === assetOwnerId) return true;
   if (viewer.viewerId === version.createdBy) return true;
-  return viewer.namespaceRole === 'OWNER' || viewer.namespaceRole === 'ADMIN';
+  return false;
 }
 
 export type DownloadDecision = { kind: 'yanked' } | { kind: 'not_published' } | { kind: 'ok' };

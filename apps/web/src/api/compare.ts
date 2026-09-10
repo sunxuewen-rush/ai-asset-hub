@@ -3,7 +3,6 @@ import { type ApiGetOptions, apiGet } from './client.js';
 import type { CompareResponse } from './types.js';
 
 export async function fetchCompare(
-  nsSlug: string,
   slug: string,
   from: string,
   to: string,
@@ -11,7 +10,7 @@ export async function fetchCompare(
 ): Promise<CompareResponse> {
   const query = new URLSearchParams({ from, to });
   return apiGet<CompareResponse>(
-    `/api/assets/${encodeURIComponent(nsSlug)}/${encodeURIComponent(slug)}/versions/compare?${query.toString()}`,
+    `/api/assets/${encodeURIComponent(slug)}/versions/compare?${query.toString()}`,
     opts,
   );
 }
