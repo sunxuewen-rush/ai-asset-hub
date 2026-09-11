@@ -6,7 +6,7 @@
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · T19-T20 详情页两面板 · T21-T22 中心页 · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
+> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · T20 版本对比 · T21-T22 中心页 · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
 > 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.21**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.21 为准）
 > 命名约定见 `docs/plans/README.md`
 
@@ -252,13 +252,21 @@
   `--md-*` 定义体不匹配该模式，随 T24 删除）
 - **Commit**: `refactor(web): re-skin detail overview and markdown`
 
-#### T19 FilesTab + FileTree + FilePreviewDialog
+#### T19 FilesTab + FileTree + FilePreviewDialog ✅（2026-09-11 落地；**断言修正**见下）
 - **Files**: Modify `detail/FilesTab.tsx` · `detail/FileTree.tsx` · `detail/FilePreviewDialog.tsx` ·
-  Delete 三个 `.module.css`
-- **Assert**: 折叠树展开/收起与目录层级不变；文件行 **sha 徽章（`…` 截断）** 与体积列保留；
-  **预览对话框 = 白卡（`rounded-lg` / `shadow-lg`）+ 遮罩 `bg-black/50`（`backdrop-filter` 归零）**；
-  `role="dialog"` / Esc / 点遮罩关闭 / 焦点陷阱行为不变；`FileTree.tsx` 与 `fileTreeNodes.ts` 的命名
-  大小写边界不动（macOS 大小写不敏感 vs Linux CI）
+  **Delete** `FilesTab.module.css` + `FileTree.module.css` + `FilePreviewDialog.module.css`（三件零消费后删）
+- **断言修正（执行期发现）**：「**焦点陷阱**行为不变」——实测 `FilePreviewDialog.tsx` **无任何焦点管理**
+  （仅 `useEffect` 挂 Esc 监听；无 `focus()`/`ref`/`tabIndex` 陷阱）⇒ 「焦点陷阱」是**从未实现的愿望**，
+  属断言漂移（同 T6「<900px 图标态」）。按纪律**保持现状不补功能**，登记为既有债（可访问性：Radix
+  `Dialog` 原语本可提供，但换原语 = 行为变更 → 留 M4b 或另立）。
+- **Assert（实际执行口径）**: 折叠树展开/收起（`aria-expanded` 翻转 + 子节点挂载）与目录层级不变；
+  文件行 **sha 徽章（`formatSha` 产 `前4…后4` 截断）** 与体积列保留；`FileTree.tsx` /
+  `fileTreeNodes.ts` 命名与大小写边界**不动**；**预览对话框 = 白卡**（`bg-card` + `shadow-lg`
+  + `rounded-lg` = §4.4 ③ dialog 真值）+ **遮罩 `bg-black/50` 且 `backdrop-filter: none`**；
+  `role="dialog"` / `aria-modal` / Esc / 点遮罩关闭 / ✕ 关闭四路可用；**零旧 token 消费**——
+  `grep -rn 'var(--fs-\|var(--sha-bg\|var(--line-soft' <三文件>` = 0
+  （⚠ **不把 `blur(` / `backdrop-filter` 写进 grep**：本轮注释里为说明「去 blur」会命中自述注释＝假失败，
+  同 T18 的 `--md-` 教训；冻结判定改用**计算样式**——`getComputedStyle` 全页扫描 `backdropFilter === 'none'`，实测命中 **0**）
 - **Commit**: `refactor(web): re-skin file tree and preview dialog`
 
 #### T20 VersionCompare + DiffNav + DiffView
@@ -598,6 +606,38 @@
   ⚠ 与 T18 单轮（9.77/9.69）相比 **+0.02**，**来源 = 补齐验证缺口（C5 8→8.5：确认 dogfood 有覆盖）
   与修 parity 缺口**，非产物变好（`self-review-scoring` 计分披露铁律）
 
+**增补（v0.14）阶段 1 · T19 文件树 + 预览对话框落地（2026-09-11）**
+- **落地**：三个组件全量 Tailwind 化（含 `FileTree` 的缩进档改 **`INDENT` 表**：0→`` / 1→`pl-5` /
+  2→`pl-10` / 3+→`pl-[60px]`，与旧 `.indent`(20)+`.d2`(40)+`.d3`(60) 叠加等价）；删 3 个 `.module.css`
+  （`.module.css` 存量 12 → **9**）
+- **实测**（真浏览器 1440×900 `/assets/demo-rag-skill` 文件 tab + 对话框，计算值）：
+  目录行 `13px/600/`#64748b`` · `padding-top 5px` · `column-gap 9px` · SF Mono · `aria-expanded` ✓ ·
+  文件行缩进 **20px**（depth1）/ `0px`（root）· 体积列 `11px` · **sha 徽章 `#f1f5fb` + `r6` + `padding 1px 7px` + `11px`** ✓
+  （`…` 截断形态实存 ✓）· hint `mt 10px` + `border-top 1px` + `11px` ✓ ·
+  **对话框**：overlay `fixed/inset-0/z-90/flex` ✓ · 遮罩 **`bg-black/50`（`oklab(0 0 0 / 0.5)`）且
+  `backdrop-filter: none`** ✓ · 卡 `#ffffff` + `r10` + `w 658px`(= `min(720px,88vw)` @ 748 视口) +
+  `max-H 358.72px`(76vh) + `shadow-lg`（末段 `rgba(0,0,0,0.1) 0 10px 15px -3px` ✓ 无蓝投影）·
+  头 `padding 13/18` + 下边 1px · 路径 `13px` mono truncate ✓ · 关闭钮 `26px` + `bg-muted` + `r8` ✓ ·
+  正文 `padding 16/18` + `12px` mono + `overflow auto` ✓ · **全页 `backdrop-filter` 命中 0** ✓
+  （渐变仅 3 处白名单 ✓）· **Esc 关闭 ✓ / 遮罩点击关闭 ✓ / 重开 ✓**（合成事件驱动，监听器语义实证）
+- **修正 1 项既有缺陷**：旧 `FileTree` 的 `pad` 走 `` `${styles.indent}${styles[\`d${depth}\`]}` ``
+  → depth=1 时取到 `undefined`，类名里多出字面 `undefined`（无害但污染 DOM）⇒ 改 `INDENT` 查表消除
+- **新登记（既有债，非本轮引入）**：① ~~目录行「N files」硬编码英文~~ → ✅ **已修（用户 2026-09-11 同意）**：
+  改走 `t('market','fileUnit')`（zh「文件」/en「files」——该键早已存在且被 `VersionCompare` 消费；
+  中文界面曾显示「1 files」），随 T19 同批提交 ② **预览对话框无焦点陷阱**（断言漂移，见上）
+  ③ **嵌套路径文件预览无冒烟覆盖**：dogfood `:220` 只点 root 级 `SKILL.md`；且客户端 URL 用
+  `encodeURIComponent(path)` **整条编码** → 嵌套文件实际请求 `files/lib%2Fembedding.ts`
+  （服务端 curl 两种形态均 200 ✅，但属脆弱形态；建议 T25 补一条嵌套文件断言 —— **登记**）
+- **沙箱限制（如实登记）**：本轮 headless 会话**页面加载后的 fetch 全部挂起**（连 `/api/stats`
+  直连也不返回；服务端/代理 curl 均 200 ✅）⇒ **对话框正文内容无法在本轮实测**；
+  佐证：T13 期 dogfood 的「预览对话框内容」断言（`m4a-dogfood.ts:224`，点 `SKILL.md` 断言正文含
+  `LangGraph RAG 检索技能`）**已在正常会话通过**（22/22）⇒ 预览渲染无缺陷，**观感与内容仍请用户亲验**
+- **自检打分（换靶轮 · 新问题 4 项）**：**代码 9.79 / 文档 9.69**；本轮换靶角度 = 三个被删 CSS
+  **逐属性核对**（含 `.file:hover .nm` 下划线偏移、`.close:hover` 语义色、`--sha-bg` 无映射改 `bg-muted`）·
+  断言漂移复核（焦点陷阱/`formatSha` 截断）· i18n 硬编码扫描 · 冒烟覆盖探针（嵌套路径缺口）·
+  死导出扫描（三组件均被消费 ✅）。**未发现分数虚高**：与上轮同档，披露为本轮无产物级改进、仅有新增量
+- **门禁**：typecheck · lint（web 仍仅 1 info）· format:check（212 文件）· build 全绿
+
 ## 3. 阶段 1 范围登记（✅ 2026-09-11 已细化为 **T17-T26**，任务清单 → §2 板块 E/F/G）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
@@ -622,6 +662,8 @@
 | 5 | **lint 非阻断 warning 94 条** | 门禁范围内既有（server / protocol 为主） | 评估是否在阶段 1 清债（不阻塞出口；清则单独 commit） |
 | 6 | **「安装与使用」卡不存在**（T18 断言漂移登记） | i18n `installTitle`/`installText` 自 `6c2b27d` 起**零消费者**；design 全文无此 UI | **待用户拍板**：不建（现处置，按「不擅自补功能」）／或作为**内容新增**另立 Task（非纯视觉，或归 M4b） |
 | 7 | **`card.tsx` 首个消费点**（design §9 线框图 v0.7 注记「Tab 卡（shadcn Card）」 vs §4.1 纪律 1「展示件手搓 + `card.tsx` 留 M4b」） | T18 已按 §4.1 纪律**不引**（design > plan） | **待用户拍板**：维持手搓（现状）／或详情页 Tab 卡改真 `Card`（可见变化：圆角 18→14 · 加 1px 边 · 内距 24） |
+| 8 | **目录行「N files」硬编码英文**（T19 换靶发现） | i18n `fileUnit` 已存在（zh「文件」/en「files」，VersionCompare 在用），`FileTree` 写字面量 → 中文界面显示「1 files」 | ✅ **已修（用户 2026-09-11 同意）**：改走 `t('market','fileUnit')`，随 T19 同批提交 |
+| 9 | **嵌套路径文件预览无冒烟覆盖** + 客户端 URL `%2F` 形态（T19 换靶发现） | dogfood 只点 root 级 `SKILL.md`；`fetchVersionFile` 用 `encodeURIComponent(整条 path)` → `files/lib%2Fembedding.ts`（服务端两种形态均 200 ✅） | **T25** 补一条嵌套文件预览断言（**已登记，届时执行**）；**URL 形态暂不改**（判据：两种形态服务端均 200、无用户可见故障；改动属 api 层行为 → 由 T25 嵌套断言先取「正常会话下嵌套预览能出内容」实证，若届时暴露问题再改，一次只动一件事） |
 
 ## 4. 风险与回退
 
@@ -649,3 +691,4 @@
 | v0.11 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T17 详情页外壳落地**：① **范围修正（执行期发现）**：右栏（下载卡 / 元信息卡）与头区同在一个文件且仍玻璃 + 蓝投影 + 渐变 → 并入 T17（原 Files 只列头区）；`--aside-w`/`--topbar-h` 写死字面值避免 T24 悬空 ② 落地：`AssetDetail.tsx` 全页外壳 + `DetailTabs.tsx` 重写；删 `DetailTabs.module.css` + `AssetDetail.module.css` ③ 实测：头卡白/18px/`shadow-sm` 生效（**撤回**首测「无阴影」误判——截断输出所致）· 激活下划线实底 #1447e6/2px/`image:none` · 右栏 320px/sticky 78px · 下载按钮渐变 + `box-shadow:none` · 全页无 `backdrop-filter` ④ 功能断言：三 tab 面板 554/151/1378 字切换正常 ⑤ §2 新增「增补（v0.11）」块 + T17 标题 ✅ + Status 补 T17 |
 | v0.12 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T18 详情页总览 + markdown 落地 + 断言修正**：① **两处断言修正（执行期发现）**——(a) 「安装与使用」卡**不存在**（i18n `installTitle` 自 `6c2b27d` 起零消费者 · design 全文 0 命中）⇒ 按「不擅自补功能」**不建**，登记 §3 待拍板 6；(b) **`card.tsx` 首个消费点不作** —— design §4.1 纪律 1 / §4.4 v0.20 行「展示件手搓 + `card.tsx` 留 M4b」> plan（权威链），登记 §3 待拍板 7 ② 落地：`OverviewTab.tsx` 全量 Tailwind 化 + `MarkdownRenderer` 的 md-body 改 **Tailwind 子元素变体**（零新增 CSS 文件）；删两个 `.module.css` ③ 实测：h1 18/700 · h2·h3 14/700 · h4 13/h5·h6 12（**补 Preflight**）· p·li 13/23.4/#64748b · 内联 code #f1f5fb+1px+r5 · `pre` #f1f5fb+r10+mono，**pre 内 code 透明零边框**（`:not(pre)>code` 互斥 ✓）· blockquote 3px 边+muted/50 · 表格 th muted/50+600 · a #1447e6 · metaBar 11px SF Mono+下边 1px ④ 回归：三 tab 切换 + mcp 资产总览正常 ⑤ **design 缺口登记**：`--md-*` 六 token 无 §4.4 映射 → 择浅色语义面（待用户确认）⑥ 门禁 4/4 绿（CSS 93.85 kB / JS 562.79 kB）⑦ **自检打分（新增常态，§1 执行纪律）= 代码 9.77 / 文档 9.69**；自检抓到真缺陷「断言不可现场跑（`--md-` 命中自述注释）」→ 同轮收紧为 `var(--md-` 消费级 |
 | v0.13 | 2026-09-11 | sunxuewen-rush | **T17+T18 合并自检（用户追加要求）· 换靶复核 + 4 项 parity 返工**：① **换靶证据**——4 个被删 `.module.css` **逐属性对照**（**零 `@media`/零 reduced-motion** ⇒ 无响应式漏迁；`.kv .mono` 系死规则）· i18n 调用逐字零差异（4 文件）· 请求轨迹零新增零重复（懒加载/缓存行为实证）· `.glass` 仍有 2 消费者（FilterStrip/CenterPage ⇒ T22/T24）· dogfood 已覆盖总览 md（回归网存在）· 生产包 marker 4/4 = 0 ② **自检返工 4 项（T17 文件 `AssetDetail.tsx`，均为 parity 缺口）**：字阶桶偏离 ⑤（面包屑 + 元信息 3 行 12.5px 误用 `text-[13px]` → `text-xs`）· 漏迁 `underline-offset: 2px` · 错误条圆角 8 误用 `rounded-lg`→`rounded-md` ③ **登记微调（有设计依据）**：tab gap 2→4 · tab 方角 · 激活/悬停字色 → foreground · 标签底 → `bg-secondary` · 下载钮圆角 12→10 ④ **登记既有债**：`mainDocPath`/`manifestFields` 死导出 · `role=tab` 缺键盘导航/`aria-controls` ⑤ **合并评分 代码 9.79 / 文档 9.69**（+0.02 来自补齐验证缺口与修 parity，非产物变好——披露铁律）⑥ 门禁 4/4 复跑绿（typecheck/lint 无新增/format:check 212/build） |
+| v0.14 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T19 文件树 + 预览换皮落地 + 断言修正 + 换靶自检**：① **落地**：`FilesTab`/`FileTree`/`FilePreviewDialog` 全量 Tailwind 化（`FileTree` 缩进改 `INDENT` 表，等价旧 `.indent`+`.d2/.d3`）+ 删 3 个 `.module.css`（存量 12→**9**）② **修既有缺陷**：旧 `pad` 在 depth=1 取 `styles.d1`=undefined → 类名含字面 `undefined`（查表消除）③ **断言修正**：「焦点陷阱行为不变」——实测**无任何焦点管理**（仅 Esc 监听）⇒ 断言漂移，按纪律不补功能、登记既有债 ④ **实测**：目录行 13/600/#64748b/py5/gap9/mono · 文件行缩进 20px(root 0) · sha 徽章 #f1f5fb+r6+1px7px+11px + `…` 截断 ✓ · **遮罩 `bg-black/50` 且 `backdrop-filter: none`** ✓ · 卡 `#ffffff`/r10/min(720px,88vw)/76vh/`shadow-lg` ✓ · overlay `z-90` ✓ · **Esc/遮罩/✕ 三路关闭实测 ✓** · 全页 `backdrop-filter` 命中 0 ⑤ **新登记**：目录行「N files」硬编码（i18n `fileUnit` 已有）· 无焦点陷阱 · 嵌套路径预览无冒烟覆盖 + `%2F` URL 形态（§3 表 8/9）⑥ **沙箱限制**：本轮 headless 会话 post-load fetch 全挂（`/api/stats` 直连亦不返回；curl 200 ✅）⇒ 对话框正文未能实测；佐证 = T13 期 dogfood「预览对话框内容」断言在正常会话已过（22/22）⑦ **自检打分 代码 9.79 / 文档 9.69**（换靶抓 4 项新问题；与上轮同档，如实披露无虚高） |
