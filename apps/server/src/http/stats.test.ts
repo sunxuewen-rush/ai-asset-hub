@@ -54,6 +54,12 @@ beforeAll(async () => {
   await insertAsset('stt-ns-only-mcp', 'mcp', 'ACTIVE', 999);
   await insertAsset('stt-hidden-asset', 'skill', 'HIDDEN', 999);
   await insertAsset('stt-pub-extra', 'skill', 'ACTIVE', 999);
+  // v0.17：用户数口径（status = 'ACTIVE'）——baseline 之后建 2 个 ACTIVE + 1 个 DISABLED（后者不计入）
+  await makeUser('u1');
+  await makeUser('u2');
+  await db
+    .insert(userAccount)
+    .values({ id: `usr_${randomUUID()}`, displayName: `${PREFIX}disabled`, status: 'DISABLED' });
 });
 
 afterAll(async () => {
@@ -79,6 +85,7 @@ describe('GET /api/stats（M4a R7——匿名公开聚合）', () => {
       totalAssets: number;
       totalDownloads: number;
       typeCounts: Record<string, number>;
+      totalUsers: number;
     };
     // 增量：本文件 seed 的 ACTIVE 6 个（skill×3 / mcp×2 / agent×1，下载 100+40+10+999+999+999）；
     // HIDDEN 不计入（S3：可见性维度已删）
@@ -87,5 +94,7 @@ describe('GET /api/stats（M4a R7——匿名公开聚合）', () => {
     expect((body.typeCounts.mcp ?? 0) - (baseline.typeCounts.mcp ?? 0)).toBe(2);
     expect((body.typeCounts.agent ?? 0) - (baseline.typeCounts.agent ?? 0)).toBe(1);
     expect(body.totalDownloads - baseline.totalDownloads).toBe(3147);
+    // v0.17：totalUsers 增量 = 2（本文件 baseline 后建 2 个 ACTIVE；DISABLED 的 1 个不计入 ⇒ 锁口径）
+    expect(body.totalUsers - baseline.totalUsers).toBe(2);
   });
 });

@@ -50,11 +50,13 @@ export interface ListEnvelope<T> {
 
 export type AssetListResponse = ListEnvelope<AssetItem>;
 
-/** R7 stats（typeCounts 键 = AssetType 枚举驱动动态键） */
+/** R7 stats（typeCounts 键 = AssetType 枚举驱动动态键；`totalUsers` 口径见 server `assets/stats.ts`） */
 export interface StatsResponse {
   totalAssets: number;
   totalDownloads: number;
   typeCounts: Record<AssetType, number>;
+  /** 注册用户数（v0.17 新增；口径 `user_account.status = 'ACTIVE'`） */
+  totalUsers: number;
 }
 
 /** R8 单文件内容（§5.2 G7——binary/truncated 时无 content） */
