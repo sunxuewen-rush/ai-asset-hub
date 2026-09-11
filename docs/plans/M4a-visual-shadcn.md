@@ -1,13 +1,13 @@
 # M4a 视觉体系切换（shadcn 落地）实现计划
 
 > Date: 2026-09-11
-> Updated: 2026-09-11（**v0.8：阶段 0 收尾回写**——① §2 落地记录增三块：**v0.18/v0.18b（hero 上下与侧栏对齐 + 撑满职责上移去硬编码）· v0.19（去中间分割线）· v0.20（统计条改卡片撑满 hero）** ② **T13 ✅**（自检记录 `docs/smoke/2026-09-11-m4a-visual-s0.md`）+ **T15 部分 ✅**（**五门禁全绿**：`CI=true` 单库 + `--force` → **475 例 474 pass / 1 skip / 0 fail**、1150 expect；冒烟 chain-smoke + dogfood 通过；**撤控件待三判后**）③ **§1 修内部矛盾（自检发现）**——原「本阶段零服务端改动」「本 plan 不改测试」经 v0.17 已失效（`totalUsers` 是服务端契约 + 测试新增口径断言）→ 改述为「阶段 0 唯一例外」并注明出处 ④ 引用链 design 升 **v0.20**；v0.2：**AIH blue 基色层生效**——T3 改为**两层结构**（官方层 `src/index.css` + AIH 层 `src/styles/aih-theme.css` 独立文件、官方样式之后 import），新增「覆盖断言 / import 顺序断言 / 组件零改动断言」三条；T13 增顺序断言；design 依据升至 **v0.10**（解耦纪律）。v0.1：初稿——**阶段 0 探针切片**（4 板块 / T1-T16）+ 阶段 1 范围登记；design 依据 v0.9（2026-09-11 定稿，8 维 9.31））
+> Updated: 2026-09-11（**v0.9：阶段 0 出口达成**——**T14 三判 ✅**（用户结论：气质 / 密度 / 类型色 **三项 OK**）+ **T15 收尾 ✅**（`git rm` `dev/ReviewControls.tsx` + `main.tsx` 两处引用，grep 断言 0；门禁复跑全绿 + 生产包 marker 仍全 0）→ §2 新增「增补（v0.9）」块；Status 改「阶段 0 已完成 ✅」；引用链 design 升 **v0.21**；v0.8：**阶段 0 收尾回写**——① §2 落地记录增三块：**v0.18/v0.18b（hero 上下与侧栏对齐 + 撑满职责上移去硬编码）· v0.19（去中间分割线）· v0.20（统计条改卡片撑满 hero）** ② **T13 ✅**（自检记录 `docs/smoke/2026-09-11-m4a-visual-s0.md`）+ **T15 部分 ✅**（**五门禁全绿**：`CI=true` 单库 + `--force` → **475 例 474 pass / 1 skip / 0 fail**、1150 expect；冒烟 chain-smoke + dogfood 通过；**撤控件待三判后**）③ **§1 修内部矛盾（自检发现）**——原「本阶段零服务端改动」「本 plan 不改测试」经 v0.17 已失效（`totalUsers` 是服务端契约 + 测试新增口径断言）→ 改述为「阶段 0 唯一例外」并注明出处 ④ 引用链 design 升 **v0.20**；v0.2：**AIH blue 基色层生效**——T3 改为**两层结构**（官方层 `src/index.css` + AIH 层 `src/styles/aih-theme.css` 独立文件、官方样式之后 import），新增「覆盖断言 / import 顺序断言 / 组件零改动断言」三条；T13 增顺序断言；design 依据升至 **v0.10**（解耦纪律）。v0.1：初稿——**阶段 0 探针切片**（4 板块 / T1-T16）+ 阶段 1 范围登记；design 依据 v0.9（2026-09-11 定稿，8 维 9.31））
 > Updated: 2026-09-11（**v0.4：增 T7b 侧栏收起（阶段 0 增补）**——用户 2026-09-11 拍板「做，按推荐」：接入 shadcn
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: 执行中（阶段 0）——**板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅ · T15 门禁 + 冒烟 ✅（撤控件待三判后）**；**五门禁全绿**（typecheck · lint · format:check · build · **test 475 例 474 pass · 1 skip · 0 fail**，`CI=true` 单库 + `--force`）；**阶段 0 出口 = 用户三判「气质 / 密度 / 类型色」**（结论待用户给）→ 阶段 1
-> 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.20**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.20 为准）
+> Status: **阶段 0 已完成 ✅（2026-09-11 用户三判通过）**——板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（记录 `docs/smoke/2026-09-11-m4a-visual-s0.md`）· **T14 三判 ✅（气质 / 密度 / 类型色 —— 三项 OK）** · T15 门禁 + 冒烟 + **撤控件 ✅**；**五门禁全绿**（typecheck · lint · format:check · build · **test 475 例 474 pass · 1 skip · 0 fail**，`CI=true` 单库 + `--force`）；**T16 阶段 1 任务待细化**（范围登记见 §3）
+> 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.21**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.21 为准）
 > 命名约定见 `docs/plans/README.md`
 
 ## 1. 目标与范围
@@ -188,7 +188,7 @@
   **浏览器观感不作断言**（交用户人工确认）
 - **Commit**: `docs(smoke): record stage-0 re-skin self-check`
 
-#### T14 用户三判（**阶段 0 出口闸门**）
+#### T14 用户三判（**阶段 0 出口闸门**）✅（2026-09-11 用户结论：**气质 / 密度 / 类型色 三项 OK** → 出口达成）
 - **Files**: 无（用户人工评审：真站点逐页看）
 - **Assert**: 用户对**气质 / 密度 / 类型色**三项分别给出结论；任一不通过 → 回 design §4.4 调 token
   后复看（改动面 = token 层，不动组件结构）
@@ -203,7 +203,7 @@
 - **Commit**: `chore(web): remove temporary review controls`
   + `docs: record stage-0 gates and smoke results`
 
-#### T16 进入阶段 1（范围登记见 §3）
+#### T16 进入阶段 1（范围登记见 §3）⬜（阶段 0 出口已达成 → 待任务细化）
 - **Assert**: 三判通过 + 门禁绿 → 阶段 1 任务细化（本文件升 v0.3）；未通过 → 回 design
 - **Commit**: 无（文档更新并入阶段 1 首个 commit）
 
@@ -397,6 +397,19 @@
 - **⑤ T15 剩余**：**撤 `ReviewControls` 留到三判通过后**（用户 2026-09-11 拍板：本次随阶段 0 提交，
   出口再删——T12/T15 原划分不变）
 
+**增补（v0.9）阶段 0 出口达成：三判通过 + 撤控件（2026-09-11）**
+- **T14 三判** = 用户结论「**现在看起来 OK**」（**气质 / 密度 / 类型色 三项均通过**）→ **阶段 0 出口达成**。
+  判据来源 = 真站点 + 真数据逐页看（观感由用户给，实现侧只交可复算数字，见
+  `docs/smoke/2026-09-11-m4a-visual-s0.md` §4/§5）
+- **T15 剩余（撤控件）**：删 `apps/web/src/dev/ReviewControls.tsx`（`git rm`）+ `main.tsx` 两处引用
+  （import + 渲染守卫）→ 断言 `grep -rn 'ReviewControls' apps/web/src` = **0**；浏览器复核：
+  `★ 评审` 钮消失、hero 与 5 枚统计 tile 正常渲染、页面无异常
+- **门禁复跑（撤控件后）**：`typecheck` · `lint` · `format:check`（212 文件，较前少 1 = 删除的组件）·
+  `build` 全绿；生产包 marker（`阶段 0 评审` / `待拍板` / `三判口径` / `评审`）仍全 **0**
+- **阶段 0 出口三条件核对**（design §8）：三判通过 ✅ + 门禁全绿 ✅ + 回退面干净（旧层与未换页
+  `.module.css` 未删，壳/首页/基建可整体 revert）✅
+- **T16**：阶段 1 任务细化待做（范围见 §3 / design §8）——细化后本文件升 **v0.10** 并落 T17+ 任务清单
+
 ## 3. 阶段 1 范围登记（任务待三判通过后细化）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
@@ -430,3 +443,4 @@
 | v0.6 | 2026-09-11 | sunxuewen-rush | **hero 撑满一屏 + 删「进入技能中心」CTA + 统计条拆三族计数（用户拍板三项；design v0.16）**：① §2 落地记录新增 **「增补（v0.16）」** 块（三项落地 + 实测证据 + 冒烟同步 + 5 项统计待定登记）② **T8 断言口径更新**（hero 真值：`min-h` 撑满 / 无 CTA / 三族计数）③ 引用链 design 升 **v0.16** |
 | v0.7 | 2026-09-11 | sunxuewen-rush | **搜索栏加长 + 「原生类型」→「用户数量」（用户拍板；design v0.17；★含后端契约变更）**：① §2 落地记录新增 **「增补（v0.17）」** 块（前端 2 项 + 后端 `totalUsers` 契约 + 口径披露 + 实测 + 待跑测试）② 登记：**stats 形状不在 `packages/protocol`**（仅 server `PublicStats` / web `StatsResponse` 两处镜像）——协议包零改动 ③ 引用链 design 升 **v0.17** |
 | v0.8 | 2026-09-11 | sunxuewen-rush | **阶段 0 收尾回写（设计 v0.18→v0.20 同步）**：① §2 落地记录新增 **三块**——「增补（v0.18/v0.18b）」（hero 与侧栏浮层对齐 + 撑满职责上移去硬编码 + 13 档分辨率矩阵 + 大屏留白登记）· 「增补（v0.19）」（去中间分割线）· 「增补（v0.20）」（统计条改卡片撑满 hero）② 新增 **「增补（v0.8）」** 块（T13 记录 + 五门禁 + 双冒烟 + 冒烟脚本修复 + T15 剩余）③ **§1 修内部矛盾**：原「本阶段零服务端改动」「本 plan 不改测试」被 v0.17 打破 → 改述为「唯一例外」并注出处（自检发现）④ Status：板块 A/B/C/T7b + **T13 ✅ + T15 部分 ✅**、五门禁全绿（test 475 例 474 pass / 1 skip / 0 fail）⑤ T13/T15 标题加 ✅ 与剩余项 ⑥ 引用链 design 升 **v0.20** |
+| v0.9 | 2026-09-11 | sunxuewen-rush | **阶段 0 出口达成（三判通过 + 撤控件）**：① **T14 三判 ✅**——用户结论「现在看起来 OK」（气质 / 密度 / 类型色 三项均通过）→ 出口达成；② **T15 收尾 ✅**——`git rm` `apps/web/src/dev/ReviewControls.tsx` + `main.tsx` 两处引用，断言 `grep -rn 'ReviewControls' apps/web/src` = 0；浏览器复核（`★ 评审` 钮消失 / hero + 5 tile 正常）；门禁复跑全绿（`format:check` 212 文件）+ 生产包 marker 仍全 0；③ §2 新增「增补（v0.9）」块（三判结论 + 撤控件 + 出口三条件核对 + T16 待细化）；④ Status 改「**阶段 0 已完成 ✅**」、T14/T16 标题加状态、引用链 design 升 **v0.21** |

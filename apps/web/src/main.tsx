@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/ui/AppShell.js';
-import { ReviewControls } from './dev/ReviewControls.js';
 import { I18nProvider } from './i18n/I18nProvider.js';
 import { AssetDetail } from './pages/AssetDetail';
 import { Center, type CenterType } from './pages/Center';
@@ -42,8 +41,6 @@ createRoot(rootElement).render(
           </Route>
         </Routes>
       </BrowserRouter>
-      {/* 临时评审控件（plan T12）——仅 dev；`import.meta.env.DEV` 常量替换后该分支在生产被消除 */}
-      {import.meta.env.DEV && <ReviewControls />}
     </I18nProvider>
   </StrictMode>,
 );
