@@ -71,6 +71,20 @@ const TILE_BG: Record<AssetType, string> = {
 };
 
 /**
+ * 页头 eyebrow：**语言中立的类型标识**（`SKILL` / `MCP` / `AGENT`）。
+ *
+ * 对齐 design §9 线框的「双语头」意图（`技能中心 Skill Center`）。**不用 i18n 键**：类型名不是
+ * 可翻译副本，两种语言下都与 h1 不重复；旧实现误用 `meta.title`（与 h1 **同键**）⇒ 中文界面渲染
+ * 「技能中心 / 技能中心」两行重复（自 `bdc0d5e` 中心页初版起，非换皮引入）。
+ * 字面即大写（不依赖 CSS `uppercase` 才成大写）⇒ `textContent` / `innerText` 取值确定。
+ */
+const TYPE_EYEBROW: Record<AssetType, string> = {
+  skill: 'SKILL',
+  mcp: 'MCP',
+  agent: 'AGENT',
+};
+
+/**
  * 中心页（design §3 v0.4 定稿：CenterHeader → 两级标签筛选条 → result-head → 4×5 网格 →
  * 分页；type 参数化——/skills|/mcps|/agents 同构）。列表请求以 URL 提交态驱动
  * （committedQ/labels/page——防抖只写 URL，请求随 URL 变发——design §7）。
@@ -87,6 +101,8 @@ const TILE_BG: Record<AssetType, string> = {
  *   + `border-border` + `rounded-xl`），数字 `text-[22px] text-primary tabular-nums`
  * - 字阶收敛（§4.4 ⑤）：21 → `text-xl`(20，21 降 1px 归位) · 12.5 → `text-xs` · 13/11 保档
  * - 圆角轴（§4.4 ④）：18 → `rounded-2xl` · 14 → `rounded-xl` · 13 不成轴保 `rounded-[13px]`
+ * - **页头 eyebrow 修重复**（用户 2026-09-11 拍板 (d)）：原文用 `t('market', meta.title)`（与 h1 同键）
+ *   ⇒ zh 渲染「技能中心 / 技能中心」；改**语言中立的类型常量表** `TYPE_EYEBROW`（对齐 §9「双语头」）
  * 不变：请求编排（useApi / committedQ / labelsKey / retryTick）· `META` 动态 i18n 键 ·
  * 计数语义区分（徽章 = 全站总量，结果头在筛选激活时改「筛选结果」）· 三态（loading/error/empty）·
  * `PAGE_SIZE` 20 与分页 offset 换算 · `AssetGrid` 断点（4 → <1200 3 → <900 2）。
@@ -133,7 +149,7 @@ export function CenterPage({ type }: { type: AssetType }) {
         <div className="relative min-w-0">
           <h1 className="text-xl font-bold tracking-[-0.4px]">{t('market', meta.title)}</h1>
           <span className="text-[11px] font-semibold tracking-[1px] text-muted-foreground uppercase">
-            {t('market', meta.title)}
+            {TYPE_EYEBROW[type]}
           </span>
           <p className="mt-1 text-[13px] text-muted-foreground">{t('market', meta.desc)}</p>
         </div>
