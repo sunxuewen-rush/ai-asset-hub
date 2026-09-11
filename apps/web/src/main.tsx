@@ -11,7 +11,8 @@ import { Home } from './pages/Home';
 // T24 已删除旧层（原 `styles/tokens.css` + `styles/global.css`，双栈共存期结束）。
 import './index.css';
 
-// M4a 五路由（design §3，类型即路由）——占位页随板块 C/D/E 替换为真实页面
+// M4a 五路由（design §3，类型即路由）——板块 C/D/E 已完成：首页 / 三中心 / 详情均为真实页面（占位页零残留）
+// （2026-09-11 二轮审计更新表述）
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('missing #root mount element');
