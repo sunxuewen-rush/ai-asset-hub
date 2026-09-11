@@ -1,9 +1,9 @@
 # M4a 市场门户设计
 
 > Date: 2026-09-09
-> Updated: 2026-09-11（**v0.21：阶段 0 出口达成**——用户 2026-09-11 三判通过（**气质 / 密度 / 类型色 三项 OK**）→ §8「阶段 0 探针切片」的出口条件全部满足（三判 ✅ + 门禁全绿 ✅ + 回退面干净 ✅）；**评审控件已撤除**（`dev/ReviewControls.tsx` 删除 + `main.tsx` 两处引用移除，grep 断言 0）；阶段 1（剩余页换皮 + 17 处 M4-pre 语义回写）据此启动；**v0.20：统计条改「卡片形态 + 撑满 hero」**——5 项各一枚 tile（淡蓝底 `bg-secondary` #f0f5ff + 泛蓝细边 + `rounded-xl` 14px；数字 26px / 标签 13px），`w-full` + `flex-1` 等分 → 实测**行宽 1112px = hero 内容区 100%**、每枚 **213px 等宽**；**v0.19：去 hero 中间分割线**（`border-t border-border pt-6` 整组移除，hero 内水平分隔线候选归零，间距 44px）；**v0.18/v0.18b：hero 上下与侧栏浮层对齐 + 去硬编码**——`main` `pt-4 pb-9` → **`py-2`**（与侧栏 `p-2` gutter 同值，实测两侧面板均 `66 → 892`）；随后「撑满一屏」职责**上移到壳**（`main` `flex min-h-[calc(100vh-58px)] flex-col` + 页 `flex-1`）→ 消除派生和 `74`，只剩 `58` 一个常量；**v0.17：搜索栏加长 `max-w-[900px]` + 统计条「原生类型」→「用户数量」（含 `/api/stats` 新增 `totalUsers` 后端契约变更）**；**v0.16：hero 撑满一屏（卡自身 `min-h`）+ 删「进入技能中心」CTA + 统计条拆三族计数（技能/专家/MCP）**；**v0.15：首页精简为「纯 hero 落地页」（用户拍板 A：删「按类型探索」+「最新发布」，hero 撑满一屏居中，死链 CTA 删除）**；**v0.14：选型边界（对标 21-skillhub 三条纪律）+ 品牌渐变层（3 token 白名单，原「拒渐变」部分翻转）**；**v0.13：阶段 0 板块 C（T8-T12 首页换皮）落地回写**——六件重写 + `aih-theme.css` 增 `--animate-rise`；令牌 15 项运行时审计全中；hero 光斑/渐变归零；**坑⑥ 第二实例**（旧 `tokens.css` `--ava-*`/`--tint-*` 静默压过 AIH 值 → 已删并立「同名变量只住一层」纪律）；包体 JS → 563.6 kB（风险③ 累积）；**v0.12：侧栏收起/展开（shadcn `Sidebar` 原语接入）**——用户 2026-09-11 拍板「做，按推荐」：① §3 应用壳行补**侧栏可收起**（`SidebarTrigger` + `⌘B`/`Ctrl+B` + cookie 持久化 + <768px Sheet 抽屉）② §4.4 ③ sidebar 行改为**原语真值 + 4 处 AIH 覆盖**（展开宽 `204px` 覆盖官方 `16rem` · 图标态 `3rem` · 移动 `18rem` · 圆角 `2xl` 覆盖 floating `lg` · 定位 `top-[58px] bottom-0` 留在顶栏之下）③ §8 阶段 0 板块 2 登记为**阶段 0 增补**（起因与「一次做到位」理由入档）；**性质说明**：属结构/行为变更（非纯视觉），共享壳正在换皮故并入，M4b 控制台可直接复用；v0.11：阶段 0 实施回写（T1-T7 落地）——基建 + 共享壳四件已落仓并实测：① 坑清单 4→**6 条**（+⑤ CLI 生成物与本仓 biome 冲突 → 生成物目录规则例外 +⑥ **无层声明压过 Tailwind 全部工具类** → 旧层降级）；② T4 实测 `main` padding `0px`→`16/22/36`、`body` 底色→`#f8faff`（`global.css` 交出 reset/body 三属性）；③ T5-T7 实测（顶栏 58px·白底·`#e3eaf6` 细边·品牌实底 `#1447e6`；侧栏 204px·`#f6f9ff`·激活 `#eaf1fd`；语言控件**保 pill**（2026-09-11 用户拍板）选中实底 primary）；④ 登记：plan T6 断言的「<900px 图标态」在旧实现中**不存在**（无 `@media`）→ 按「结构零变更」不补；⑤ T3 断言措辞修正（产物压缩后为 `html[data-base=aih]`，引号被去）；v0.10：AIH blue 基色层（用户 2026-09-11 拍板）**——官方 7 个 base color 全为中性/暖中性（实测）→ **自建 blue 基色层**（15 值，与官方 neutral 逐项对照）+ **解耦纪律**（AIH 层独立文件、在官方生成块后 import；覆盖 theme 层的 `secondary`）；沙箱对照已验证（`:5199` 官方 ↔ AIH 一键切换，tsc 零错 + build 绿）；§4.4 ①/②/⑦ · §8 · §12 同步。**暗色档明确不做**（同轮拍板）；v0.9：视觉体系切换（用户 2026-09-11 拍板）——全站统一 **shadcn 蓝科技**：气质基线改「纯白底 + `#e5e5e5` 细边 + 单一 primary 蓝 + 极轻阴影」，毛玻璃 / 品牌渐变 / 氛围光斑 / 半像素字阶全部废弃；技术落法 = **真上 shadcn/ui**（Tailwind v4 + shadcn CLI，base=radix）；**§4.4 重写为全站视觉真值 SSOT**（色值/圆角轴/字阶/组件真值 + token 映射表 + AIH 补丁表）；§4.1 依赖换栈；§8 新增阶段 0 探针切片；§9 线框标注 / §10 引用 / §11 同步项 / §12 修订同步。**顺序翻转**：原 2026-09-10 拍板「先控制台面」→ 本次「先门户」（阶段 0 探针切片先行，理由见 §12 v0.9）；v0.8：claude-design 环节补走——slop 自检 3.5→1.5 的 polish 增量回写：类型入口卡 icon 左置 + 真实计数（R7）/ 最新发布行式升级（R5/R6 字段）/ 光斑 alpha≤0.1 / 字体栈 MiSans 优先 / 动效 posture 规范（rise stagger + lift + reduced-motion）/ 数字 tabular-nums——§4.4/§8/§12 更新）
+> Updated: 2026-09-11（**v0.22：M4-pre 语义回写（plan T23）**——正文 **18 行**旧模型表述（`@ns` 坐标 / `/assets/:nsSlug/:slug` / `PUBLIC` 可见性维度 / 元信息卡「命名空间·可见性」列 / §9 线框 5 行）按扁平模型终态重写；§12 历史修订记录段保留旧表述（史实不改）；**v0.21：阶段 0 出口达成**——用户 2026-09-11 三判通过（**气质 / 密度 / 类型色 三项 OK**）→ §8「阶段 0 探针切片」的出口条件全部满足（三判 ✅ + 门禁全绿 ✅ + 回退面干净 ✅）；**评审控件已撤除**（`dev/ReviewControls.tsx` 删除 + `main.tsx` 两处引用移除，grep 断言 0）；阶段 1（剩余页换皮 + 17 处 M4-pre 语义回写）据此启动；**v0.20：统计条改「卡片形态 + 撑满 hero」**——5 项各一枚 tile（淡蓝底 `bg-secondary` #f0f5ff + 泛蓝细边 + `rounded-xl` 14px；数字 26px / 标签 13px），`w-full` + `flex-1` 等分 → 实测**行宽 1112px = hero 内容区 100%**、每枚 **213px 等宽**；**v0.19：去 hero 中间分割线**（`border-t border-border pt-6` 整组移除，hero 内水平分隔线候选归零，间距 44px）；**v0.18/v0.18b：hero 上下与侧栏浮层对齐 + 去硬编码**——`main` `pt-4 pb-9` → **`py-2`**（与侧栏 `p-2` gutter 同值，实测两侧面板均 `66 → 892`）；随后「撑满一屏」职责**上移到壳**（`main` `flex min-h-[calc(100vh-58px)] flex-col` + 页 `flex-1`）→ 消除派生和 `74`，只剩 `58` 一个常量；**v0.17：搜索栏加长 `max-w-[900px]` + 统计条「原生类型」→「用户数量」（含 `/api/stats` 新增 `totalUsers` 后端契约变更）**；**v0.16：hero 撑满一屏（卡自身 `min-h`）+ 删「进入技能中心」CTA + 统计条拆三族计数（技能/专家/MCP）**；**v0.15：首页精简为「纯 hero 落地页」（用户拍板 A：删「按类型探索」+「最新发布」，hero 撑满一屏居中，死链 CTA 删除）**；**v0.14：选型边界（对标 21-skillhub 三条纪律）+ 品牌渐变层（3 token 白名单，原「拒渐变」部分翻转）**；**v0.13：阶段 0 板块 C（T8-T12 首页换皮）落地回写**——六件重写 + `aih-theme.css` 增 `--animate-rise`；令牌 15 项运行时审计全中；hero 光斑/渐变归零；**坑⑥ 第二实例**（旧 `tokens.css` `--ava-*`/`--tint-*` 静默压过 AIH 值 → 已删并立「同名变量只住一层」纪律）；包体 JS → 563.6 kB（风险③ 累积）；**v0.12：侧栏收起/展开（shadcn `Sidebar` 原语接入）**——用户 2026-09-11 拍板「做，按推荐」：① §3 应用壳行补**侧栏可收起**（`SidebarTrigger` + `⌘B`/`Ctrl+B` + cookie 持久化 + <768px Sheet 抽屉）② §4.4 ③ sidebar 行改为**原语真值 + 4 处 AIH 覆盖**（展开宽 `204px` 覆盖官方 `16rem` · 图标态 `3rem` · 移动 `18rem` · 圆角 `2xl` 覆盖 floating `lg` · 定位 `top-[58px] bottom-0` 留在顶栏之下）③ §8 阶段 0 板块 2 登记为**阶段 0 增补**（起因与「一次做到位」理由入档）；**性质说明**：属结构/行为变更（非纯视觉），共享壳正在换皮故并入，M4b 控制台可直接复用；v0.11：阶段 0 实施回写（T1-T7 落地）——基建 + 共享壳四件已落仓并实测：① 坑清单 4→**6 条**（+⑤ CLI 生成物与本仓 biome 冲突 → 生成物目录规则例外 +⑥ **无层声明压过 Tailwind 全部工具类** → 旧层降级）；② T4 实测 `main` padding `0px`→`16/22/36`、`body` 底色→`#f8faff`（`global.css` 交出 reset/body 三属性）；③ T5-T7 实测（顶栏 58px·白底·`#e3eaf6` 细边·品牌实底 `#1447e6`；侧栏 204px·`#f6f9ff`·激活 `#eaf1fd`；语言控件**保 pill**（2026-09-11 用户拍板）选中实底 primary）；④ 登记：plan T6 断言的「<900px 图标态」在旧实现中**不存在**（无 `@media`）→ 按「结构零变更」不补；⑤ T3 断言措辞修正（产物压缩后为 `html[data-base=aih]`，引号被去）；v0.10：AIH blue 基色层（用户 2026-09-11 拍板）**——官方 7 个 base color 全为中性/暖中性（实测）→ **自建 blue 基色层**（15 值，与官方 neutral 逐项对照）+ **解耦纪律**（AIH 层独立文件、在官方生成块后 import；覆盖 theme 层的 `secondary`）；沙箱对照已验证（`:5199` 官方 ↔ AIH 一键切换，tsc 零错 + build 绿）；§4.4 ①/②/⑦ · §8 · §12 同步。**暗色档明确不做**（同轮拍板）；v0.9：视觉体系切换（用户 2026-09-11 拍板）——全站统一 **shadcn 蓝科技**：气质基线改「纯白底 + `#e5e5e5` 细边 + 单一 primary 蓝 + 极轻阴影」，毛玻璃 / 品牌渐变 / 氛围光斑 / 半像素字阶全部废弃；技术落法 = **真上 shadcn/ui**（Tailwind v4 + shadcn CLI，base=radix）；**§4.4 重写为全站视觉真值 SSOT**（色值/圆角轴/字阶/组件真值 + token 映射表 + AIH 补丁表）；§4.1 依赖换栈；§8 新增阶段 0 探针切片；§9 线框标注 / §10 引用 / §11 同步项 / §12 修订同步。**顺序翻转**：原 2026-09-10 拍板「先控制台面」→ 本次「先门户」（阶段 0 探针切片先行，理由见 §12 v0.9）；v0.8：claude-design 环节补走——slop 自检 3.5→1.5 的 polish 增量回写：类型入口卡 icon 左置 + 真实计数（R7）/ 最新发布行式升级（R5/R6 字段）/ 光斑 alpha≤0.1 / 字体栈 MiSans 优先 / 动效 posture 规范（rise stagger + lift + reduced-motion）/ 数字 tabular-nums——§4.4/§8/§12 更新）
 > Status: 定稿·**视觉体系切换（v0.9，2026-09-11 用户批准定稿）**（v0.8 已于 2026-09-09 定稿并 converge：R1-R9 全部拍板 + 视觉环节收敛（风格板→demo→sketch→skillhub/GitHub 对标）+ grilling A-I 闭环 + 8 维重评 ≈9.3 ≥9 + 三族适用性实证）。**v0.9 定稿依据**：8 维自检 **9.31 ≥9** + 用户 2026-09-11 批准。**实现出口**（经 `docs/plans/M4a-visual-shadcn.md` 驱动）：阶段 0 探针切片交付 → 用户三判「气质 / 密度 / 类型色」→ 门禁全绿（typecheck/lint/format:check/build/test + SSR 冒烟）→ 剩余页换皮收尾（含 17 处 M4-pre 语义回写）→ converge 重评
-> Scope: M4a（00 §5）——公开市场门户：类型化浏览（skill/mcp/agent）· 搜索（q + label 筛选）· 资产详情（内容体验：skill.md 正文/文件树浏览预览/版本历史与行级对比/latest 下载）· PUBLIC 资产匿名可看 · zh/en 双语
+> Scope: M4a（00 §5）——公开市场门户：类型化浏览（skill/mcp/agent）· 搜索（q + label 筛选）· 资产详情（内容体验：skill.md 正文/文件树浏览预览/版本历史与行级对比/latest 下载）· 资产**恒公开**（读面仅看 `status`，匿名可读） · zh/en 双语
 > 引用链：本文档 → 规范 00 §2/§5/§7 · 01 §3 · 06 §2/§4/§5 · 07 全 · 08 §5/§7（引用不复制，字段与规则以规范为准）
 
 ## 1. 背景与文档定位
@@ -13,7 +13,7 @@ M0-M3 后端全部闭环（server 520 tests + typecheck 0 绿，HEAD 8761577）�
 后置并复用 M4a 组件基建**——发布/上传/审核 UI 一律不进 M4a（§2 边界）。
 
 前置已就绪（代码实证）：apps/web 空壳基座（React 19 + Vite 6 + TS strict）；server 读面 API
-（§5 实测契约表；错误 `{code,message}` 07 §4；camelCase）；PUBLIC 资产匿名读/下载已成立；
+（§5 实测契约表；错误 `{code,message}` 07 §4；camelCase）；资产匿名读/下载已成立（M4-pre 后**无可见性维度**，恒公开读面）；
 packages/protocol zod 消费单源；GET /api/labels 公开含 displayName 回退链。
 
 流程定位：design（R1-R9 决策档案 + 视觉拍板 v0.3-v0.7）→ 视觉环节（portal-ui-design 编排：
@@ -37,7 +37,7 @@ packages/protocol zod 消费单源；GET /api/labels 公开含 displayName 回�
     无 README 时以 manifest 摘要兜底不空窗）
   - 文件 tab = **目录树（可折叠）+ 文件点击预览对话框**（文本预览，G7）
   - 版本 tab = 版本历史 + **行级版本对比**（双下拉 base⇄head + 变更文件导航 + 行级 unified diff，G8——skillhub 完整对标 + GitHub 视觉细节）
-  - 右栏：下载 latest 卡 + 元信息卡（作者/命名空间/可见性/时间/下载量）
+  - 右栏：下载 latest 卡 + 元信息卡（**作者 / 更新时间 / 累计下载**——v0.22 按实测渲染回写；M4-pre 后**无**「命名空间 / 可见性」两列）
 - zh/en 双语（07 §2/§5）；标签/状态只读展示
 - **含服务端最小支撑改动**：R4 匿名列表 / R5 展示字段 / R6 ownerDisplayName / R7 stats /
   R8 文件内容 / R9 版本 compare——见 §6（非纯前端）
@@ -55,7 +55,7 @@ packages/protocol zod 消费单源；GET /api/labels 公开含 displayName 回�
 /skills                  技能中心（type=skill：页头 + 搜索 + 筛选条 + 卡片网格）
 /mcps                    MCP 中心（type=mcp 同构）
 /agents                  专家中心（type=agent 同构）
-/assets/:nsSlug/:slug    资产详情：三 Tab（总览/文件/版本）+ 右栏下载·元信息
+/assets/:slug           资产详情：三 Tab（总览/文件/版本）+ 右栏下载·元信息
 ```
 
 query：`?q=`/`?label=`（多值 OR）/`?page=`；版本 tab 对比对走组件内状态（URL 化可后置——
@@ -65,8 +65,8 @@ query：`?q=`/`?label=`（多值 OR）/`?page=`；版本 tab 对比对走组件�
 卡片网格（20/页，对齐服务端默认 limit 20）→ 分页；响应式降列 <1200→3/<900→2。
 
 **详情页结构（v0.7 定稿——skillhub 详情对标）**：
-- 面包屑：首页 / 类型中心 / @ns/slug
-- 头部：名称 + 可见性 pill + @命名空间徽章（独立，非作者）+ 标签行
+- 面包屑：首页 / 类型中心 / `slug`
+- 头部：名称 + 标签行（**M4-pre 后无可见性 pill / @命名空间徽章**；作者只在右栏元信息卡）
 - 主体宽版双栏：左主列三 Tab 卡（shadcn `Card`；总览/文件/版本）+ 右栏 320px 粘性（下载卡 + 元信息卡）
 - 应用壳（AppShell，v0.3 定稿；**v0.12 增侧栏收起**）：顶栏通用（**左端为品牌字**，其右依次为**竖分隔** +
   **侧栏开合触发钮** `SidebarTrigger`，另支持快捷键 `⌘B`/`Ctrl+B`）+ 侧栏功能（**可收起为 48px 图标轨**，收起态悬停出 tooltip；状态 cookie 持久化；<768px 移动端
@@ -388,15 +388,16 @@ Mist/Taupe）**全为中性/暖中性、无蓝调**（2026-09-11 实测确认）
 
 ### 5.1 读面端点实测表（v0.7：+G7/G8 呈请后定案）
 
-labels（扁平含 parentId 可组树）/ assets（q·label 多值·type·nsSlug·limit≤100 默认 20·
+labels（扁平含 parentId 可组树）/ assets（q·label 多值·type·limit≤100 默认 20·
 offset·默认 updated_at desc）/ assets 详情（assetItem+labels）/ versions（曾公开族全见）/
 version 详情 / download（302/200；YANKED 400；限流 429）——全匿名（R4 后列表）。stats（R7）。
 错误 `{code,message}`。**R8/R9 新增端点见 §5.2 契约形状（定案）**。
 
 ### 5.2 契约缺口与处置（R4-R9 全部定案）
 
-- **G1 匿名列表断点** → R4：GET /api/assets 撤 requireAuth + viewer 匿名化短路 PUBLIC-only
-  （service.ts 实证：匿名 userId=null → 成员子查询空 → or() 坍缩 PUBLIC-only——参数化既有过滤）
+- **G1 匿名列表断点** → R4：GET /api/assets 撤 requireAuth + 列表恒 `status = ACTIVE` 面
+  （`assets/service.ts:170-177` 实证：`conditions = [eq(asset.status, 'ACTIVE')]`；与 viewer 身份
+  **无关**——M4-pre 删可见性后无 viewer 输入，匿名 / 登录 / 管理档列表一致）
 - **G2/G3 列表展示字段/latest 版本** → R5：assetItem 补 latestVersion/latestName/
   latestDescription（join latest_version_id）
 - **G4 排序参数** → 撤销后置：默认 updated_at desc 实测满足首页最新发布
@@ -422,7 +423,7 @@ version 详情 / download（302/200；YANKED 400；限流 429）——全匿名�
   ADDED|MODIFIED|DELETED, binary, hunks?: [{ lines: [{type: ADD|DELETE|CONTEXT,
   oldLineNumber, newLineNumber, content}] }] }] }`——服务端 diff 计算（文本文件行级 hunks，
   skillhub 同构），前端零 diff 库；二进制/截断标注。目录聚合为清单级（dir 项不入行 diff）
-- 匿名/安全：R8/R9 均走 PUBLIC+ACTIVE 同面可见性（R4 语义），YANKED 版本 400（同下载语义）
+- 匿名/安全：R8/R9 均在公开读面（资产**恒公开**；非 ACTIVE 治理访问仅 SUPER_ADMIN——M4-pre D6），YANKED 版本 400（同下载语义）
 
 ### 5.3 详情页数据编排（v0.7 修正——两波，非 3 并发）
 
@@ -439,7 +440,7 @@ version 详情 / download（302/200；YANKED 400；限流 429）——全匿名�
 
 ## 6. 接口变更总览（R4-R9 全部定案，服务端面）
 
-- R4：GET /api/assets 撤 requireAuth + viewer 匿名化短路 PUBLIC-only（登录态零变化）
+- R4：GET /api/assets 撤 requireAuth + 列表恒 `status = ACTIVE` 面（与 viewer 身份无关——M4-pre 删可见性；登录态零变化）
 - R5：assetItem 补 latestVersion/latestName/latestDescription
 - R6：assetItem 补 ownerDisplayName（join user_account.displayName）
 - R7：新增 GET /api/stats（聚合端点）
@@ -490,14 +491,17 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
   100%（左右 flush 0/0）**、5 枚**各 213px 等宽**、间距 12px（对照搜索行 900px，统计行明显更宽）；
   按 §4.1 纪律 1 **手搓展示件**（不引 `ui/shadcn/card`：默认白底在 hero 白卡内不可见 + 24px 内距过重，
   且 §4.4 ② 组件源码零改动）——`card.tsx` 留待 M4b
-- **详情页（v0.7）**：头部（名 + 可见性 + @ns 徽章 + 标签）→ 双栏（三 Tab 主列 + 320px 右栏
+- **详情页（v0.7）**：头部（名 + 标签行）→ 双栏（三 Tab 主列 + 320px 右栏
   下载卡/元信息卡）；总览 = skill.md markdown 正文；文件 = 折叠树 + 预览对话框；版本 =
   历史 + 双下拉行级对比（GitHub 细节：文件头 +N−M/折叠、行号双列、行色 #1a7f37/#cf222e）
+  ——**头部与元信息卡已按 M4-pre 终态回写（v0.22）**：无可见性 pill / @命名空间徽章；
+  元信息卡 = 作者 / 更新时间 / 累计下载
 - 类型色体系/品牌显示名（AI X Hub，00 D2 同步待定）/滚动条：沿用 v0.3（**色值口径以 v0.9 §4.4 为准**——
   类型色相不变、渐变改实底）
-- 语义修正记录：@命名空间 ≠ 作者（作者=ownerDisplayName·userId 归元信息卡）；PUBLIC=可见性
-  独立维度——demo v0.7 实证修正（**注**：@ns 坐标与 PUBLIC 维度已随 M4-pre 扁平化重构删除，
-  本 design 相关残留的回写登记见 §11）
+- 语义修正记录（**v0.22 按扁平模型重写**）：作者 = `ownerDisplayName`·`userId` 归元信息卡
+  （05 §3.1）。**原 v0.7 记录的另两条已于 M4-pre 整体失效**——「@命名空间 ≠ 作者」随坐标改全局
+  唯一裸 `slug` 失效（命名空间维度删除）、「PUBLIC = 可见性独立维度」随可见性字段删除失效
+  （资产恒公开；读面仅看 `status`）。回写清单见 §11
 
 **阶段 0 探针切片（v0.9 新增——用户 2026-09-11 拍板「先看效果再全量」）**
 
@@ -566,7 +570,7 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 │ 标签筛选: [全部][检索类●][开发类][数据类]  [rag●][embedding]…    │
 │ 共 N 个技能                         排序：最近更新 ↓             │
 │ ┌──────┐┌──────┐┌──────┐┌──────┐                               │
-│ │◼L 名 @ns││…    ││…     ││…     │   （4 列 × 5 行 = 20 卡/页）  │
+│ │◼L 卡片名││…    ││…     ││…     │   （4 列 × 5 行 = 20 卡/页）  │
 │ │⇣1.3K v1.3││      ││      ││      │                           │
 │ │描述两行…││      ││      ││      │                           │
 │ │作者·工号││      ││      ││      │                           │
@@ -580,8 +584,8 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 ┌ AI X Hub                            🌐 中|EN    [👤 登录] ┐
 │ ⌂首页 ✦技能 ●MCP ◈专家                              │
 ├──────────────────────────────────────────────────────────┤
-│ 首页 / 技能中心 / @langchain/langgraph-rag                │
-│ LangGraph RAG 检索技能  [PUBLIC] [@langchain]             │
+│ 首页 / 技能中心 / langgraph-rag                          │
+│ LangGraph RAG 检索技能                                   │
 │ #rag #official #retrieval                                │
 │ ┌ Tab 卡（shadcn Card）─────────────────┬ 右栏 320px ────┐│
 │ │ [总览●][文件][版本]                   │ 下载卡：        ││
@@ -592,8 +596,8 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 │ │ 版本: [双下拉 base⇄head]             │ ────────────────││
 │ │  SKILL.md MOD +2−1 ▼ 行级diff…       │ 元信息卡：      ││
 │ │  [左导航:文件+徽章] [右行级diff区]     │ 作者 林晓峰·882015││
-│ │                                     │ 命名空间@langchain││
-│ │                                     │ PUBLIC/更新/下载 ││
+│ │                                     │ 更新时间 09-10   ││
+│ │                                     │ 累计下载 1,502   ││
 │ └─────────────────────────────────────┴──────────────────┘│
 └──────────────────────────────────────────────────────────┘
 ```
@@ -626,13 +630,20 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 - 卡片/tokens/diff 视觉不进规范层（实现细节，tokens.css → v0.9 起迁入 Tailwind `@theme`）
 - **视觉 token 无规范层归属**（`07` 实测无 token / 视觉章节，2026-09-11 核）：tokens 真值住 design 层
   §4.4（本仓惯例）→ §4.4 ② 的 AIH 补丁（success/warning/类型色）**不加规范同步行**
-- **M4a design 的 M4-pre 语义回写（v0.9 发现——处置时点待用户定）**：本文件仍有 **17 处**旧模型表述
-  （实测 grep：§1 L16 · §3 L36/54/64/65 · §5.1-5.3 L265/272/273/279/297/314 · §8 L334/339 ·
-  §9 L395/410/421/422）——涉及 `@ns` / `/assets/:nsSlug/:slug` 坐标、`PUBLIC` 可见性维度、元信息卡
-  「命名空间 / 可见性」列，三者均已随 M4-pre 扁平化重构整体删除（事实源
-  `2026-09-10-flat-model-refactor-design`；服务端实测参数为 `slug`，无 `nsSlug`）。
-  **处置（用户 2026-09-11 定）**：**阶段 0 换皮收尾同轮回写**——已列入
-  `docs/plans/M4a-visual-shadcn.md`（避免二次翻同一文件）
+- ✅ **M4a design 的 M4-pre 语义回写（v0.9 发现 → v0.22 已执行 = plan T23）**：正文 **18 行**旧模型
+  表述已按扁平模型终态重写——`@ns` 坐标 / `/assets/:nsSlug/:slug` / `PUBLIC` 可见性维度 /
+  元信息卡「命名空间 · 可见性」两列 / §9 线框图 5 行（卡片 `@ns` · 面包屑 `@ns/slug` ·
+  头部 `[PUBLIC] [@ns]` · 元信息卡 2 行）。**v0.9 登记的「17 处」系当时 grep 清单且行号已漂移**，
+  本轮按「自产量化声明铁律」**重新实测** = **18 行**（多出 §9 面包屑行）。
+  事实源 = `2026-09-10-flat-model-refactor-design`（坐标裸 `slug` · 可见性整体删除 · 非 ACTIVE
+  治理访问仅 SUPER_ADMIN = D6）；服务端实证 = `http/assets.ts` `listQuerySchema` 无 `nsSlug` ·
+  `assets/service.ts:170-177` 列表 `conditions = [eq(asset.status, 'ACTIVE')]` 与 viewer 无关；
+  前端实证 = `pages/AssetDetail.tsx`（面包屑「首页 / 类型中心 / slug」· 头部「名称 + 标签行」·
+  元信息卡）+ `i18n/zh.ts:52-54`（作者 / 更新时间 / 累计下载）。
+  **§12 修订记录段保留旧表述（史实不改）**。
+  ⚠ **顺带发现（登记，未改）**：`apps/server/src/http/assets.ts:285` 行内注释仍写
+  `GET /api/assets/{ns}/{slug}（T3：详情——PUBLIC 匿名可读）`——**注释腐化**（同 M4-pre F17 一类），
+  属**代码注释**（非 design 范围）→ 建议随 **T24 删旧层**同批清（届时一次改完，避免零散提交）
 
 ## 12. 修订记录
 
@@ -659,3 +670,4 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 | **v0.19** | 2026-09-11 | sunxuewen-rush | **去 hero 中间分割线（用户拍板）**：① **对象** = 统计条上方的 `border-t border-border pt-6`（hero 内唯一纯水平分隔线）② **处置** = **整组移除**（`pt-6` 是依附该线存在的内边距，一并去掉）→ 间距由 `mt-11`（44px）承担 ③ **实测**：统计条 `borderTopWidth 0px` / `paddingTop 0px`；**全 hero 子树扫描「只有上下边框、无左右边框」的元素 = 0 个**（分隔线归零）；搜索行 → 统计条间距 **44px**（原 68 = 44 + 24）；统计条高 82 → **57px** ④ **不变**：顶栏「品牌字 ↕ 侧栏触发钮」之间的**竖**分隔保留（不同层，出处见 v0.12 / §4.4 ③） |
 | **v0.20** | 2026-09-11 | sunxuewen-rush | **统计条改「卡片形态 + 宽度撑满 hero」（用户拍板）**：① **形态** = 每项一枚 tile：`min-w-[96px] flex-1 rounded-xl border border-border bg-secondary px-4 py-4`（**淡蓝底 #f0f5ff + 泛蓝细边 #e3eaf6 + 圆角 14px**，与 §4.4 ①（1）基色层同源）；数字 `text-[26px] font-bold tabular-nums` + 标签 `text-[13px] text-muted-foreground`；行容器 `mt-11 flex w-full flex-wrap justify-center gap-3` ② **实测（1440×900）**：**行宽 1112px = hero 内容区 100%**（左右 flush **0 / 0**）、5 枚**各 213px 等宽**、间距 12px、tile 高 90px；对照搜索行 **900px** ⇒ 统计行真正「撑满」 ③ **实现选择（§4.1 纪律 1）**：**手搓展示件**，不引 `ui/shadcn/card`——其默认白底在 hero 白卡内不可见、`py-6` 24px 内距过重（需多处覆盖），且受 §4.4 ②「组件源码零改动」约束；`card.tsx` 留 M4b ④ 门禁 4/4 绿（typecheck/lint/format:check/build）+ T13 渐变白名单复核（组件层裸 `linear-gradient` **0 处**） |
 | **v0.21** | 2026-09-11 | sunxuewen-rush | **阶段 0 出口达成（三判通过 + 撤控件）**：① **用户三判 ✅**——气质 / 密度 / 类型色 **三项 OK**（真站点 + 真数据逐页看；观感判据由用户给）；② **评审控件撤除**——`git rm apps/web/src/dev/ReviewControls.tsx` + `main.tsx` 两处引用（import + 渲染守卫），`grep -rn 'ReviewControls' apps/web/src` = **0**；浏览器复核：`★ 评审` 钮消失、hero 与 5 枚统计 tile 正常渲染；撤后门禁复跑全绿（`format:check` 212 文件）+ 生产包 marker 仍全 **0**；③ §8「阶段 0 探针切片」出口三条件全部满足（三判 ✅ / 门禁 ✅ / 回退面干净 ✅）→ **阶段 1 启动**（范围 = §8 剩余页换皮 + 17 处 M4-pre 语义回写，见 plan §3） |
+| **v0.22** | 2026-09-11 | sunxuewen-rush | **M4-pre 语义回写（plan T23）——正文 18 行按扁平模型终态重写**：① **对象（重新实测）**：§1 Scope + 前置（2）· §2 右栏元信息卡列（1）· §3 路由表 / 面包屑 / 头部（3）· §5.1 列表参数（1）· §5.2 R4 决议 2 行 + 匿名安全行（3）· §6 R4（1）· §8 详情页头部 + 段尾补注（2）· §8 语义修正记录（1）· §9 线框图 5 行（卡片 `@ns` / 面包屑 / 头部 `[PUBLIC] [@ns]` / 元信息卡 2 行）② **重写口径**：`@ns` 坐标 → 全局唯一裸 `slug` · `/assets/:nsSlug/:slug` → `/assets/:slug` · `PUBLIC` 可见性维度 → **删除**（资产恒公开；读面仅看 `status`；非 ACTIVE 治理访问仅 SUPER_ADMIN = M4-pre D6）· 元信息卡「命名空间 / 可见性」→ **实测渲染**「作者 / 更新时间 / 累计下载」③ **证据链**：事实源 `2026-09-10-flat-model-refactor-design`（R3 可见性删除 / R5 坐标裸 slug）· `http/assets.ts` `listQuerySchema` 无 `nsSlug` · `assets/service.ts:170-177` 列表 `conditions = [eq(asset.status, 'ACTIVE')]` 与 viewer 无关 · `pages/AssetDetail.tsx` 面包屑/头部/元信息卡 + `i18n/zh.ts:52-54` ④ **史实不改**：§12 旧行保留 ⑤ **登记（未改）**：`http/assets.ts:285` 注释腐化（仍写 `{ns}/{slug}` + `PUBLIC`）→ 建议随 T24 清 ⑥ §11 登记项改 ✅ |

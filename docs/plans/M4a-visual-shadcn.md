@@ -6,8 +6,8 @@
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · **T20 版本对比 + diff ✅（2026-09-11，含 4 共享原子件增补）** · **T21 中心页 ✅（2026-09-11，`.module.css` 存量 2 → 1）** · **T22 标签筛选条 ✅（2026-09-11，`.module.css` 存量归零 = 板块 F 收官）**（⬅ 板块 E 详情页 4 Task **全部完成**） · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
-> 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.21**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.21 为准）
+> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · **T20 版本对比 + diff ✅（2026-09-11，含 4 共享原子件增补）** · **T21 中心页 ✅（2026-09-11，`.module.css` 存量 2 → 1）** · **T22 标签筛选条 ✅（2026-09-11，`.module.css` 存量归零 = 板块 F 收官）**（⬅ 板块 E 详情页 4 Task **全部完成**） · **T23 M4-pre 语义回写 ✅（2026-09-11，design 正文 18 行重写）** · T24 删旧层 · T25 门禁+全态冒烟 · T26 converge；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
+> 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.22**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.22 为准）
 > 命名约定见 `docs/plans/README.md`
 
 ## 1. 目标与范围
@@ -305,12 +305,15 @@
 
 ### 板块 G 阶段 1 · 收尾（3 Task + converge）
 
-#### T23 17 处 M4-pre 语义回写（design 自身修正）
+#### T23 17 处 M4-pre 语义回写（design 自身修正）✅ 2026-09-11
 - **Files**: Modify `docs/designs/2026-09-09-m4a-marketplace-portal-design.md`（§11 已列行号：§1 L16 ·
   §3 L36/54/64/65 · §5.1-5.3 · §8 · §9）
-- **Assert**: 仅**历史修订记录段**保留旧表述（史实不改）；正文内 `@ns` 坐标 → 全局唯一裸 slug ·
-  `/assets/:nsSlug/:slug` → `/assets/:slug` · `PUBLIC` 可见性维度 → **删除**（资产恒公开）· 元信息卡
-  「命名空间 / 可见性」列 → 删除；与事实源 `2026-09-10-flat-model-refactor-design` 终态逐项一致
+- **Assert**: 仅**历史修订记录段**保留旧表述（史实不改）✅（§12 未动；§11 登记项改 ✅）；正文内 `@ns`
+  坐标 → 全局唯一裸 slug ✅ · `/assets/:nsSlug/:slug` → `/assets/:slug` ✅ · `PUBLIC` 可见性维度 →
+  **删除**（资产恒公开）✅ · 元信息卡「命名空间 / 可见性」列 → 删除 ✅（改为实测渲染「作者/更新时间/
+  累计下载」）；与事实源 `2026-09-10-flat-model-refactor-design` 终态逐项一致 ✅
+- **数量修正（自产量化铁律）**：v0.9 登记的「17 处」系当时 grep 清单且**行号已漂移** → 本轮**重新实测
+  = 18 行**（多出 §9 面包屑行）；`/tmp/aih-t23.mjs` 逐处断言「命中唯一」后写盘（21 次替换全通过）
 - **Commit**: `docs(m4a): rewrite spec-drifted sections to flat model`
 
 #### T24 删旧层（`.module.css` ×16 + `tokens.css` + `global.css`）
@@ -795,6 +798,41 @@
   （T21 = eyebrow 漂移 / 窄视口口径；T22 = 死导出 / 子行覆盖缺口 / 过渡取样自纠）——按「禁同分重报」
   口径披露：分同而证据不同，非重复报分
 
+**T23 M4-pre 语义回写（板块 G · 2026-09-11，纯文档 Task）**
+- 落地：`docs/designs/2026-09-09-m4a-marketplace-portal-design.md` 正文 **18 行**按扁平模型终态重写 +
+  §11 登记项改 ✅ + 版本头 v0.22 + §12 追加重写行（**§12 旧行一字未动 = 史实不改**）
+- **执行方式（防长行拆断）**：`/tmp/aih-t23.mjs`（bun）——21 组「精确子串 → 新文」替换，**每组先断言
+  命中次数 = 1**（否则整体中止不写盘）→ 全通过才写盘；替换锚点全部取自 `read_file` 完整行（未用截断输出）
+- **18 行清单（重新实测；v0.9 的「17 处」行号已漂移）**：§1 Scope + 前置（2）· §2 右栏元信息卡列（1）·
+  §3 路由表 / 面包屑 / 头部（3）· §5.1 列表参数（1）· §5.2 R4 决议 2 行 + 匿名/安全行（3）· §6 R4（1）·
+  §8 详情页头部 + 段尾补注（2）· §8 语义修正记录（1）· §9 线框图 5 行（卡片 `@ns` / 面包屑 / 头部
+  `[PUBLIC] [@ns]` / 元信息卡 2 行）
+- **重写口径**：`@ns` 坐标 → 全局唯一裸 `slug` · `/assets/:nsSlug/:slug` → `/assets/:slug` ·
+  `PUBLIC` 可见性维度 → 删除（资产恒公开；读面仅看 `status`；非 ACTIVE 治理访问仅 SUPER_ADMIN = M4-pre D6）·
+  元信息卡「命名空间 / 可见性」→ **实测渲染**「作者 / 更新时间 / 累计下载」
+- **证据链（事实源 + 三处实证）**：`2026-09-10-flat-model-refactor-design`（R3 可见性删除 / R5 坐标裸 slug）·
+  `http/assets.ts` `listQuerySchema` 无 `nsSlug` · `assets/service.ts:170-177`
+  `conditions = [eq(asset.status, 'ACTIVE')]` 且**与 viewer 无关** · `pages/AssetDetail.tsx` 面包屑/头部/
+  元信息卡 + `i18n/zh.ts:52-54`
+- **验证**：`grep` 正文（<§11）残留 = 仅 2 处**合法**命中（skillhub `namespace-badge` 组件名 · CSS
+  「撞命名空间」措辞）+ 新写入的**负向陈述**（「M4-pre 后无可见性维度」等）；无 `|+` 粘连/断行特征；
+  行数 661 → **673**；diff 40 / 28
+- **换靶新发现（本靶 = 全仓 docs/代码层同模式扫描）**：
+  - 🟡 **代码注释腐化 14 处**（design 之外，同 M4-pre F17 一类）：`http/assets.ts` **12 行**路由注释仍写
+    `{ns}/{slug}`（L285/301/317/342/357/418/469/553/613/667/705/765）+ **L255** R4 语义注释仍写
+    「viewer 匿名短路 PUBLIC-only」+ `http/stats.ts:10`「PUBLIC+ACTIVE 聚合」；另有 `http/assets.test.ts` /
+    `http/labels.ts` 含同模式字符串（条数待 T24 逐条枚举）→ 登记 §3 表 14（**随 T24 同批清**，不零散提交）
+  - 🟡 **`2026-09-08-m2-asset-domain-design.md` 失效内容无标注**：正文仍以 `Status: 定稿` 呈现
+    `@namespace/slug` 坐标 · `visibility` 维度 · `nsSlug` 参数 · 空间角色/权限码——**M4-pre 后全部失效却无
+    「作废」标记**（对比惯例：M4b design 用「随之全部作废」+ 修订记录 ⏸ 搁置行）→ 登记 §3 表 15
+    （**T26 converge 处置**：加失效标注行，**正文不改**——历史 design 保留原貌）
+  - ✅ 旁证：`docs/02-skill-protocol.md` 已于 M4-pre 时同步（v1.2 去 `@namespace/slug`）· M4-pre 期
+    smoke 记录（`2026-09-10-m4-pre-s2/s3.md`）、`2026-09-09-m4a-t18.md` 属**历史证据档**（保留原貌）
+- **自检打分（纯文档 Task → 文档 8 维 = 标准 4 + 深度 4）**：**文档 9.72**（较上轮 9.69 +0.03，来源 =
+  本文档正文与事实源终态**逐行一致** + 数量声明**重新实测**（17 → 18，按量化铁律自纠）；扣分项：换靶发现的
+  两处**文档域外**残留（代码注释 14 处 · M2 design 未标注）**登记而未在本 Task 修**（范围纪律所致，
+  非疏漏）→ 代码 18 维 **N/A**（本 Task 零代码改动；`git diff --stat` 仅 1 个 md 文件）
+
 ## 3. 阶段 1 范围登记（✅ 2026-09-11 已细化为 **T17-T26**，任务清单 → §2 板块 E/F/G）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
@@ -825,6 +863,8 @@
 | 11 | **中心页页头 eyebrow 与 h1 同 i18n 键 → 文案重复**（T21 换靶发现，**自 `bdc0d5e` 中心页初版起既存**） | `CenterPage.tsx` 的 eyebrow `<span>` 用 `t('market', meta.title)`（**与 h1 同键**）⇒ zh 界面渲染「技能中心 / 技能中心」两行；design **§9 线框**要求「技能中心 Skill Center」（**EN 名** eyebrow）⇒ 代码与 design 漂移 | ✅ **已处理（用户 2026-09-11 拍板 (d)）**：eyebrow 改**语言中立的类型常量表** `TYPE_EYEBROW`（`SKILL` / `MCP` / `AGENT`）——两种语言下均与 h1 不重复、零 i18n 新增、对齐 §9「双语头」意图；实测三中心 `dup: false`。（否决备选：补 EN 名 i18n 键——英文界面下仍重复；删 `<span>`——§9 有此元素） |
 | 12 | **死导出 `buildLabelRows` / `labelName`**（T22 换靶发现，既有债） | 两符号在 `FilterStrip.tsx` 之外**零消费者**（仓内 grep 排除自身 = 0）；同 T17 的 `mainDocPath`/`manifestFields` 一类 | 维持现状（**不改**——非换皮范围，且为将来单测预留导出）；**T25/收尾**评估：要么补测试用上，要么收为模块内私有 |
 | 13 | **中心页筛选：子标签行 + 多标签 OR 无现场可验数据**（T22 换靶发现） | dev 库标签只有 **1 个 root**（`agentic`，`parentId: null`）、**0 个子标签**（`db:seed` 不建标签，标签由 API 建）⇒ `FilterStrip` 的两级组树第二行（`children.length > 0` 分支）与多标签 OR 拼装**跑不到**（换皮已按旧结构 1:1 迁移，但无渲染实证） | **T25** 全态冒烟补此两态：先建 1 个子标签（`POST /api/labels` 带 `parentId`）+ 勾选 ≥2 标签验 OR（**造数据 = 冒烟内一次性，不入 seed**） |
+| 14 | **代码注释腐化 14 处**（T23 换靶发现；同 M4-pre F17 一类） | `apps/server/src/http/assets.ts` **12 行**路由注释仍写 `{ns}/{slug}`（L285/301/317/342/357/418/469/553/613/667/705/765）+ **L255** R4 语义注释仍写「viewer 匿名短路 PUBLIC-only」；`apps/server/src/http/stats.ts:10` 仍写「PUBLIC+ACTIVE 聚合」；另有 `http/assets.test.ts` / `http/labels.ts` 含同模式字符串（**条数待枚举**） | **随 T24（删旧层）同批清**——注释只改文字、零行为影响；T24 执行时**先逐条枚举**（`grep -nE "\{ns\}/\{slug\}" apps/server/src`）再改，改完 `grep` 断言归零；不零散单独提交 |
+| 15 | **`2026-09-08-m2-asset-domain-design.md` 失效内容无「作废」标注**（T23 换靶发现） | 该 design 正文（坐标 `@namespace/slug` · `visibility` 维度 · `nsSlug` 参数 · 空间角色/权限码）在 **M4-pre 后全部失效**，但文档仍以 `Status: 定稿` 呈现、无失效标记（对比惯例：M4b design 有「随之全部作废」+ 修订记录 ⏸ 搁置行） | **T26 converge 处置**：在该文档头部加**失效标注行**（指向 `2026-09-10-flat-model-refactor-design`）+ 修订记录加一行；**正文不改**（历史 design 保留原貌，同「史实不改」口径） |
 
 ## 4. 风险与回退
 
@@ -858,3 +898,4 @@
 | v0.17 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T21 中心页换皮落地 + 换靶自检**：① **落地**：`CenterPage.tsx` 全量 Tailwind 化——页头 `.glass` → 白卡 `bg-card`+`shadow-sm`+r18 · **氛围光斑 `::before` 整块删除**（+`overflow`/`position` 去除）· icon tile 52px 渐变 → **44px 实底类型色**+r13+白图标 22px（`TILE_BG` 查表替代 `styles[type]` 动态类名）· 页头搜索框 → shadcn `Input`（纪律 1）· 计数徽章 → hero 统计 tile 语法 · 字阶 21→`text-xl` / 12.5→`text-xs`；删 `CenterPage.module.css`（存量 **2 → 1**）② **Files 修正（执行期）**：原文「Delete 两个 `.module.css`」= 与 T22 混写 → 实删 1 个；`pages/Center.tsx` **零改动**（9 行纯转发）③ **实测（1440×900 真浏览器）**：head 白/r18/pad 22-26/mb16/`shadow-sm`/`backdrop-filter none`/**`::before content none`** ✓ · tile 44×44/r13 skill `rgb(37,99,235)` · mcp `rgb(14,116,144)` · agent `rgb(109,40,217)` ✓ · h1 20/700/-0.4 ✓ · 描述 13/#64748b/mt4 ✓ · Input h36/r8/边#e3eaf6/**240px**/`text-sm` ✓ · 徽章 `#f0f5ff`/r14/数字 22px `oklch(0.488 0.243 264.376)`/`tabular-nums`/标签 11px ✓ · 结果头 gap12/mb12/13+12px ✓ · 网格 **4×287.5**/gap14 ✓ · 三中心同构 + `/agents` 空态 ✓ · 全页 `backdrop-filter` 命中 **1**（FilterStrip = T22）④ **换靶（本靶 = 旧 token 消费者全仓普查）**：`--grad-skill/mcp/agent` 消费者**归零**（孤儿 ⇒ T24 删）· 旧 token 消费者**只剩 `FilterStrip.module.css`**（⇒ T22 后 T24 无残留）· 🟡 **新发现缺陷（内容级）**：eyebrow 与 h1 **同 i18n 键** → zh 渲染「技能中心 / 技能中心」重复，与 design **§9 线框「技能中心 Skill Center」** 漂移（缺 3 个 EN 名键）→ **未改**（先说明→等许可），登记 §3 待拍板 11 · 📌 **取样条件教训**：窄视口测得 Input 187px + 网格 2 列（疑 CSS 未热更）→ 桌面钉死后 **240px / 4 列**（窄视口收缩 = 旧 `.search` 同行为 parity，非回归）⇒ 视口未钉死不做定性判断 ⑤ **回归**：dogfood **22/22 PASS + NO CONSOLE ERRORS**（`SMOKE_SHOT_PREFIX=t21-`，截图已清不进仓）· 门禁 typecheck 4/4 · lint **web 0 诊断** · format:check 212 · build ✓ ⑥ **自检 代码 9.80 / 文档 9.69**（↓0.04 = 换靶新证据，非产物变差；如实披露） |
 | v0.18 | 2026-09-11 | sunxuewen-rush | **增补 · 中心页页头 eyebrow 修重复（用户拍板 (d)）**：① **问题**：eyebrow `<span>` 与 h1 **同 i18n 键**（`t('market', meta.title)`）⇒ zh 渲染「技能中心 / 技能中心」重复；`git log -S "styles.en"` 实证**自 `bdc0d5e`（中心页初版）既存**，非 T21 换皮引入 ② **处置**：改**语言中立的类型常量表** `TYPE_EYEBROW`（`SKILL`/`MCP`/`AGENT`）——两种语言下均与 h1 不重复 · **零 i18n 新增** · 对齐 design §9 线框「双语头」意图；字面即大写（不靠 CSS `text-transform`）⇒ `textContent` 取值确定 ③ **否决备选**：补 EN 名 i18n 键（英文界面下 h1 与 eyebrow 仍同句）· 删 `<span>`（§9 线框有此元素）④ **实测**：三中心 `技能中心 / SKILL` · `MCP 中心 / MCP` · `专家中心 / AGENT`，`dup: false` ✓ · 11px/`ls 1px`/`#64748b` ✓ · 无裸键泄漏 ✓ · 门禁 4/4 绿（`dogfood` 未重跑——纯静态文案改，已由真浏览器逐中心实测覆盖） |
 | v0.19 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T22 FilterStrip 换皮落地 + 换靶自检（板块 F 收官）**：① **落地**：`FilterStrip.tsx` 全量 Tailwind 化 + 删 `FilterStrip.module.css` ⇒ **`.module.css` 存量 1 → 0**（`find` = 0）· `.glass` → 白卡 `bg-card`+`shadow-sm` · 圆角 16 不成轴 → 就近向下 `rounded-xl` · chip 三段常量（未选中 `bg-secondary`/`border-border`/hover `border-ring/40`+`text-primary`；选中 **实底 `bg-primary` + `text-primary-foreground`**，旧 `--grad-brand` 渐变 + 蓝投影为 §4.4 废弃项）· 12.5→`text-xs` · 子行 pill 与根行统一（旧 `.sub` 仅差衬底 alpha，白卡上不可辨）② **实测（1440×900）**：strip 白/r14/pad 12-16/mb14/`shadow-sm`/`backdrop-filter none` ✓ · 标题 11/700/uppercase/ls .7px/#64748b/pt7 ✓ · 未选中 chip `rgb(240,245,255)`/边 #e3eaf6/fw500/999px ✓ · 选中 chip `oklch(0.488 0.243 264.376)`+`oklch(0.97 0.014 254.604)`+边 primary+fw600+**`box-shadow none`** ✓ · 行 gap7/cols gap7/grid gap14 ✓ ③ **交互实证**：点标签 → `?label=agentic` + 列表 3→**1** + 「筛选结果：1」；点「全部」→ URL 复位 + 3 卡；默认「全部」选中（`selected.length === 0`）④ **换靶（死导出 + 覆盖缺口 + T24 前置核对）**：✅ **T24 前置全绿**——`.module.css` = 0 · 旧层 token 消费 = 0（剩 11 条 `var(--tint-*)`/`var(--ava-*)` 全属 AIH 层 `@theme` 映射）· `.glass` 消费 0（定义待 T24 删）· 旧层引用 2 处 = `main.tsx:13-14` import · 删除面 = `tokens.css` 126 + `global.css` 106 行 · 🟡 **死导出** `buildLabelRows`/`labelName`（§3 表 12）· 🟡 **覆盖缺口**：dev 库仅 1 root 标签、0 子标签 ⇒ 两级组树第二行 + 多标签 OR 无现场可验数据（§3 表 13 → T25 造数据补验）· 📌 **断言纪律自纠**：点标签后 3.5s 取样得 `on: []` 疑「选中态失效」→ 实为**过渡中间值**（`oklab(...)` 插值 vs 探针按 `oklch` 匹配）；同点位 `className` 已含正确三段类，**关过渡复测**得终值 ✓（通则：带 `transition` 的属性断言前注入 `*{transition:none!important}`）⑤ **回归**：dogfood **22/22 PASS + NO CONSOLE ERRORS**（`t22-` 前缀，截图已清）· 门禁 4/4（lint web **0 诊断**）⑥ **自检 代码 9.80 / 文档 9.69**（分与 T21 同、**靶与发现不同**，按「禁同分重报」披露） |
+| v0.20 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T23 M4-pre 语义回写落地（纯文档 Task，design 自身修正）**：① **落地**：`docs/designs/2026-09-09-m4a-marketplace-portal-design.md` 正文 **18 行**按扁平模型终态重写——§1 Scope + 前置 · §2 右栏元信息卡列 · §3 路由表 / 面包屑 / 头部 · §5.1 列表参数去 `nsSlug` · §5.2 R4 决议 2 行 + 匿名安全行 · §6 R4 · §8 详情页头部 + 段尾补注 · §8 语义修正记录 · §9 线框图 5 行；并改 §11 登记项 ✅ + 版本头 v0.22 + §12 追加 v0.22 行（**§12 旧行一字未动 = 史实不改**）② **数量自纠（量化铁律）**：v0.9 登记「17 处」系当时 grep 清单且行号已漂移 → **重新实测 = 18 行**（多出 §9 面包屑行）③ **执行方式**：`/tmp/aih-t23.mjs`（bun）逐组断言「命中次数 = 1」→ 全通过才写盘（21 组替换）④ **证据链**：事实源 `2026-09-10-flat-model-refactor-design`（R3 可见性删除 / R5 坐标裸 slug）· `http/assets.ts` `listQuerySchema` 无 `nsSlug` · `assets/service.ts:170-177` 列表 `conditions = [eq(asset.status,'ACTIVE')]` 与 viewer 无关 · `pages/AssetDetail.tsx` + `i18n/zh.ts:52-54` 实测渲染（作者/更新时间/累计下载）⑤ **验证**：正文残留仅 2 处合法命中（skillhub 组件名 / CSS 措辞）；无粘连；行数 661 → 673 ⑥ **换靶发现**：🟡 **代码注释腐化 14 处**（`http/assets.ts` 12 行 `{ns}/{slug}` + L255 PUBLIC-only + `http/stats.ts:10`）→ 登记 §3 表 14，**随 T24 同批清** · 🟡 **M2 design 失效内容无「作废」标注** → 登记表 15，**T26 converge 处置**（只加标注行，正文不改）⑦ **自检 文档 9.72**（+0.03 = 正文与事实源逐行一致 + 数量重新实测；扣分 = 域外残留登记未修）· **代码 18 维 N/A**（零代码改动）⑧ 引用链 design 升 **v0.22** |
