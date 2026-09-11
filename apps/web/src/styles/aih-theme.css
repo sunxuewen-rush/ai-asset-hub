@@ -1,0 +1,135 @@
+/*
+ * M4a 视觉体系切换 —— **AIH 层**
+ * ═══════════════════════════════════════════════════════════════════════
+ * 采用 shadcn 官方姿势（docs/theming → Adding New Tokens）：**值与其 `@theme inline` 映射
+ * 同文件、紧邻成对**；本文件自成一体，新增 AIH token 只需改这里（不碰官方层）。
+ *
+ * 组成：
+ *   A. 语义补丁层（无条件生效）：--success / --warning / --type-* / --tint-* / --ava-* 实底
+ *   B. AIH blue 基色层（`html[data-base="aih"]` 生效）：官方 7 个 base color 全为中性/暖中性，
+ *      无蓝调版本，故自建；值 = 与官方 neutral 逐项对照（design §4.4 ①（1））
+ *   C. 品牌渐变层（v0.14，design §4.4 ②bis）：--gradient-brand / --gradient-cta / --gradient-page
+ *      —— 消费走 `bg-[image:var(--gradient-*)]` 任意值（**不注册 @theme 映射**，避免与 `--color-*`
+ *      的 `bg-*` 命名空间相撞）；换皮范围内除此之外不得出现 `linear-gradient`（plan T13 断言）
+ *
+ * 解耦纪律（design §4.4 ②，v0.10 修正版）：
+ *   1. 本文件由官方层 `src/index.css` 在其 `@import "tailwindcss"` 之后引入（单入口）；
+ *   2. **覆盖不依赖声明顺序** —— 基色层用属性选择器 `html[data-base="aih"]`（特异性 0,1,1）
+ *      压过官方层 `:root`（0,1,0）；补丁层变量官方层未声明，无冲突。
+ *      ⚠ 因此**禁用 `:root` 写 AIH 覆盖值**（那才会退化成靠顺序取胜）；
+ *   3. 官方层保持「干净」＝ 可被 `shadcn apply --preset` 安全重写（不含任何 AIH 专属内容）；
+ *   4. 组件源码零改动 —— 换肤/调值只动本文件。
+ */
+
+/* ── 映射层（shadcn 官方「Adding New Tokens」姿势：与下方值成对） ───────────────── */
+@theme inline {
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-type-skill: var(--type-skill);
+  --color-type-mcp: var(--type-mcp);
+  --color-type-agent: var(--type-agent);
+  --color-tint-skill: var(--tint-skill);
+  --color-tint-mcp: var(--tint-mcp);
+  --color-tint-agent: var(--tint-agent);
+  --color-ava-1: var(--ava-1);
+  --color-ava-2: var(--ava-2);
+  --color-ava-3: var(--ava-3);
+  --color-ava-4: var(--ava-4);
+  --color-ava-5: var(--ava-5);
+  --color-ava-6: var(--ava-6);
+  --color-ava-7: var(--ava-7);
+  --color-ava-8: var(--ava-8);
+}
+
+/* ── 动效（AIH 层：官方 preset 不含；`--animate-*` 与其 keyframes 同处 = 官方「Adding New Tokens」姿势） ──
+ * rise = 入场动效（plan T8 hero stagger；原住 global.css，收尾删旧层后由本层自持） */
+@theme {
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ── A. 语义补丁层（值；AIH 原生语义，官方仅 destructive） ─────────────────────── */
+:root {
+  --success: oklch(0.627 0.17 149.2); /* ≈#16a34a */
+  --success-foreground: #f0fdf4;
+  --warning: oklch(0.666 0.157 58.3); /* ≈#d97706 */
+  --warning-foreground: #fffbeb;
+
+  /* 类型色（色相沿用 v0.3；v0.10 起去渐变改实底） */
+  --type-skill: #2563eb;
+  --type-mcp: #0e7490;
+  --type-agent: #6d28d9;
+  --tint-skill: rgba(37, 99, 235, 0.1);
+  --tint-mcp: rgba(14, 116, 144, 0.1);
+  --tint-agent: rgba(109, 40, 217, 0.1);
+
+  /* 头像 8 色板（实底，hash→色序不变） */
+  --ava-1: #f59e0b;
+  --ava-2: #0891b2;
+  --ava-3: #7c3aed;
+  --ava-4: #0ea5e9;
+  --ava-5: #e11d48;
+  --ava-6: #6366f1;
+  --ava-7: #2563eb;
+  --ava-8: #059669;
+}
+
+/* ── B. AIH blue 基色层（属性选择器 = 特异性覆盖，不靠顺序；含 theme 层同名的 --secondary） ── */
+html[data-base="aih"] {
+  --background: #f8faff; /* 淡蓝底 */
+  --foreground: #0f172a; /* slate-900（比官方纯黑柔和） */
+  --card: #ffffff; /* 白卡浮在淡蓝底上 */
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --secondary: #f0f5ff; /* 覆盖官方 blue preset 的同名值 */
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5fb;
+  --muted-foreground: #64748b; /* slate-500 */
+  --accent: #eaf1fd; /* hover / 选中底 */
+  --accent-foreground: #0f172a;
+  --border: #e3eaf6; /* 泛蓝细边 */
+  --input: #e3eaf6;
+  --ring: #3b82f6; /* 焦点环走品牌蓝（组件用 ring-ring/50） */
+  --sidebar: #f6f9ff; /* 比页面更浅一档 */
+  --sidebar-foreground: #0f172a;
+  --sidebar-accent: #eaf1fd;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e3eaf6;
+  --sidebar-ring: #3b82f6;
+}
+
+/* ── C. 品牌渐变层（v0.14 用户拍板「主题需要蓝色渐变」——原 v0.9「拒玻璃/渐变」在此项上翻转） ──────
+ * 白名单 = 下列 3 个 token，值只住本文件；组件侧不得出现裸渐变字面量。
+ * 消费：`bg-[image:var(--gradient-brand)]`（Tailwind v4 任意值）——不注册 `@theme` 映射，
+ * 避免与 `--color-*` 生成的 `bg-*` 工具类撞命名空间。 */
+:root {
+  /* 品牌字：顶栏「AI X Hub」+ hero 96px 主标（`bg-clip-text` + `text-transparent`） */
+  --gradient-brand: linear-gradient(96deg, #1447e6 0%, #2563eb 46%, #3b82f6 100%);
+  /* 主 CTA 按钮：叠在 `bg-primary` 之上（保实底兜底），hover 用 brightness 提亮保反馈 */
+  --gradient-cta: linear-gradient(180deg, #2563eb 0%, #1447e6 100%);
+  /* 页面底：极轻蓝渐变（`background-attachment: fixed` 随视口不随滚动） */
+  --gradient-page: linear-gradient(180deg, #f8faff 0%, #eff4ff 100%);
+}
+
+/* 页面底渐变落位：写进 `@layer base` ⇒ **层内规则**，仍可被 utilities 覆盖（不违反坑⑥ 无层声明纪律）。
+ * `html[data-base="aih"] body`（0,1,2）压过官方层 base 的 `body`（0,0,1）；background-image 与
+ * body 的 background-color（`--background` #f8faff）叠加，底色仍作兜底。 */
+@layer base {
+  html[data-base="aih"] body {
+    background-image: var(--gradient-page);
+    background-attachment: fixed;
+  }
+}

@@ -21,6 +21,24 @@
   },
   "overrides": [
     {
+      "includes": ["apps/web/src/components/ui/shadcn/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noDocumentCookie": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "off"
+          },
+          "a11y": {
+            "useFocusableInteractive": "off",
+            "useSemanticElements": "off",
+            "noRedundantRoles": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.test.ts"],
       "linter": {
         "rules": {

@@ -1,8 +1,16 @@
+import path from 'node:path';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    // 别名：shadcn CLI 生成物与新建组件统一走 @/（design §4.1）
+    alias: {
+      '@': path.resolve(import.meta.dirname, 'src'),
+    },
+  },
   server: {
     port: 5173,
     proxy: {

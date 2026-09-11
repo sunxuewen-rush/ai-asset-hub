@@ -1,0 +1,116 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./styles/aih-theme.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * M4a 视觉体系切换 —— **官方层（单入口）**（design §4.4 v0.10）
+ * ═════════════════════════════════════════════════════════════════
+ * 结构：
+ *   本文件        = 官方层：Tailwind 入口 + 官方 neutral 基色 + 官方 blue preset + 官方 token 映射
+ *   aih-theme.css = AIH 层：AIH token 的**映射与值成对** + AIH blue 基色层（属性选择器覆盖）
+ * 纪律（解耦，design §4.4 ②）：
+ *   1. 本文件 = 官方层的**唯一入口**（官方层内容可被 `shadcn apply --preset` 安全重写）；
+ *   2. **AIH 专属内容一律不写在本文件**（映射/值都住 aih-theme.css）——新增 AIH token 只改那边；
+ *   3. AIH 层覆盖官方层靠**选择器特异性**（`html[data-base="aih"]`），不依赖声明顺序。
+ * ✅ 本文件已由 `main.tsx` 引入（plan T4 落地，紧随 `createRoot` 前的单入口 import）——
+ *    Tailwind Preflight 与全部工具类自此生效，即「换皮视觉变更起点」。
+ */
+
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "MiSans", "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 圆角轴：--radius 0.625rem(10px) → sm 6 / md 8 / lg 10 / xl 14 / 2xl 18（design §4.4 ④） */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+
+  /* 官方语义色映射（AIH 补丁映射住 aih-theme.css） */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* 字阶轴（design §4.4 ⑤）：9 档 = 11 / 12 / 13 / 14 / 16 / 18 / 20 / 22 / 24
+   —— 非默认档用任意值类（text-[11px] / text-[13px] / text-[22px]），默认档用 text-xs/sm/base/lg/xl/2xl */
+
+:root {
+  --radius: 0.625rem; /* globals.css:100 */
+
+  /* 官方 neutral 基色（globals.css:99-141；AIH 层按 data-base 覆盖） */
+  --background: oklch(1 0 0); /* #ffffff */
+  --foreground: oklch(0 0 0); /* #000000 */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0 0 0);
+  --secondary: oklch(0.967 0.001 286.375); /* #f4f4f5 */
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0); /* #f5f5f5 */
+  --muted-foreground: oklch(0.556 0 0); /* #737373 */
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325); /* #e7000b */
+  --border: oklch(0.922 0 0); /* #e5e5e5 */
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0); /* #a1a1a1 */
+  --sidebar: oklch(0.985 0 0); /* #fafafa */
+  --sidebar-foreground: oklch(0 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* 官方 blue preset（themes.ts:556-575 light） */
+  --primary: oklch(0.488 0.243 264.376); /* #1447e6 */
+  --primary-foreground: oklch(0.97 0.014 254.604); /* #eff6ff */
+  --sidebar-primary: oklch(0.546 0.245 262.881); /* #155dfc */
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --chart-1: oklch(0.809 0.105 251.813); /* #8ec5ff */
+  --chart-2: oklch(0.623 0.214 259.815); /* #2b7fff */
+  --chart-3: oklch(0.546 0.245 262.881); /* #155dfc */
+  --chart-4: oklch(0.488 0.243 264.376); /* #1447e6 */
+  --chart-5: oklch(0.424 0.199 265.638); /* #193cb8 */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-synthesis-weight: none;
+  }
+}
