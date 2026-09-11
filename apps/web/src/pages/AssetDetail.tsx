@@ -13,7 +13,6 @@ import { ErrorState } from '../components/ui/ErrorState.js';
 import { Spinner } from '../components/ui/Spinner.js';
 import { useApi } from '../hooks/useApi.js';
 import { useI18n } from '../i18n/I18nProvider.js';
-import styles from './AssetDetail.module.css';
 
 const CENTER_OF: Record<AssetType, string> = { skill: '/skills', mcp: '/mcps', agent: '/agents' };
 const CENTER_TITLE_KEY: Record<
@@ -66,7 +65,7 @@ export function AssetDetail() {
   }
   if (loading || !detail) {
     return (
-      <div className={styles.stateBox}>
+      <div className="flex justify-center py-[72px]">
         <Spinner />
       </div>
     );
@@ -115,10 +114,11 @@ export function AssetDetail() {
     }
   }
 
-  /** tab 面板注入（总览/文件 = 波 2 latest 消费；versions 待 T17） */
+  /** tab 面板注入（总览 / 文件 = 波 2 latest 消费；versions = 波 1 版本列表数据源） */
   const renderPane = (tab: DetailTab) => {
     if (tab === 'overview') {
-      if (!latestVersion) return <p className={styles.paneNote}>—</p>;
+      if (!latestVersion)
+        return <p className="py-8 text-center text-[13px] text-muted-foreground">—</p>;
       return (
         <OverviewTab
           type={detail.type}
@@ -132,7 +132,8 @@ export function AssetDetail() {
       );
     }
     if (tab === 'files') {
-      if (!latestVersion) return <p className={styles.paneNote}>—</p>;
+      if (!latestVersion)
+        return <p className="py-8 text-center text-[13px] text-muted-foreground">—</p>;
       return (
         <FilesTab
           slug={slug}
@@ -152,20 +153,40 @@ export function AssetDetail() {
   };
 
   return (
-    <div className={styles.page}>
-      <div className={styles.crumb}>
-        <Link to="/">{t('market', 'crumbHome')}</Link> / <Link to={centerPath}>{labelTitle}</Link> /{' '}
-        <b>{slug}</b>
+    <div className="flex flex-col">
+      {/* 面包屑（T17 换皮：字阶 12.5 → `text-xs`（§4.4 ⑤ 的 12/12.5 桶）；链接 = primary +
+          hover 下划线 + `underline-offset-2`（旧 `.crumb a:hover` 的 2px 偏移，逐项核对补回） */}
+      <div className="mb-3.5 text-xs text-muted-foreground">
+        <Link
+          to="/"
+          className="font-medium text-primary no-underline hover:underline hover:underline-offset-2"
+        >
+          {t('market', 'crumbHome')}
+        </Link>{' '}
+        /{' '}
+        <Link
+          to={centerPath}
+          className="font-medium text-primary no-underline hover:underline hover:underline-offset-2"
+        >
+          {labelTitle}
+        </Link>{' '}
+        / <b className="font-medium text-foreground">{slug}</b>
       </div>
 
-      <div className={`glass ${styles.head}`}>
-        <div className={styles.topRow}>
-          <h1>{detail.latestName ?? detail.slug}</h1>
+      {/* 头卡（T17 换皮：玻璃面 + 光斑 → 白卡 + 极轻阴影，页面级 2xl 圆角，与 hero 同档） */}
+      <div className="mb-4 rounded-2xl bg-card px-7 py-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h1 className="text-2xl font-bold tracking-[-0.5px]">
+            {detail.latestName ?? detail.slug}
+          </h1>
         </div>
         {detail.labels.length > 0 && (
-          <div className={styles.tags}>
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {detail.labels.map((label) => (
-              <span key={label.slug} className={styles.tag}>
+              <span
+                key={label.slug}
+                className="inline-flex items-center rounded-full bg-secondary px-3 py-[3px] text-[11px] font-medium text-secondary-foreground"
+              >
                 {label.displayName ?? label.slug}
               </span>
             ))}
@@ -173,15 +194,20 @@ export function AssetDetail() {
         )}
       </div>
 
-      <div className={styles.body}>
-        <div className={styles.main}>
+      <div className="grid grid-cols-[1fr_320px] items-start gap-4">
+        <div className="min-w-0">
           <DetailTabs renderPane={renderPane} />
         </div>
-        <aside className={styles.side}>
-          <div className={`glass ${styles.panel} ${styles.dlCard}`}>
+        {/* 右栏（T17 同批换皮：玻璃面 → 白卡；蓝色投影按 §4.4 废弃清单清除）——宽 **320px**（§9 真值）/
+            sticky **78px**（= 顶栏 58 + 间距 20），均**写死**不再依赖旧层 `--aside-w`/`--topbar-h`
+            （T24 删旧层后旧变量即失效——避免埋雷） */}
+        <aside className="sticky top-[78px] flex flex-col gap-3.5">
+          <div className="rounded-xl bg-card px-5 py-[18px] text-center shadow-sm">
             {downloadUrl && !isYanked ? (
               <a
-                className={`${styles.dlBtn} ${dlBusy ? styles.dlBusy : ''}`}
+                className={`flex w-full items-center justify-center gap-2 rounded-lg bg-primary bg-[image:var(--gradient-cta)] px-[22px] py-[11px] text-sm font-bold text-primary-foreground no-underline transition-[filter] hover:brightness-[1.07] ${
+                  dlBusy ? 'pointer-events-none cursor-progress opacity-70' : ''
+                }`}
                 href={downloadUrl}
                 onClick={(event) => void handleDownload(event)}
                 aria-busy={dlBusy}
@@ -191,11 +217,11 @@ export function AssetDetail() {
                   : `${t('market', 'dlLatest')} ${latestVersion}`}
               </a>
             ) : (
-              <span className={`${styles.dlBtn} ${styles.dlDisabled}`}>
+              <span className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-muted px-[22px] py-[11px] text-sm font-bold text-muted-foreground opacity-80">
                 {t('market', 'dlLatest')} {latestVersion ?? ''}
               </span>
             )}
-            <div className={styles.dlSub}>
+            <div className="mt-[9px] text-[11px] leading-[1.7] text-muted-foreground">
               {isYanked ? (
                 t('errors', 'asset.version_yanked')
               ) : (
@@ -207,25 +233,34 @@ export function AssetDetail() {
               )}
             </div>
             {dlErrorCode && (
-              <p className={styles.dlErr} role="alert">
+              <p
+                className="mt-2 rounded-md bg-destructive/10 px-2.5 py-1.5 text-[11px] text-destructive"
+                role="alert"
+              >
                 {tErr(dlErrorCode)}
               </p>
             )}
           </div>
 
-          <div className={`glass ${styles.panel}`}>
-            <h3 className={styles.panelTitle}>{t('market', 'metaInfo')}</h3>
-            <div className={styles.kv}>
-              <span>{t('market', 'author')}</span>
-              <b>{owner || '—'}</b>
+          <div className="rounded-xl bg-card px-5 py-[18px] shadow-sm">
+            <h3 className="mb-3 text-[13px] font-bold">{t('market', 'metaInfo')}</h3>
+            <div className="flex items-baseline justify-between gap-3 py-[5px] text-xs">
+              <span className="shrink-0 text-muted-foreground">{t('market', 'author')}</span>
+              <b className="overflow-hidden text-right font-semibold text-ellipsis whitespace-nowrap">
+                {owner || '—'}
+              </b>
             </div>
-            <div className={styles.kv}>
-              <span>{t('market', 'updatedAt')}</span>
-              <b>{formatDate(detail.updatedAt)}</b>
+            <div className="flex items-baseline justify-between gap-3 py-[5px] text-xs">
+              <span className="shrink-0 text-muted-foreground">{t('market', 'updatedAt')}</span>
+              <b className="overflow-hidden text-right font-semibold text-ellipsis whitespace-nowrap">
+                {formatDate(detail.updatedAt)}
+              </b>
             </div>
-            <div className={styles.kv}>
-              <span>{t('market', 'downloads')}</span>
-              <b>{compactCount(detail.downloadCount)}</b>
+            <div className="flex items-baseline justify-between gap-3 py-[5px] text-xs">
+              <span className="shrink-0 text-muted-foreground">{t('market', 'downloads')}</span>
+              <b className="overflow-hidden text-right font-semibold text-ellipsis whitespace-nowrap">
+                {compactCount(detail.downloadCount)}
+              </b>
             </div>
           </div>
         </aside>

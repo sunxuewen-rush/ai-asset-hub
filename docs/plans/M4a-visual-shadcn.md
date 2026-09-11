@@ -1,12 +1,12 @@
 # M4a 视觉体系切换（shadcn 落地）实现计划
 
 > Date: 2026-09-11
-> Updated: 2026-09-11（**v0.9：阶段 0 出口达成**——**T14 三判 ✅**（用户结论：气质 / 密度 / 类型色 **三项 OK**）+ **T15 收尾 ✅**（`git rm` `dev/ReviewControls.tsx` + `main.tsx` 两处引用，grep 断言 0；门禁复跑全绿 + 生产包 marker 仍全 0）→ §2 新增「增补（v0.9）」块；Status 改「阶段 0 已完成 ✅」；引用链 design 升 **v0.21**；v0.8：**阶段 0 收尾回写**——① §2 落地记录增三块：**v0.18/v0.18b（hero 上下与侧栏对齐 + 撑满职责上移去硬编码）· v0.19（去中间分割线）· v0.20（统计条改卡片撑满 hero）** ② **T13 ✅**（自检记录 `docs/smoke/2026-09-11-m4a-visual-s0.md`）+ **T15 部分 ✅**（**五门禁全绿**：`CI=true` 单库 + `--force` → **475 例 474 pass / 1 skip / 0 fail**、1150 expect；冒烟 chain-smoke + dogfood 通过；**撤控件待三判后**）③ **§1 修内部矛盾（自检发现）**——原「本阶段零服务端改动」「本 plan 不改测试」经 v0.17 已失效（`totalUsers` 是服务端契约 + 测试新增口径断言）→ 改述为「阶段 0 唯一例外」并注明出处 ④ 引用链 design 升 **v0.20**；v0.2：**AIH blue 基色层生效**——T3 改为**两层结构**（官方层 `src/index.css` + AIH 层 `src/styles/aih-theme.css` 独立文件、官方样式之后 import），新增「覆盖断言 / import 顺序断言 / 组件零改动断言」三条；T13 增顺序断言；design 依据升至 **v0.10**（解耦纪律）。v0.1：初稿——**阶段 0 探针切片**（4 板块 / T1-T16）+ 阶段 1 范围登记；design 依据 v0.9（2026-09-11 定稿，8 维 9.31））
+> Updated: 2026-09-11（**v0.10：阶段 1 任务细化（T16 出口动作）**——新增 **§2 板块 E/F/G**：**T17-T20 详情页换皮**（头区+Tab / Overview+Markdown / Files+FileTree+预览对话框 / VersionCompare+Diff）· **T21-T22 中心页换皮**（CenterPage / FilterStrip）· **T23-T26 收尾**（17 处 M4-pre 语义回写 / 删旧层 `.module.css`×16 + `tokens.css` + `global.css` / 阶段 1 门禁+全态冒烟 / converge 重评）；§3 补「**附带评估项**」5 条（大屏留白 / `apps/web` 测试基建 / 包体 code-split / tooltip 人工确认 / lint warning 清债）；Status 改「执行中（阶段 1）」；v0.9：**阶段 0 出口达成**——**T14 三判 ✅**（用户结论：气质 / 密度 / 类型色 **三项 OK**）+ **T15 收尾 ✅**（`git rm` `dev/ReviewControls.tsx` + `main.tsx` 两处引用，grep 断言 0；门禁复跑全绿 + 生产包 marker 仍全 0）→ §2 新增「增补（v0.9）」块；Status 改「阶段 0 已完成 ✅」；引用链 design 升 **v0.21**；v0.8：**阶段 0 收尾回写**——① §2 落地记录增三块：**v0.18/v0.18b（hero 上下与侧栏对齐 + 撑满职责上移去硬编码）· v0.19（去中间分割线）· v0.20（统计条改卡片撑满 hero）** ② **T13 ✅**（自检记录 `docs/smoke/2026-09-11-m4a-visual-s0.md`）+ **T15 部分 ✅**（**五门禁全绿**：`CI=true` 单库 + `--force` → **475 例 474 pass / 1 skip / 0 fail**、1150 expect；冒烟 chain-smoke + dogfood 通过；**撤控件待三判后**）③ **§1 修内部矛盾（自检发现）**——原「本阶段零服务端改动」「本 plan 不改测试」经 v0.17 已失效（`totalUsers` 是服务端契约 + 测试新增口径断言）→ 改述为「阶段 0 唯一例外」并注明出处 ④ 引用链 design 升 **v0.20**；v0.2：**AIH blue 基色层生效**——T3 改为**两层结构**（官方层 `src/index.css` + AIH 层 `src/styles/aih-theme.css` 独立文件、官方样式之后 import），新增「覆盖断言 / import 顺序断言 / 组件零改动断言」三条；T13 增顺序断言；design 依据升至 **v0.10**（解耦纪律）。v0.1：初稿——**阶段 0 探针切片**（4 板块 / T1-T16）+ 阶段 1 范围登记；design 依据 v0.9（2026-09-11 定稿，8 维 9.31））
 > Updated: 2026-09-11（**v0.4：增 T7b 侧栏收起（阶段 0 增补）**——用户 2026-09-11 拍板「做，按推荐」：接入 shadcn
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: **阶段 0 已完成 ✅（2026-09-11 用户三判通过）**——板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（记录 `docs/smoke/2026-09-11-m4a-visual-s0.md`）· **T14 三判 ✅（气质 / 密度 / 类型色 —— 三项 OK）** · T15 门禁 + 冒烟 + **撤控件 ✅**；**五门禁全绿**（typecheck · lint · format:check · build · **test 475 例 474 pass · 1 skip · 0 fail**，`CI=true` 单库 + `--force`）；**T16 阶段 1 任务待细化**（范围登记见 §3）
+> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · T18-T20 详情页三面板 · T21-T22 中心页 · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
 > 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.21**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.21 为准）
 > 命名约定见 `docs/plans/README.md`
 
@@ -24,7 +24,7 @@
 
 **不含**（design §8 / §2.2）：
 - **阶段 1 剩余页换皮**（详情三 Tab / FileTree / 预览对话框 / VersionCompare / Diff / CenterPage /
-  FilterStrip）——范围登记在本文件 §3，**任务在三判通过后细化**
+  FilterStrip）——范围登记在本文件 §3，**任务已细化 = §2 板块 E/F/G（T17-T26，2026-09-11）**
 - 门户任何**功能与行为变更**（本计划是视觉变更：契约 / 端点 / 测试语义不动）
 - M4b 控制台面（另立项）· **M4b 特有值 2 项**（表格密度 40/48 · 抽屉宽 384/560——属 M4b 定稿条件）
 - 暗色档 UI 开关（`next-themes` 依赖装上，但切换入口不在阶段 0；本阶段只保证 `.dark` 变量可解析）
@@ -203,9 +203,106 @@
 - **Commit**: `chore(web): remove temporary review controls`
   + `docs: record stage-0 gates and smoke results`
 
-#### T16 进入阶段 1（范围登记见 §3）⬜（阶段 0 出口已达成 → 待任务细化）
-- **Assert**: 三判通过 + 门禁绿 → 阶段 1 任务细化（本文件升 v0.3）；未通过 → 回 design
+#### T16 进入阶段 1（范围登记见 §3）✅（2026-09-11：任务已细化 = §2 板块 E/F/G，T17-T26；阶段 0 出口三条件达成）
+- **Assert**: 三判通过 + 门禁绿 → 阶段 1 任务细化（本文件升 **v0.10**）；未通过 → 回 design
 - **Commit**: 无（文档更新并入阶段 1 首个 commit）
+
+### 板块 E 阶段 1 · 详情页换皮（4 Task；design §4.4 / §8）
+
+> 全部为**纯视觉**：路由 / 数据编排（§5.3 两波）/ 懒加载缓存 / 交互语义零变更。逐件同 commit 删除对应 `.module.css`。
+
+#### T17 详情页外壳（头区 + Tab 卡 + 右栏）✅（2026-09-11 落地；范围修正见下）
+- **Files**: Modify `apps/web/src/pages/AssetDetail.tsx`（**整个页面外壳**：面包屑 / 头卡 / body 栅格 /
+  右栏两张卡 / 载态 / 占位）· `apps/web/src/components/market/detail/DetailTabs.tsx` ·
+  **Delete** `detail/DetailTabs.module.css` + `pages/AssetDetail.module.css`（两件均零消费后删）
+- **范围修正（2026-09-11 执行期发现）**：原 Files 只列「头区」——但**右栏（下载卡 / 元信息卡）同在一个
+  文件**且仍是玻璃面 + 蓝色投影 + 渐变按钮 ⇒ 若留到后续 Task，详情页会呈现「半玻璃半白卡」。故并入
+  T17（理由：同一文件的外壳 + §4.4 废弃清单强制清除项）；并把 `--aside-w`(320) / `--topbar-h`(58)
+  **写死为字面值**——避免 T24 删旧层后 `var()` 悬空（埋雷）
+- **Assert**: Tab 激活指示改**实底 `--primary` 2px**（原「蓝青渐变线」归零——本件不得出现
+  `linear-gradient` 裸字面量）；三 tab 切换 / 懒加载 / 缓存行为不变；右栏宽 **320px** / sticky **78px**；
+  下载按钮 = `--gradient-cta` 叠 `bg-primary` + **无蓝色投影**（`box-shadow: none`）；i18n 动态键
+  （`t('market', labelKey)`）仍工作；`grep -rn 'DetailTabs.module.css\|AssetDetail.module.css' apps/web/src` 为空
+- **Commit**: `refactor(web): re-skin asset detail shell (head, tabs, sidebar panels)`
+
+#### T18 OverviewTab + MarkdownRenderer
+- **Files**: Modify `detail/OverviewTab.tsx` · `apps/web/src/components/ui/MarkdownRenderer.tsx` ·
+  Delete 两个 `.module.css`
+- **Assert**: markdown 正文（标题 / 列表 / 代码块 / 表格 / 链接 / 引用）排版映射到 §4.4 字阶与语义色；
+  「安装与使用」卡 = shadcn `Card` 真值（`rounded-xl` + `shadow-sm`）——**`card.tsx` 首个消费点**
+  （兑现 v0.14 纪律 2「新装件必须当场用上」）；正文内容零改写（仅样式）
+- **Commit**: `refactor(web): re-skin detail overview and markdown`
+
+#### T19 FilesTab + FileTree + FilePreviewDialog
+- **Files**: Modify `detail/FilesTab.tsx` · `detail/FileTree.tsx` · `detail/FilePreviewDialog.tsx` ·
+  Delete 三个 `.module.css`
+- **Assert**: 折叠树展开/收起与目录层级不变；文件行 **sha 徽章（`…` 截断）** 与体积列保留；
+  **预览对话框 = 白卡（`rounded-lg` / `shadow-lg`）+ 遮罩 `bg-black/50`（`backdrop-filter` 归零）**；
+  `role="dialog"` / Esc / 点遮罩关闭 / 焦点陷阱行为不变；`FileTree.tsx` 与 `fileTreeNodes.ts` 的命名
+  大小写边界不动（macOS 大小写不敏感 vs Linux CI）
+- **Commit**: `refactor(web): re-skin file tree and preview dialog`
+
+#### T20 VersionCompare + DiffNav + DiffView
+- **Files**: Modify `detail/VersionCompare.tsx` · `detail/DiffNav.tsx` · `detail/DiffView.tsx` ·
+  Delete 三个 `.module.css`
+- **Assert**: **diff 内容色保留 GitHub 系**（新增 `#1a7f37` / 底 `#e6ffec` · 删除 `#cf222e` / 底
+  `#ffebe9`）——不并入 UI 语义色（§4.4 ② 语义修正）；双下拉对比 / `from=to` 空态 / 行号双列 /
+  文件头 `+N−M` 折叠行为不变；顺带清阶段 0 登记的唯一 lint info（`VersionCompare.tsx:138`
+  `noUselessFragments`）
+- **Commit**: `refactor(web): re-skin version compare and diff (keep github content colors)`
+
+### 板块 F 阶段 1 · 中心页换皮（2 Task）
+
+#### T21 CenterPage（页头 + 计数 + 网格）
+- **Files**: Modify `apps/web/src/components/market/CenterPage.tsx` · `apps/web/src/pages/Center.tsx` ·
+  Delete 两个 `.module.css`
+- **Assert**: 页头（类型 icon tile **44px 实底类型色** + 标题 + 描述 + 计数徽章）与 hero 语法一致；
+  网格断点沿用（4 列 → <1200 3 列 → <900 2 列）；三中心（skills / mcps / agents）同构；路由参数
+  `CenterType` 判定与 i18n 动态键不变
+- **Commit**: `refactor(web): re-skin center pages`
+
+#### T22 FilterStrip（标签筛选条）
+- **Files**: Modify `apps/web/src/components/market/FilterStrip.tsx` · Delete `FilterStrip.module.css`
+- **Assert**: 横置筛选条结构不变；选中态用 shadcn 语义（`bg-primary` + `text-primary-foreground`）；
+  排序控件与 `q` / label 查询参数拼装逻辑不变；与 `AssetGrid` 间距一致
+- **Commit**: `refactor(web): re-skin filter strip`
+
+### 板块 G 阶段 1 · 收尾（3 Task + converge）
+
+#### T23 17 处 M4-pre 语义回写（design 自身修正）
+- **Files**: Modify `docs/designs/2026-09-09-m4a-marketplace-portal-design.md`（§11 已列行号：§1 L16 ·
+  §3 L36/54/64/65 · §5.1-5.3 · §8 · §9）
+- **Assert**: 仅**历史修订记录段**保留旧表述（史实不改）；正文内 `@ns` 坐标 → 全局唯一裸 slug ·
+  `/assets/:nsSlug/:slug` → `/assets/:slug` · `PUBLIC` 可见性维度 → **删除**（资产恒公开）· 元信息卡
+  「命名空间 / 可见性」列 → 删除；与事实源 `2026-09-10-flat-model-refactor-design` 终态逐项一致
+- **Commit**: `docs(m4a): rewrite spec-drifted sections to flat model`
+
+#### T24 删旧层（`.module.css` ×16 + `tokens.css` + `global.css`）
+- **Files**: Delete `apps/web/src/styles/tokens.css` 与剩余全部 `*.module.css`；`global.css` 只保留
+  Tailwind 不提供的项（6px 细滚动条 → 建议迁入 `aih-theme.css` 后整体删除该文件）；`main.tsx` 去掉
+  两个旧 import
+- **Assert**: `find apps/web/src -name '*.module.css' | wc -l` = **0**；
+  `grep -rn 'styles/tokens.css\|styles/global.css' apps/web/src` = 0；
+  `grep -rn 'var(--glass-\|var(--grad-\|backdrop-filter\|var(--fs-\|var(--c-skill' apps/web/src` = 0；
+  **design §4.4 ⑦ 映射表逐项核对**（`--brand` / `--brand-2` / `--ink` / `--text-2·3` / `--bg` /
+  `--glass*` / `--grad*` / `--line-*` / `--ring-focus` / `--shadow-*` / `--tint-row` / `--c-*` /
+  `--ava-*` / `--fs-*` 均已无消费者）；细滚动条实测仍生效
+- **Commit**: `refactor(web): drop legacy css layer after full re-skin`
+
+#### T25 阶段 1 门禁 + 冒烟全态
+- **Files**: 无代码变更（产出自检记录 `docs/smoke/2026-09-11-m4a-visual-s1.md`）
+- **Assert**: 五门禁全绿（`test` 需 DB 授权 + `CI=true` 单库 `--force`）；`m4a-chain-smoke` +
+  `m4a-dogfood`（**`SMOKE_SHOT_PREFIX=s1-`**；脚本已内置 1440×900 桌面视口）全绿 + console 零错误；
+  dogfood 覆盖**全态**——首页 / 搜索 / 筛选 / 翻页 / 详情三 tab / 文件预览 / 下载 / 语言切换 / 404 /
+  空态；**收起态 tooltip 由用户人工悬停确认**（结论写入记录）
+- **Commit**: `test(web): run stage-1 gates and full-state smoke`
+
+#### T26 converge 收尾（文档-代码对齐 + 里程碑注记）
+- **Files**: Modify design（版本头 / 修订记录 / §8 / §11 状态）· 本 plan（收尾）· `docs/00` §5 M4a 行 ·
+  `docs/smoke/2026-09-11-m4a-visual-s1.md`
+- **Assert**: converge 三查（版本头 / 修订记录 / 引用 / 状态同步）→ design **8 维重评 ≥9**；
+  `docs/00` §5 M4a 行注明「**视觉体系切换 ✅ 完成**（阶段 0 + 阶段 1）」；无「代码已改、文档未跟」漂移项
+- **Commit**: `docs(m4a): converge re-skin milestone and sync tracker`
 
 ### 落地记录（2026-09-11 执行回写——实测证据）
 
@@ -408,9 +505,25 @@
   `build` 全绿；生产包 marker（`阶段 0 评审` / `待拍板` / `三判口径` / `评审`）仍全 **0**
 - **阶段 0 出口三条件核对**（design §8）：三判通过 ✅ + 门禁全绿 ✅ + 回退面干净（旧层与未换页
   `.module.css` 未删，壳/首页/基建可整体 revert）✅
-- **T16**：阶段 1 任务细化待做（范围见 §3 / design §8）——细化后本文件升 **v0.10** 并落 T17+ 任务清单
+- **T16 ✅**：阶段 1 任务细化已完成 = **v0.10**（§2 板块 E/F/G，T17-T26）
 
-## 3. 阶段 1 范围登记（任务待三判通过后细化）
+**增补（v0.11）阶段 1 · T17 详情页外壳落地（2026-09-11）**
+- **落地**：`AssetDetail.tsx` 全页外壳（面包屑 / 头卡 / body 栅格 / 右栏两张卡 / 载态 / 占位）+
+  `DetailTabs.tsx` 重写；删 `DetailTabs.module.css` + `AssetDetail.module.css`（零消费后删）
+- **实测**（真浏览器 1440×900，`/assets/demo-rag-skill`）：头卡 `#ffffff` / `rounded-2xl` **18px** /
+  `shadow-sm` **生效**（完整值末段 `rgba(0,0,0,0.1) 0px 1px 3px 0px`——⚠ 首测因**截断输出**
+  误判为「无阴影」，完整值复核后**撤回该结论**：Tailwind v4 的透明占位槽 + 真实阴影，`@property --tw-shadow`
+  在产物内）；Tab 卡白底；激活 Tab 文字 `#0f172a` + 下划线 **实底 `oklch(0.488 0.243 264.376)` = #1447e6 /
+  2px / `background-image: none`**；右栏 **320px** / `sticky` **78px** / 白卡；下载按钮
+  `linear-gradient(#2563eb→#1447e6)` 且 **`box-shadow: none`**；**全页无 `backdrop-filter`**，
+  渐变仅白名单 3 处（页面底 / 顶栏品牌字 / 下载按钮）
+- **功能断言**：总览 pane **554** 字（metaBar + markdown 正文）/ 文件 **151** 字（折叠树）/
+  版本 **1378** 字（双下拉 + diff）⇒ 三 tab 切换与**回到总览**均正常；`role=tablist/tab/tabpanel` +
+  `aria-selected` 语义保留（⚠ 取样一次得到「总览 0 字」——**复测不可再现**，判定为取样时机假象，
+  T25 的 dogfood「总览 md 渲染」会再卡一次）
+- **门禁**：typecheck · lint · format:check（**212** 文件）· build（exit 0）全绿
+
+## 3. 阶段 1 范围登记（✅ 2026-09-11 已细化为 **T17-T26**，任务清单 → §2 板块 E/F/G）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
   —— Tab 激活（蓝青渐变线 → 实底 `--primary` 2px）· 预览对话框（720px 白卡 + `bg-black/50` 遮罩，去 blur）·
@@ -418,9 +531,20 @@
 - **中心页**：`pages/Center.tsx` + `components/market/{CenterPage,FilterStrip}.tsx`
 - **收尾（一次做完）**：删除全部 `.module.css` + `src/styles/tokens.css`（照 design §4.4 ⑦ 映射表逐项核对）
   + **17 处 M4-pre 语义回写**（design §11 已列行号：`@ns` 坐标 / `/assets/:nsSlug/:slug` / `PUBLIC` 可见性 /
-  元信息卡「命名空间·可见性」列）→ converge 重查（00 §7 ②）+ `00` §5 M4a 行注记更新 + design v0.10 收尾
+  元信息卡「命名空间·可见性」列）→ converge 重查（00 §7 ②）+ `00` §5 M4a 行注记更新 + design 收尾
+  （版本头 / 修订记录 / 引用同步，见 T26）
 - **验收**：五门禁 + dogfood 全态（首页 / 搜索 / 筛选 / 翻页 / 详情 / 下载 / 语言切换 / 404 / 空态）+
   观感用户确认 + converge 8 维重评 ≥9
+
+**附带评估项（不阻塞阶段 1 出口；换皮过程中一并复核）**
+
+| # | 项 | 现状 | 处置建议 |
+|---|----|------|---------|
+| 1 | **大屏留白**（≥2560×1440 hero 空白 **65%**） | 用户 2026-09-11「先这样」暂停 | 两案待**用户拍板**：hero 内容加 `max-w` 上限 / 或内容更丰富——**勿自行加** |
+| 2 | **`apps/web` 无测试基建** | 零 test script，视觉无回归网 | 评估引入 `bun test` + 首批断言（把 dogfood 的关键 DOM 断言下沉为单测）——**新依赖需用户批准** |
+| 3 | **包体 JS ≈546 kB**（侧栏原语 +89 kB） | 22 组件未按路由拆分 | 评估路由级 `lazy()` code-split（详情页 / 中心页最易拆） |
+| 4 | 收起态**悬停 tooltip** 未验 | Radix 需真实指针事件，沙箱唤不起 | 由用户人工悬停确认一次（并入 T25 记录） |
+| 5 | **lint 非阻断 warning 94 条** | 门禁范围内既有（server / protocol 为主） | 评估是否在阶段 1 清债（不阻塞出口；清则单独 commit） |
 
 ## 4. 风险与回退
 
@@ -444,3 +568,5 @@
 | v0.7 | 2026-09-11 | sunxuewen-rush | **搜索栏加长 + 「原生类型」→「用户数量」（用户拍板；design v0.17；★含后端契约变更）**：① §2 落地记录新增 **「增补（v0.17）」** 块（前端 2 项 + 后端 `totalUsers` 契约 + 口径披露 + 实测 + 待跑测试）② 登记：**stats 形状不在 `packages/protocol`**（仅 server `PublicStats` / web `StatsResponse` 两处镜像）——协议包零改动 ③ 引用链 design 升 **v0.17** |
 | v0.8 | 2026-09-11 | sunxuewen-rush | **阶段 0 收尾回写（设计 v0.18→v0.20 同步）**：① §2 落地记录新增 **三块**——「增补（v0.18/v0.18b）」（hero 与侧栏浮层对齐 + 撑满职责上移去硬编码 + 13 档分辨率矩阵 + 大屏留白登记）· 「增补（v0.19）」（去中间分割线）· 「增补（v0.20）」（统计条改卡片撑满 hero）② 新增 **「增补（v0.8）」** 块（T13 记录 + 五门禁 + 双冒烟 + 冒烟脚本修复 + T15 剩余）③ **§1 修内部矛盾**：原「本阶段零服务端改动」「本 plan 不改测试」被 v0.17 打破 → 改述为「唯一例外」并注出处（自检发现）④ Status：板块 A/B/C/T7b + **T13 ✅ + T15 部分 ✅**、五门禁全绿（test 475 例 474 pass / 1 skip / 0 fail）⑤ T13/T15 标题加 ✅ 与剩余项 ⑥ 引用链 design 升 **v0.20** |
 | v0.9 | 2026-09-11 | sunxuewen-rush | **阶段 0 出口达成（三判通过 + 撤控件）**：① **T14 三判 ✅**——用户结论「现在看起来 OK」（气质 / 密度 / 类型色 三项均通过）→ 出口达成；② **T15 收尾 ✅**——`git rm` `apps/web/src/dev/ReviewControls.tsx` + `main.tsx` 两处引用，断言 `grep -rn 'ReviewControls' apps/web/src` = 0；浏览器复核（`★ 评审` 钮消失 / hero + 5 tile 正常）；门禁复跑全绿（`format:check` 212 文件）+ 生产包 marker 仍全 0；③ §2 新增「增补（v0.9）」块（三判结论 + 撤控件 + 出口三条件核对 + T16 待细化）；④ Status 改「**阶段 0 已完成 ✅**」、T14/T16 标题加状态、引用链 design 升 **v0.21** |
+| v0.10 | 2026-09-11 | sunxuewen-rush | **阶段 1 任务细化（T16 出口动作，design 依据 v0.21）**：① **§2 新增板块 E/F/G（T17-T26）**——详情页 4 Task（T17 头区+DetailTabs · T18 Overview+MarkdownRenderer（`card.tsx` 首个消费点）· T19 FilesTab+FileTree+预览对话框 · T20 VersionCompare+DiffNav+DiffView（**diff 保 GitHub 内容色**））· 中心页 2 Task（T21 CenterPage · T22 FilterStrip）· 收尾 3 Task（T23 **17 处 M4-pre 语义回写** · T24 删旧层 `.module.css`×16 + `tokens.css` + `global.css` · T25 门禁 + 全态冒烟（`SMOKE_SHOT_PREFIX=s1-`））+ **T26 converge**；每 Task 含 Files / Assert（可现场跑）/ Commit 三段 ② **§3 补「附带评估项」5 条**（大屏留白 / `apps/web` 测试基建 / 包体 code-split / tooltip 人工确认 / lint warning 清债——均**不阻塞出口**）③ §3 标题与 §1「不含」段改为指向 §2 板块 E/F/G；T16 标题 ✅（并修正其 Assert 里的陈旧版本号 v0.3 → v0.10）④ Status 改「**执行中（阶段 1）**」+ 阶段 1 出口口径（五门禁 + dogfood 全态 + 观感用户确认 + converge 8 维 ≥9） |
+| v0.11 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T17 详情页外壳落地**：① **范围修正（执行期发现）**：右栏（下载卡 / 元信息卡）与头区同在一个文件且仍玻璃 + 蓝投影 + 渐变 → 并入 T17（原 Files 只列头区）；`--aside-w`/`--topbar-h` 写死字面值避免 T24 悬空 ② 落地：`AssetDetail.tsx` 全页外壳 + `DetailTabs.tsx` 重写；删 `DetailTabs.module.css` + `AssetDetail.module.css` ③ 实测：头卡白/18px/`shadow-sm` 生效（**撤回**首测「无阴影」误判——截断输出所致）· 激活下划线实底 #1447e6/2px/`image:none` · 右栏 320px/sticky 78px · 下载按钮渐变 + `box-shadow:none` · 全页无 `backdrop-filter` ④ 功能断言：三 tab 面板 554/151/1378 字切换正常 ⑤ §2 新增「增补（v0.11）」块 + T17 标题 ✅ + Status 补 T17 |
