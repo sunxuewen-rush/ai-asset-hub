@@ -6,7 +6,7 @@
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · T18-T20 详情页三面板 · T21-T22 中心页 · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
+> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · T19-T20 详情页两面板 · T21-T22 中心页 · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
 > 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.21**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.21 为准）
 > 命名约定见 `docs/plans/README.md`
 
@@ -38,6 +38,11 @@
 - 浏览器观感由**用户人工确认**（实现侧沙箱 Edge headless 不稳）→ **硬证据只报** `tsc` + `vite build` + `dev` 200
 - 视觉实现以 design **§4.4** 为准（色值 / 圆角轴 / 字阶 / 组件真值 / token 映射表），漂移视为缺陷
 - 评审控件（逐页对比用临时开关）→ **阶段 0 出口后撤除**，不留进终态
+- **每个 Task 收尾必跑自检打分**（用户 2026-09-11 定）：**代码 18 维**（A 基础 0.40 + B 深度 0.30 +
+  C 工程 0.30）+ **文档 8 维**（AIH 门禁 = 标准 4 维 + 深度 4 维；框架见 `self-review-scoring` 技能）
+  → **≥9 才报告/提交**；打分表 + 问题清单（🔴/🟡/⚪）随该 Task 报告一并给出；**自检发现的缺陷同轮修**
+  （先例：T18 自检抓到「断言不可现场跑」＝假失败，同轮收紧）。打分须**换靶**：每轮抓新真问题，
+  禁同分重报（`self-review-scoring` 换靶铁律）
 
 ## 2. Task 清单
 
@@ -225,12 +230,26 @@
   （`t('market', labelKey)`）仍工作；`grep -rn 'DetailTabs.module.css\|AssetDetail.module.css' apps/web/src` 为空
 - **Commit**: `refactor(web): re-skin asset detail shell (head, tabs, sidebar panels)`
 
-#### T18 OverviewTab + MarkdownRenderer
+#### T18 OverviewTab + MarkdownRenderer ✅（2026-09-11 落地；**断言修正**见下）
 - **Files**: Modify `detail/OverviewTab.tsx` · `apps/web/src/components/ui/MarkdownRenderer.tsx` ·
-  Delete 两个 `.module.css`
-- **Assert**: markdown 正文（标题 / 列表 / 代码块 / 表格 / 链接 / 引用）排版映射到 §4.4 字阶与语义色；
-  「安装与使用」卡 = shadcn `Card` 真值（`rounded-xl` + `shadow-sm`）——**`card.tsx` 首个消费点**
-  （兑现 v0.14 纪律 2「新装件必须当场用上」）；正文内容零改写（仅样式）
+  **Delete** `MarkdownRenderer.module.css` + `detail/OverviewTab.module.css`（两件均零消费后删）
+- **断言修正（执行期发现——原 Assert 两处与代码/规范不符，处置依 `plan-vs-spec` 纪律）**：
+  1. **「安装与使用」卡不存在**：i18n `installTitle` / `installText`（zh/en）自 `6c2b27d`
+     «feat(web): api client layer and i18n provider» 落库起**零消费者**（`grep -rn installTitle
+     apps/web/src` 仅 i18n 两行）；design 全文「安装」**0 命中** ⇒ 该 UI **从未实现** = 断言漂移。
+     按「**不擅自补功能**」（补 = 范围扩张 = 新决策）：本 Task **不新建此卡**，登记为待拍板（§3 附带评估项 6）。
+  2. **`card.tsx` 首个消费点 → 不作**：design §4.1 纪律 1 与 §4.4 v0.20 行明确「**展示件手搓**、
+     `card.tsx` 留 M4b」（权威链 **design > plan**），且本 Task **无卡容器需求**（总览 = metaBar + 正文）
+     ⇒ 按 design 执行；plan 原措辞与 design 冲突，**以 design 为准**（§9 线框图 v0.7 注记「Tab 卡（shadcn Card）」
+     与本决策的关系 → §3 附带评估项 7）。
+- **Assert（实际执行口径）**: markdown 正文（标题 h1-h6 / 列表 / 代码块 / 表格 / 链接 / 引用 / hr）
+  排版映射到 §4.4 ⑤ **字阶 9 档** + 语义色（`--ink`→`foreground` · `--text-2`→`muted-foreground` ·
+  `--line-*`→`border` · 表头底 `--tint-row`→`bg-muted/50` · 链接 `--brand`→`primary`）；**正文内容零改写**；
+  内联 code 与 `pre` 内 code **元素互斥**（`:not(pre)>code`）；**零旧 token 消费**——
+  `grep -rn 'var(--fs-\|var(--md-' apps/web/src/components/ui/MarkdownRenderer.tsx
+  apps/web/src/components/market/detail/OverviewTab.tsx` = 0
+  （⚠ 首版断言写 `--md-` 会**命中本轮自述注释**＝假失败，自检发现后收紧为 `var(--` 消费级；`tokens.css` 里的
+  `--md-*` 定义体不匹配该模式，随 T24 删除）
 - **Commit**: `refactor(web): re-skin detail overview and markdown`
 
 #### T19 FilesTab + FileTree + FilePreviewDialog
@@ -523,6 +542,62 @@
   T25 的 dogfood「总览 md 渲染」会再卡一次）
 - **门禁**：typecheck · lint · format:check（**212** 文件）· build（exit 0）全绿
 
+**增补（v0.12）阶段 1 · T18 详情页总览 + markdown 落地（2026-09-11）**
+- **落地**：`OverviewTab.tsx` 全量 Tailwind 化（metaBar / 摘要 grid / key / val / empty / loading 六个类串）+
+  `MarkdownRenderer.tsx` 的 `md-body` 选择器组改由 **Tailwind 子元素变体**（`[&_h1]:…`）承接——
+  **零新增 CSS 文件**（`aih-theme.css` 不加组件样式）；删 `MarkdownRenderer.module.css` + `OverviewTab.module.css`
+- **实测**（真浏览器 1440×900 · `/assets/demo-rag-skill` + `/assets/demo-http-mcp`，计算值）：
+  wrapper 类串在位 · h1 **18px/700/-0.4px/margin 4-10** · h2·h3 **14px/700** · h4 **13px**/h5·h6 **12px**（补 Preflight）·
+  p·li **13px / lh 23.4 / #64748b** · ul `disc` pl18 / ol `decimal` pl18 / li margin 3px ·
+  内联 code **#f1f5fb + 1px #e3eaf6 + r5 + 12px mono + padding 1/6** ·
+  `pre` **#f1f5fb + 1px #e3eaf6 + r10 + 12px/19.2 mono + overflow auto + padding 12/14**，
+  **pre 内 code = bg 透明/零边框**（`:not(pre)>code` 互斥成立 ✓）·
+  blockquote **左边 3px #e3eaf6 + bg `muted/50` + r0/10/10/0 + padding 6/12** ·
+  表格 `display:block` + overflow auto + th **bg `muted/50` + 1px 边 + 600 + padding 6/12** · td 1px 边 ·
+  hr 1px #e3eaf6 · a **oklch(0.488 0.243 264.376) = #1447e6**（primary）·
+  metaBar **11px SF Mono + 下边 1px #e3eaf6 + pb/mb 12px**
+  （内联 code / blockquote / hr / link / h3-h5 / ol 在本示例文档缺失 → **注入同源节点量计算值**，规则同批生效）
+- **回归**：三 tab `总览/文件/版本` 切换正常 + 切回总览 md wrapper 类串仍在（总览 innerText 559 字 vs T17 基线 554——
+  **innerText 随换行变化**，文本内容未变，非回归）；mcp 资产总览（README 渲染）135 字 / 文件 145 字 ✓
+- **design 缺口登记（§4.4 ⑦ 待补）**：旧 `--md-code-bg`/`--md-code-border`/`--md-pre-bg`(#0f172a 深底)/
+  `--md-pre-fg`(#dbeafe)/`--md-quote-border`(青 `--brand-3`)/`--md-quote-bg` **均无 §4.4 映射** →
+  执行期择**浅色语义面**落定（`bg-muted` + `border-border` + `bg-muted/50`），随新体系「纯白 + 细边」气质；
+  **属可见变化，视觉结果待用户确认**（改回深底需 design 补映射）
+- **未能在真站点触发**：manifest **摘要回退分支**（需「无主文档」资产；demo 库 = 3 skill（有 SKILL.md）+
+  1 mcp（有 README.md），**无** mcp/agent 无主文档样本）→ 该分支类名与同源面板一致，**属代码审查项**
+- **门禁**：typecheck · lint（仅余既有 **1 info** = `VersionCompare.tsx:138`，T20 清）· format:check（212 文件）·
+  build（exit 0；CSS **93.85 kB** / JS **562.79 kB**）全绿
+- **自检打分（T18 收尾 · 新增常态，§1 执行纪律）**：代码 **9.77**（A 9.875×0.40 + B 9.75×0.30 +
+  C 9.65×0.30）· 文档 **9.69**（标准 4 维 + 深度 4 维）→ **≥9，可提交**。
+  **自检抓到 1 条真缺陷（同轮已修）**：T18 断言 `grep '--md-'` 会**命中本轮自述注释**＝假失败 →
+  收紧为 `var(--md-` 消费级（见本节 Assert）；其余问题：**C5 可测试 8/10**（`apps/web` 零测试基建，
+  §3 登记项 #2）· **manifest 摘要回退分支无样本**（仅代码审查，未真站点触发）
+
+**T17 + T18 合并自检（用户 2026-09-11 追加要求：两 Task 一起打分；本轮**换靶**复核）**
+- **换靶证据（新角度，非重报）**：① **被删 CSS 全文逐项核对**——4 个 `.module.css`（T17 删 2 + T18 删 2）
+  逐条属性对照新类串：**零 `@media` / 零 `prefers-reduced-motion`**（关键：**无响应式能力漏迁**）；
+  `.kv .mono` 为**死规则**（旧 TSX 从未引用）→ 随文件删除正确 ② **i18n 调用逐字对比**（`git show <T17 前>` vs 现文件）：
+  4 个触碰文件 **零差异** ⇒「正文/文案零改写」实证 ③ **请求轨迹**（`performance.getEntriesByType('resource')`）：
+  加载 → 文件 tab → 回总览，`/api/*` 请求**零新增、零重复** ⇒ 懒加载 + 响应缓存行为不变实证 ④ **`.glass`
+  依赖登记**：仍有 2 消费者（`FilterStrip.tsx:49` · `CenterPage.tsx:101`）⇒ `global.css` 的 `.glass` 块
+  **非孤儿**，随 **T22/T24** 处理 ⑤ **冒烟覆盖**：dogfood 已有「总览 md 渲染」(`:196`) / 「mcp 总览 README」(`:252`)
+  ⇒ 详情页换皮有回归网（非零覆盖）⑥ 生产包 marker 四项 = 0
+- **自检发现并同轮修（4 项 parity 缺口，均属 T17 文件 `AssetDetail.tsx`）**：
+  1. **字阶桶偏离 §4.4 ⑤**：面包屑与元信息 3 行（旧 `--fs-12-5` = 12.5px）我写成 `text-[13px]` →
+     按 ⑤ 表 **12/12.5 → `text-xs`** 改正（实测 12px ✓）
+  2. **漏迁 `underline-offset`**：旧 `.crumb a:hover { text-underline-offset: 2px }` → 补 `hover:underline-offset-2`
+     （产物含该规则 ✓）
+  3. **错误条圆角偏离圆角轴**：旧 `.dlErr` radius **8** → 我写 `rounded-lg`(10) → 改 `rounded-md`(8)
+  4. **（同上轴）**：`.item/.crumb` 两处字阶桶一并归位
+- **登记未改（有设计依据的微调，非缺陷）**：`.list` gap 2 → `gap-1`(4px) · tab 按钮旧 `10px 10px 0 0`
+  改方角（同 shadcn `Tabs` 真值）· 激活/悬停字色 `--brand` → `foreground`（同 shadcn 真值）· 标签底色
+  slate 淡灰 → `bg-secondary`（AIH pill）· 下载钮圆角 12 → `lg`(10)
+- **登记待办（既有债，非本轮引入）**：`mainDocPath` / `manifestFields` 两处 `export` **零外部消费者**
+  （`apps/web` 无测试）· `role=tab` 缺方向键导航 / `aria-controls`（T17 保持语义不变，未扩范围）
+- **合并评分**：**代码 9.79**（A 9.875×0.40 + B 9.75×0.30 + C 9.70×0.30）· **文档 9.69** → ≥9。
+  ⚠ 与 T18 单轮（9.77/9.69）相比 **+0.02**，**来源 = 补齐验证缺口（C5 8→8.5：确认 dogfood 有覆盖）
+  与修 parity 缺口**，非产物变好（`self-review-scoring` 计分披露铁律）
+
 ## 3. 阶段 1 范围登记（✅ 2026-09-11 已细化为 **T17-T26**，任务清单 → §2 板块 E/F/G）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
@@ -545,6 +620,8 @@
 | 3 | **包体 JS ≈546 kB**（侧栏原语 +89 kB） | 22 组件未按路由拆分 | 评估路由级 `lazy()` code-split（详情页 / 中心页最易拆） |
 | 4 | 收起态**悬停 tooltip** 未验 | Radix 需真实指针事件，沙箱唤不起 | 由用户人工悬停确认一次（并入 T25 记录） |
 | 5 | **lint 非阻断 warning 94 条** | 门禁范围内既有（server / protocol 为主） | 评估是否在阶段 1 清债（不阻塞出口；清则单独 commit） |
+| 6 | **「安装与使用」卡不存在**（T18 断言漂移登记） | i18n `installTitle`/`installText` 自 `6c2b27d` 起**零消费者**；design 全文无此 UI | **待用户拍板**：不建（现处置，按「不擅自补功能」）／或作为**内容新增**另立 Task（非纯视觉，或归 M4b） |
+| 7 | **`card.tsx` 首个消费点**（design §9 线框图 v0.7 注记「Tab 卡（shadcn Card）」 vs §4.1 纪律 1「展示件手搓 + `card.tsx` 留 M4b」） | T18 已按 §4.1 纪律**不引**（design > plan） | **待用户拍板**：维持手搓（现状）／或详情页 Tab 卡改真 `Card`（可见变化：圆角 18→14 · 加 1px 边 · 内距 24） |
 
 ## 4. 风险与回退
 
@@ -570,3 +647,5 @@
 | v0.9 | 2026-09-11 | sunxuewen-rush | **阶段 0 出口达成（三判通过 + 撤控件）**：① **T14 三判 ✅**——用户结论「现在看起来 OK」（气质 / 密度 / 类型色 三项均通过）→ 出口达成；② **T15 收尾 ✅**——`git rm` `apps/web/src/dev/ReviewControls.tsx` + `main.tsx` 两处引用，断言 `grep -rn 'ReviewControls' apps/web/src` = 0；浏览器复核（`★ 评审` 钮消失 / hero + 5 tile 正常）；门禁复跑全绿（`format:check` 212 文件）+ 生产包 marker 仍全 0；③ §2 新增「增补（v0.9）」块（三判结论 + 撤控件 + 出口三条件核对 + T16 待细化）；④ Status 改「**阶段 0 已完成 ✅**」、T14/T16 标题加状态、引用链 design 升 **v0.21** |
 | v0.10 | 2026-09-11 | sunxuewen-rush | **阶段 1 任务细化（T16 出口动作，design 依据 v0.21）**：① **§2 新增板块 E/F/G（T17-T26）**——详情页 4 Task（T17 头区+DetailTabs · T18 Overview+MarkdownRenderer（`card.tsx` 首个消费点）· T19 FilesTab+FileTree+预览对话框 · T20 VersionCompare+DiffNav+DiffView（**diff 保 GitHub 内容色**））· 中心页 2 Task（T21 CenterPage · T22 FilterStrip）· 收尾 3 Task（T23 **17 处 M4-pre 语义回写** · T24 删旧层 `.module.css`×16 + `tokens.css` + `global.css` · T25 门禁 + 全态冒烟（`SMOKE_SHOT_PREFIX=s1-`））+ **T26 converge**；每 Task 含 Files / Assert（可现场跑）/ Commit 三段 ② **§3 补「附带评估项」5 条**（大屏留白 / `apps/web` 测试基建 / 包体 code-split / tooltip 人工确认 / lint warning 清债——均**不阻塞出口**）③ §3 标题与 §1「不含」段改为指向 §2 板块 E/F/G；T16 标题 ✅（并修正其 Assert 里的陈旧版本号 v0.3 → v0.10）④ Status 改「**执行中（阶段 1）**」+ 阶段 1 出口口径（五门禁 + dogfood 全态 + 观感用户确认 + converge 8 维 ≥9） |
 | v0.11 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T17 详情页外壳落地**：① **范围修正（执行期发现）**：右栏（下载卡 / 元信息卡）与头区同在一个文件且仍玻璃 + 蓝投影 + 渐变 → 并入 T17（原 Files 只列头区）；`--aside-w`/`--topbar-h` 写死字面值避免 T24 悬空 ② 落地：`AssetDetail.tsx` 全页外壳 + `DetailTabs.tsx` 重写；删 `DetailTabs.module.css` + `AssetDetail.module.css` ③ 实测：头卡白/18px/`shadow-sm` 生效（**撤回**首测「无阴影」误判——截断输出所致）· 激活下划线实底 #1447e6/2px/`image:none` · 右栏 320px/sticky 78px · 下载按钮渐变 + `box-shadow:none` · 全页无 `backdrop-filter` ④ 功能断言：三 tab 面板 554/151/1378 字切换正常 ⑤ §2 新增「增补（v0.11）」块 + T17 标题 ✅ + Status 补 T17 |
+| v0.12 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T18 详情页总览 + markdown 落地 + 断言修正**：① **两处断言修正（执行期发现）**——(a) 「安装与使用」卡**不存在**（i18n `installTitle` 自 `6c2b27d` 起零消费者 · design 全文 0 命中）⇒ 按「不擅自补功能」**不建**，登记 §3 待拍板 6；(b) **`card.tsx` 首个消费点不作** —— design §4.1 纪律 1 / §4.4 v0.20 行「展示件手搓 + `card.tsx` 留 M4b」> plan（权威链），登记 §3 待拍板 7 ② 落地：`OverviewTab.tsx` 全量 Tailwind 化 + `MarkdownRenderer` 的 md-body 改 **Tailwind 子元素变体**（零新增 CSS 文件）；删两个 `.module.css` ③ 实测：h1 18/700 · h2·h3 14/700 · h4 13/h5·h6 12（**补 Preflight**）· p·li 13/23.4/#64748b · 内联 code #f1f5fb+1px+r5 · `pre` #f1f5fb+r10+mono，**pre 内 code 透明零边框**（`:not(pre)>code` 互斥 ✓）· blockquote 3px 边+muted/50 · 表格 th muted/50+600 · a #1447e6 · metaBar 11px SF Mono+下边 1px ④ 回归：三 tab 切换 + mcp 资产总览正常 ⑤ **design 缺口登记**：`--md-*` 六 token 无 §4.4 映射 → 择浅色语义面（待用户确认）⑥ 门禁 4/4 绿（CSS 93.85 kB / JS 562.79 kB）⑦ **自检打分（新增常态，§1 执行纪律）= 代码 9.77 / 文档 9.69**；自检抓到真缺陷「断言不可现场跑（`--md-` 命中自述注释）」→ 同轮收紧为 `var(--md-` 消费级 |
+| v0.13 | 2026-09-11 | sunxuewen-rush | **T17+T18 合并自检（用户追加要求）· 换靶复核 + 4 项 parity 返工**：① **换靶证据**——4 个被删 `.module.css` **逐属性对照**（**零 `@media`/零 reduced-motion** ⇒ 无响应式漏迁；`.kv .mono` 系死规则）· i18n 调用逐字零差异（4 文件）· 请求轨迹零新增零重复（懒加载/缓存行为实证）· `.glass` 仍有 2 消费者（FilterStrip/CenterPage ⇒ T22/T24）· dogfood 已覆盖总览 md（回归网存在）· 生产包 marker 4/4 = 0 ② **自检返工 4 项（T17 文件 `AssetDetail.tsx`，均为 parity 缺口）**：字阶桶偏离 ⑤（面包屑 + 元信息 3 行 12.5px 误用 `text-[13px]` → `text-xs`）· 漏迁 `underline-offset: 2px` · 错误条圆角 8 误用 `rounded-lg`→`rounded-md` ③ **登记微调（有设计依据）**：tab gap 2→4 · tab 方角 · 激活/悬停字色 → foreground · 标签底 → `bg-secondary` · 下载钮圆角 12→10 ④ **登记既有债**：`mainDocPath`/`manifestFields` 死导出 · `role=tab` 缺键盘导航/`aria-controls` ⑤ **合并评分 代码 9.79 / 文档 9.69**（+0.02 来自补齐验证缺口与修 parity，非产物变好——披露铁律）⑥ 门禁 4/4 复跑绿（typecheck/lint 无新增/format:check 212/build） |

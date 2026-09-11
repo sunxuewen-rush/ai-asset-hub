@@ -6,7 +6,6 @@ import { useI18n } from '../../../i18n/I18nProvider.js';
 import { ErrorState } from '../../ui/ErrorState.js';
 import { MarkdownRenderer } from '../../ui/MarkdownRenderer.js';
 import { Spinner } from '../../ui/Spinner.js';
-import styles from './OverviewTab.module.css';
 
 /**
  * 主文档探测（design §5.2 G7 v0.7 分型）：skill 族 = SKILL.md（必需 root）；
@@ -69,7 +68,7 @@ export function OverviewTab({
   // R2：波 2 未就且暂无主文档探测依据 → 加载占位（防误导性空摘要闪烁）
   if (docPath === null && files === null) {
     return (
-      <div className={styles.loading}>
+      <div className="flex justify-center py-10">
         <Spinner />
       </div>
     );
@@ -78,17 +77,24 @@ export function OverviewTab({
     const fields = manifestFields(manifest);
     return (
       <div>
-        <div className={styles.metaBar}>
+        {/* 换皮（T18）：原 `OverviewTab.module.css` 全量 Tailwind 化——字阶按 9 档轴
+            （11.5→text-[11px] · 13.5→text-[13px] · 12.5→text-xs），`--text-3`/`--line-faint`
+            → muted-foreground / border（§4.4 ⑦）。结构/分支逻辑零变更。 */}
+        <div className="mb-3 flex flex-wrap gap-4 border-b border-border pb-3 font-mono text-[11px] text-muted-foreground">
           {docPath ?? 'manifest'} · v{version}
         </div>
         {fields.length === 0 ? (
-          <p className={styles.empty}>{t('common', 'empty')}</p>
+          <p className="py-5 text-center text-[13px] text-muted-foreground">
+            {t('common', 'empty')}
+          </p>
         ) : (
-          <div className={styles.sumGrid}>
+          <div className="grid grid-cols-2 gap-x-[22px] gap-y-3">
             {fields.map(([key, value]) => (
               <div key={key}>
-                <div className={styles.key}>{key}</div>
-                <div className={styles.val}>{value}</div>
+                <div className="mb-[3px] font-mono text-[11px] font-bold tracking-[0.5px] text-muted-foreground uppercase">
+                  {key}
+                </div>
+                <div className="text-[13px] leading-[1.6] break-words text-foreground">{value}</div>
               </div>
             ))}
           </div>
@@ -98,7 +104,7 @@ export function OverviewTab({
   }
   if (contentState.loading || !contentState.data) {
     return (
-      <div className={styles.loading}>
+      <div className="flex justify-center py-10">
         <Spinner />
       </div>
     );
@@ -106,7 +112,7 @@ export function OverviewTab({
 
   return (
     <div>
-      <div className={styles.metaBar}>
+      <div className="mb-3 flex flex-wrap gap-4 border-b border-border pb-3 font-mono text-[11px] text-muted-foreground">
         {docPath} · v{version}
         {changelog ? ` · ${changelog}` : ''}
       </div>
