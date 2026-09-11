@@ -26,7 +26,7 @@ M4a 消费者视角公开门户（已交付）→ **M4b 管理后台**（本文�
 - `apps/web` 已有五路由公开门户 + `components/ui/` 跨面原子层（AppShell/TopBar/SideNav/
   FileTree/FilePreviewDialog/MarkdownRenderer/AssetAvatar/Badge/Pagination/EmptyState/
   ErrorState）——M4a 收官时按「M4b 直接复用层」设计（M4a design §4.2）
-- i18n 机制（I18nProvider + useApi 语言感知缓存）与 tokens.css 全量视觉 token 可直用
+- i18n 机制（I18nProvider + useApi 语言感知缓存）与 **`styles/aih-theme.css`**（AIH 层视觉 token：语义补丁 / 基色 / 品牌渐变 / 动效 / 旧层迁移面）可直用——⚠ **原 `styles/tokens.css` 已于 T24 删除**（2026-09-11），引用请改指 `aih-theme.css`
 
 **流程定位**（沿用 M4a 全链）：design（决策档案 + 拍板表）→ 视觉环节（精简版，R9）→
 8 维自检 ≥9 / grilling → 定稿 → M4b plan → 编码测试 → converge（00 §7 ②）。
@@ -667,7 +667,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
   PageHeader/DataTable/Drawer/ConfirmDialog/StatusPill/FilterBar + reviews/labels/assets/tokens/audit
   子域）· `components/market/detail/FilesTab.tsx`（迁移引用方）· `auth/`（AuthProvider/RequireAuth）·
   `pages/`（Login/dashboard/*/reviews/*/admin/*）· `i18n/`（I18nProvider/lang/zh/en）·
-  `hooks/useApi.ts` · `hooks/useMarketQuery.ts`（控制台面参数化扩展——**不新建 hook**）· `styles/tokens.css`
+  `hooks/useApi.ts` · `hooks/useMarketQuery.ts`（控制台面参数化扩展——**不新建 hook**）· `styles/aih-theme.css`（**T24 后为唯一样式文件**；原 `tokens.css` 已删）
 - 被更新测试：`apps/server/src/http/assets.test.ts`（`:421` 授权集断言——R6-b）
 - 模型事实源：`docs/designs/2026-09-10-flat-model-refactor-design.md`（M4-pre）
 - 对标源：`/Users/xuewensun/04-ws/21-skillhub`（MeController / MySkillAppService /
