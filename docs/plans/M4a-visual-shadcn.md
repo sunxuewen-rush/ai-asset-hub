@@ -6,7 +6,7 @@
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · **T20 版本对比 + diff ✅（2026-09-11，含 4 共享原子件增补）** · **T21 中心页 ✅（2026-09-11，`.module.css` 存量 2 → 1）** · T22 标签筛选条（⬅ 板块 E 详情页 4 Task **全部完成**） · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
+> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · **T20 版本对比 + diff ✅（2026-09-11，含 4 共享原子件增补）** · **T21 中心页 ✅（2026-09-11，`.module.css` 存量 2 → 1）** · **T22 标签筛选条 ✅（2026-09-11，`.module.css` 存量归零 = 板块 F 收官）**（⬅ 板块 E 详情页 4 Task **全部完成**） · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
 > 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.21**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.21 为准）
 > 命名约定见 `docs/plans/README.md`
 
@@ -293,10 +293,14 @@
   动态键不变 ✅（i18n 调用逐字零差）
 - **Commit**: `refactor(web): re-skin center pages`
 
-#### T22 FilterStrip（标签筛选条）
-- **Files**: Modify `apps/web/src/components/market/FilterStrip.tsx` · Delete `FilterStrip.module.css`
-- **Assert**: 横置筛选条结构不变；选中态用 shadcn 语义（`bg-primary` + `text-primary-foreground`）；
-  排序控件与 `q` / label 查询参数拼装逻辑不变；与 `AssetGrid` 间距一致
+#### T22 FilterStrip（标签筛选条）✅ 2026-09-11
+- **Files**: Modify `apps/web/src/components/market/FilterStrip.tsx`（全量 Tailwind 化）· Delete
+  `FilterStrip.module.css`（**最后一个** ⇒ `.module.css` 存量 **1 → 0**）
+- **Assert**: 横置两级筛选条结构不变 ✅（`div > span.title + div.cols > div.row(+div.row)` 嵌套与旧完全一致）·
+  选中态用 shadcn 语义（`bg-primary` + `text-primary-foreground`）✅ 实测关过渡后 `oklch(0.488 0.243 264.376)`
+  / `oklch(0.97 0.014 254.604)` / 边 primary / fw600 / **无蓝投影**；旧 `--grad-brand` 渐变 + `box-shadow` 属废弃项 ✓ ·
+  排序控件与 `q` / label 查询参数拼装逻辑不变 ✅（实测点标签 → `?label=agentic` + 列表 3→1 + 「筛选结果：1」；
+  点「全部」→ URL 复位 + 3 卡）· 与 `AssetGrid` 间距一致 ✅（`mb-3.5` 14px = grid `gap` 14px）
 - **Commit**: `refactor(web): re-skin filter strip`
 
 ### 板块 G 阶段 1 · 收尾（3 Task + converge）
@@ -748,6 +752,49 @@
   门禁 typecheck / lint（web 0 诊断）/ format:check(212) / build 全绿 ✓
   （**dogfood 未重跑**：纯静态文案改，已由真浏览器逐中心实测覆盖断言面）
 
+**T22 FilterStrip 换皮（板块 F · 2026-09-11）——板块 F（中心页）收官**
+- 落地：`FilterStrip.tsx` 全量 Tailwind 化 + 删 `FilterStrip.module.css` ⇒ `.module.css` 存量 **1 → 0**
+- 落地取舍（逐项对 §4.4 SSOT）：
+  - `.glass` → **白卡 `bg-card` + `shadow-sm`**；圆角 `--r-lg` **16 不成轴 → 就近向下 `rounded-xl`(14)**；
+    内距 `12px 16px` → `px-4 py-3`；下边距 14 → `mb-3.5`（= `AssetGrid` `gap` 14px）
+  - chip 三段常量（模板串，本文件既有风格、不引 `cn`）：未选中 `bg-secondary` + `border-border` +
+    `text-muted-foreground` + hover `border-ring/40` / `text-primary`；选中 `border-primary bg-primary
+    font-semibold text-primary-foreground`——**旧 `--grad-brand` 渐变 + 蓝投影均为 §4.4 废弃项**
+    （渐变白名单只回品牌字 / 主 CTA / 页面底）
+  - 字阶（⑤）：12.5 → `text-xs`（12/12.5 同桶）；`11 / 700 / tracking .7px` 保档
+  - **子行 pill 与根行统一**（旧 `.sub` 仅差衬底 alpha `.5` vs `.65`——白卡上不可辨、§4.4 无依据）⇒
+    `styles.sub` 与 `cls` 的 `sub` 入参一并取消（**内部 API 微调**，登记）
+  - 过渡 `color/border-color .12s` → `transition-colors`（0.15s，同 T20 登记口径）
+- **实测（真浏览器 · 1440×900）**：strip `rgb(255,255,255)` / r14 / `padding 12px 16px` / `margin-bottom
+  14px` / `shadow-sm` / `backdrop-filter: none` / gap 12 ✓ · 标题 11px/700/`uppercase`/`ls .7px`/#64748b/
+  `pt 7px` ✓ · 未选中 chip `rgb(240,245,255)`/边 #e3eaf6/#64748b/fw500/999px/`4px 13px` ✓ ·
+  **选中 chip（关过渡后）** `oklch(0.488 0.243 264.376)` + `oklch(0.97 0.014 254.604)` + 边 primary +
+  fw600 + **`box-shadow: none`** ✓ · 行 gap 7px / cols gap 7px / grid gap 14px ✓
+- **交互实证**：点「智能体」→ URL `?label=agentic` · 列表 3 → **1** · 结果头「筛选结果：1」（`filteredCount`
+  分支）✓；点「全部」→ URL 复位 `` · 3 卡 ✓；根行「全部」默认选中（`selected.length === 0`）✓
+- **回归**：dogfood **22/22 PASS + NO CONSOLE ERRORS**（`SMOKE_SHOT_PREFIX=t22-`，截图已清）· 门禁
+  typecheck / lint（web 0 诊断）/ format:check(212) / build 全绿 ✓
+- **换靶新发现（本靶 = 死导出 + 覆盖缺口 + T24 前置条件核对）**：
+  - ✅ **T24 前置条件现可全量核对**：`find apps/web/src -name '*.module.css'` = **0** ·
+    旧层 token 消费（除 `tokens.css`/`global.css` 自身定义）= **0** · 剩 11 条 `var(--tint-*)`/`var(--ava-*)`
+    命中**全是 AIH 层 `@theme` 映射**（值住 `aih-theme.css`，与旧层无关）· `.glass` 消费点 **0**
+    （定义仍在 `global.css:69`，随 T24 删）· 旧层文件引用 **2 处**（`main.tsx:13-14` 两个 import，T24 去）
+    · 删除面 = `tokens.css` 126 行 + `global.css` 106 行
+  - 🟡 **死导出（既有债）**：`buildLabelRows` / `labelName` 在 `FilterStrip.tsx` 之外**零消费者**
+    （同 T17 的 `mainDocPath`/`manifestFields` 一类）→ 登记 §3 表 12
+  - 🟡 **覆盖缺口（新）**：dev 库标签只有 **1 个 root**（`agentic`，`parentId: null`），**0 个子标签**
+    （`db:seed` 不建标签）⇒ **两级组树第二行**与**多标签 OR** 两条路径**无现场可验数据** →
+    登记 §3 表 13（T25 全态冒烟须先造子标签数据）
+  - 📌 **断言纪律自纠（真踩一次）**：点标签后 3.5s 取样得 `on: []`（误疑「选中态没生效」）→ 实为
+    **过渡中间值**（读到 `oklab(...)` 插值，而探针按 `oklch` 字面匹配）。**取证后**：同点位的
+    `className` 已含 `border-primary bg-primary font-semibold text-primary-foreground`（类正确）
+    ⇒ 关过渡复测得终值 ✓。**通则：对带 `transition` 的属性做数值/字面断言，先注入
+    `*{transition:none!important}`，否则在 0.12–0.15s 窗口内必读中间值**
+- **自检打分（换靶轮）**：**代码 9.80 / 文档 9.69**（A3 9.5 子行路径未验 · B4 9.5 死导出未清 ·
+  C3 9.5 chip 无 `aria-pressed`——既有债 · C5 9）。⚠ 分数与 T21 同（9.80），但**靶与发现均不同**
+  （T21 = eyebrow 漂移 / 窄视口口径；T22 = 死导出 / 子行覆盖缺口 / 过渡取样自纠）——按「禁同分重报」
+  口径披露：分同而证据不同，非重复报分
+
 ## 3. 阶段 1 范围登记（✅ 2026-09-11 已细化为 **T17-T26**，任务清单 → §2 板块 E/F/G）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
@@ -776,6 +823,8 @@
 | 9 | **嵌套路径文件预览无冒烟覆盖** + 客户端 URL `%2F` 形态（T19 换靶发现） | dogfood 只点 root 级 `SKILL.md`；`fetchVersionFile` 用 `encodeURIComponent(整条 path)` → `files/lib%2Fembedding.ts`（服务端两种形态均 200 ✅） | **T25** 补一条嵌套文件预览断言（**已登记，届时执行**）；**URL 形态暂不改**（判据：两种形态服务端均 200、无用户可见故障；改动属 api 层行为 → 由 T25 嵌套断言先取「正常会话下嵌套预览能出内容」实证，若届时暴露问题再改，一次只动一件事） |
 | 10 | **🚧 阻塞 T24：4 个共享 ui 原子件无归属 Task**（T20 换靶发现） | `Badge` / `Spinner` / `EmptyState` / `ErrorState` 的 `.module.css` **仍在**（存量 6 = 这 4 件 + CenterPage/FilterStrip），但 §2 板块 E/F/G **没有任何 Task 负责它们**；T24 却要「删除剩余全部 `.module.css`」⇒ 照字面执行会**直接 build 失败**（组件仍 import） | ✅ **已处理（用户 2026-09-11 拍板 (a)）**：并入 T20 作**增补**换皮完成（见「增补（v0.16）」）⇒ `.module.css` 存量 **6 → 2**（仅 CenterPage / FilterStrip = T21/T22 范围），**T24 阻塞解除** |
 | 11 | **中心页页头 eyebrow 与 h1 同 i18n 键 → 文案重复**（T21 换靶发现，**自 `bdc0d5e` 中心页初版起既存**） | `CenterPage.tsx` 的 eyebrow `<span>` 用 `t('market', meta.title)`（**与 h1 同键**）⇒ zh 界面渲染「技能中心 / 技能中心」两行；design **§9 线框**要求「技能中心 Skill Center」（**EN 名** eyebrow）⇒ 代码与 design 漂移 | ✅ **已处理（用户 2026-09-11 拍板 (d)）**：eyebrow 改**语言中立的类型常量表** `TYPE_EYEBROW`（`SKILL` / `MCP` / `AGENT`）——两种语言下均与 h1 不重复、零 i18n 新增、对齐 §9「双语头」意图；实测三中心 `dup: false`。（否决备选：补 EN 名 i18n 键——英文界面下仍重复；删 `<span>`——§9 有此元素） |
+| 12 | **死导出 `buildLabelRows` / `labelName`**（T22 换靶发现，既有债） | 两符号在 `FilterStrip.tsx` 之外**零消费者**（仓内 grep 排除自身 = 0）；同 T17 的 `mainDocPath`/`manifestFields` 一类 | 维持现状（**不改**——非换皮范围，且为将来单测预留导出）；**T25/收尾**评估：要么补测试用上，要么收为模块内私有 |
+| 13 | **中心页筛选：子标签行 + 多标签 OR 无现场可验数据**（T22 换靶发现） | dev 库标签只有 **1 个 root**（`agentic`，`parentId: null`）、**0 个子标签**（`db:seed` 不建标签，标签由 API 建）⇒ `FilterStrip` 的两级组树第二行（`children.length > 0` 分支）与多标签 OR 拼装**跑不到**（换皮已按旧结构 1:1 迁移，但无渲染实证） | **T25** 全态冒烟补此两态：先建 1 个子标签（`POST /api/labels` 带 `parentId`）+ 勾选 ≥2 标签验 OR（**造数据 = 冒烟内一次性，不入 seed**） |
 
 ## 4. 风险与回退
 
@@ -808,3 +857,4 @@
 | v0.16 | 2026-09-11 | sunxuewen-rush | **T20 增补（用户拍板 (a)）· 4 共享原子件换皮 ⇒ 解除 T24 阻塞**：① **范围**：`Badge`/`Spinner`/`EmptyState`/`ErrorState` + 删 4 个 `.module.css` ⇒ 存量 **6→2**（仅 CenterPage/FilterStrip = T21/T22），**T24 可照字面执行** ② **`Badge` 5 tone → AIH 语义 token**（`--success`/`--warning`/`--destructive`/`--primary`/`muted`）⇒ 同页两套视觉消除 + **`--ct-*` 消费归零**；10.5px→`text-[11px]` · `rounded-full` ③ **`Spinner` 补可访问性**：动画改 `animate-spin`（0.8s→1s 登记）+ 新增 **`motion-reduce:animate-none`**（§4.4 ⑥ 旧层只覆盖 transition）④ `EmptyState`/`ErrorState` 字阶与语义色归一（retry 圆角 9→8）⑤ **实测**：Badge `oklch(0.627 0.17 149.2)`/`bg success/10`/11px/full/mono ✓ · Spinner 顶边 primary ✓ · select 12px/r8/#fff ✓ · 历史行 13px/700 ✓ · EmptyState 13px/#64748b/pad 40-16/lh1.7 ✓ · ErrorState `role=alert`+retry `primary/10` ✓ · **dogfood PASS=22 FAIL=0 + NO CONSOLE ERRORS** ✓ · 门禁 4/4（lint web **0 诊断**）⑥ **自检 代码 9.76 → 9.84**（B3 9→10，+0.08 = 真实产物改进非口径变化）· 文档 9.69 |
 | v0.17 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T21 中心页换皮落地 + 换靶自检**：① **落地**：`CenterPage.tsx` 全量 Tailwind 化——页头 `.glass` → 白卡 `bg-card`+`shadow-sm`+r18 · **氛围光斑 `::before` 整块删除**（+`overflow`/`position` 去除）· icon tile 52px 渐变 → **44px 实底类型色**+r13+白图标 22px（`TILE_BG` 查表替代 `styles[type]` 动态类名）· 页头搜索框 → shadcn `Input`（纪律 1）· 计数徽章 → hero 统计 tile 语法 · 字阶 21→`text-xl` / 12.5→`text-xs`；删 `CenterPage.module.css`（存量 **2 → 1**）② **Files 修正（执行期）**：原文「Delete 两个 `.module.css`」= 与 T22 混写 → 实删 1 个；`pages/Center.tsx` **零改动**（9 行纯转发）③ **实测（1440×900 真浏览器）**：head 白/r18/pad 22-26/mb16/`shadow-sm`/`backdrop-filter none`/**`::before content none`** ✓ · tile 44×44/r13 skill `rgb(37,99,235)` · mcp `rgb(14,116,144)` · agent `rgb(109,40,217)` ✓ · h1 20/700/-0.4 ✓ · 描述 13/#64748b/mt4 ✓ · Input h36/r8/边#e3eaf6/**240px**/`text-sm` ✓ · 徽章 `#f0f5ff`/r14/数字 22px `oklch(0.488 0.243 264.376)`/`tabular-nums`/标签 11px ✓ · 结果头 gap12/mb12/13+12px ✓ · 网格 **4×287.5**/gap14 ✓ · 三中心同构 + `/agents` 空态 ✓ · 全页 `backdrop-filter` 命中 **1**（FilterStrip = T22）④ **换靶（本靶 = 旧 token 消费者全仓普查）**：`--grad-skill/mcp/agent` 消费者**归零**（孤儿 ⇒ T24 删）· 旧 token 消费者**只剩 `FilterStrip.module.css`**（⇒ T22 后 T24 无残留）· 🟡 **新发现缺陷（内容级）**：eyebrow 与 h1 **同 i18n 键** → zh 渲染「技能中心 / 技能中心」重复，与 design **§9 线框「技能中心 Skill Center」** 漂移（缺 3 个 EN 名键）→ **未改**（先说明→等许可），登记 §3 待拍板 11 · 📌 **取样条件教训**：窄视口测得 Input 187px + 网格 2 列（疑 CSS 未热更）→ 桌面钉死后 **240px / 4 列**（窄视口收缩 = 旧 `.search` 同行为 parity，非回归）⇒ 视口未钉死不做定性判断 ⑤ **回归**：dogfood **22/22 PASS + NO CONSOLE ERRORS**（`SMOKE_SHOT_PREFIX=t21-`，截图已清不进仓）· 门禁 typecheck 4/4 · lint **web 0 诊断** · format:check 212 · build ✓ ⑥ **自检 代码 9.80 / 文档 9.69**（↓0.04 = 换靶新证据，非产物变差；如实披露） |
 | v0.18 | 2026-09-11 | sunxuewen-rush | **增补 · 中心页页头 eyebrow 修重复（用户拍板 (d)）**：① **问题**：eyebrow `<span>` 与 h1 **同 i18n 键**（`t('market', meta.title)`）⇒ zh 渲染「技能中心 / 技能中心」重复；`git log -S "styles.en"` 实证**自 `bdc0d5e`（中心页初版）既存**，非 T21 换皮引入 ② **处置**：改**语言中立的类型常量表** `TYPE_EYEBROW`（`SKILL`/`MCP`/`AGENT`）——两种语言下均与 h1 不重复 · **零 i18n 新增** · 对齐 design §9 线框「双语头」意图；字面即大写（不靠 CSS `text-transform`）⇒ `textContent` 取值确定 ③ **否决备选**：补 EN 名 i18n 键（英文界面下 h1 与 eyebrow 仍同句）· 删 `<span>`（§9 线框有此元素）④ **实测**：三中心 `技能中心 / SKILL` · `MCP 中心 / MCP` · `专家中心 / AGENT`，`dup: false` ✓ · 11px/`ls 1px`/`#64748b` ✓ · 无裸键泄漏 ✓ · 门禁 4/4 绿（`dogfood` 未重跑——纯静态文案改，已由真浏览器逐中心实测覆盖） |
+| v0.19 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T22 FilterStrip 换皮落地 + 换靶自检（板块 F 收官）**：① **落地**：`FilterStrip.tsx` 全量 Tailwind 化 + 删 `FilterStrip.module.css` ⇒ **`.module.css` 存量 1 → 0**（`find` = 0）· `.glass` → 白卡 `bg-card`+`shadow-sm` · 圆角 16 不成轴 → 就近向下 `rounded-xl` · chip 三段常量（未选中 `bg-secondary`/`border-border`/hover `border-ring/40`+`text-primary`；选中 **实底 `bg-primary` + `text-primary-foreground`**，旧 `--grad-brand` 渐变 + 蓝投影为 §4.4 废弃项）· 12.5→`text-xs` · 子行 pill 与根行统一（旧 `.sub` 仅差衬底 alpha，白卡上不可辨）② **实测（1440×900）**：strip 白/r14/pad 12-16/mb14/`shadow-sm`/`backdrop-filter none` ✓ · 标题 11/700/uppercase/ls .7px/#64748b/pt7 ✓ · 未选中 chip `rgb(240,245,255)`/边 #e3eaf6/fw500/999px ✓ · 选中 chip `oklch(0.488 0.243 264.376)`+`oklch(0.97 0.014 254.604)`+边 primary+fw600+**`box-shadow none`** ✓ · 行 gap7/cols gap7/grid gap14 ✓ ③ **交互实证**：点标签 → `?label=agentic` + 列表 3→**1** + 「筛选结果：1」；点「全部」→ URL 复位 + 3 卡；默认「全部」选中（`selected.length === 0`）④ **换靶（死导出 + 覆盖缺口 + T24 前置核对）**：✅ **T24 前置全绿**——`.module.css` = 0 · 旧层 token 消费 = 0（剩 11 条 `var(--tint-*)`/`var(--ava-*)` 全属 AIH 层 `@theme` 映射）· `.glass` 消费 0（定义待 T24 删）· 旧层引用 2 处 = `main.tsx:13-14` import · 删除面 = `tokens.css` 126 + `global.css` 106 行 · 🟡 **死导出** `buildLabelRows`/`labelName`（§3 表 12）· 🟡 **覆盖缺口**：dev 库仅 1 root 标签、0 子标签 ⇒ 两级组树第二行 + 多标签 OR 无现场可验数据（§3 表 13 → T25 造数据补验）· 📌 **断言纪律自纠**：点标签后 3.5s 取样得 `on: []` 疑「选中态失效」→ 实为**过渡中间值**（`oklab(...)` 插值 vs 探针按 `oklch` 匹配）；同点位 `className` 已含正确三段类，**关过渡复测**得终值 ✓（通则：带 `transition` 的属性断言前注入 `*{transition:none!important}`）⑤ **回归**：dogfood **22/22 PASS + NO CONSOLE ERRORS**（`t22-` 前缀，截图已清）· 门禁 4/4（lint web **0 诊断**）⑥ **自检 代码 9.80 / 文档 9.69**（分与 T21 同、**靶与发现不同**，按「禁同分重报」披露） |
