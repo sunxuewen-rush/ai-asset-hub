@@ -6,7 +6,7 @@
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · T20 版本对比 · T21-T22 中心页 · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
+> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · **T20 版本对比 + diff ✅（2026-09-11，含 4 共享原子件增补）** · T21-T22 中心页（⬅ 板块 E 详情页 4 Task **全部完成**） · T23-T26 收尾（语义回写 / 删旧层 / 门禁+全态冒烟 / converge）；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
 > 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.21**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.21 为准）
 > 命名约定见 `docs/plans/README.md`
 
@@ -269,13 +269,14 @@
   同 T18 的 `--md-` 教训；冻结判定改用**计算样式**——`getComputedStyle` 全页扫描 `backdropFilter === 'none'`，实测命中 **0**）
 - **Commit**: `refactor(web): re-skin file tree and preview dialog`
 
-#### T20 VersionCompare + DiffNav + DiffView
+#### T20 VersionCompare + DiffNav + DiffView ✅（2026-09-11 落地）
 - **Files**: Modify `detail/VersionCompare.tsx` · `detail/DiffNav.tsx` · `detail/DiffView.tsx` ·
-  Delete 三个 `.module.css`
-- **Assert**: **diff 内容色保留 GitHub 系**（新增 `#1a7f37` / 底 `#e6ffec` · 删除 `#cf222e` / 底
-  `#ffebe9`）——不并入 UI 语义色（§4.4 ② 语义修正）；双下拉对比 / `from=to` 空态 / 行号双列 /
-  文件头 `+N−M` 折叠行为不变；顺带清阶段 0 登记的唯一 lint info（`VersionCompare.tsx:138`
-  `noUselessFragments`）
+  **Delete** 三个 `.module.css`（零消费后删；`.module.css` 存量 12→9→**6**）
+- **Assert（实际执行口径）**: **diff 内容色保留 GitHub 系**（新增 `#1a7f37` / 底 `#e6ffec` · 删除
+  `#cf222e` / 底 `#ffebe9`）——**不并入 UI 语义色**（§4.4 ② 语义修正：diff 是**代码内容渲染色**；
+  故 `DiffView` 内为**有意保留的字面值**，非 token 漂移）；双下拉对比 / `from=to` 空态 / 行号双列
+  （`grid-cols-[46px_46px_1fr]`）/ 文件头 `+N−M` 折叠行为不变；**清掉阶段 0 登记的 lint info**
+  （`VersionCompare.tsx:138 noUselessFragments` → 实测 **web lint = 0 诊断** ✅）
 - **Commit**: `refactor(web): re-skin version compare and diff (keep github content colors)`
 
 ### 板块 F 阶段 1 · 中心页换皮（2 Task）
@@ -638,6 +639,55 @@
   死导出扫描（三组件均被消费 ✅）。**未发现分数虚高**：与上轮同档，披露为本轮无产物级改进、仅有新增量
 - **门禁**：typecheck · lint（web 仍仅 1 info）· format:check（212 文件）· build 全绿
 
+**增补（v0.15）阶段 1 · T20 版本对比 + diff 落地（2026-09-11）**
+- **落地**：`VersionCompare` / `DiffNav` / `DiffView` 全量 Tailwind 化；删 3 个 `.module.css`
+  （存量 12→9→**6**）；**清掉阶段 0 最后一条 lint info**（`VersionCompare.tsx:138 noUselessFragments`）
+  —— `bun run lint` 实测 **web = 0 诊断** ✅
+- **实现取舍**：① 非轴值半径按「**就近向下**」归位（12→`rounded-lg`(10) · 11→`rounded-lg`(10)），
+  规则写入组件注释 ② `DiffView` 的动态类索引 `styles[line.type.toLowerCase()]` → **`LINE_STYLE` 查表**
+  （同 T19 的 `INDENT` 化：消除动态键 + 把 GitHub 内容色集中一处可审）③ 原生 `<select>` **保留**
+  （不换 Radix `select.tsx`——换原语 = DOM/行为变更，超「纯视觉」范围），焦点态改用 §4.4 ③
+  input/select 真值 `focus:border-ring focus:ring-[3px] focus:ring-ring/50` ④ 青色 `--brand-3`
+  （⇄ 箭头）随渐变层废弃 → `muted-foreground`；hover/选中走**底色语义**（`hover:bg-muted/60` /
+  `bg-accent text-accent-foreground`）
+- **diff 内容色 = 有意保留的字面值**（`#1a7f37`/`#e6ffec` · `#cf222e`/`#ffebe9`）——依 §4.4 ②
+  「diff 内容色不并入 UI 语义色」；**design §4.4 ⑦ 缺 `--diff-*` / `--ct-*` / `--sha-bg` 映射** → 登记
+  （T24 删旧层前须在 design 侧确认「内容色不迁移」或补映射）
+- **实测**：① `bun run lint` **web = 0 诊断**（阶段 0 遗留 info 清零 ✓）② **dogfood 22/22 PASS +
+  NO CONSOLE ERRORS**（`SMOKE_SHOT_PREFIX=t20-`，跑在独立 Edge CDP 会话）——含 T20 的
+  「版本历史两行」/「diff 三型徽章」（ADDED/MODIFIED/DELETED · 经 `DiffNav`+`DiffView`）/
+  「diff +/− 行内容」（`searchByPrefix` 出现在行内）⇒ **diff 真渲染实证**；**并顺带 closure T19 的沙箱缺口**
+  （「预览对话框内容」PASS ⇒ 预览渲染无缺陷）③ 门禁 typecheck · format:check(212) · build 全绿
+  ④ 临时截图 `t20-*.png` 已删（**不进仓**——里程碑证据只留 s0-/s1-）
+- **换靶新发现（1 项阻塞级 + 1 项同页不一致）**：
+  - 🚧 **4 个共享 ui 原子件（`Badge`/`Spinner`/`EmptyState`/`ErrorState`）无归属 Task**，而 T24 要删
+    「剩余全部 `.module.css`」⇒ 照字面执行 **build 必挂**（§3 表 10，**阻塞 T24**，待拍板）
+  - 🟡 `DiffNav`/`DiffView`/`VersionCompare` 内的 changeType 徽章**仍是旧层 `Badge` 样式**（`--ct-*`）
+    ⇒ **新旧视觉同页并存**（与 T17 右栏「半玻璃半白卡」同类问题）
+- **自检打分（换靶轮）**：**代码 9.76 / 文档 9.69**——B3 一致性 **9**（-1：Badge 未换皮 → 同页两套视觉）·
+  C5 可测试 **9**（dogfood 覆盖 diff 三型/行内容，但无单测；折叠 toggle 与焦点环未自动化）·
+  C4 9.5（`labelCls`/`selectCls` 可上提模块级）
+
+**增补（v0.16）T20 并入 · 4 个共享 ui 原子件换皮（用户 2026-09-11 拍板 (a)；解除 T24 阻塞）**
+- **范围**：`Badge` / `Spinner` / `EmptyState` / `ErrorState`（跨页共享件；§3 表 10 的阻塞项）
+  + 删 4 个 `.module.css` ⇒ 存量 **6 → 2**（只剩 CenterPage / FilterStrip = **T21/T22 范围**）
+- **落地取舍**：
+  - **`Badge` 5 个 tone 由旧字面色 → AIH 语义 token**：`success` `#047857`→`--success`(oklch 0.627 0.17 149.2) ·
+    `info` `--brand`→`--primary` · `warning` `--ct-mod`→`--warning` · `danger` `#be123c`→`--destructive` ·
+    `neutral` slate 淡底→`bg-muted`；10.5px→`text-[11px]`（⑤ 首档）· 999→`rounded-full`。
+    **副作用（有据）**：`--ct-*` 消费归零（T24 随旧层删除）；tone 色相深浅随之微调（语义化本意）
+  - **`Spinner`**：`--line-soft`/`--brand` → `border-border`/`border-t-primary`；动画改 **Tailwind
+    `animate-spin`**（0.8s → 1s，登记）并**补 `motion-reduce:animate-none`**（§4.4 ⑥「reduced-motion 全关」，
+    旧层只覆盖 transition、未覆盖 animation —— 此处**补齐**）
+  - `EmptyState` / `ErrorState`：字阶（13/12.5→`text-[13px]`/`text-xs`）与语义色归一；retry 圆角 9→`rounded-md`(8)
+- **实测**（真浏览器 + dogfood + 门禁）：Badge = `--success` oklch(0.627 0.17 149.2) + `bg success/10` +
+  边 `success/30` + **11px** + `rounded-full` + `mono ✓` · Spinner = 顶边 `primary` oklch(0.488 0.243 264.376) ✓ ·
+  下拉 `12px/r8/padding 7-9/#fff/边 #e3eaf6` ✓ · 版本历史行 `13px/700` ✓ · EmptyState `13px/#64748b/padding 40-16/lh 1.7` ✓ ·
+  ErrorState `role=alert` + `13px muted` + retry `12px/primary/r8/bg primary/10/mb 12` ✓ ·
+  **dogfood PASS=22 FAIL=0 + NO CONSOLE ERRORS** ✓ · 门禁 4/4 绿（lint **web 0 诊断**）
+- **自检（同轮重评）**：**代码 9.84**（B3 一致性 9→**10**：同页两套视觉消除；A/B/C = 9.875/9.875/9.75）·
+  **文档 9.69**。⚠ +0.08 来源 = **真实产物改进**（Badge 归一 + 动画可访问性补齐），非计分口径变化
+
 ## 3. 阶段 1 范围登记（✅ 2026-09-11 已细化为 **T17-T26**，任务清单 → §2 板块 E/F/G）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
@@ -664,6 +714,7 @@
 | 7 | **`card.tsx` 首个消费点**（design §9 线框图 v0.7 注记「Tab 卡（shadcn Card）」 vs §4.1 纪律 1「展示件手搓 + `card.tsx` 留 M4b」） | T18 已按 §4.1 纪律**不引**（design > plan） | **待用户拍板**：维持手搓（现状）／或详情页 Tab 卡改真 `Card`（可见变化：圆角 18→14 · 加 1px 边 · 内距 24） |
 | 8 | **目录行「N files」硬编码英文**（T19 换靶发现） | i18n `fileUnit` 已存在（zh「文件」/en「files」，VersionCompare 在用），`FileTree` 写字面量 → 中文界面显示「1 files」 | ✅ **已修（用户 2026-09-11 同意）**：改走 `t('market','fileUnit')`，随 T19 同批提交 |
 | 9 | **嵌套路径文件预览无冒烟覆盖** + 客户端 URL `%2F` 形态（T19 换靶发现） | dogfood 只点 root 级 `SKILL.md`；`fetchVersionFile` 用 `encodeURIComponent(整条 path)` → `files/lib%2Fembedding.ts`（服务端两种形态均 200 ✅） | **T25** 补一条嵌套文件预览断言（**已登记，届时执行**）；**URL 形态暂不改**（判据：两种形态服务端均 200、无用户可见故障；改动属 api 层行为 → 由 T25 嵌套断言先取「正常会话下嵌套预览能出内容」实证，若届时暴露问题再改，一次只动一件事） |
+| 10 | **🚧 阻塞 T24：4 个共享 ui 原子件无归属 Task**（T20 换靶发现） | `Badge` / `Spinner` / `EmptyState` / `ErrorState` 的 `.module.css` **仍在**（存量 6 = 这 4 件 + CenterPage/FilterStrip），但 §2 板块 E/F/G **没有任何 Task 负责它们**；T24 却要「删除剩余全部 `.module.css`」⇒ 照字面执行会**直接 build 失败**（组件仍 import） | ✅ **已处理（用户 2026-09-11 拍板 (a)）**：并入 T20 作**增补**换皮完成（见「增补（v0.16）」）⇒ `.module.css` 存量 **6 → 2**（仅 CenterPage / FilterStrip = T21/T22 范围），**T24 阻塞解除** |
 
 ## 4. 风险与回退
 
@@ -692,3 +743,5 @@
 | v0.12 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T18 详情页总览 + markdown 落地 + 断言修正**：① **两处断言修正（执行期发现）**——(a) 「安装与使用」卡**不存在**（i18n `installTitle` 自 `6c2b27d` 起零消费者 · design 全文 0 命中）⇒ 按「不擅自补功能」**不建**，登记 §3 待拍板 6；(b) **`card.tsx` 首个消费点不作** —— design §4.1 纪律 1 / §4.4 v0.20 行「展示件手搓 + `card.tsx` 留 M4b」> plan（权威链），登记 §3 待拍板 7 ② 落地：`OverviewTab.tsx` 全量 Tailwind 化 + `MarkdownRenderer` 的 md-body 改 **Tailwind 子元素变体**（零新增 CSS 文件）；删两个 `.module.css` ③ 实测：h1 18/700 · h2·h3 14/700 · h4 13/h5·h6 12（**补 Preflight**）· p·li 13/23.4/#64748b · 内联 code #f1f5fb+1px+r5 · `pre` #f1f5fb+r10+mono，**pre 内 code 透明零边框**（`:not(pre)>code` 互斥 ✓）· blockquote 3px 边+muted/50 · 表格 th muted/50+600 · a #1447e6 · metaBar 11px SF Mono+下边 1px ④ 回归：三 tab 切换 + mcp 资产总览正常 ⑤ **design 缺口登记**：`--md-*` 六 token 无 §4.4 映射 → 择浅色语义面（待用户确认）⑥ 门禁 4/4 绿（CSS 93.85 kB / JS 562.79 kB）⑦ **自检打分（新增常态，§1 执行纪律）= 代码 9.77 / 文档 9.69**；自检抓到真缺陷「断言不可现场跑（`--md-` 命中自述注释）」→ 同轮收紧为 `var(--md-` 消费级 |
 | v0.13 | 2026-09-11 | sunxuewen-rush | **T17+T18 合并自检（用户追加要求）· 换靶复核 + 4 项 parity 返工**：① **换靶证据**——4 个被删 `.module.css` **逐属性对照**（**零 `@media`/零 reduced-motion** ⇒ 无响应式漏迁；`.kv .mono` 系死规则）· i18n 调用逐字零差异（4 文件）· 请求轨迹零新增零重复（懒加载/缓存行为实证）· `.glass` 仍有 2 消费者（FilterStrip/CenterPage ⇒ T22/T24）· dogfood 已覆盖总览 md（回归网存在）· 生产包 marker 4/4 = 0 ② **自检返工 4 项（T17 文件 `AssetDetail.tsx`，均为 parity 缺口）**：字阶桶偏离 ⑤（面包屑 + 元信息 3 行 12.5px 误用 `text-[13px]` → `text-xs`）· 漏迁 `underline-offset: 2px` · 错误条圆角 8 误用 `rounded-lg`→`rounded-md` ③ **登记微调（有设计依据）**：tab gap 2→4 · tab 方角 · 激活/悬停字色 → foreground · 标签底 → `bg-secondary` · 下载钮圆角 12→10 ④ **登记既有债**：`mainDocPath`/`manifestFields` 死导出 · `role=tab` 缺键盘导航/`aria-controls` ⑤ **合并评分 代码 9.79 / 文档 9.69**（+0.02 来自补齐验证缺口与修 parity，非产物变好——披露铁律）⑥ 门禁 4/4 复跑绿（typecheck/lint 无新增/format:check 212/build） |
 | v0.14 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T19 文件树 + 预览换皮落地 + 断言修正 + 换靶自检**：① **落地**：`FilesTab`/`FileTree`/`FilePreviewDialog` 全量 Tailwind 化（`FileTree` 缩进改 `INDENT` 表，等价旧 `.indent`+`.d2/.d3`）+ 删 3 个 `.module.css`（存量 12→**9**）② **修既有缺陷**：旧 `pad` 在 depth=1 取 `styles.d1`=undefined → 类名含字面 `undefined`（查表消除）③ **断言修正**：「焦点陷阱行为不变」——实测**无任何焦点管理**（仅 Esc 监听）⇒ 断言漂移，按纪律不补功能、登记既有债 ④ **实测**：目录行 13/600/#64748b/py5/gap9/mono · 文件行缩进 20px(root 0) · sha 徽章 #f1f5fb+r6+1px7px+11px + `…` 截断 ✓ · **遮罩 `bg-black/50` 且 `backdrop-filter: none`** ✓ · 卡 `#ffffff`/r10/min(720px,88vw)/76vh/`shadow-lg` ✓ · overlay `z-90` ✓ · **Esc/遮罩/✕ 三路关闭实测 ✓** · 全页 `backdrop-filter` 命中 0 ⑤ **新登记**：目录行「N files」硬编码（i18n `fileUnit` 已有）· 无焦点陷阱 · 嵌套路径预览无冒烟覆盖 + `%2F` URL 形态（§3 表 8/9）⑥ **沙箱限制**：本轮 headless 会话 post-load fetch 全挂（`/api/stats` 直连亦不返回；curl 200 ✅）⇒ 对话框正文未能实测；佐证 = T13 期 dogfood「预览对话框内容」断言在正常会话已过（22/22）⑦ **自检打分 代码 9.79 / 文档 9.69**（换靶抓 4 项新问题；与上轮同档，如实披露无虚高） |
+| v0.15 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T20 版本对比 + diff 落地 + 换靶自检**：① **落地**：`VersionCompare`/`DiffNav`/`DiffView` 全量 Tailwind 化 + 删 3 个 `.module.css`（存量 →**6**）+ **清掉阶段 0 最后一条 lint info** ⇒ `lint` **web = 0 诊断** ② **实现取舍**：半径「就近向下」规则入注释 · 动态类索引 → `LINE_STYLE` 查表 · 原生 select 保留（换原语=行为变更）但焦点态用 §4.4 ③ 真值 · 青色 `--brand-3` 废弃 → `muted-foreground` ③ **diff 内容色为有意字面值**（`#1a7f37`/`#e6ffec` · `#cf222e`/`#ffebe9`，依 §4.4 ②）；**design ⑦ 缺 `--diff-*`/`--ct-*`/`--sha-bg` 映射** → 登记 ④ **实证**：**dogfood 22/22 PASS + NO CONSOLE ERRORS**（`SMOKE_SHOT_PREFIX=t20-`，独立 Edge 会话）含 diff 三型徽章/行内容 ⇒ diff 真渲染；**并 closure T19 沙箱缺口**（「预览对话框内容」PASS）⑤ **换靶发现**：🚧 **4 共享原子件（Badge/Spinner/EmptyState/ErrorState）无归属 Task 而 T24 要删其 CSS ⇒ 阻塞 T24**（§3 表 10）+ 🟡 diff 行内徽章仍旧层 `Badge` 样式（同页两套视觉）⑥ **自检 代码 9.76 / 文档 9.69**（B3 9 · C5 9）⑦ 临时截图 `t20-*.png` 已清（不进仓） |
+| v0.16 | 2026-09-11 | sunxuewen-rush | **T20 增补（用户拍板 (a)）· 4 共享原子件换皮 ⇒ 解除 T24 阻塞**：① **范围**：`Badge`/`Spinner`/`EmptyState`/`ErrorState` + 删 4 个 `.module.css` ⇒ 存量 **6→2**（仅 CenterPage/FilterStrip = T21/T22），**T24 可照字面执行** ② **`Badge` 5 tone → AIH 语义 token**（`--success`/`--warning`/`--destructive`/`--primary`/`muted`）⇒ 同页两套视觉消除 + **`--ct-*` 消费归零**；10.5px→`text-[11px]` · `rounded-full` ③ **`Spinner` 补可访问性**：动画改 `animate-spin`（0.8s→1s 登记）+ 新增 **`motion-reduce:animate-none`**（§4.4 ⑥ 旧层只覆盖 transition）④ `EmptyState`/`ErrorState` 字阶与语义色归一（retry 圆角 9→8）⑤ **实测**：Badge `oklch(0.627 0.17 149.2)`/`bg success/10`/11px/full/mono ✓ · Spinner 顶边 primary ✓ · select 12px/r8/#fff ✓ · 历史行 13px/700 ✓ · EmptyState 13px/#64748b/pad 40-16/lh1.7 ✓ · ErrorState `role=alert`+retry `primary/10` ✓ · **dogfood PASS=22 FAIL=0 + NO CONSOLE ERRORS** ✓ · 门禁 4/4（lint web **0 诊断**）⑥ **自检 代码 9.76 → 9.84**（B3 9→10，+0.08 = 真实产物改进非口径变化）· 文档 9.69 |
