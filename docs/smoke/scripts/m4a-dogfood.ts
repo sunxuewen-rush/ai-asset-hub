@@ -3,6 +3,9 @@
 //   "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" --headless=new \
 //     --remote-debugging-port=9222 --user-data-dir=/tmp/m4a-edge-profile --disable-gpu --no-first-run about:blank
 // 运行（仓库根）：bun docs/smoke/scripts/m4a-dogfood.ts
+// ⚠ 重跑同一里程碑请加前缀 **`SMOKE_SHOT_PREFIX=<前缀>`**（不加 = 前缀空 → **直接覆盖**历史截图，
+//   变量名是 `SMOKE_SHOT_PREFIX`，不是 `SHOT_PREFIX`——2026-09-11 实测踩过）。
+// 视口：脚本自带 `Emulation.setDeviceMetricsOverride` 1440×900 桌面（见 main() 注释）。
 // 断言：五路由真实数据渲染 + 详情三 tab 交互 + console 零错误；截图写入 docs/smoke/（覆盖同名）。
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const ok = (n: string, c: boolean, extra = '') =>
@@ -64,6 +67,17 @@ async function main() {
   await send('Page.enable');
   await send('Runtime.enable');
   await send('Log.enable');
+  // 桌面视口钉死（2026-09-11 修复，实证根因）：headless 新建 tab 的默认窗口可能窄于 768px
+  // （实测 748×472 → shadcn `useIsMobile` 判为移动端）→ 侧栏退化为 **Sheet（不进 DOM）**，
+  // 「三中心 href 可达（侧栏导航）」必然**假失败**（首页 `<a>` 只剩品牌链接）。
+  // 本脚本按**桌面**语义断言（移动端不在本里程碑范围）⇒ 显式设定视口，令断言与截图宽度确定化
+  // （1440×900 = design/plan 实测口径）。
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
   const waitLoad = () =>
     new Promise<void>((res) => {
       const timer = setTimeout(() => {
@@ -112,24 +126,39 @@ async function main() {
   await nav(`${BASE}/`);
   const homeTxt = () => evalJs('document.body.innerText') as Promise<string>;
   ok('首页 hero', await until(async () => ((await homeTxt()) ?? '').includes('发现和分享AI资源')));
+  // v0.16（2026-09-11 用户拍板）：「资产总数」拆分为「技能总数 / 专家总数 / MCP 总数」——断言随之改判
+  // 三族标签；数字前置检查保留（`innerText` 顺序 = <b> 值 → <span> 标签）。
   ok(
-    '首页统计 资产总数',
-    await until(
-      async () =>
-        /[0-9]/.test(((await homeTxt()) ?? '').split('资产总数')[0]?.slice(-8) ?? '') &&
-        ((await homeTxt()) ?? '').includes('最新发布'),
-    ),
+    '首页统计 三族计数',
+    await until(async () => {
+      const txt = (await homeTxt()) ?? '';
+      return (
+        /[0-9]/.test((txt.split('技能总数')[0] ?? '').slice(-8)) &&
+        txt.includes('专家总数') &&
+        txt.includes('MCP 总数')
+      );
+    }),
   );
+  // v0.15（2026-09-11 用户拍板 A）：首页精简为「纯 hero 落地页」——原「最新发布含 demo 资产」断言
+  // 随功能区删除，改为**负向断言**锁住新 IA；另加「死链」断言（原 learnTypes CTA 指向的
+  // #explore-types 锚点已随「按类型探索」区删除）。
   ok(
-    '首页最新发布含 demo 资产',
-    await until(async () => ((await homeTxt()) ?? '').includes('LangGraph RAG 检索技能')),
+    '首页仅 hero（无「按类型探索」/「最新发布」）',
+    await until(async () => {
+      const txt = (await homeTxt()) ?? '';
+      return !txt.includes('按类型探索') && !txt.includes('最新发布');
+    }),
   );
   const homeLinks = (await evalJs(
     `[...document.querySelectorAll('a')].map((a) => a.getAttribute('href'))`,
   )) as string[];
   ok(
-    '首页入口 href 指向三中心',
+    '三中心 href 可达（侧栏导航）',
     ['/skills', '/mcps', '/agents'].every((p) => homeLinks.includes(p)),
+  );
+  ok(
+    '首页无 #explore-types 死链',
+    (await evalJs(`document.querySelector('a[href="#explore-types"]') === null`)) === true,
   );
   await shot('1-home');
 
