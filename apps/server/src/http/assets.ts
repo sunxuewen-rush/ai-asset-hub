@@ -252,7 +252,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json(assetItem(row), 201);
   });
 
-  // GET /api/assets（M4a R4：匿名放行——viewer 匿名短路 PUBLIC-only；登录态行为零变化）
+  // GET /api/assets（M4a R4：匿名放行——列表恒 `status = ACTIVE` 面，与 viewer 身份无关；
+  // M4-pre 后无可见性维度，登录态行为零变化）
   app.get('/', async (c) => {
     const principal = c.get('principal') ?? null;
     const query = c.req.query();
@@ -282,7 +283,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     });
   });
 
-  // GET /api/assets/{ns}/{slug}（T3：详情——PUBLIC 匿名可读）
+  // GET /api/assets/{slug}（T3：详情——PUBLIC 匿名可读）
   // 读面语义对齐 skillhub（SkillQueryService.getSkillDetail 分层）：
   //   asset 不存在（含 HIDDEN/ARCHIVED 非超管）→ 404 asset.not_found
   //   （M4-pre：空间归档语义消失，无 namespace_archived 出口）
@@ -298,7 +299,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json({ ...assetItem(row, metaMap.get(row.id)), labels });
   });
 
-  // GET /api/assets/{ns}/{slug}/versions（T14：版本列表——Q1 DRAFT 授权过滤）
+  // GET /api/assets/{slug}/versions（T14：版本列表——Q1 DRAFT 授权过滤）
   // 资产读面前置（403/404 分层）→ 版本状态授权（DRAFT 仅 owner/上传者/管理档；
   // 无权者列表过滤——不泄露 DRAFT 存在）
   app.get('/:slug/versions', async (c) => {
@@ -314,7 +315,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json({ items, total, limit, offset });
   });
 
-  // GET /api/assets/{ns}/{slug}/versions/compare（M4a R9：行级版本对比——匿名）
+  // GET /api/assets/{slug}/versions/compare（M4a R9：行级版本对比——匿名）
   // 静态段 compare（RegExpRouter 静态优先——先于下方 :version 参数路由命中）；
   // from/to 缺省参数 400 request.invalid；版本不存在/无权语义见 compareVersions
   app.get('/:slug/versions/compare', async (c) => {
@@ -339,7 +340,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json({ files });
   });
 
-  // GET /api/assets/{ns}/{slug}/versions/{version}（T14：版本详情——Q1 授权）
+  // GET /api/assets/{slug}/versions/{version}（T14：版本详情——Q1 授权）
   // 详情含 manifest/投影/文件清单（sha256 可核对——design §6）；三态：不存在 404 /
   // 存在但无预览权 400 version_not_published（skillhub notPublished 对齐——明示）/
   // 授权 200。列表仍过滤（skillhub listVersions 同构：授权者全见，其他仅 PUBLISHED）。
@@ -354,7 +355,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json(detail);
   });
 
-  // GET /api/assets/{ns}/{slug}/versions/{version}/files/*（M4a R8：文件内容读取——匿名预览）
+  // GET /api/assets/{slug}/versions/{version}/files/*（M4a R8：文件内容读取——匿名预览）
   // 授权 = 下载判定同语义（PUBLISHED 公开 / 预览集 / YANKED 400——文件内容是下载前奏）；
   // filePath 走 db 参数化 uq 查询（天然防穿越）+ 显式路径安全校验
   app.get('/:slug/versions/:version/files/*', async (c) => {
@@ -415,7 +416,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json(assetItem(updated!));
   });
 
-  // DELETE /api/assets/{ns}/{slug}（T4：资产删除——Q5 纠错非治理；M3 R10 条件升级）
+  // DELETE /api/assets/{slug}（T4：资产删除——Q5 纠错非治理；M3 R10 条件升级）
   // 无 PUBLISHED 且无 YANKED 版本才可删（曾分发即留档——has_yanked 400）；事务删
   // review_task/file/version/asset + 事后存储清理（孤儿文件容忍：存储删失败不阻断行删除）
   app.delete('/:slug', requireAuth(), async (c) => {
@@ -466,7 +467,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.body(null, 204);
   });
 
-  // POST /api/assets/{ns}/{slug}/versions（T13：multipart 上传——design §6 全链）
+  // POST /api/assets/{slug}/versions（T13：multipart 上传——design §6 全链）
   // 权限 = owner 本人 ∨ 管理档（M4-pre D4——原「空间成员 + rbac.can FROZEN 拒写」已随空间删除）；
   // 限流 = 每用户 10 次/分钟（skillhub publish 同构）；413 = 包体超上限前置（multipart）；
   // 校验失败 400 = 首错误码 + issues 全量（UploadValidationError 特异响应）
@@ -550,7 +551,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     }
   });
 
-  // DELETE /api/assets/{ns}/{slug}/versions/{version}（M3 T9：删除面分治——design §3.4 R5）
+  // DELETE /api/assets/{slug}/versions/{version}（M3 T9：删除面分治——design §3.4 R5）
   // 判定序：版本 404 → 状态门（M4-pre：空间写门已随空间删除）
   // （禁删态 PENDING_REVIEW/PUBLISHED/YANKED → 400 version_not_deletable——替代 M2 draft_only）
   // → 身份面（owner/管理档可删 DRAFT/SCAN_FAILED/REJECTED/UPLOADED；上传者本人仅
@@ -610,7 +611,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.body(null, 204);
   });
 
-  // POST /api/assets/{ns}/{slug}/versions/{version}/submit（T7：提交审核——M3 design §3.1 R2）
+  // POST /api/assets/{slug}/versions/{version}/submit（T7：提交审核——M3 design §3.1 R2）
   // 判定：版本 404 → canSubmitReview（M4-pre：空间写门已随空间删除）
   // （hasReviewSubmit = `role >= ADMIN`；∪ 上传者
   // 本人例外 ∪ owner 本人——05 §6.4 + R2）→ submitVersion（前态/并发/version 递增事务）。
@@ -664,7 +665,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     );
   });
 
-  // POST /api/assets/{ns}/{slug}/versions/{version}/yank（T8：撤回分发——M3 design §4.1 R9）
+  // POST /api/assets/{slug}/versions/{version}/yank（T8：撤回分发——M3 design §4.1 R9）
   // 判定：版本 404 → 管理档（`role >= ADMIN`——05 §6.4「撤回已发布版本」，
   // 非 owner/管理档——治理最严面）→ reason 必填（400 yank_reason_required）→
   // yankVersion（YANKED 三列 + latest 重算事务 + 审计）。
@@ -702,7 +703,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json({ status: 'YANKED', latestVersionId: out.latestVersionId }, 200);
   });
 
-  // PUT/DELETE /api/assets/{ns}/{slug}/labels/{labelSlug}（T11：挂载/移除——06 §3/§5.3）
+  // PUT/DELETE /api/assets/{slug}/labels/{labelSlug}（T11：挂载/移除——06 §3/§5.3）
   // 判定（design §5 R11）：label type 分判——RECOMMENDED = canManageAsset（owner/管理档
   // ADMIN/OWNER——06 §3 挂载权限）+ SUPER_ADMIN 短路；PRIVILEGED = 仅 SUPER_ADMIN。
   // 幂等：重复挂 200 / 移除不存在 204。≤10 上限（06 §1）。
@@ -762,7 +763,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.body(null, 204);
   });
 
-  // GET /api/assets/{ns}/{slug}/versions/{version}/download（T14：包下载——design §7.2 R13）
+  // GET /api/assets/{slug}/versions/{version}/download（T14：包下载——design §7.2 R13）
   // 授权序：资产读面（403/404 分层）→ 版本五档判定（PUBLISHED 公开 / UPLOADED·PENDING_REVIEW
   // 预览授权集 / YANKED → 400 version_yanked / 其余 → 400 version_not_published）→
   // 限流（60/分·IP——design G9；匿名公开下载面）→ 计数（授权过即 ++）→

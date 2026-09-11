@@ -1,7 +1,7 @@
 /**
  * /api/labels 路由组（M3 design §5 R11；06 §5.1/§5.2——定义管理 SUPER_ADMIN + 公开列表）。
  * 权限（06 §3）：定义 CRUD/排序 仅 SUPER_ADMIN（零新权限码——permissions.ts 十枚无 label 码）；
- * 挂载面（PUT/DELETE assets/{ns}/{slug}/labels/{slug}）在 T11（http/assets.ts，canManageAsset 分判）。
+ * 挂载面（PUT/DELETE assets/:slug/labels/:labelSlug）在 T11（http/assets.ts，canManageAsset 分判）。
  * 管理面错误出口 app.onError（LabelError 认领——见 app.ts 装配）。
  */
 import { Hono } from 'hono';

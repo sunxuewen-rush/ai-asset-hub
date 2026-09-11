@@ -311,7 +311,7 @@ function uploadSkillZip(): Buffer {
   ]);
 }
 
-describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () => {
+describe('POST /api/assets/{slug}/versions（T13 multipart 上传）', () => {
   it('201 全链（member 上传合法包——DRAFT + fileCount）', async () => {
     const res = await uploadZip(
       await cookieFor(member),
@@ -385,7 +385,7 @@ describe('POST /api/assets/{ns}/{slug}/versions（T13 multipart 上传）', () =
   });
 });
 
-describe('GET /api/assets/{slug} 详情（可见性——skillhub 对齐分层）', () => {
+describe('GET /api/assets/{slug} 详情（全公开——M4-pre S3 可见性已删）', () => {
   it('PUBLIC 匿名 200', async () => {
     const res = await getReq('/api/assets/ast-pub-skill');
     expect(res.status).toBe(200);

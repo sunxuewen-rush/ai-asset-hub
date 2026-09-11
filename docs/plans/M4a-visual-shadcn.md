@@ -6,7 +6,7 @@
 > `Sidebar` 原语（`collapsible="icon"` + `variant="floating"` + `SidebarTrigger`/`⌘B` + cookie 持久化 + 移动端
 > Sheet），4 处 AIH 覆盖（展开宽 204px · 图标态 48px · 圆角 2xl · 定位 `top-[58px] bottom-0`）；依据 design v0.12；
 > 性质 = 结构/行为变更（非纯视觉），共享壳正在换皮故并入；v0.3：**T1-T7 落地回写**——① §2 新增「落地记录」小节（实测证据集中登记：T4 旧层降级 + T5-T7 浏览器实测值）② T3 断言 ④ 按产物实测修正（压缩后 `html[data-base=aih]`）③ T6 断言修正（「<900px 图标态」旧实现不存在 → 不补，登记为差异）④ T7 形态修正（**保 pill**，2026-09-11 用户拍板）⑤ 依据 design 升 **v0.11**）
-> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · **T20 版本对比 + diff ✅（2026-09-11，含 4 共享原子件增补）** · **T21 中心页 ✅（2026-09-11，`.module.css` 存量 2 → 1）** · **T22 标签筛选条 ✅（2026-09-11，`.module.css` 存量归零 = 板块 F 收官）**（⬅ 板块 E 详情页 4 Task **全部完成**） · **T23 M4-pre 语义回写 ✅（2026-09-11，design 正文 18 行重写）** · T24 删旧层 · T25 门禁+全态冒烟 · T26 converge；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
+> Status: 执行中（**阶段 1**）——**阶段 0 已完成 ✅（2026-09-11 三判通过）**：板块 A 基建（T1-T3）✅ · 板块 B 共享壳（T4-T7）✅ · T7b 侧栏收起（阶段 0 增补）✅ · 板块 C 首页（T8-T12）✅ · T13 自检与硬证据 ✅（`docs/smoke/2026-09-11-m4a-visual-s0.md`）· T14 三判 ✅（气质 / 密度 / 类型色 三项 OK）· T15 门禁 + 冒烟 + 撤控件 ✅ · **T16 阶段 1 任务细化 ✅（2026-09-11）**；**阶段 1 = T17-T26**（详见 §2 板块 E/F/G）：**T17 详情页外壳 ✅（2026-09-11）** · **T18 详情页总览 + markdown ✅（2026-09-11）** · **T19 文件树 + 预览对话框 ✅（2026-09-11）** · **T20 版本对比 + diff ✅（2026-09-11，含 4 共享原子件增补）** · **T21 中心页 ✅（2026-09-11，`.module.css` 存量 2 → 1）** · **T22 标签筛选条 ✅（2026-09-11，`.module.css` 存量归零 = 板块 F 收官）**（⬅ 板块 E 详情页 4 Task **全部完成**） · **T23 M4-pre 语义回写 ✅（2026-09-11，design 正文 18 行重写）** · **T24 删旧层 ✅（2026-09-11，样式单入口 = `index.css` + `aih-theme.css`；CSS −3.24 kB）** · T25 门禁+全态冒烟 · T26 converge；**阶段 1 出口 = 五门禁全绿 + dogfood 全态 + 观感用户确认 + converge 8 维重评 ≥9**
 > 引用链：本文档 → 设计 `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **v0.22**（§N 逐 Task 引用）→ 规范 00 §5 · 07（引用不复制，契约以 design v0.22 为准）
 > 命名约定见 `docs/plans/README.md`
 
@@ -316,16 +316,24 @@
   = 18 行**（多出 §9 面包屑行）；`/tmp/aih-t23.mjs` 逐处断言「命中唯一」后写盘（21 次替换全通过）
 - **Commit**: `docs(m4a): rewrite spec-drifted sections to flat model`
 
-#### T24 删旧层（`.module.css` ×16 + `tokens.css` + `global.css`）
+#### T24 删旧层（`.module.css` ×16 + `tokens.css` + `global.css`）✅ 2026-09-11
 - **Files**: Delete `apps/web/src/styles/tokens.css` 与剩余全部 `*.module.css`；`global.css` 只保留
-  Tailwind 不提供的项（6px 细滚动条 → 建议迁入 `aih-theme.css` 后整体删除该文件）；`main.tsx` 去掉
+  Tailwind 不提供的项（6px 细滚动条 → **已迁入 `aih-theme.css`** 后整体删除该文件）；`main.tsx` 去掉
   两个旧 import
-- **Assert**: `find apps/web/src -name '*.module.css' | wc -l` = **0**；
-  `grep -rn 'styles/tokens.css\|styles/global.css' apps/web/src` = 0；
-  `grep -rn 'var(--glass-\|var(--grad-\|backdrop-filter\|var(--fs-\|var(--c-skill' apps/web/src` = 0；
-  **design §4.4 ⑦ 映射表逐项核对**（`--brand` / `--brand-2` / `--ink` / `--text-2·3` / `--bg` /
-  `--glass*` / `--grad*` / `--line-*` / `--ring-focus` / `--shadow-*` / `--tint-row` / `--c-*` /
-  `--ava-*` / `--fs-*` 均已无消费者）；细滚动条实测仍生效
+- **Assert**（✅ 全部达成，**②③ 口径执行期收紧**——同 T19 先例「禁注释参与断言」）:
+  - `find apps/web/src -name '*.module.css' | wc -l` = **0** ✅（T21/T22 已归零）
+  - ② 旧层 import 断言（**收紧为 import 级**：原「路径字符串 grep = 0」会被 main.tsx 的**历史说明注释**
+    命中 ⇒ 假失败）→ `grep -rnE "^\s*import .*styles/(tokens|global)\.css" apps/web/src` = **0** ✅
+  - ③ `grep -rn 'var(--glass-\|var(--grad-\|backdrop-filter\|var(--fs-\|var(--c-skill' apps/web/src`——
+    **收紧为「非注释行」**（17 处命中**逐条定性**后全为解释性注释：T17-T22 各文件的换皮映射说明 +
+    `FilePreviewDialog` 的「原 blur 已清」+ `aih-theme.css` 迁移块说明）⇒ 非注释行 = **0** ✅；
+    `backdrop-filter` 在 **dist 产物**中的命中 = Tailwind 自身工具脚手架（`--tw-backdrop-*` 与
+    `transition-property` 列表），非旧层残留 ✅
+  - **design §4.4 ⑦ 映射表逐项核对**（`--brand` / `--brand-2` / `--ink` / `--text-2·3` / `--bg` /
+    `--glass*` / `--grad*` / `--line-*` / `--ring-focus` / `--shadow-*` / `--tint-row` / `--c-*` /
+    `--ava-*` / `--fs-*` / `--md-*` / `--diff-*` / `--ct-*` / `--sha-bg` / `--r-*` / `--topbar-h` /
+    `--aside-w` 等 44 项）**真实消费者 = 0** ✅（44 项扫出的 17 处命中全部为注释）；细滚动条实测仍生效 ✅
+    （见落地记录：**对照实验**证明与迁移前逐位一致）
 - **Commit**: `refactor(web): drop legacy css layer after full re-skin`
 
 #### T25 阶段 1 门禁 + 冒烟全态
@@ -833,6 +841,52 @@
   两处**文档域外**残留（代码注释 14 处 · M2 design 未标注）**登记而未在本 Task 修**（范围纪律所致，
   非疏漏）→ 代码 18 维 **N/A**（本 Task 零代码改动；`git diff --stat` 仅 1 个 md 文件）
 
+**T24 删旧层（板块 G · 2026-09-11）——双栈共存期结束**
+- 落地：`git rm apps/web/src/styles/tokens.css`（126 行）+ `global.css`（106 行）· `main.tsx` 摘两处
+  旧 import（注释改「样式单入口」）· **迁移面入 `aih-theme.css`**（新「D. 旧层迁移面」段）= 6px 细蓝滚动条
+  5 条规则 + `html{scrollbar-width:thin;scrollbar-color:…}` + `body{-webkit-font-smoothing; min-height:100vh}`
+  + reduced-motion 全关块；**滚动条四值迁 `@theme`**（design §4.4 ⑥ 口径）
+- **迁移纪律（写进代码注释）**：迁移块 **保持无层**（不套 `@layer`）——与迁移前**同优先级**（原 `global.css`
+  亦无层）⇒ 零级联变化；套 `@layer base` 反而降级为可被 utilities 覆盖（无此需求）
+- **逐字对账（迁移保真）**：滚动条 5 规则 / body 两项 / reduced-motion 块与 `git show HEAD:...global.css`
+  逐条 diff = **一致** ✅（reduced-motion 块 diff 空）；已删项均为 Tailwind 已承接者（`*` reset → Preflight ·
+  body 三属性 → base · `@keyframes rise` → 已住 AIH `@theme` · `fadein` 零消费者 · `.glass`/`.bg-glow` 零消费者）
+- **浏览器实测（真站点 1440×900）**：`--scroll-thumb/track/hover/color` 四值在 `:root` 生效
+  （`rgba(37,99,235,.3)/.06/.5/.35`）✅ · `html` `scrollbar-width: thin` + `scrollbar-color: rgba(37,99,235,.35)
+  rgba(37,99,235,.06)` ✅ · `body` `-webkit-font-smoothing: antialiased` + `min-height: 900px`(=100vh) ✅ ·
+  页面底渐变仍在（`linear-gradient(rgb(248,250,255) 0%, …)`）✅ · **reduced-motion 全关生效**
+  （`Emulation.setEmulatedMedia` → hero 入场元素 `animation-duration: 1e-05s`(=0.01ms) / `iteration-count: 1`；
+  复位 `no-preference` → `0.5s`）✅
+- **滚动条深究（对照实验，避免「迁移引入」误判）**：现状 = 注入溢出容器 **15px** / 文档级 **11px**；
+  **再注入一遍「旧层同款规则」→ 同值 15/11**（⇒ 非迁移引入）；**去掉 `html` 标准属性、只留 webkit 伪元素
+  → 6px/6px**（⇒ 6px 规则本身生效）。结论：Chrome 的**标准属性（`scrollbar-width`/`scrollbar-color`，且
+  可继承）优先于 `::-webkit-scrollbar` 伪元素** ⇒ 本仓「6px 细滚动条」实际观感一直是「thin + 蓝色」
+  （迁移前后逐位一致）——**登记**：若将来要真 6px，需去掉 `html` 的两条标准属性（属观感选择，本次不动）
+- **产物体量（stash 对照实测）**：CSS **89,921 → 86,679 bytes**（**−3,242 B / −3.16 kB / −3.6%**）·
+  生产包 marker（`ReviewControls`/`data-review`/`dev-only`）仍 **0** ✅
+- **顺批清注释腐化**：登记项 14 执行 = `http/assets.ts` **12 行**路由注释 `{ns}/{slug}` → `{slug}`
+  （先守卫「命中全在注释行」）+ L255 R4 语义重写（`viewer 匿名短路 PUBLIC-only` → 列表恒 `status = ACTIVE`
+  面、与 viewer 无关）+ `http/stats.ts:10`（→「恒公开面 + `status = ACTIVE` 聚合」）+ `http/labels.ts:4`
+  （→ `assets/:slug/labels/:labelSlug`）+ `assets.test.ts` 2 处 describe 标题（`{ns}/{slug}` → `{slug}`；
+  「可见性——skillhub 对齐分层」→「全公开——M4-pre S3 可见性已删」）⇒ **合计 17 处**（登记表原记 14 处 =
+  未含 labels.ts 1 + test 2，**已在执行中枚举补齐**）
+- **验证**：门禁 typecheck 4/4 · lint（web **0 诊断**）· format:check（**212 文件**——与删前同值：biome
+  只覆盖 `**/*.ts|tsx|json`，**删 CSS 文件不改变该计数**，实测复核）· build ✅ · dogfood
+  **22/22 PASS + NO CONSOLE ERRORS**（`SMOKE_SHOT_PREFIX=t24-`，截图已清）·
+  `apps/web/src/styles/` 终态 = **仅 `aih-theme.css`** ✅
+- **换靶新发现（本靶 = 全仓引用扫描：已删文件 / 旧 token / 配置 / 产物 marker）**：
+  - ✅ 代码面零残留：`apps/server`/`apps/cli`/`packages/protocol` **零**旧 token 引用；`biome.json`/`turbo.json`/
+    `vite.config.ts`/`tsconfig.json` 零 `styles/` 引用 ✅
+  - 🟡 **3 处文档仍引用已删文件**（→ 登记 §3 表 16，**T26 converge 处置**）：① design(2026-09-09) 目录树
+    行 `└── styles/  tokens.css · global.css` ② m4b design L29「`tokens.css` 全量视觉 token 可直用」
+    ③ m4b design L670 复用清单含 `styles/tokens.css`——**三处都应指向 `styles/aih-theme.css`**
+    （M4b 若照旧引用会指向不存在的文件）
+  - 🟡 **滚动条「6px」名实不符**（Chrome 标准属性优先）——见上「滚动条深究」，本次**不动**（属观感选择；
+    迁移保真优先），登记为可选后续项
+- **自检打分（换靶轮）**：**代码 9.82 / 文档 9.69**（B 组升：净删 232 行手工 CSS + 逐字对账；A3 边界 9.5 =
+  滚动条名实不符未处理（登记）；C5 9 = `apps/web` 零单测）。⚠ 文档分不动 = 本 Task 文档侧仅 plan 回写
+  （设计文档同步归 T26）——按「禁同分重报」披露：靶与证据本轮全新（全仓引用扫描 + 对照实验 + 体量实测）
+
 ## 3. 阶段 1 范围登记（✅ 2026-09-11 已细化为 **T17-T26**，任务清单 → §2 板块 E/F/G）
 
 - **详情页**：`pages/AssetDetail.tsx` + `components/market/detail/{DetailTabs,OverviewTab,FilesTab,FileTree,FilePreviewDialog,VersionCompare,DiffNav,DiffView}.tsx`
@@ -863,8 +917,10 @@
 | 11 | **中心页页头 eyebrow 与 h1 同 i18n 键 → 文案重复**（T21 换靶发现，**自 `bdc0d5e` 中心页初版起既存**） | `CenterPage.tsx` 的 eyebrow `<span>` 用 `t('market', meta.title)`（**与 h1 同键**）⇒ zh 界面渲染「技能中心 / 技能中心」两行；design **§9 线框**要求「技能中心 Skill Center」（**EN 名** eyebrow）⇒ 代码与 design 漂移 | ✅ **已处理（用户 2026-09-11 拍板 (d)）**：eyebrow 改**语言中立的类型常量表** `TYPE_EYEBROW`（`SKILL` / `MCP` / `AGENT`）——两种语言下均与 h1 不重复、零 i18n 新增、对齐 §9「双语头」意图；实测三中心 `dup: false`。（否决备选：补 EN 名 i18n 键——英文界面下仍重复；删 `<span>`——§9 有此元素） |
 | 12 | **死导出 `buildLabelRows` / `labelName`**（T22 换靶发现，既有债） | 两符号在 `FilterStrip.tsx` 之外**零消费者**（仓内 grep 排除自身 = 0）；同 T17 的 `mainDocPath`/`manifestFields` 一类 | 维持现状（**不改**——非换皮范围，且为将来单测预留导出）；**T25/收尾**评估：要么补测试用上，要么收为模块内私有 |
 | 13 | **中心页筛选：子标签行 + 多标签 OR 无现场可验数据**（T22 换靶发现） | dev 库标签只有 **1 个 root**（`agentic`，`parentId: null`）、**0 个子标签**（`db:seed` 不建标签，标签由 API 建）⇒ `FilterStrip` 的两级组树第二行（`children.length > 0` 分支）与多标签 OR 拼装**跑不到**（换皮已按旧结构 1:1 迁移，但无渲染实证） | **T25** 全态冒烟补此两态：先建 1 个子标签（`POST /api/labels` 带 `parentId`）+ 勾选 ≥2 标签验 OR（**造数据 = 冒烟内一次性，不入 seed**） |
-| 14 | **代码注释腐化 14 处**（T23 换靶发现；同 M4-pre F17 一类） | `apps/server/src/http/assets.ts` **12 行**路由注释仍写 `{ns}/{slug}`（L285/301/317/342/357/418/469/553/613/667/705/765）+ **L255** R4 语义注释仍写「viewer 匿名短路 PUBLIC-only」；`apps/server/src/http/stats.ts:10` 仍写「PUBLIC+ACTIVE 聚合」；另有 `http/assets.test.ts` / `http/labels.ts` 含同模式字符串（**条数待枚举**） | **随 T24（删旧层）同批清**——注释只改文字、零行为影响；T24 执行时**先逐条枚举**（`grep -nE "\{ns\}/\{slug\}" apps/server/src`）再改，改完 `grep` 断言归零；不零散单独提交 |
+| 14 | **代码注释腐化 14 处**（T23 换靶发现；同 M4-pre F17 一类） | `apps/server/src/http/assets.ts` **12 行**路由注释仍写 `{ns}/{slug}`（L285/301/317/342/357/418/469/553/613/667/705/765）+ **L255** R4 语义注释仍写「viewer 匿名短路 PUBLIC-only」；`apps/server/src/http/stats.ts:10` 仍写「PUBLIC+ACTIVE 聚合」；另有 `http/assets.test.ts` / `http/labels.ts` 含同模式字符串（**条数待枚举**） | **随 T24（删旧层）同批清**——注释只改文字、零行为影响；T24 执行时**先逐条枚举**（`grep -nE "\{ns\}/\{slug\}" apps/server/src`）再改，改完 `grep` 断言归零；不零散单独提交 → ✅ **已执行（T24，2026-09-11）**：实际 **17 处**（枚举补齐 = 原记 14 + `labels.ts` 1 + `assets.test.ts` 2）· 12 行改动前**先守卫「命中全在注释行」**· 随 T24 同批提交 |
 | 15 | **`2026-09-08-m2-asset-domain-design.md` 失效内容无「作废」标注**（T23 换靶发现） | 该 design 正文（坐标 `@namespace/slug` · `visibility` 维度 · `nsSlug` 参数 · 空间角色/权限码）在 **M4-pre 后全部失效**，但文档仍以 `Status: 定稿` 呈现、无失效标记（对比惯例：M4b design 有「随之全部作废」+ 修订记录 ⏸ 搁置行） | **T26 converge 处置**：在该文档头部加**失效标注行**（指向 `2026-09-10-flat-model-refactor-design`）+ 修订记录加一行；**正文不改**（历史 design 保留原貌，同「史实不改」口径） |
+| 16 | **3 处文档仍引用已删旧层文件**（T24 换靶发现） | ① `2026-09-09-m4a-marketplace-portal-design.md:190` 目录树行 `└── styles/  tokens.css · global.css`（T24 后该目录只剩 `aih-theme.css`）② `2026-09-10-m4b-admin-console-design.md:29`「`tokens.css` 全量视觉 token 可直用」③ 同文档 `:670` 复用清单含 `styles/tokens.css` | **T26 converge 处置**：三处一律指向 **`styles/aih-theme.css`**（M4b 若照旧引用会指向不存在的文件——**影响 M4b 实现期的可用性判断**，优先级高于 §3 表 15） |
+| 17 | **细滚动条「6px」名实不符**（T24 对照实验发现，**迁移前即如此**） | `::-webkit-scrollbar{width:6px}` 与 `html{scrollbar-width:thin;scrollbar-color:…}` **并存**时，Chrome 以**标准属性为准**（且可继承）⇒ 实测 容器 15px / 文档级 11px（`thin`）；单独留 webkit 伪元素才得 6px | **本次不动**（迁移保真优先：与迁移前逐位一致）；若要真 6px ⇒ 去掉 `html` 两条标准属性（属**观感选择**，待用户定；登记备用） |
 
 ## 4. 风险与回退
 
@@ -899,3 +955,4 @@
 | v0.18 | 2026-09-11 | sunxuewen-rush | **增补 · 中心页页头 eyebrow 修重复（用户拍板 (d)）**：① **问题**：eyebrow `<span>` 与 h1 **同 i18n 键**（`t('market', meta.title)`）⇒ zh 渲染「技能中心 / 技能中心」重复；`git log -S "styles.en"` 实证**自 `bdc0d5e`（中心页初版）既存**，非 T21 换皮引入 ② **处置**：改**语言中立的类型常量表** `TYPE_EYEBROW`（`SKILL`/`MCP`/`AGENT`）——两种语言下均与 h1 不重复 · **零 i18n 新增** · 对齐 design §9 线框「双语头」意图；字面即大写（不靠 CSS `text-transform`）⇒ `textContent` 取值确定 ③ **否决备选**：补 EN 名 i18n 键（英文界面下 h1 与 eyebrow 仍同句）· 删 `<span>`（§9 线框有此元素）④ **实测**：三中心 `技能中心 / SKILL` · `MCP 中心 / MCP` · `专家中心 / AGENT`，`dup: false` ✓ · 11px/`ls 1px`/`#64748b` ✓ · 无裸键泄漏 ✓ · 门禁 4/4 绿（`dogfood` 未重跑——纯静态文案改，已由真浏览器逐中心实测覆盖） |
 | v0.19 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T22 FilterStrip 换皮落地 + 换靶自检（板块 F 收官）**：① **落地**：`FilterStrip.tsx` 全量 Tailwind 化 + 删 `FilterStrip.module.css` ⇒ **`.module.css` 存量 1 → 0**（`find` = 0）· `.glass` → 白卡 `bg-card`+`shadow-sm` · 圆角 16 不成轴 → 就近向下 `rounded-xl` · chip 三段常量（未选中 `bg-secondary`/`border-border`/hover `border-ring/40`+`text-primary`；选中 **实底 `bg-primary` + `text-primary-foreground`**，旧 `--grad-brand` 渐变 + 蓝投影为 §4.4 废弃项）· 12.5→`text-xs` · 子行 pill 与根行统一（旧 `.sub` 仅差衬底 alpha，白卡上不可辨）② **实测（1440×900）**：strip 白/r14/pad 12-16/mb14/`shadow-sm`/`backdrop-filter none` ✓ · 标题 11/700/uppercase/ls .7px/#64748b/pt7 ✓ · 未选中 chip `rgb(240,245,255)`/边 #e3eaf6/fw500/999px ✓ · 选中 chip `oklch(0.488 0.243 264.376)`+`oklch(0.97 0.014 254.604)`+边 primary+fw600+**`box-shadow none`** ✓ · 行 gap7/cols gap7/grid gap14 ✓ ③ **交互实证**：点标签 → `?label=agentic` + 列表 3→**1** + 「筛选结果：1」；点「全部」→ URL 复位 + 3 卡；默认「全部」选中（`selected.length === 0`）④ **换靶（死导出 + 覆盖缺口 + T24 前置核对）**：✅ **T24 前置全绿**——`.module.css` = 0 · 旧层 token 消费 = 0（剩 11 条 `var(--tint-*)`/`var(--ava-*)` 全属 AIH 层 `@theme` 映射）· `.glass` 消费 0（定义待 T24 删）· 旧层引用 2 处 = `main.tsx:13-14` import · 删除面 = `tokens.css` 126 + `global.css` 106 行 · 🟡 **死导出** `buildLabelRows`/`labelName`（§3 表 12）· 🟡 **覆盖缺口**：dev 库仅 1 root 标签、0 子标签 ⇒ 两级组树第二行 + 多标签 OR 无现场可验数据（§3 表 13 → T25 造数据补验）· 📌 **断言纪律自纠**：点标签后 3.5s 取样得 `on: []` 疑「选中态失效」→ 实为**过渡中间值**（`oklab(...)` 插值 vs 探针按 `oklch` 匹配）；同点位 `className` 已含正确三段类，**关过渡复测**得终值 ✓（通则：带 `transition` 的属性断言前注入 `*{transition:none!important}`）⑤ **回归**：dogfood **22/22 PASS + NO CONSOLE ERRORS**（`t22-` 前缀，截图已清）· 门禁 4/4（lint web **0 诊断**）⑥ **自检 代码 9.80 / 文档 9.69**（分与 T21 同、**靶与发现不同**，按「禁同分重报」披露） |
 | v0.20 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T23 M4-pre 语义回写落地（纯文档 Task，design 自身修正）**：① **落地**：`docs/designs/2026-09-09-m4a-marketplace-portal-design.md` 正文 **18 行**按扁平模型终态重写——§1 Scope + 前置 · §2 右栏元信息卡列 · §3 路由表 / 面包屑 / 头部 · §5.1 列表参数去 `nsSlug` · §5.2 R4 决议 2 行 + 匿名安全行 · §6 R4 · §8 详情页头部 + 段尾补注 · §8 语义修正记录 · §9 线框图 5 行；并改 §11 登记项 ✅ + 版本头 v0.22 + §12 追加 v0.22 行（**§12 旧行一字未动 = 史实不改**）② **数量自纠（量化铁律）**：v0.9 登记「17 处」系当时 grep 清单且行号已漂移 → **重新实测 = 18 行**（多出 §9 面包屑行）③ **执行方式**：`/tmp/aih-t23.mjs`（bun）逐组断言「命中次数 = 1」→ 全通过才写盘（21 组替换）④ **证据链**：事实源 `2026-09-10-flat-model-refactor-design`（R3 可见性删除 / R5 坐标裸 slug）· `http/assets.ts` `listQuerySchema` 无 `nsSlug` · `assets/service.ts:170-177` 列表 `conditions = [eq(asset.status,'ACTIVE')]` 与 viewer 无关 · `pages/AssetDetail.tsx` + `i18n/zh.ts:52-54` 实测渲染（作者/更新时间/累计下载）⑤ **验证**：正文残留仅 2 处合法命中（skillhub 组件名 / CSS 措辞）；无粘连；行数 661 → 673 ⑥ **换靶发现**：🟡 **代码注释腐化 14 处**（`http/assets.ts` 12 行 `{ns}/{slug}` + L255 PUBLIC-only + `http/stats.ts:10`）→ 登记 §3 表 14，**随 T24 同批清** · 🟡 **M2 design 失效内容无「作废」标注** → 登记表 15，**T26 converge 处置**（只加标注行，正文不改）⑦ **自检 文档 9.72**（+0.03 = 正文与事实源逐行一致 + 数量重新实测；扣分 = 域外残留登记未修）· **代码 18 维 N/A**（零代码改动）⑧ 引用链 design 升 **v0.22** |
+| v0.21 | 2026-09-11 | sunxuewen-rush | **阶段 1 · T24 删旧层落地（双栈共存期结束）+ 换靶自检**：① **落地**：`git rm` `styles/tokens.css`（126 行）+ `styles/global.css`（106 行）· `main.tsx` 摘两处旧 import（注释改「样式单入口」）· **迁移面入 `aih-theme.css` 新段「D. 旧层迁移面」**——6px 细蓝滚动条 5 规则 + `html{scrollbar-width:thin;scrollbar-color:…}` + `body{-webkit-font-smoothing; min-height:100vh}` + reduced-motion 全关块；滚动条四值迁 `@theme`（§4.4 ⑥）；**迁移块保持无层**（与迁移前同优先级 ⇒ 零级联变化）② **逐字对账**：三组规则与 `git show HEAD:…global.css` diff = 一致；已删项均为 Tailwind 已承接者（`*` reset→Preflight · body 三属性→base · `rise` keyframes→AIH `@theme` · `fadein`/`.glass`/`.bg-glow` 零消费者）③ **Assert 口径收紧（同 T19 先例）**：旧层引用断言改 **import 级**（`^\s*import .*styles/(tokens\|global)\.css` = 0）；旧语法断言改**非注释行**（17 处命中逐条定性 = 全为解释性注释）；dist 的 `backdrop-filter` = Tailwind 工具脚手架（非残留）；44 项旧 token 真实消费者 = **0** ④ **浏览器实测**：`--scroll-*` 四值在 `:root` 生效 · `html` thin + 蓝 · `body` antialiased + `min-height 900px` · 页面底渐变在 · **reduced-motion 全关生效**（动画 0.01ms / iter 1；复位 0.5s）⑤ **滚动条深究（对照实验）**：现状 15/11px；再注入旧层同款规则 → 同值（非迁移引入）；去 `html` 标准属性 → 6px（规则生效）⇒ Chrome 标准属性优先 ⇒ 本仓「6px」实际观感一直是 thin+蓝（迁移前后逐位一致）；登记表 17（本次不动）⑥ **体量（stash 对照）**：CSS **89,921 → 86,679 B（−3,242 B / −3.6%）**；生产包 marker 仍 0 ⑦ **顺批清注释腐化 = 17 处**（表 14 ✅ 已执行：`assets.ts` 12 行路由注释 + L255 + `stats.ts:10` + `labels.ts:4` + `assets.test.ts` 2 处 describe；改动前守卫「命中全在注释行」）⑧ **换靶发现**：全仓代码/配置零残留 ✅；🟡 **3 处文档仍引用已删文件**（design 目录树行 · m4b design L29/L670）→ 表 16（T26 converge，**优先级高**：影响 M4b 可用性判断）· 🟡 滚动条名实不符 → 表 17 ⑨ **门禁 4/4 + dogfood 22/22 + NO CONSOLE ERRORS** ⑩ **自检 代码 9.82 / 文档 9.69**（分同而靶全新：全仓引用扫描 + 对照实验 + 体量实测） |

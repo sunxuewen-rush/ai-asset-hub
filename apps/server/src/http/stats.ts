@@ -7,7 +7,7 @@ import type { Db } from '../db/client.js';
 
 export function createStatsRoutes({ db }: { db: Db }): Hono {
   const app = new Hono();
-  // GET /api/stats（匿名——PUBLIC+ACTIVE 聚合；首页 hero 统计条数据源）
+  // GET /api/stats（匿名——恒公开面 + `status = ACTIVE` 聚合；首页 hero 统计条数据源）
   app.get('/', async (c) => {
     const stats = await getPublicStats(db);
     return c.json(stats);

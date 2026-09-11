@@ -48,6 +48,13 @@
 @theme {
   --animate-rise: rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 
+  /* 滚动条四值（T24 自旧 `tokens.css` 逐字迁入；design §4.4 ⑥「细滚动条沿用，值迁入 @theme」）
+   * —— 无新命名空间（不生成工具类），仅登记为 CSS 变量供下方无层规则消费 */
+  --scroll-track: rgba(37, 99, 235, 0.06);
+  --scroll-thumb: rgba(37, 99, 235, 0.3);
+  --scroll-thumb-hover: rgba(37, 99, 235, 0.5);
+  --scroll-color: rgba(37, 99, 235, 0.35);
+
   @keyframes rise {
     from {
       opacity: 0;
@@ -131,5 +138,54 @@ html[data-base="aih"] {
   html[data-base="aih"] body {
     background-image: var(--gradient-page);
     background-attachment: fixed;
+  }
+}
+
+/* ── D. 旧层迁移面（T24：原 `tokens.css` / `global.css` 中「Tailwind 不提供」的项） ───────────────
+ * 迁移原则 = **保持无层**（不套 `@layer`）：与迁移前**同优先级**（原 `global.css` 亦无层），
+ * 零级联变化；套 `@layer base` 反而会让这些声明降级为可被 utilities 覆盖（无此需求）。
+ * 规则 = 原 `global.css` 逐条搬（6px 细蓝滚动条 · body 两项 · reduced-motion 全关）；
+ * 滚动条四值见上方 `@theme`（design §4.4 ⑥「细滚动条沿用，值迁入 `@theme`」）。
+ * 已删项（Tailwind 已承接）：`* { margin/padding/box-sizing }` reset → Preflight；
+ * `body` 的 font-family/background/color → Tailwind base + AIH `@theme`/`--background`；
+ * `@keyframes rise` → 已随 `--animate-rise` 住本层 `@theme`（此处不再重复）；`fadein` 零消费者；
+ * `.glass` / `.bg-glow` 换皮后零消费者（毛玻璃与氛围光斑均属 §4.4 废弃项）。 */
+
+/* 全站统一细蓝滚动条（6px；导航栏内滚隐藏由各模块自覆） */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-color) var(--scroll-track);
+}
+
+body {
+  /* font-family / background / color 归 Tailwind base（Preflight + `@theme`）——本处只留 Tailwind
+     不提供的两项（字体平滑 / body 最小高度，保页面底渐变在短内容页仍铺满视口） */
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* reduced-motion 全关（§4.4 ⑥ 沿用 v0.8；原 `global.css` 同款：无层 + `!important` 保持最高优先） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
