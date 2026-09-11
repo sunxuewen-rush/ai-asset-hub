@@ -44,20 +44,13 @@
   --grad-skill: linear-gradient(135deg, #2563eb, #3b82f6); /* icon tile 渐变（entry/center 同款） */
   --grad-mcp: linear-gradient(135deg, #0891b2, #06b6d4);
   --grad-agent: linear-gradient(135deg, #7c3aed, #a78bfa);
-  --tint-skill: rgba(37, 99, 235, 0.12); /* 类型 icon 衬底 */
-  --tint-mcp: rgba(6, 182, 212, 0.15);
-  --tint-agent: rgba(124, 58, 237, 0.13);
+  /* ⚠ 类型 icon 衬底 --tint-skill/mcp/agent 已移交 **AIH 层**（`aih-theme.css`，design §4.4 ②）——
+     本文件**禁再声明同名变量**：旧层无 `@layer` ⇒ 与 AIH 层 `:root` 同特异性时靠源序取胜
+     （实测：`--ava-*` 旧渐变曾**静默压过** AIH 实底值 → 头像仍渲染渐变。design §4.1 坑⑥） */
   --tint-row: rgba(37, 99, 235, 0.06); /* 通用行/项 hover */
 
-  /* ── Avatar 8 色板（顺序即 AssetAvatar hash 取色序——demo 卡片实例实证） ── */
-  --ava-1: linear-gradient(135deg, #f59e0b, #fbbf24); /* amber */
-  --ava-2: linear-gradient(135deg, #0891b2, #22d3ee); /* cyan */
-  --ava-3: linear-gradient(135deg, #7c3aed, #a78bfa); /* violet */
-  --ava-4: linear-gradient(135deg, #0ea5e9, #38bdf8); /* sky */
-  --ava-5: linear-gradient(135deg, #e11d48, #fb7185); /* rose */
-  --ava-6: linear-gradient(135deg, #6366f1, #818cf8); /* indigo */
-  --ava-7: linear-gradient(135deg, #2563eb, #60a5fa); /* blue */
-  --ava-8: linear-gradient(135deg, #059669, #34d399); /* emerald */
+  /* ── Avatar 8 色板已移交 **AIH 层**（`aih-theme.css`：**实底**，design §4.4 ②/⑦——本层去渐变）──
+     同 `--tint-*`：禁在此声明同名变量（无层 ⇒ 静默压过 AIH 层；实测教训见上） */
 
   /* ── 字体栈（v0.8：内网零外字体——系统栈中文优先；mono 全站元数据） ── */
   --font-sans:

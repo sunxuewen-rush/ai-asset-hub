@@ -2,10 +2,15 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/ui/AppShell.js';
+import { ReviewControls } from './dev/ReviewControls.js';
 import { I18nProvider } from './i18n/I18nProvider.js';
 import { AssetDetail } from './pages/AssetDetail';
 import { Center, type CenterType } from './pages/Center';
 import { Home } from './pages/Home';
+// 新体系入口（单入口：Tailwind v4 + shadcn token + AIH 层，design §4.4 v0.10）——plan T4 首次 import：
+// Tailwind Preflight 与工具类自此生效，**换皮视觉变更起点**
+import './index.css';
+// 双栈共存期（阶段 0）：未换皮页面仍用旧体系；阶段 1 收尾删除
 import './styles/tokens.css';
 import './styles/global.css';
 
@@ -37,6 +42,8 @@ createRoot(rootElement).render(
           </Route>
         </Routes>
       </BrowserRouter>
+      {/* 临时评审控件（plan T12）——仅 dev；`import.meta.env.DEV` 常量替换后该分支在生产被消除 */}
+      {import.meta.env.DEV && <ReviewControls />}
     </I18nProvider>
   </StrictMode>,
 );

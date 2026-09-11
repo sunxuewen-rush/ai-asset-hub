@@ -1,8 +1,8 @@
 # M4b 管理后台设计
 
 > Date: 2026-09-10
-> Updated: 2026-09-10（**v1.2：范围调整（用户 2026-09-10 拍板 A）**——§2.1 **R3 翻转**（用户管理移出 → M4c「账号与权限治理」）· §2.2 In/Out 与 §3.0 阶段对照 · §14 同步项与漂移登记 · §15 记录；v1.1：入口分层修正（恢复已拍板两层架构）+ 环节 0 收口 + 8 维自检 9.4**——`/dashboard/*` 个人面 + `/admin/*` 治理面 · 共享详情 `/reviews/:id` · 组件面域 `console/` · 新增 §5.1 页面职责矩阵 + §12 第 8 张线框；**详细变更见 §15**。v1.0：按 M4-pre 扁平化模型整体重写；v0.3/v0.2/v0.1：见 §15）
-> Status: 草稿（v1.2：**范围调整**——用户管理移出 → **M4c**（`docs/00` §5 已新增 M4c 行「账号与权限治理」）；R3 翻转为 R3′；**两项定稿条件不变**（① 视觉环节收敛 ② 三族适用性实证）。v1.1：入口分层已按 2026-09-10 用户拍板（两层 A）修正；grilling 已闭环——R1-R9 + 本轮补充锁定 5 条全部锁定；8 维自检 9.4 ≥9；**尚缺两项定稿条件**（对标 M4a Status 纪律）：① **视觉环节收敛**——R9 精简版（1 版风格板 + 2 交互 demo）→ tokens 全规格回写 §10.1 + 语义修正记录回写 §8；② **三族适用性实证**（审核详情 manifest 卡分型随 demo 实证）——两项齐备后由用户批准定稿）
+> Updated: 2026-09-10（**v1.3：视觉体系切换对齐（用户 2026-09-11 拍板）**——全站统一 **shadcn 蓝科技**，**视觉真值 SSOT 移交 M4a design §4.4**（本文件 §10.1 改为引用 + 只记控制台特有值）；§6.1 依赖/§6.2 组件树（shadcn 原语落位）/§3.1/§10.2/§13/§14/§15 同步；**顺序翻转**：原「先控制台面」→ 现「先门户换皮 → 再 M4b」（M4b 依赖 M4a 视觉体系切换先行，故本文件本期只做**对齐**、不动实现）；控制台特有值 2 项（表格密度 / 抽屉宽）**待拍板**，本版不落值；**v1.2：范围调整（用户 2026-09-10 拍板 A）**——§2.1 **R3 翻转**（用户管理移出 → M4c「账号与权限治理」）· §2.2 In/Out 与 §3.0 阶段对照 · §14 同步项与漂移登记 · §15 记录；v1.1：入口分层修正（恢复已拍板两层架构）+ 环节 0 收口 + 8 维自检 9.4**——`/dashboard/*` 个人面 + `/admin/*` 治理面 · 共享详情 `/reviews/:id` · 组件面域 `console/` · 新增 §5.1 页面职责矩阵 + §12 第 8 张线框；**详细变更见 §15**。v1.0：按 M4-pre 扁平化模型整体重写；v0.3/v0.2/v0.1：见 §15）
+> Status: 草稿（v1.3：**视觉体系对齐**——视觉真值 SSOT 移交 **M4a design §4.4**（全站 shadcn 蓝科技），本文件 §10.1 只留控制台特有值；**依赖 M4a 视觉体系切换先行**（阶段 0 探针切片 → 三判 → 剩余页换皮），M4b **尚不进入实现**。v1.2：**范围调整**——用户管理移出 → **M4c**（`docs/00` §5 已新增 M4c 行「账号与权限治理」）；R3 翻转为 R3′。**定稿条件**（对标 M4a Status 纪律）：① **视觉体系收敛**——由 M4a design **v0.20** §4.4 承载（全站 SSOT；**版本随 M4a 演进，以 M4a design 版本头为准**）+ 控制台特有值 2 项**待拍板**（表格密度 40/48 · 抽屉宽 384/560）；② **三族适用性实证**（审核详情 manifest 卡分型随原型实证）；③ grilling 已闭环（R1-R9 + 本轮补充锁定 5 条全锁定，v1.1 8 维自检 9.4）——三项齐备后由用户批准定稿）
 > Scope: M4b（00 §5）——管理与治理后台：审核队列 · 标签管理 · 资产生命周期 · 令牌 · 审计浏览；真实登录与会话（角色感知）；zh/en 双语；复用 M4a 组件基建
 > 引用链：本文档 → 规范 00 §5/§7 · 05 §3/§6 · 06 §5 · 07 全 · 08 §5/§7（引用不复制，字段与规则以规范为准）；模型事实源 = `2026-09-10-flat-model-refactor-design.md`（M4-pre）
 
@@ -61,7 +61,7 @@ M4a 消费者视角公开门户（已交付）→ **M4b 管理后台**（本文�
 | R6-b | 详情面 | **同步放宽**（R6-a 授权集）：HIDDEN/ARCHIVED 资产详情对该授权集可读；授权集之外仍 404 不泄露存在性（§7.2 R6-b）。**注**：本项修改 05 §6.4 现行的「非 ACTIVE 读面仅超管」行，列入 §14 规范同步项 |
 | R7 | 壳与入口 | **两层（2026-09-10 用户拍板 A）**：`/dashboard/*` 个人面（所有登录用户）+ `/admin/*` 治理面（`role >= ADMIN`；标签超管）——均复用 AppShell；SideNav 新增「个人」（已登录）与「管理」（`role >= 10`）两组，组级显隐 + 条目级 role 门槛——**明细以 §4 为唯一源** |
 | R8 | 品牌显示名 | **沿用 M4a 现状「AI X Hub」**（TopBar/Hero 已用；00 §3 D2 正式定名仍待决议，不阻塞 M4b） |
-| R9 | 视觉与验证 | **精简版**：tokens 沿用 M4a；仅对**控制台面**特有形态（数据表格/表单/抽屉/危险操作确认）出风格板 + 交互 demo（**1 版 + 2 demo，定死见 §10.1**）；不做三变体 sketch |
+| R9 | 视觉与验证 | **视觉体系 = M4a design §4.4 全站 SSOT（引用不复制）**；控制台面只定特有形态（数据表格密度/抽屉宽/状态映射，**特有值 2 项待拍板见 §10.1**）；产出 = **全页可点原型**（9 视图 + 评审控件；**2026-09-11 用户扩大产出范围**——原「1 版风格板 + 2 交互 demo」）；不做三变体 sketch；技术落法 = 真上 shadcn/ui（Tailwind v4 + CLI，base=radix，2026-09-11 拍板） |
 
 **本轮对齐补充锁定（2026-09-10，随 R7 分层修正一并定案）**：
 
@@ -115,7 +115,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 
 ### 3.1 登录页
 
-- 路由 `/login`，独立于 AppShell 的居中版式（复用 tokens：玻璃卡 + 品牌渐变标题）
+- 路由 `/login`，独立于 AppShell 的居中版式（shadcn `Card` + `--primary` 标题——视觉值取 M4a §4.4）
 - 通道：本地账号密码（`POST /api/auth/login`）——LDAP 企业通道经同一密码路径解析
   （05 §3.1：保留账号短路 → LDAP bind → 回退本地），前端**无需分支**
 - OIDC：`GET /api/auth/oidc/authorize` 入口跳转（服务端授权码流已落地 M1 阶段二）
@@ -223,14 +223,19 @@ SideNav 新增两组，组级显隐 + 条目级 role 门槛（机制同 new-api 
 
 ## 6. 前端架构与组件树
 
-### 6.1 依赖
+### 6.1 依赖（v1.3：样式体系**引用** M4a §4.1，不复制）
 
-**零新增运行时依赖**。复用 M4a 已批依赖：react-router-dom / react-markdown + remark-gfm
-（审核详情渲染 manifest 或文档预览）。**不引入任何 diff 相关依赖**——审核面首期不提供
-行级 diff（§6.3），`VersionCompare` 与 Diff 组件群留在 market 面不动。
+**样式/组件栈 = M4a design §4.1 + §4.4（引用不复制）**：Tailwind v4 + shadcn CLI（base=radix）+
+`cn` / `class-variance-authority` / `radix-ui` / `lucide-react` / `sonner` / `next-themes`；shadcn
+组件以源码落仓 `src/components/ui/shadcn/`；token 值一律取 §4.4（**本文件不得复制色值/字阶**）。
+M4b 在**已换皮的门户体系**上生长（M4a 视觉体系切换先行）→ **无双栈混搭期**、无 CSS Modules 残留。
 
-**版本锚**：沿用 M4a plan 锁定的版本（react-router-dom@7.18.3 / react-markdown@10.1.0 /
-remark-gfm@4.0.1），M4b 不引入新依赖、不变更版本。
+**版本锚**：`react-router-dom@7.18.3` / `react-markdown@10.1.0` / `remark-gfm@4.0.1`（M4a plan 锁定）
++ M4a 换皮实际锁定的 Tailwind / shadcn 版本（以 M4a `bun.lock` 为准）。**不引入任何 diff 相关依赖**
+——审核面首期不提供行级 diff（§6.3），`VersionCompare` 与 Diff 组件群留在 market 面不动。
+
+**控制台面特有依赖 = 无**：表格 / 抽屉 / 对话框 / 下拉 / 徽章 / 轻提示全部由 shadcn 原语覆盖
+（`Table` · `Sheet` · `Dialog` · `Select` · `DropdownMenu` · `Badge` · `Sonner` · `Skeleton`）。
 
 **验证策略（2026-09-10 锁定）**：沿用 M4a——`typecheck` + **SSR 渲染冒烟**（`docs/smoke/scripts/`，
 断言权限显隐 / 空态 / 表格行渲染）+ Edge headless dogfood。**不建 vitest / testing-library**。
@@ -246,19 +251,22 @@ src/
 │   ├── auth.ts                login · logout · me
 │   └── console.ts             me/assets · reviews · labels · tokens · audit
 ├── hooks/useMarketQuery.ts    扩展（**不新建**）：参数化 status 维度——市场面与控制台面共用（§6.3）
-├── components/ui/             跨面基础件（新增 4 + 迁入 2）
-│   ├── Toaster.tsx            轻提示（写操作成功/失败反馈——§9；全局单例挂 App）
-│   ├── SkeletonLoader.tsx     表格/详情载态骨架（控制台高频列表——优于 Spin 空屏）
+├── components/ui/             跨面基础件（既有 + shadcn 原语目录）
+│   ├── shadcn/                ← shadcn CLI 落仓目录（Table/Sheet/Dialog/Select/DropdownMenu/
+│   │                            Badge/Card/Input/Switch/Skeleton/Sonner/Tooltip/Tabs…；**与既有
+│   │                            PascalCase 原子件同目录但大小写分离**——`badge.tsx` vs `Badge.tsx`）
+│   ├── Toaster.tsx            轻提示 = shadcn `Sonner` 封装（写操作成功/失败反馈——§9；全局单例挂 App）
+│   ├── SkeletonLoader.tsx     载态骨架 = shadcn `Skeleton` 组合（表格/详情载态——优于 Spin 空屏）
 │   ├── RoleGuard.tsx          角色级守卫（RequireAuth 之上叠加 `role >= N` 判定，§4 显隐的守卫版）
 │   ├── CopyButton.tsx         复制（令牌明文/资产坐标/sha——明文场景关闭即清）
 │   ├── FileTree.tsx           ← 自 components/market/detail/ 迁入（§6.3；本体零改动）
 │   └── FilePreviewDialog.tsx  ← 自 components/market/detail/ 迁入（§6.3；本体零改动）
 ├── components/console/        新增面域（个人面 + 治理面共用）
 │   ├── PageHeader.tsx         页头（标题 + 副述 + 右侧动作槽）
-│   ├── DataTable.tsx          通用表格（列定义驱动 + 空/载/错态 + 行内动作槽）
-│   ├── Drawer.tsx             右侧抽屉（玻璃卡 + 遮罩 blur——复用 FilePreviewDialog 版式纪律）
+│   ├── DataTable.tsx          通用表格 = shadcn `Table` 封装（列定义驱动 + 空/载/错态 + 行内动作槽）
+│   ├── Drawer.tsx             右侧抽屉 = shadcn `Sheet` 封装（宽度取值**待拍板**——§10.1）
 │   ├── ConfirmDialog.tsx      危险操作确认（HIDDEN/ARCHIVED/删除/yank/吊销前）
-│   ├── StatusPill.tsx         资产/版本状态徽章（色值复用 M4a 类型色体系）
+│   ├── StatusPill.tsx         资产/版本状态徽章（色值取 M4a §4.4 ② 补丁 token——不复制）
 │   ├── FilterBar.tsx          筛选条（状态下拉 + 关键词）
 │   ├── reviews/               ReviewQueue.tsx · ReviewDetail.tsx · ReviewActions.tsx
 │   ├── labels/                LabelTree.tsx · LabelForm.tsx · LabelTranslations.tsx
@@ -452,29 +460,44 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 ## 10. UI-UX 变动总览
 
-### 10.1 视觉参照与基调（R9：气质沿用 M4a，形态参考 skillhub）
+### 10.1 视觉基线（R9：**引用 M4a design §4.4 为全站视觉真值 SSOT**）
 
-**参照三元组（对标 M4a design §10 的参照纪律——参照系必须先定，风格板才有锚点）**：
+**视觉体系 = M4a design v0.20 §4.4（引用不复制；版本随 M4a 演进，以 M4a design 版本头为准）**——色彩 token / 圆角轴 / 字阶 / 阴影 / 字体栈 /
+滚动条 / 组件真值 / **AIH token 补丁表**（`--success` / `--warning` / 类型色）/ token 映射表的
+**唯一源在 M4a §4.4**。本文件只记**控制台面特有的取值与形态**；归属分工如下（双写即漂移）：
 
-| 项 | 取值 |
+| 项 | 归属 |
 |----|------|
-| **气质（皮肤）** | 沿用 M4a tokens——蓝色科技风 + 毛玻璃（品牌渐变 / 玻璃卡 / 类型色 / 字阶 / 6px 细蓝滚动条）；控制台面**零新增色系** |
-| **形态（结构）** | 公开参照 **skillhub 管理面**（`21-skillhub/web/src/pages/admin/*` + `shared/ui/*` 的 shadcn 风格 Table/Card/Select/Input/Button）——借其信息组织形态（表格列结构 / 筛选条位序 / 分页 / 确认对话框 / 页头），**不照抄其视觉皮肤** |
-| **图标** | lucide（ISC，沿用 M4a 同一来源）；控制台面动作图标（抽屉关闭 / 复制 / 排序 / 状态点 / 危险动作）同取 lucide 系 |
+| 色彩 token · 圆角轴 · 字阶 · 阴影 · 字体栈 · 滚动条 · 组件真值 | **M4a §4.4（SSOT）** |
+| 状态语义映射（资产三态 + 版本八态 → token）与 `StatusPill` 规格 | 本文档（控制台特有） |
+| 表格密度（表头高 / 单元格 padding） | 本文档（**待拍板**：40 vs 48） |
+| 抽屉宽 | 本文档（**待拍板**：384 vs 560） |
 
-**控制台面特有形态（视觉环节补规格；个人面与治理面共用）**：
+**控制台面特有形态（个人面与治理面共用）**：
 
-- 数据表格：表头 12/600 灰、行 13/1.6、hover 浅蓝底、状态列右对齐 `tabular-nums`、
-  载态用 `SkeletonLoader` 行占位
-- 表单控件：输入框玻璃底 + 聚焦蓝边；`Select` 下拉（筛选 / 分组枚举）形态对齐 skillhub
-- 右侧抽屉：宽 560px、遮罩 blur3、头部标题 + 关闭；窄屏全宽侧滑
-- 危险操作：确认对话框 + 红系 `#cf222e` 语义色（取自 M4a diff tokens 的删除色，色系一致性）
-- **待补**：新增状态色号入 `tokens.css`（资产三态 ACTIVE 绿 / HIDDEN 琥珀 / ARCHIVED 灰、
-  版本八态的正式色值）——视觉环节定档
-- **视觉环节产出（R9 精简版定死）**：**1 版风格板**（表格 / 表单 / 抽屉 / 危险操作确认四形态）
-  + **2 个交互 demo**（`/dashboard/assets` 列表密集形态 + `/reviews/:id` 详情工作台形态）；
-  不做三变体 sketch；评审物料不进仓
-- 空/载/错三态沿用 `ui/EmptyState|Spinner|ErrorState`（表格另用 `SkeletonLoader`）
+- **数据表格**（`DataTable` = shadcn `Table` 封装）：两档真值备选——shadcn 档（表头 `h-10 px-2`
+  = 40px · 单元格 `p-2`）vs skillhub 档（表头 `h-12 px-4` = 48px · 单元格 `p-4`）；
+  **取档待拍板**（差异 = 一屏行数 vs 覆盖 class 数量）。状态列右对齐 `tabular-nums`；
+  载态用 shadcn `Skeleton` 行占位
+- **表单控件**：shadcn `Input` / `Select` / `Textarea` / `Switch`（真值见 M4a §4.4 ③）——
+  **不再自写玻璃底样式**
+- **右侧抽屉**：shadcn `Sheet`（真值 `w-3/4 sm:max-w-sm` = 384px 上限；取 560px 时覆盖为
+  `sm:max-w-[560px]`）——**待拍板**；遮罩 `bg-black/50`（无 blur）
+- **危险操作**：shadcn `Dialog` 二次确认 + `--destructive`（#e7000b）+ `Button variant="destructive"`
+  ——**不再引 M4a diff 的 #cf222e**（diff 内容色与 UI 语义色分工不同，见 M4a §4.4 ②）
+- **状态徽章**：`Badge variant="outline"` + `border-success/30 bg-success/10 text-success` 组合
+  （shadcn 无 success/warning 变体 → 走 M4a §4.4 ② 补丁 token）
+- **空/载/错三态**：载态 shadcn `Skeleton`；空/错沿用既有 `EmptyState`/`ErrorState`（换皮为
+  shadcn 语法）
+- **版本八态 → token 映射**（控制台特有，实现期随 plan 定死）：PUBLISHED = success；PENDING_REVIEW =
+  warning；SCAN_FAILED / REJECTED / YANKED = destructive；DRAFT / SCANNING = muted-foreground
+- **控制台特有值待拍板 2 项**（2026-09-11 定：本轮不落值）：① 表格密度 40 / 48
+  ② 抽屉宽 384 / 560
+
+**视觉环节产出（R9 修订，2026-09-11 用户扩大范围）**：由「1 版风格板 + 2 交互 demo」改为
+**全页可点原型**（9 视图 + 评审控件：角色 4 档 / 页面三态正常·空·载·403 / ★待拍板标注 / 中|EN）
+——用户要求逐页亲眼确认后再对齐。技术可行性实证：沙箱 spike（shadcn 真身，不进仓）；
+**M4a 换皮落地后以本仓代码为准**。不做三变体 sketch。
 
 ### 10.2 信息架构与交互要点
 
@@ -489,8 +512,8 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 - **标签管理**：两级树 + 定义 CRUD + 翻译（**固定 `zh-CN`/`en` 两行**）+ **行内上/下移**排序
   （改序后批量提交 `PUT /api/labels/order`；不做拖拽——零新增依赖）
 - **个人工作台**：角色感知卡片（见 §7.3 编排）+ 卡片动作槽跳转对应列表页
-- **状态语义可视化**：`StatusPill` 统一呈现资产三态（ACTIVE 绿 / HIDDEN 琥珀 / ARCHIVED 灰）、
-  版本八态——色系复用 M4a（新增行补入 tokens）
+- **状态语义可视化**：`StatusPill` 统一呈现资产三态（ACTIVE = success / HIDDEN = warning /
+  ARCHIVED = muted-foreground）、版本八态——**色值取 M4a §4.4 ② 补丁 token**（不复制，映射表见 §10.1）
 - 品牌显示名「AI X Hub」沿用（R8）；语言切换器沿用（控制台面与门户共用 i18n 机制）
 - **响应式**：控制台表格窄屏（<1100px）→ 容器横向滚动（保留列完整，**不做卡片化**——控制台场景
   列信息密度优先）；抽屉窄屏 → 全宽侧滑；侧栏 <900px 折叠为图标态（沿用 M4a 断点体系）
@@ -650,14 +673,17 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 - 对标源：`/Users/xuewensun/04-ws/21-skillhub`（MeController / MySkillAppService /
   controller/admin/* / web/src/pages/dashboard/my-skill-filters.ts）·
   `https://clawhub.ai/api/v1/openapi.json`（2026-09-10 实测，27 端点）
-- 视觉参照（公开）：skillhub 管理面——`21-skillhub/web/src/pages/admin/{audit-log,labels,users}.tsx`
-  + `shared/ui/*`（shadcn 风格 Table/Card/Select/Input/Button）· `shared/components/`
+- 视觉参照（公开）：**shadcn/ui**（v4，MIT；本机对照仓 `00-ui` = 官方仓 fork）——**视觉体系真值源**，
+  取值见 M4a design §4.4（引用不复制）；skillhub 管理面——`21-skillhub/web/src/pages/admin/{audit-log,labels,users}.tsx`
+  + `shared/ui/*`（Table/Card/Select/Input/Button）· `shared/components/`
   （confirm-dialog/pagination/empty-state/skeleton-loader/toaster/dashboard-page-header/role-guard/copy-button）
-  ——**形态参照**；视觉皮肤仍为 M4a tokens
-- 图标：lucide（ISC，沿用 M4a）
-- 流程：`portal-ui-design`（编排：环节 0 线框 → 1 风格板 → 2 高保真 demo → 3 tokens 定档）；
-  **不做 sketch 三变体**（R9 精简版）；线框见 §12
-- 评审物料（不进仓）：`/tmp/m4b-styleboards/`（风格板 + 交互 demo；视觉环节实跑产出）
+  ——**形态参照**（信息组织形态：表格列结构 / 筛选条位序 / 分页 / 确认对话框 / 页头）
+- 图标：lucide（ISC，沿用 M4a 同一来源）
+- 流程：`portal-ui-design`（编排：环节 0 线框 → 1 风格板 → 2 高保真 → 3 tokens 定档）+
+  `shadcn-ui-project`（shadcn v4 消费侧：CLI 装法 / 四个坑 / 组件真值表）；
+  **不做 sketch 三变体**（R9）；线框见 §12
+- 评审物料（不进仓，`/tmp` 会丢）：全页可点原型（shadcn 真身，dev :5199）——**M4a 换皮落地后
+  以本仓代码为准**
 
 ## 14. 规范同步项
 
@@ -672,6 +698,9 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 | `00` §5 · `M1-phase2` plan | **Device Flow 确认页归属漂移登记**：`M1-phase2` plan 原记「M4 web」，2026-09-10 决策改为「M4c 或随 M5 CLI」——M5 立项时二次确认；**不改写已收尾的 M1 plan**（历史完成注记不改），改在 M5 plan 内注记归属变更并引用本条 | **M4c/M5** 立项时 |
 | `2026-09-10-flat-model-refactor-design` **P3**（:120）· §2.5（:285） | **用户管理 / 角色分配旧注修订**：P3 与 §2.5 写「用户管理能力（未实现）将来落地按 `role >= ADMIN` 判定」→ M4c 立项时以 **05 §6.1/§6.4 为准**（**改角色 = 超管**；列表/启用·禁用 = 管理档），并在 M4c design 写明该修订 | **M4c** 立项时 |
 | （后置·非规范） | **审计动作常量集中化**：`audit_log.action` 现为 server 侧散落字面量（25 个），前端过滤清单靠同步维护；建议抽为共享常量（对齐 `auth/token-scopes.ts` 的常量单源模式），消除漂移 | M6 或按需 |
+| `2026-09-09-m4a-marketplace-portal-design` **§4.4** | **全站视觉真值 SSOT 引用**：M4b 控制台面视觉基线指向该节（色彩 token / 圆角轴 / 字阶 / 组件真值 / AIH 补丁表）；本文件 §10.1 只记控制台特有值（表格密度 / 抽屉宽 / 状态映射）——**双写即漂移，改动只动 SSOT** | M4b 实现期（引用即生效） |
+| （后置·非规范） | **AIH token 补丁（`--success` / `--warning` / 类型色）无规范层归属**：`07` 实测无 token / 视觉章节（2026-09-11 核）→ 补丁表登记于 M4a §4.4 ②，规范层不新增行；若将来新增视觉规范文档，补丁表随之迁入 | 按需 |
+| `00` §5 | M4a 行「视觉体系切换进行中」+ M4b 行「依赖 M4a 视觉体系切换先行」+ M5 行 **Device Flow 确认页归属**注记 | **已同步** 2026-09-11 |
 
 > ARCHIVED 语义补实的依据：clawhub 契约**无 archive 概念**，skillhub 的 `SkillStatus.ARCHIVED`
 > 语义分界亦弱——AIH 保留三态（改枚举代价 > 收益），但应在规范层写实差异，
@@ -688,3 +717,4 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 | **v1.0** | 2026-09-10 | sunxuewen-rush | **按 M4-pre 扁平化模型整体重写**（解除搁置）：角色 4 档线性单值 `role >= N`（R5 改为消费 M4-pre 已交付的 `/me → {user, role}`，本版**零服务端改动**）· 删空间域（9 端点/2 表/空间角色/FROZEN 态/`@ns/slug` 坐标全清）· 删可见性（`PATCH /:slug` 与读面可见性出口）· 坐标改全局唯一裸 slug · §7.1 契约表逐条对照源码重核（附 file:line）· G4 由 M4-pre 闭环 · 组件 ~27→~25 · audit 动作 31→25 · §12/§13/§14 同步 |
 | **v1.1** | 2026-09-10 | sunxuewen-rush | **入口分层修正（恢复已拍板决策）+ 环节 0 收口 + 8 维自检修复**：① `/dashboard/*` 个人面 + `/admin/*` 治理面（v0.1-v1.0 把个人事务全塞进 `/admin/*`，属分层缺失）② R7 改写（组级显隐 + 条目级 role 门槛）③ **共享审核详情 `/reviews/:id`**（否则提交人被 `/admin` 组级守卫挡住 → 撤回不可达）④ 章节同步 §4/§5/§6.2/§6.3/§6.4/§7.3/§10.2/§11/§12/§13 ⑤ 组件面域 `components/admin/` → `components/console/`，跨面基础件归 `ui/` ⑥ 补充锁定 5 条入 §2.1 ⑦ §7.1 端点契约逐条复核源码，全表吻合（audit action 实测 25）⑧ 8 维自检 8.8 → 修复后 9.4 ⑨ M4a 范本对标修复（断点入路由段/Status 补定稿条件/§13 补流程行/删被否决残余/线框补 4 页）⑩ **环节 0 收口**：新增 §5.1 页面职责矩阵 + §12 第 8 张线框；§15/头部按体量纪律压缩 |
 | **v1.2** | 2026-09-10 | sunxuewen-rush | **范围调整（用户拍板 A：登录留 M4b + 用户管理移出）**：① §2.1 **R3 → R3′**：用户管理移出至 **M4c「账号与权限治理」**（同属新机制：改角色/启停/建号 + `ACCESS_POLICY` 准入策略 + 重置密码 + 强制登出）——原「不入首期」理由（服务端零 HTTP 面）保留为实证，新增数据侧已就绪（`user_account.status/role` + 索引）与 M4c 依赖 M4b 组件基建的注记 ② §2.2 In 明确「认证与会话 = **前端层**，服务端 M1 已交付 → 本里程碑零服务端改动」；Out 用户管理行与 Device Flow 确认页改指 M4c ③ **新增 §3.0「认证能力 × 阶段归属」对照表**（M1 ✅ / M4b ⬜ / M4c ⬜ / M5 ⬜） ④ §14 新增三行：`05` §6.4 用户管理行（M4c 时点）· `00` §5 M4c 行（已同步）· **Device Flow 确认页 plan↔design 漂移登记** ⑤ 依据：服务端与规范实测（`auth/routes.ts:46-122` · `db/schema/users.ts:49-68` · `config/env.ts:95-96` · `docs/00` §5 v1.15）⑥ M4b 范围与两项定稿条件不变 ⑦ **自检修复（同日整合，8 维 9.2 → 见下轮重评）**：§3.3 旧编号 `（R3）`→`R3′` · §14 措辞去重（`05` §6.4 改角色沿用既有「角色分配 = 超管」行，只补 列表/启停）· §14 Device 行改为**不改写已收尾的 M1 plan** · §14 **新增 M4-pre P3/§2.5 旧注修订登记**（旧文「按 `role >= ADMIN` 判定」→ 改角色 = 超管）· `00` §5 M4b 行版本号 v1.1→v1.2 + M4c 行补**范围档位候选** |
+| **v1.3** | 2026-09-11 | sunxuewen-rush | **视觉体系切换对齐（用户拍板）**——全站统一 **shadcn 蓝科技**，本文件做**引用级对齐**（不复制、不落实现）：① **视觉真值 SSOT 移交 M4a design v0.9 §4.4**——§10.1 标题/主体重写为「引用 + 归属分工表」，控制台面只留特有项（状态语义映射 / 表格密度 / 抽屉宽）；§10.2 与 §6.2 的色值表述同步改引用 ② **§6.1 依赖重写**：删「零新增运行时依赖」→ 样式/组件栈 = M4a §4.1 + §4.4（Tailwind v4 + shadcn CLI + `cn` 等），控制台面特有依赖 = 无（Table/Sheet/Dialog/Select/DropdownMenu/Badge/Sonner/Skeleton 原语全覆盖）③ **§6.2 组件树落位**：新增 `components/ui/shadcn/` 目录（**大小写碰撞规避**：`badge.tsx` vs 既有 `Badge.tsx`、`pagination.tsx` vs `Pagination.tsx`）；Toaster→`Sonner` 封装、SkeletonLoader→`Skeleton` 组合；DataTable→`Table` 封装、Drawer→`Sheet` 封装 ④ **§3.1 登录页**：玻璃卡 + 品牌渐变标题 → shadcn `Card` + `--primary` ⑤ **危险操作语义修正**：色值 `#cf222e`（M4a diff 内容色）→ `--destructive` #e7000b（UI 语义色，两者分工不同）⑥ **R9 改写**：产出范围由「1 版风格板 + 2 交互 demo」→ **全页可点原型**（9 视图 + 评审控件；用户扩大范围）；技术落法 = 真上 shadcn/ui（用户拍板 B「一步到位省的返工」）⑦ **§14 新增三行**（SSOT 引用纪律 / AIH 补丁无规范层归属 / `00` §5 三处注记已同步）· §13 引用（+shadcn/ui 与 `shadcn-ui-project` 流程）⑧ **顺序翻转**：原 2026-09-10 拍板「先控制台面」→ 现「**先门户换皮 → 再 M4b**」（理由：共享壳为门户与控制台共用、门户类型色是 shadcn 体系最难落的一块；M4a design 升 v0.9 承载）⑨ **控制台特有值 2 项待拍板**（表格密度 40/48 · 抽屉宽 384/560）——本版**刻意不落值**（未拍板不写成契约） |

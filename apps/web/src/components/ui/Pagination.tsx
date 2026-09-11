@@ -1,9 +1,12 @@
+import { Button } from '@/components/ui/shadcn/button';
 import { useI18n } from '../../i18n/I18nProvider.js';
-import styles from './Pagination.module.css';
 
 /**
  * 分页（demo .pager：‹ 上一页 | 1 / 25 · 每页 20 | 下一页 ›）
+ *
  * offset 替换式（design §7：列表查询 offset 语义；页码 = floor(offset/limit)+1）。
+ * 换皮（plan T11）：控件换 shadcn `Button`（上一页 `outline` / 下一页 `default`）——
+ * **不引入 shadcn `Pagination` 原语**（其语义与我们的 offset 替换式不同），语义与回调零变更。
  */
 export function Pagination({
   total,
@@ -24,26 +27,27 @@ export function Pagination({
   const current = Math.floor(offset / pageSize) + 1;
   const clamped = Math.min(current, pages);
   return (
-    <div className={styles.pager}>
-      <button
+    <div className="flex items-center justify-center gap-2 pt-[18px] pb-1">
+      <Button
         type="button"
-        className={styles.prev}
+        variant="outline"
+        size="sm"
         disabled={clamped <= 1}
         onClick={() => onPageChange((clamped - 2) * pageSize)}
       >
         {t('common', 'prev')}
-      </button>
-      <span className={styles.page}>
+      </Button>
+      <span className="px-1 text-xs font-semibold text-muted-foreground">
         {t('common', 'pageOf', { n: clamped, total: pages, size: pageSize })}
       </span>
-      <button
+      <Button
         type="button"
-        className={styles.next}
+        size="sm"
         disabled={clamped >= pages}
         onClick={() => onPageChange(clamped * pageSize)}
       >
         {t('common', 'next')}
-      </button>
+      </Button>
     </div>
   );
 }

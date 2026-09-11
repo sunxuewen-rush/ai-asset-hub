@@ -1,10 +1,12 @@
-/* 全局基座：reset / 滚动条 / body / 背景光斑 / 玻璃工具类 / 动效 keyframes（tokens 见 tokens.css） */
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* 全局基座：滚动条 / body 剩余项 / 背景光斑 / 玻璃工具类 / 动效 keyframes（tokens 见 tokens.css）
+ *
+ * ⚠ plan T4 关键修复（根因：CSS 分层级联）：本文件规则**无 @layer 声明**，而无层声明优先于
+ * 一切层内声明 —— 会压掉 Tailwind（`@layer utilities`）的**全部工具类**（实测 main padding=0px）。
+ * 故本文件已降级为「只保留 Tailwind 不提供的东西」：
+ *   · 删除 `* { margin/padding/box-sizing }` reset → Tailwind **Preflight** 等价承接
+ *   · `body` 交出 font-family / background / color → Tailwind base（`bg-background` /
+ *     `text-foreground` / `--font-sans`），本文件只留 font-smoothing 与 min-height
+ * 双栈共存期结束后（阶段 1 收尾）本文件整体删除。 */
 
 /* 全站统一细蓝滚动条（demo §style 实证——导航栏内滚隐藏由各模块自覆） */
 ::-webkit-scrollbar {
@@ -28,9 +30,7 @@ html {
 }
 
 body {
-  font-family: var(--font-sans);
-  background: var(--bg);
-  color: var(--ink);
+  /* font-family / background / color 已交 Tailwind base（@layer base body）——见文件头说明 */
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
