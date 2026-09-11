@@ -11,6 +11,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const ok = (n: string, c: boolean, extra = '') =>
   console.log(`${c ? 'PASS' : 'FAIL'} ${n}${extra ? ' :: ' + extra : ''}`);
 const errors: string[] = [];
+/** 网络层 404 资源日志（单列；由 404 态断言**预期**触发，不计入 JS 错误——T25 增） */
+const netLogs: string[] = [];
 /** 可参数化（多实例并存时用）：SMOKE_BASE_URL 指向前端 dev 端口；SMOKE_SHOT_PREFIX 给截图加前缀
  *  （避免覆盖历史里程碑的 docs/smoke/*.png 产物）。 */
 const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:5173';
@@ -49,8 +51,13 @@ async function main() {
     }
     if (msg.method === 'Runtime.exceptionThrown')
       errors.push('exception: ' + (msg.params?.exceptionDetails?.text ?? '?'));
-    if (msg.method === 'Log.entryAdded' && msg.params?.entry?.level === 'error')
-      errors.push('log: ' + (msg.params.entry.text ?? '?'));
+    if (msg.method === 'Log.entryAdded' && msg.params?.entry?.level === 'error') {
+      const text = String(msg.params.entry.text ?? '?');
+      // 网络层资源加载失败（`Failed to load resource` + 404）**单列**：404 态断言会**预期**触发它；
+      // JS 错误 / 其它 log 仍严格计入 errors（T25：否则新增 404 断言会让「console 零错误」假红）
+      if (/^Failed to load resource/.test(text) && /404/.test(text)) netLogs.push(text);
+      else errors.push('log: ' + text);
+    }
     if (msg.method === 'Runtime.consoleAPICalled' && msg.params?.type === 'error') {
       errors.push(
         'console: ' +
@@ -107,6 +114,7 @@ async function main() {
   };
   const nav = async (url: string) => {
     errors.length = 0;
+    netLogs.length = 0;
     await send('Page.navigate', { url });
     await waitLoad();
     await sleep(2600);
@@ -182,6 +190,46 @@ async function main() {
   ok('中心排序栏', ((await homeTxt()) ?? '').includes('最近更新'));
   await shot('2-skills');
 
+  // 全态（T25 补）① 搜索：?q= 提交态驱动列表（design §7）——命中 1 条 + 结果头切「筛选结果」
+  await nav(`${BASE}/skills?q=LangGraph`);
+  ok(
+    '中心搜索 ?q= 命中',
+    await until(async () => ((await homeTxt()) ?? '').includes('LangGraph RAG 检索技能')),
+  );
+  ok(
+    '中心搜索结果头（筛选结果）',
+    await until(async () => ((await homeTxt()) ?? '').includes('筛选结果')),
+  );
+  await shot('2b-skills-search');
+
+  // 全态 ② 筛选：点根标签 chip → URL ?label= + 列表收窄；点「全部」→ 复位
+  await nav(`${BASE}/skills`);
+  await evalJs(
+    `(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '智能体'); if (b) b.click(); return !!b; })()`,
+  );
+  await sleep(1500);
+  ok(
+    '筛选 chip 点击 → URL ?label=',
+    ((await evalJs('location.search')) as string).includes('label=agentic'),
+  );
+  ok(
+    '筛选后列表收窄（筛选结果）',
+    await until(async () => ((await homeTxt()) ?? '').includes('筛选结果')),
+  );
+  await shot('2c-skills-filter');
+  await evalJs(
+    `(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '全部'); if (b) b.click(); return !!b; })()`,
+  );
+  await sleep(1500);
+  ok('筛选「全部」复位 URL', ((await evalJs('location.search')) as string) === '');
+  // 全态 ③ 分页：3 资产 < limit 20 ⇒ 分页控件不渲染（正当行为；真翻页需 >20 资产 → 登记）
+  ok(
+    '资产数 < limit ⇒ 无分页控件（正当缺席）',
+    (await evalJs(
+      `document.querySelector('[role="navigation"][aria-label*="分页"], nav[aria-label*="分页"]') === null`,
+    )) === true,
+  );
+
   await nav(`${BASE}/assets/demo-rag-skill`);
   const dtxt = () => evalJs('document.body.innerText') as Promise<string>;
   ok(
@@ -229,6 +277,38 @@ async function main() {
   await evalJs(`document.querySelector('button[aria-label="关闭"]').click()`);
   await sleep(600);
 
+  // §3 表 9（T25 补）：**嵌套路径文件预览**——目录未展开则先展开 → 点嵌套文件 → 断言路径与内容
+  // （此前只覆盖 root 级 SKILL.md；demo 资产 v1.1.0 的嵌套文件 = lib/embedding.ts）
+  const hasNestedRow = async () =>
+    (await evalJs(
+      `[...document.querySelectorAll('button')].some((x) => x.textContent.includes('embedding.ts'))`,
+    )) === true;
+  if (!(await hasNestedRow())) {
+    await evalJs(
+      `(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith('lib/')); if (b) b.click(); return !!b; })()`,
+    );
+    await sleep(1200);
+  }
+  const nestedClicked = await evalJs(
+    `(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes('embedding.ts')); if (b) { b.click(); return true; } return false; })()`,
+  );
+  ok('嵌套文件行 embedding.ts 可见可点', nestedClicked === true);
+  await sleep(1600);
+  ok(
+    '嵌套文件预览内容（lib/embedding.ts）',
+    await until(async () => {
+      const t = (await dtxt()) ?? '';
+      return t.includes('export interface Embedding') || t.includes('embed(text');
+    }),
+  );
+  ok(
+    '嵌套文件预览路径显示 lib/embedding.ts',
+    await until(async () => ((await dtxt()) ?? '').includes('lib/embedding.ts')),
+  );
+  await shot('4b-skill-nested-preview');
+  await evalJs(`document.querySelector('button[aria-label="关闭"]').click()`);
+  await sleep(600);
+
   await evalJs(
     `[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('版本')).click()`,
   );
@@ -259,9 +339,42 @@ async function main() {
   ok('mcp 单版本 → 暂无数据', ((await dtxt()) ?? '').includes('暂无数据'));
   await shot('6-mcp-detail');
 
+  // 全态 ④ 语言切换（zh ↔ en）：导航与页头文案切换 + 无 i18n 裸键泄漏（T25 补）
+  await nav(`${BASE}/skills`);
+  await evalJs(
+    `(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'EN'); if (b) b.click(); return !!b; })()`,
+  );
+  await sleep(1200);
+  ok(
+    '语言切换 → EN（Skill Center）',
+    await until(async () => ((await homeTxt()) ?? '').includes('Skill Center')),
+  );
+  ok('EN 下无 i18n 裸键泄漏', !/market\.[a-zA-Z]+/.test((await homeTxt()) ?? ''));
+  await shot('7-locale-en');
+  await evalJs(
+    `(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '中文'); if (b) b.click(); return !!b; })()`,
+  );
+  await sleep(1200);
+  ok(
+    '语言切换 → 中文（回切）',
+    await until(async () => ((await homeTxt()) ?? '').includes('技能中心')),
+  );
+
+  // 全态 ⑤ 404：不存在坐标 → ErrorState（含重试），不白屏（T25 补）
+  await nav(`${BASE}/assets/__no_such_asset__`);
+  ok(
+    '404 坐标 → ErrorState（未找到 + 重试）',
+    await until(async () => {
+      const t = (await dtxt()) ?? '';
+      return t.includes('重试') && (t.includes('未找到') || t.includes('not found'));
+    }),
+  );
+  ok('404 页仍渲染应用壳（侧栏在）', ((await dtxt()) ?? '').includes('技能中心'));
+  await shot('8-notfound');
+
   console.log(
     errors.length === 0
-      ? 'NO CONSOLE ERRORS'
+      ? `NO JS ERRORS${netLogs.length > 0 ? `（网络层 404 log ${netLogs.length} 条：404 态断言预期触发——非 JS 错误）` : ''}`
       : `CONSOLE ERRORS (${errors.length}):\n${errors.slice(0, 8).join('\n')}`,
   );
   ws.close();
