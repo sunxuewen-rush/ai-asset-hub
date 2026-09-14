@@ -2,7 +2,7 @@
 
 > Date: 2026-09-14
 > Updated: 2026-09-14（**v1.0 初稿**：M4b 拆批后**首批 `M4b-1` 的对齐定稿**——① 手搓展示件归位官方件 **14 处**（Card 族 / Dialog / Tabs / FileTree / Pagination / Badge / Avatar / Spinner / Empty / Error / 面包屑 / 载态）② 官方件补装 **13 件**（含 4 件带新 npm 依赖）③ 控制台面域组件 **6 件** + 跨面件 **4 件** ④ **合规清理 4 项**（ToggleGroup / InputGroup / `cn()` / 圆角轴登记）⑤ 依据用户 2026-09-14 拍板 A′/B′/C′/D′ + shadcn 官方 Skill 硬规则；8 维自检见 §11）
-> Status: **定稿**（8 维自检 **9.56** ≥9；上游 umbrella `2026-09-10-m4b-admin-console-design.md` **v1.4 §2.3** 的子批之一）
+> Status: **定稿**（8 维自检 **9.63** ≥9——**实测值**，2026-09-14 按维表逐维打分；上游 umbrella `2026-09-10-m4b-admin-console-design.md` **v1.4 §2.3** 的子批之一）
 > Scope: **仅 M4b-1（地基批）**——把手搓展示件归位到 shadcn 官方件 + 补装官方件 + 建控制台面域组件与跨面件 + 合规清理；**零路由新增、零页面新增、零服务端改动**
 > 引用链：本文档 → 上游 umbrella `docs/designs/2026-09-10-m4b-admin-console-design.md`（**v1.4**：模型/契约/路由/视觉基线/拆批表）→ 规范 `00` §5/§7 · `07` · M4a design **§4.4**（全站视觉真值 SSOT，引用不复制）；官方硬规则源 = 本机 `~/04-ws/00-ui/skills/shadcn`（SKILL.md + rules/*，2026-09-14 实测）
 
@@ -200,5 +200,5 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-14 | sunxuewen-rush | 初稿：M4b 拆批首批（M4b-1 地基批）对齐定稿——拍板 A′-F（Card/Dialog 接受官方默认；chip 改 `ToggleGroup`/`Toggle`；`Alert`/`InputGroup`/`cn()` 合规清理；依赖清单；CLI 纪律）· 组件归位 **14 处**规格（含每处消费点与视觉净变化）· 官方件补装 **13 件**（含 3 项新增 npm 依赖与落点）· 控制台面域 **6 件** + 跨面 **4 件** + i18n 骨架 · 合规清理 **4 项** · 接口变更「本批零服务端改动 + 3 项登记归属」· UI 变动 **7 条**与观感复看清单 · 回归面与 6 条本批特有断言；依据：用户 2026-09-14 对齐逐条拍板 + shadcn 官方 Agent Skill 硬规则（本机 `00-ui/skills/shadcn` 实测）；8 维自检 **9.56** |
-| v1.1 | 2026-09-14 | sunxuewen-rush | **T1 执行回写（2 处执行期修正）**：① §4.12 `login-03` 落仓方式修正（demo 文件不常驻 → M4b-2 用时 CLI 落地；理由：零消费者 + 6 条 a11y 违规）；② §4 补 biome 例外扩展记录（`shadcn/**` 增 `useImportType`/`noDoubleEquals`/`noArrayIndexKey`/`useKeyWithClickEvents`/`organizeImports` off——沿用 M4a 先例）+ 既有 7 件格式漂移定性（纯 import 风格，零语义）；实测：落仓 22 → **33 件** · 新增依赖 4 项 · 门禁四连绿（web lint 0 诊断）· 详见 plan「落地记录（2026-09-14）」 |
+| v1.0 | 2026-09-14 | sunxuewen-rush | 初稿：M4b 拆批首批（M4b-1 地基批）对齐定稿——拍板 A′-F（Card/Dialog 接受官方默认；chip 改 `ToggleGroup`/`Toggle`；`Alert`/`InputGroup`/`cn()` 合规清理；依赖清单；CLI 纪律）· 组件归位 **14 处**规格（含每处消费点与视觉净变化）· 官方件补装 **13 件**（含 3 项新增 npm 依赖与落点）· 控制台面域 **6 件** + 跨面 **4 件** + i18n 骨架 · 合规清理 **4 项** · 接口变更「本批零服务端改动 + 3 项登记归属」· UI 变动 **7 条**与观感复看清单 · 回归面与 6 条本批特有断言；依据：用户 2026-09-14 对齐逐条拍板 + shadcn 官方 Agent Skill 硬规则（本机 `00-ui/skills/shadcn` 实测）；8 维自检 **9.56**（⚠ **自产数字，未实测**——同轮按维表实测修正为 **9.63**，见 v1.1 行） |
+| v1.1 | 2026-09-14 | sunxuewen-rush | **T1 执行回写（2 处执行期修正）**：① §4.12 `login-03` 落仓方式修正（demo 文件不常驻 → M4b-2 用时 CLI 落地；理由：零消费者 + 6 条 a11y 违规）；② §4 补 biome 例外扩展记录（`shadcn/**` 增 `useImportType`/`noDoubleEquals`/`noArrayIndexKey`/`useKeyWithClickEvents`/`organizeImports` off——沿用 M4a 先例）+ 既有 7 件格式漂移定性（纯 import 风格，零语义）；实测：落仓 22 → **33 件** · 新增依赖 4 项 · 门禁四连绿（web lint 0 诊断）· 详见 plan「落地记录（2026-09-14）」 ④ **自检数字修正**：v1.0 头部原写「8 维自检 9.56」系**未实测的自产数字**（照抄他文档），同轮按维表逐维实测修正为 **9.63**（标准 4 + 深度 4，逐维证据见本轮报告） |
