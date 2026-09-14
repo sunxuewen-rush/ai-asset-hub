@@ -1,10 +1,14 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.10：版本八态映射拍板回写**——`UPLOADED` = warning（对标 21-skillhub 列表页）
+> Updated: 2026-09-14（**v0.11：T7 合规清理落地回写**——`FilterStrip` chips → 官方 `ToggleGroup`/`Toggle`
+> （`variant="chip"`+`size="chip"` 落官方源码，官方第 ④ 路径）· 根行=组/子行与「全部」= `Toggle` · 原自绘
+> 三段模板串常量与 `cls(on)` 整段删除 · 真页面交互回归（`?label=`+收窄+复位）· hover 四态与 chip 观感真值
+> 实测 · 5 条执行期说明（`spacing` 标度乘数 · 内距统一 12px · 两处 `!` 提权 · 断言①重界定 · `--radius-2xl` 维持）；
+> **v0.10：版本八态映射拍板回写**——`UPLOADED` = warning（对标 21-skillhub 列表页）
 > + `YANKED` destructive → secondary（对标 skillhub 详情页）；`StatusPill` 映射与断言④ 复测，
 > 主 design 同步升 **v1.7**（执行期说明 2 由「待确认」转「已闭合」）；**v0.9：T6 落地回写**——10 件控制台/跨面件落仓（PageHeader/DataTable/Drawer/ConfirmDialog/StatusPill/FilterBar + Toaster/SkeletonLoader/RoleGuard/CopyButton）+ `main.tsx` 挂 Toaster + i18n 三组骨架键；断言①-⑥ 全绿（临时探针页 `/__probe` 渲染全件实测后删除）；3 条执行期说明（TanStack v9 走官方 `/legacy` 子路径 · design 缺 `UPLOADED` 映射 · 探针期复现后台标签冻结 CSS 退出动画）；**v0.8：T5 落地回写**——面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible` · 分页→官方 `Pagination` 结构；断言①-④ 实测（「翻页回顶」经 grep 核查为契约-代码不一致 → **用户拍板补齐 + 可判定实测**）；**4 条执行期说明**（未用官方 `PaginationLink`（`<a>` 不可聚焦）· 回顶缺项 · `mx-auto` 口径修正 · 面包屑非零变化）；**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ 2026-09-14 · T6 ✅（落地完成，待提交批准）**；T7-T8 ⬜）
+> Status: **执行中**（**T1-T6 ✅ 2026-09-14（已推送）· T7 ✅ 落地完成，待提交批准**；T8 ⬜）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -128,17 +132,50 @@
   ⑥ `RoleGuard` 本批**只落组件**（未接线路由）；`CopyButton` 复制成功清空逻辑存在
 - **Commit**: `feat(web): add console component layer and cross-surface primitives`
 
-### T7 合规清理（design §6）
-- **Files**: Modify `components/market/FilterStrip.tsx`（`ToggleGroup`/`Toggle` + `cn()`）·
-  门户搜索行（`Hero.tsx`：按判定用 `InputGroup` **或**保持并列）· 全仓手写模板串条件类 → `cn()` ·
-  `apps/web/src/i18n/{zh,en}.ts`（三组骨架键）
-- **Assert**:
-  ① `FilterStrip` 固定集合用 `ToggleGroup`+`ToggleGroupItem`；动态标签用 `Toggle`；条件类含 `cn(`；
-     `grep -c 'CHIP_OFF\|CHIP_ON' apps/web/src/components/market/FilterStrip.tsx` = 0
-  ② 筛选交互回归：点标签 → `?label=` 生效 + 列表收窄 + 「筛选结果：N」；点「全部」→ 复位（沿用 M4a T22 断言）
-  ③ 输入框内按钮（若判定为「框内」）用 `InputGroup` + `InputGroupInput`/`InputGroupAddon`；**若为并列则不改**并在注释写明判据
-  ④ i18n 三组骨架键在 `zh`/`en` **成对存在**（`grep` 计数相等）；无裸键泄漏（语言切换冒烟复用）
-- **Commit**: `refactor(web): apply shadcn compliance rules and i18n skeletons`
+### T7 合规清理（design §6）✅（2026-09-14 落地）
+- **Files**: `components/market/FilterStrip.tsx`（chips → 官方 `ToggleGroup`/`Toggle`）·
+  `components/ui/shadcn/toggle.tsx`（**加 `variant="chip"` + `size="chip"`**——官方第 ④ 条路径）·
+  `components/market/Hero.tsx`（搜索行判据注释）· i18n 三组骨架键（**T6 已落，本 Task 复验**）
+- **落地**：根行（「全部」+ 根标签）= 官方 `ToggleGroup type="multiple"` + `ToggleGroupItem`；子行与「全部」
+  = 官方 `Toggle`（「全部」= 清空动作而非组内取值 ⇒ 与组并列，`pressed = 无任何选中`）；对外 props 契约
+  （`selected`/`onToggle`/`onClearAll`）**零变更**（组回传数组 → 取对称差逐项回调 `onToggle`）；
+  原自绘三段模板串常量与 `cls(on)` 三元**整段删除**
+- **Assert**（真浏览器实测）:
+  - **①** 结构：`data-slot=toggle-group`（`data-variant=chip` · `data-size=chip` · `data-spacing=1.75`）
+    + 2×`toggle-group-item` + 2×`toggle`；`grep -c 'CHIP_OFF\|CHIP_ON' FilterStrip.tsx` = **0** ✓；
+    **全仓模板串条件类 = 0** ✓（见执行期说明 4）
+  - **②** 交互回归（真库真页面 `/skills`，标签 `agentic`/「智能体」）：点标签 → URL **`/skills?label=agentic`** ✓
+    + 卡片 **3 → 1** ✓ + 文案「**筛选结果：1**」✓；点「全部」→ URL 复位 `/skills` + 卡片回 **3** + 「共 3 个技能」✓
+  - **③** 搜索行判定 = **并列**（`Input` 与提交 `Button` 为同层 flex 兄弟，按钮不在输入框内）⇒
+    **保持结构不改**，判据写入 `Hero.tsx` 注释 ✓（`grep -c InputGroup Hero.tsx` = 1 = **注释提及，非消费**）
+  - **④** i18n：`^  (dashboard|admin|review): {` 在 `zh.ts`/`en.ts` 各 **3** ✓；语言切换冒烟（中文→EN）
+    「标签筛选→LABELS · 全部→All · 共 3 个技能→3 skills」，**裸键泄漏 = 0** ✓
+  - **chip 观感真值**（CDP 读计算样式，**读前先关过渡**）：字阶 **12px** · 内距 **px-3(12px)** · 圆角
+    **full**（3.35544e7px）· 常态 on = `oklch(0.488 0.243 264.376)`（`--primary` 实底）+ 前景白 + `600`、
+    off = `rgb(240,245,255)`（`--secondary`）+ `rgb(100,116,139)`（muted 字）· **hover 四态**
+    （`CSS.forcePseudoState` 确定性读）：未选 = 面不变 + 字转 primary + 边 `ring/40`；选中 = 实底 primary +
+    前景白 + `600` ✓（组内项与并列 `Toggle` **同形**）· 组内 `gap = 7px` ✓
+- **执行期说明 1（`spacing` 是标度乘数，非 px）**：官方 `ToggleGroup` 的 `spacing` 经
+  `gap-[--spacing(var(--gap))]` 按 **0.25rem 标度**换算 ⇒ `spacing={7}` 实测得 **28px**；取
+  **`1.75` = 7px**（与行 `gap-[7px]` 同值）。且 `spacing={0}` 会触发官方
+  `data-[spacing=0]:rounded-none` 破坏胶囊形态 ⇒ **不可用默认值**
+- **执行期说明 2（内距 13 → 12px）**：`ToggleGroupItem` 自带 `px-3` 且与本 variant 的 `px-[13px]` 撞车时
+  原名值取胜（实测组内 12px / 并列 13px，同文案 chip 宽差 2px）⇒ variant 内距统一取 **`px-3`**，
+  与组内项、并列 `Toggle`、子行项同值。**净变化 = 内距 1px 级**（design §8.6「观感目标不变」成立）
+- **执行期说明 3（chip 外观落官方源码 = 第 ④ 路径）**：与 T4 `Badge` 同法（官方第 ④ 条路径「改组件源码加
+  variant」），零 `className` 覆盖颜色/排版。**两处必须提权**（均为实测，非推测）：① `rounded-full!`——
+  base `rounded-md` 与本 variant 同属性撞车时由**样式表定序**决定（与 class 书写顺序无关），实测恒取
+  `rounded-md`(8px)；② `data-[state=off]:hover:text-primary!`——base 自带 `hover:bg-muted`/
+  `hover:text-muted-foreground` 同特异性取胜，实测「选中态 chip 悬停会翻成灰」⇒ hover 改挂
+  `data-[state=off|on]:`（属性选择器提特异性），仅未选态 hover 字色仍需 `!` 收口
+- **执行期说明 4（断言 ① 的 `cn(` 项已重界定）**：条件类整块由官方 `data-[state=on]` 承载后，
+  `FilterStrip` 内**已无任何条件类**，故「条件类含 `cn(`」无适用场景 ⇒ 以**更强的等价断言**替代：
+  全仓 `className` 内模板串三元 **= 0**（`grep -rn '\${.*?.*:' apps/web/src --include=*.tsx`）
+- **执行期说明 5**：§6.4 `--radius-2xl`(18px) **本批不改**（消费点仅剩 `SideNav.tsx:71`，登记为
+  「潜在零消费者 token」候选，M4b 收尾统一裁剪判定）——维持原登记
+- **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（87 文件 0 诊断）· `format` ✅（232 文件）· `build` ✅
+  （CSS **107.77 kB** · JS **638.38 kB**；较 T6 +5.09 kB = `radix-ui` Toggle/ToggleGroup 原语首次进包）
+- **Commit**（待用户批准）：`refactor(web): apply shadcn compliance rules (toggle chips + i18n skeletons)`
 
 ### T8 门禁 + 冒烟 + 自检 + 文档回写
 - **Files**: Modify design（版本头/修订记录/§8/§9 状态）· 本 plan（Task 状态 + 落地记录）· `docs/00` §5 M4b-1 行 ·
@@ -442,3 +479,4 @@
 | v0.8 | 2026-09-14 | sunxuewen-rush | **T5 落地回写**：面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible`（零样式包装）· 分页→官方 `Pagination` 全族（控件按用户拍板 (c) 用官方 `PaginationPrevious`/`Next`）· 断言①-④ 实测（居中差 0 / 折叠收起不可聚焦 / 零 href 泄漏 / 末页双禁用）· 门禁四件绿 · **执行期说明 4 条**（(c) 严格用官方 `PaginationLink`：**英文硬编码标签 + 键盘不可达**两条代价实测登记、`common.prev/next` 键删除· **「翻页回顶」原为契约-代码不一致 → 用户拍板 (b) 补齐**（`handlePageChange` 内 `scrollTo`，250px 视口下 `scrollY` 291→0 而 `maxScroll` 仍 291 = 可判定实测；探针已回滚）· `mx-auto` 口径修正（真值 `justify-center`）· 面包屑官方默认非零变化）+ **待复验项 1**（URL 更新但视图推进不稳定：探针环境稳定复现、未定性为应用缺陷，留 T8/真数据无仪器复验） |
 | v0.9 | 2026-09-14 | sunxuewen-rush | **T6 落地回写**：新建 10 件（console 6 + ui 4）+ `main.tsx` 挂 `Toaster` + i18n 三组骨架键；断言①-⑥ 全绿（探针页实测：表头 40 / 单元格 p-2 / 三态齐 / 抽屉宽 560 / SheetTitle / 原因必填门 / 状态映射 / toast 单条 / 守卫两跳 / 剪贴板读回）；门禁四件绿（JS 633.16 kB，+39 kB）；**执行期说明 3 条**（TanStack v9 走官方 `/legacy` 子路径避未声明依赖 · design 缺 `UPLOADED` 映射取 secondary 待确认 · 探针期后台标签冻结 CSS 退出动画致「关闭不卸载」已定性为环境非缺陷） |
 | v0.10 | 2026-09-14 | sunxuewen-rush | **版本八态映射拍板回写**：`UPLOADED` = **warning**（对标 21-skillhub 列表页 review 档；原 design 只列 7 态、初版推断取 secondary）+ `YANKED` destructive → **secondary**（对标 skillhub 详情页灰档，且与门户侧 `VersionCompare` 代码实况一致）；主 design 同步升 **v1.7**（八态映射缺口闭合 · 执行期说明 2 由待确认转已闭合）；M4a design §4.4 门户侧表述订正 `destructive` → `neutral`（升 v0.25）；本件断言④ 映射复测。**顺带订正**：修订记录 v0.5-v0.9 行序倒挂（历史追加所致）→ 统一升序 |
+| v0.11 | 2026-09-14 | sunxuewen-rush | **T7 合规清理落地回写**：`FilterStrip` chips → 官方 `ToggleGroup`/`ToggleGroupItem`（根行）+ `Toggle`（「全部」与子行）；chip 外观落 **官方 `toggle.tsx` 加 `variant="chip"`+`size="chip"`**（第 ④ 路径，同 T4 Badge 法）；原自绘三段模板串常量与 `cls(on)` 删除 ⇒ 全仓模板串条件类 **= 0**；`Hero` 搜索行判定「并列 → 保持」+ 判据注释。断言①-④ 全绿（真浏览器：`/skills?label=agentic` + 卡片 3→1 + 「筛选结果：1」+ 「全部」复位；hover 四态 `forcePseudoState` 确定性读；i18n zh/en 各 3 键 + 切 EN 零裸键）。门禁四件绿（JS 638.38 kB，+5.09 kB = Toggle 原语首次进包）。**执行期说明 5 条**（`spacing` 按 0.25rem 标度 ⇒ 用 1.75 得 7px；内距统一 `px-3` 12px；两处 `!` 提权=`rounded-full!` + 未选态 hover 字色；断言① 的 `cn(` 项重界定为「全仓模板串=0」；`--radius-2xl` 维持不改） |

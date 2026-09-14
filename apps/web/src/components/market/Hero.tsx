@@ -63,6 +63,10 @@ export function Hero({ stats }: { stats: StatsResponse | null }) {
         {t('market', 'heroSub')}
       </p>
 
+      {/* 搜索行（M4b-1 T7 §6.2 判定 = **并列，保持现状不改结构**）：
+          判据（实测）——`Input` 与提交 `Button` 是同层 flex 兄弟（`gap-2`，按钮 `type="submit"` 独立成块），
+          按钮**不在输入框内部**；官方硬规则 5 针对的是「输入框内带按钮」（`InputGroup` + `InputGroupAddon`），
+          本处不适用 ⇒ 不制造无谓嵌套（批 design §6.2「若为并列则保持」）。 */}
       <form className="mx-auto flex w-full max-w-[900px] items-center gap-2" onSubmit={onSubmit}>
         <Input
           value={query}
