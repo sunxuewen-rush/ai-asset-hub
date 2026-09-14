@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Card } from '@/components/ui/shadcn/card';
 import { fetchAssetDetail } from '../api/assets.js';
 import type { AssetType } from '../api/types.js';
 import { fetchVersionDetail, fetchVersionList } from '../api/versions.js';
@@ -174,7 +175,7 @@ export function AssetDetail() {
       </div>
 
       {/* 头卡（T17 换皮：玻璃面 + 光斑 → 白卡 + 极轻阴影，页面级 2xl 圆角，与 hero 同档） */}
-      <div className="mb-4 rounded-2xl bg-card px-7 py-6 shadow-sm">
+      <Card className="mb-4 gap-0 px-7 py-6">
         <div className="flex flex-wrap items-center gap-2.5">
           <h1 className="text-2xl font-bold tracking-[-0.5px]">
             {detail.latestName ?? detail.slug}
@@ -192,7 +193,7 @@ export function AssetDetail() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       <div className="grid grid-cols-[1fr_320px] items-start gap-4">
         <div className="min-w-0">
@@ -202,7 +203,7 @@ export function AssetDetail() {
             sticky **78px**（= 顶栏 58 + 间距 20），均**写死**不再依赖旧层 `--aside-w`/`--topbar-h`
             （T24 删旧层后旧变量即失效——避免埋雷） */}
         <aside className="sticky top-[78px] flex flex-col gap-3.5">
-          <div className="rounded-xl bg-card px-5 py-[18px] text-center shadow-sm">
+          <Card className="gap-0 px-5 py-[18px] text-center">
             {downloadUrl && !isYanked ? (
               <a
                 className={`flex w-full items-center justify-center gap-2 rounded-lg bg-primary bg-[image:var(--gradient-cta)] px-[22px] py-[11px] text-sm font-bold text-primary-foreground no-underline transition-[filter] hover:brightness-[1.07] ${
@@ -240,9 +241,9 @@ export function AssetDetail() {
                 {tErr(dlErrorCode)}
               </p>
             )}
-          </div>
+          </Card>
 
-          <div className="rounded-xl bg-card px-5 py-[18px] shadow-sm">
+          <Card className="gap-0 px-5 py-[18px]">
             <h3 className="mb-3 text-[13px] font-bold">{t('market', 'metaInfo')}</h3>
             <div className="flex items-baseline justify-between gap-3 py-[5px] text-xs">
               <span className="shrink-0 text-muted-foreground">{t('market', 'author')}</span>
@@ -262,7 +263,7 @@ export function AssetDetail() {
                 {compactCount(detail.downloadCount)}
               </b>
             </div>
-          </div>
+          </Card>
         </aside>
       </div>
     </div>

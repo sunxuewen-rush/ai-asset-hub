@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Card } from '@/components/ui/shadcn/card';
 import type { AssetItem } from '../../api/types.js';
 import { AssetAvatar } from '../ui/AssetAvatar.js';
 import { compactCount, ownerText } from './format.js';
@@ -17,41 +18,40 @@ export function AssetCard({ item }: { item: AssetItem }) {
   const displayName = item.latestName ?? item.slug;
   const author = ownerText(item);
   return (
-    <Link
-      to={to}
-      className="group flex min-h-[158px] cursor-pointer flex-col rounded-xl bg-card px-[18px] pt-[18px] text-inherit no-underline shadow-sm transition-colors hover:bg-muted/50"
-    >
-      <div className="mb-2.5 flex items-center gap-3">
-        <AssetAvatar name={displayName} size={40} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <h3 className="truncate text-base leading-[1.25] font-bold tracking-[-0.3px] transition-colors group-hover:text-primary">
-              {displayName}
-            </h3>
-          </div>
-          <div className="flex min-w-0 items-center gap-3.5">
-            <span className="inline-flex items-center text-[11px] text-muted-foreground tabular-nums">
-              ⇣ {compactCount(item.downloadCount)}
-            </span>
-            {item.latestVersion && (
-              <span className="font-mono text-[11px] whitespace-nowrap text-muted-foreground">
-                v{item.latestVersion}
+    <Link to={to} className="flex text-inherit no-underline">
+      <Card className="group flex min-h-[158px] w-full cursor-pointer flex-col gap-0 px-[18px] pt-[18px] transition-colors hover:bg-muted/50">
+        <div className="mb-2.5 flex items-center gap-3">
+          <AssetAvatar name={displayName} size={40} />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <h3 className="truncate text-base leading-[1.25] font-bold tracking-[-0.3px] transition-colors group-hover:text-primary">
+                {displayName}
+              </h3>
+            </div>
+            <div className="flex min-w-0 items-center gap-3.5">
+              <span className="inline-flex items-center text-[11px] text-muted-foreground tabular-nums">
+                ⇣ {compactCount(item.downloadCount)}
               </span>
-            )}
+              {item.latestVersion && (
+                <span className="font-mono text-[11px] whitespace-nowrap text-muted-foreground">
+                  v{item.latestVersion}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-      <p className="mb-3 line-clamp-2 flex-1 text-[13px] leading-[1.7] text-foreground/80">
-        {item.latestDescription ?? ''}
-      </p>
-      <div className="flex items-center gap-[7px] overflow-hidden border-t border-border pt-[9px] pb-[11px] text-[11px] whitespace-nowrap text-muted-foreground">
-        {author && (
-          <>
-            <b className="overflow-hidden font-normal text-ellipsis">{author}</b>
-            <span className="size-[3px] shrink-0 rounded-full bg-muted-foreground/40" />
-          </>
-        )}
-      </div>
+        <p className="mb-3 line-clamp-2 flex-1 text-[13px] leading-[1.7] text-foreground/80">
+          {item.latestDescription ?? ''}
+        </p>
+        <div className="flex items-center gap-[7px] overflow-hidden border-t border-border pt-[9px] pb-[11px] text-[11px] whitespace-nowrap text-muted-foreground">
+          {author && (
+            <>
+              <b className="overflow-hidden font-normal text-ellipsis">{author}</b>
+              <span className="size-[3px] shrink-0 rounded-full bg-muted-foreground/40" />
+            </>
+          )}
+        </div>
+      </Card>
     </Link>
   );
 }

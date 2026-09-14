@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Card, CardHeader } from '@/components/ui/shadcn/card';
 import { Input } from '@/components/ui/shadcn/input';
 import { fetchAssetList } from '../../api/assets.js';
 import { fetchStats } from '../../api/stats.js';
@@ -140,19 +141,19 @@ export function CenterPage({ type }: { type: AssetType }) {
 
   return (
     <div className="flex flex-col">
-      <div className="mb-4 flex items-center gap-5 rounded-2xl bg-card px-[26px] py-[22px] shadow-sm">
+      <Card className="mb-4 flex flex-row items-center gap-5 px-[26px] py-[22px]">
         <span
           className={`flex size-11 shrink-0 items-center justify-center rounded-[13px] text-white ${TILE_BG[type]}`}
         >
           <TypeIcon type={type} size={22} />
         </span>
-        <div className="relative min-w-0">
+        <CardHeader className="relative min-w-0 gap-0 p-0">
           <h1 className="text-xl font-bold tracking-[-0.4px]">{t('market', meta.title)}</h1>
           <span className="text-[11px] font-semibold tracking-[1px] text-muted-foreground uppercase">
             {TYPE_EYEBROW[type]}
           </span>
           <p className="mt-1 text-[13px] text-muted-foreground">{t('market', meta.desc)}</p>
-        </div>
+        </CardHeader>
         <Input
           value={q}
           onChange={(event) => setQ(event.target.value)}
@@ -168,7 +169,7 @@ export function CenterPage({ type }: { type: AssetType }) {
             {t('market', meta.badge)}
           </span>
         </div>
-      </div>
+      </Card>
 
       <FilterStrip selected={labels} onToggle={toggleLabel} onClearAll={clearLabels} />
 

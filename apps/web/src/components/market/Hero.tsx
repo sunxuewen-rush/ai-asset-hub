@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/shadcn/button';
+import { Card } from '@/components/ui/shadcn/card';
 import { Input } from '@/components/ui/shadcn/input';
 import type { StatsResponse } from '../../api/types.js';
 import { useI18n } from '../../i18n/I18nProvider.js';
@@ -51,7 +52,7 @@ export function Hero({ stats }: { stats: StatsResponse | null }) {
   // 的子项**必须显式 `w-full`**（`mx-auto w-full max-w-[Npx]`）——form 与 heroSub 两处均已补。
 
   return (
-    <section className="flex flex-1 flex-col justify-center rounded-2xl bg-card px-10 py-12 text-center shadow-sm [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms]">
+    <Card className="flex flex-1 flex-col justify-center gap-0 px-10 py-12 text-center [&>*]:animate-rise [&>*:nth-child(2)]:[animation-delay:50ms] [&>*:nth-child(3)]:[animation-delay:100ms] [&>*:nth-child(4)]:[animation-delay:150ms] [&>*:nth-child(5)]:[animation-delay:200ms]">
       <h1 className="mb-[18px] text-[96px] leading-[1.02] font-bold tracking-[-3px] max-[1100px]:text-[72px] max-[1100px]:tracking-[-2.4px] max-[760px]:text-[52px] max-[760px]:tracking-[-1.6px]">
         <em className="bg-[image:var(--gradient-brand)] bg-clip-text not-italic text-transparent">
           AI X Hub
@@ -95,6 +96,6 @@ export function Hero({ stats }: { stats: StatsResponse | null }) {
           </div>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }

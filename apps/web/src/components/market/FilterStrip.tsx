@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/shadcn/card';
 import { fetchLabels } from '../../api/labels.js';
 import type { LabelDto } from '../../api/types.js';
 import { useApi } from '../../hooks/useApi.js';
@@ -69,7 +70,7 @@ export function FilterStrip({
   const cls = (on: boolean) => `${CHIP} ${on ? CHIP_ON : CHIP_OFF}`;
 
   return (
-    <div className="mb-3.5 flex items-start gap-3 rounded-xl bg-card px-4 py-3 shadow-sm">
+    <Card className="mb-3.5 flex flex-row items-start gap-3 px-4 py-3">
       <span className="shrink-0 pt-[7px] text-[11px] font-bold tracking-[0.7px] text-muted-foreground uppercase">
         {t('market', 'tagFilter')}
       </span>
@@ -104,6 +105,6 @@ export function FilterStrip({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

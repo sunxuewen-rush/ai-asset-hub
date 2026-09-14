@@ -1,8 +1,8 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **执行中**（**T1 ✅ 2026-09-14**；T2-T8 ⬜）
+> Updated: 2026-09-14（**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
+> Status: **执行中**（**T1 ✅ · T2 ✅ 2026-09-14**；T3-T8 ⬜）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -48,7 +48,7 @@
   ⑥ block 文件 import 路径已由 CLI 改写为项目 alias（`grep -rn '@registry/new-york-v4' apps/web/src` = 0）
 - **Commit**: `chore(web): add shadcn official components and console deps`
 
-### T2 Card 全站归位（design §3.1）
+### T2 Card 全站归位 ✅（2026-09-14 落地；design §3.1）
 - **Files**: Modify `components/market/Hero.tsx` · `components/market/CenterPage.tsx` · `components/market/FilterStrip.tsx` ·
   `components/market/detail/DetailTabs.tsx` · `components/market/detail/{OverviewTab,FilesTab,VersionCompare,DiffNav,DiffView}.tsx` ·
   `pages/AssetDetail.tsx` · `components/market/AssetCard.tsx`
@@ -169,6 +169,46 @@
    `a11y.useKeyWithClickEvents` off · `assist.actions.source.organizeImports` off
    （依据：官方源码非本仓风格，逐文件改 = 偏离上游且抬高升级成本）
 
+**T2 Card 全站归位 ✅**
+
+- 归位 **8 处**（实测）：`Hero`（`section` → `Card`）· `CenterPage` 页头（+`CardHeader`）· `FilterStrip`
+  滤镜条 · `DetailTabs` 卡壳 · `AssetDetail` 头卡 + 右栏下载卡 + 元信息卡 · `AssetCard`（`Link` 内包 `Card`）
+- 形态交官方默认：`rounded-xl`(14px) · 1px `border` · `bg-card` · `shadow-sm`——自写的
+  `rounded-2xl`/`rounded-xl`/`bg-card`/`shadow-sm` 全删；官方基类 `gap-6 py-6` 按处用 `gap-0`/`py-0` 归零
+  （布局类，§3.1「内距用 className 调」授权）；AIH 内距原样保留
+- 门禁（web 侧）：`typecheck` ✅ · `lint` ✅（78 文件 0 诊断）· `format`（1 文件重排）· `build` ✅
+  （CSS **108.91 kB** / JS **565.67 kB**——较 T1 后 CSS −0.09 kB，自写卡类删除所致）
+- **断言②**：`grep -rn 'rounded-2xl bg-card' apps/web/src` = **0** ✓
+- **断言③**：`border-0` 余 9 处，逐条定性 = 官方件源码 3（`input-group`/`table`/`input`）+ 原生行/遮罩重置 6
+  （`DiffView`/`DiffNav`/`FileTree`/`FilePreviewDialog`）⇒ **Card 相关 = 0** ✓；顺手清 `DetailTabs` tab 按钮的
+  `border-0`（Tailwind preflight 已归零，冗余）
+- **断言④**（真浏览器 1440×900 计算值实测，8/8 命中「页面级 18→14px + 全站 +1px 描边」= design §8.1）
+
+  | 页 | 卡 | radius | border-b | 内距实测(py/px) | rowGap |
+  |----|----|:--:|:--:|:--:|:--:|
+  | `/` | hero | **14px** | **1px** | 48 / 40 | 0 |
+  | `/skills` | 页头 | 14px | 1px | 22 / 26 | 20 |
+  | `/skills` | 滤镜条 | 14px | 1px | 12 / 16 | 12 |
+  | `/skills` | `AssetCard` ×3 | 14px | 1px | 18 / 18 | 0 |
+  | `/assets/:slug` | 头卡 | 14px | 1px | 24 / 28 | 0 |
+  | `/assets/:slug` | `DetailTabs` 壳 | 14px | 1px | 0 / 0 | 0 |
+  | `/assets/:slug` | 下载卡 | 14px | 1px | 18 / 20 | 0 |
+  | `/assets/:slug` | 元信息卡 | 14px | 1px | 18 / 20 | 0 |
+
+- **断言⑤**（三态/语义）：`/skills?q=zzzzzzzz` 空态下页头卡结构形态不变 ✓ · `role=tab` 3 / `role=tabpanel` 1
+  保留 ✓ · `h1`（详情页）与 `h3`（元信息卡）标题语义保留 ✓
+- 观感复看：**待用户人工确认**（首页 / 三中心 / 详情页；实现侧只报计算值）
+
+**执行期说明（2 处）**
+
+1. **「13 处」拆账（实测）**：design §3.1 记「嵌套卡 13 处」，按实测 = **8 处真卡容器**（本轮归位）+
+   **5~6 处 `bg-secondary` 展示 tile**（Hero 统计条 5 + 中心页计数 1——`Hero.tsx` 原注释已登记「不引
+   `ui/shadcn/card`：官方白底在 hero 白卡内不可见、内距过重」）。tile 不属「卡归位」面，保持手搓；
+   → **登记为 T8 回写项**（design §3.1 消费点列按此拆账）
+2. **官方子件按需使用**：有标题/分区的卡用 `CardHeader` 等子件（`CenterPage` 页头）；无标题的纯内容卡
+   `Card` + 子元素直挂（不硬塞 `CardContent`，避免为取消 `px-6` 写无意义覆盖）；**标题元素保持
+   `h1`/`h3`**（`CardTitle` 渲染为 `div`，替换会降级标题语义——a11y 优先）
+
 ## 3. 风险与回退
 
 - **回退面**：逐 Task 独立 commit ⇒ 可单件 `git revert`；官方件与手搓件在归位期间**并存同 commit**，无中间态
@@ -187,3 +227,4 @@
 | v0.1 | 2026-09-14 | sunxuewen-rush | 初稿：M4b-1 地基批 Task 清单 **T1-T8**（补装+依赖 → Card → Dialog+Tabs → 展示件 → 面包屑/Collapsible/Pagination → 控制台面域+跨面件+Toaster → 合规清理 → 门禁/冒烟/自检/回写），每 Task 含 Files / Assert（可现场跑）/ Commit；风险与回退、登记项；依据 design `2026-09-14-m4b1-console-foundation-design.md` v1.0 定稿 |
 | v0.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户定：主 design ↔ 批 design）**——全篇 `umbrella` → **主 design**（2 处）；引用链措辞统一 |
 | v0.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§1 目标）② 依赖口径 → **4 个包 / 3 组**（落地记录 + §3 风险）③ 对上游主 design 的 2 处硬版本引用去值（版本头 Updated · 引用链）④ T1 Files 的 `login-03` 按执行期修正 1 回写为「已移除」⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
+| v0.4 | 2026-09-14 | sunxuewen-rush | **T2 落地回写**：Card 全站归位 **8 处**（Hero/CenterPage 页头/FilterStrip/DetailTabs 壳/AssetDetail×3/AssetCard）· 断言 ②③④⑤ 全绿（④ = 真浏览器 8/8 卡 14px + 1px 描边实测）· 门禁 web 四连绿（CSS 108.91 kB / JS 565.67 kB）· **执行期说明 2 处**（「13 处」按实测拆账 = 8 卡 + 5~6 tile，登记 T8 回写；官方子件按需使用 + `h1`/`h3` 语义保留） |

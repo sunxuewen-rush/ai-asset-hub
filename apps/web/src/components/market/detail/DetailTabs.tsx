@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react';
+import { Card } from '@/components/ui/shadcn/card';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 
 export type DetailTab = 'overview' | 'files' | 'versions';
@@ -32,7 +33,7 @@ export function DetailTabs({ renderPane }: { renderPane: (tab: DetailTab) => Rea
   const { t } = useI18n();
   const [active, setActive] = useState<DetailTab>('overview');
   return (
-    <div className="overflow-hidden rounded-xl bg-card shadow-sm">
+    <Card className="overflow-hidden gap-0 py-0">
       <div className="flex gap-1 border-b border-border px-2.5 pt-2" role="tablist">
         {TABS.map(({ key, labelKey }) => {
           const on = active === key;
@@ -42,7 +43,7 @@ export function DetailTabs({ renderPane }: { renderPane: (tab: DetailTab) => Rea
               type="button"
               role="tab"
               aria-selected={on}
-              className={`relative cursor-pointer border-0 bg-transparent px-4 py-[9px] text-[13px] font-semibold transition-colors ${
+              className={`relative cursor-pointer bg-transparent px-4 py-[9px] text-[13px] font-semibold transition-colors ${
                 on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
               }`}
               onClick={() => setActive(key)}
@@ -61,6 +62,6 @@ export function DetailTabs({ renderPane }: { renderPane: (tab: DetailTab) => Rea
       <div className="px-[18px] pt-4 pb-[18px]" role="tabpanel">
         {renderPane(active)}
       </div>
-    </div>
+    </Card>
   );
 }
