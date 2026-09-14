@@ -141,13 +141,21 @@ export function CenterPage({ type }: { type: AssetType }) {
 
   return (
     <div className="flex flex-col">
+      {/*
+        ⚠️ T2 归位后的回归修复（2026-09-14 实测）：shadcn v4 的 `CardHeader` 自带
+        `@container/card-header` ⇒ 计算样式 container-type: **inline-size**（内联尺寸包含）⇒
+        **它不按内容撑开自身宽度**。放进 `flex flex-row` 当 flex item 时，自动宽度解析为 0，
+        描述文字被压到 min-content（43~64px）⇒ 6~12 行、卡高 240~357px（/skills /mcps /agents 三页）。
+        **`flex-1` 为必需项**：显式给这个 flex item 宽度上下文（形态零变化：图标 44 / 搜索框 240 /
+        计数块 97 / 内距 26·22 均不动）。后续 Card 子件进 flex 行时同查此坑。
+      */}
       <Card className="mb-4 flex flex-row items-center gap-5 px-[26px] py-[22px]">
         <span
           className={`flex size-11 shrink-0 items-center justify-center rounded-[13px] text-white ${TILE_BG[type]}`}
         >
           <TypeIcon type={type} size={22} />
         </span>
-        <CardHeader className="relative min-w-0 gap-0 p-0">
+        <CardHeader className="relative min-w-0 flex-1 gap-0 p-0">
           <h1 className="text-xl font-bold tracking-[-0.4px]">{t('market', meta.title)}</h1>
           <span className="text-[11px] font-semibold tracking-[1px] text-muted-foreground uppercase">
             {TYPE_EYEBROW[type]}

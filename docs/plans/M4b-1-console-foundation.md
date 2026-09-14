@@ -1,7 +1,7 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
+> Updated: 2026-09-14（**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
 > Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ 2026-09-14**；T4-T8 ⬜）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
@@ -59,7 +59,10 @@
   ③ **零 `border-0` / 零颜色覆盖**：`grep -rn 'border-0' apps/web/src/components apps/web/src/pages` = 0（针对 Card 相关）
   ④ 实测计算值（真浏览器，1440×900，关过渡）：卡 `border-radius` **14px** · `border-bottom-width` **1px** · 内距与 design §8.2 记录一致
   ⑤ 受影响页三态（载/空/错）与交互零变更
-- **Commit**: `refactor(web): adopt shadcn Card across portal surfaces`
+  ⑥ **页头 `CardHeader` 必须显式给宽度上下文（`flex-1`）**：shadcn v4 的 `CardHeader` 自带
+     `@container/card-header`（计算样式 `container-type: inline-size`）⇒ 在 `flex` 行内自动宽度解析为 **0**
+     ⇒ 描述塌成 min-content（回归实测 240~357px 卡高）。已落地，见「落地记录 · T2 回归修复」
+- **Commit**: `refactor(web): adopt shadcn Card across portal surfaces`（回归修复另提 `fix(web): restore center header width`）
 
 ### T3 Dialog + Tabs 归位 ✅（2026-09-14 落地；a11y 债清零；design §3.2/§3.3）
 - **Files**: Modify `components/market/detail/FilePreviewDialog.tsx` · `components/market/detail/DetailTabs.tsx`
@@ -209,6 +212,23 @@
    `Card` + 子元素直挂（不硬塞 `CardContent`，避免为取消 `px-6` 写无意义覆盖）；**标题元素保持
    `h1`/`h3`**（`CardTitle` 渲染为 `div`，替换会降级标题语义——a11y 优先）
 
+**T2 回归修复 ✅（2026-09-14，用户复看发现）**
+
+- **缺陷**：`CenterPage` 页头 `CardHeader`（shadcn v4，自带 `@container/card-header` ⇒ `container-type:
+  inline-size` = 内联尺寸包含）被放进 `Card` 的 `flex flex-row` 当 flex item ⇒ **自动宽度解析为 0**，
+  描述文字压到 min-content（**43~64px**）⇒ **6~12 行** · 卡高 **240~357px**
+  （`/skills` 240 · `/mcps` 357 · `/agents` 318；1440px 视口同样命中：卡宽 1192 / 页头宽 0）
+- **归属**：T2 引入（`git show 45ce805^` 该处为普通 `<div className="relative min-w-0">`，按内容自撑正常）；
+  全仓 `CardHeader` 仅此 1 处 ⇒ 影响面 = 3 个中心页
+- **修**：补 `flex-1`（显式给 flex item 宽度上下文）；形态零变化（图标 44 / 搜索框 240 / 计数块 97 /
+  内距 26·22 均不动）——不构成设计变更
+- **复测**（真浏览器，修后）：页头宽 **0 → 682~697**；三页 **1440px 均 1 行 / 卡高 120px** ·
+  **1024px 均 2 行 / 卡高 134px** ✓
+- **窄屏遗留**：<768px（卡宽 509）固定宽 44+240+97=381 vs 可用 457 ⇒ 仍多行；属「中心页响应式策略」，
+  未夹带（用户 2026-09-14 拍板 A；B/C 另议）
+- **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（78 文件 0 诊断）· `format:check` ✅（223 文件）· `build` ✅
+- **Commit**: `fix(web): restore center header width (CardHeader size containment)`
+
 **T3 Dialog + Tabs 归位 ✅**
 
 - `FilePreviewDialog`：自绘浮层（`role="dialog"` + `aria-modal` + 手挂 Esc + 真 button 遮罩 + 手写
@@ -264,4 +284,5 @@
 | v0.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户定：主 design ↔ 批 design）**——全篇 `umbrella` → **主 design**（2 处）；引用链措辞统一 |
 | v0.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§1 目标）② 依赖口径 → **4 个包 / 3 组**（落地记录 + §3 风险）③ 对上游主 design 的 2 处硬版本引用去值（版本头 Updated · 引用链）④ T1 Files 的 `login-03` 按执行期修正 1 回写为「已移除」⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
 | v0.4 | 2026-09-14 | sunxuewen-rush | **T2 落地回写**：Card 全站归位 **8 处**（Hero/CenterPage 页头/FilterStrip/DetailTabs 壳/AssetDetail×3/AssetCard）· 断言 ②③④⑤ 全绿（④ = 真浏览器 8/8 卡 14px + 1px 描边实测）· 门禁 web 四连绿（CSS 108.91 kB / JS 565.67 kB）· **执行期说明 2 处**（「13 处」按实测拆账 = 8 卡 + 5~6 tile，登记 T8 回写；官方子件按需使用 + `h1`/`h3` 语义保留） |
+| v0.6 | 2026-09-14 | sunxuewen-rush | **T2 回归修复**：`CardHeader` 的 `container-type: inline-size` 致页头宽度塌陷（描述 43~64px → 6~12 行 → 卡高 240~357px，三页实测），补 `flex-1`；三页 × 两档视口复测 + 门禁四件绿。**执行期说明**：窄屏 <768 多行属响应式策略，未夹带（用户拍板 A） |
 | v0.5 | 2026-09-14 | sunxuewen-rush | **T3 落地回写**：`FilePreviewDialog` → 官方 `Dialog`（手写 z 值与 Esc 监听整段删除）· `DetailTabs` → 官方 `Tabs`（`variant="line"` + `forceMount` + 激活线覆盖 `--primary` 2px）· 断言①-⑥ 全绿（②③⑤⑥ 均为真浏览器探针实证：焦点陷阱/三路关闭/键盘左右/切走切回零重拉）· **执行期说明 3 处**（Radix forceMount 不下发 hidden → 补 `data-[state=inactive]:hidden`（此前三面板叠显，页面损坏）· 无 DialogTrigger 时焦点归还自补 · forceMount 使 compare 请求提前，登记 T8 复核） |
