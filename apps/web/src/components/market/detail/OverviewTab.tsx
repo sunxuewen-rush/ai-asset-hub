@@ -5,7 +5,7 @@ import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 import { ErrorState } from '../../ui/ErrorState.js';
 import { MarkdownRenderer } from '../../ui/MarkdownRenderer.js';
-import { Spinner } from '../../ui/Spinner.js';
+import { Skeleton } from '../../ui/shadcn/skeleton.js';
 
 /**
  * 主文档探测（design §5.2 G7 v0.7 分型）：skill 族 = SKILL.md（必需 root）；
@@ -29,6 +29,18 @@ export function manifestFields(manifest: Record<string, unknown> | null): Array<
         key !== 'servers' && value !== null && (typeof value !== 'object' || Array.isArray(value)),
     )
     .map(([key, value]) => [key, Array.isArray(value) ? value.join(', ') : String(value)]);
+}
+
+/** 总览载态骨架（本批 §3.10：各页载态 → 官方 `Skeleton`，替原手搓「居中 `Spinner` 占位」） */
+function OverviewSkeleton() {
+  return (
+    <div className="flex flex-col gap-2.5 py-2">
+      <Skeleton className="h-3.5 w-[92%]" />
+      <Skeleton className="h-3.5 w-[78%]" />
+      <Skeleton className="h-3.5 w-[86%]" />
+      <Skeleton className="h-3.5 w-[64%]" />
+    </div>
+  );
 }
 
 /** 总览 tab（v0.7：主文档 markdown 正文 + manifest 摘要回退——缺主文档不空窗） */
@@ -67,11 +79,7 @@ export function OverviewTab({
   }
   // R2：波 2 未就且暂无主文档探测依据 → 加载占位（防误导性空摘要闪烁）
   if (docPath === null && files === null) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner />
-      </div>
-    );
+    return <OverviewSkeleton />;
   }
   if (showSummary) {
     const fields = manifestFields(manifest);
@@ -103,11 +111,7 @@ export function OverviewTab({
     );
   }
   if (contentState.loading || !contentState.data) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner />
-      </div>
-    );
+    return <OverviewSkeleton />;
   }
 
   return (

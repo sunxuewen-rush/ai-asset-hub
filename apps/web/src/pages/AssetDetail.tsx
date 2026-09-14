@@ -11,7 +11,7 @@ import { VersionCompare } from '../components/market/detail/VersionCompare.js';
 import { compactCount, formatDate, ownerText } from '../components/market/format.js';
 
 import { ErrorState } from '../components/ui/ErrorState.js';
-import { Spinner } from '../components/ui/Spinner.js';
+import { Skeleton } from '../components/ui/shadcn/skeleton.js';
 import { useApi } from '../hooks/useApi.js';
 import { useI18n } from '../i18n/I18nProvider.js';
 
@@ -65,9 +65,11 @@ export function AssetDetail() {
     return <ErrorState error={error} onRetry={() => setRetryTick((n) => n + 1)} />;
   }
   if (loading || !detail) {
+    // 载态骨架（本批 §3.10：官方 `Skeleton` 替手搓居中占位）——头卡 + 正文两块与页面对齐
     return (
-      <div className="flex justify-center py-[72px]">
-        <Spinner />
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-[120px] rounded-xl" />
+        <Skeleton className="h-[360px] rounded-xl" />
       </div>
     );
   }

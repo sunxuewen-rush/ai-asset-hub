@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { fetchVersionFile } from '../../../api/content.js';
 import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
-import { Spinner } from '../../ui/Spinner.js';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../ui/shadcn/dialog.js';
+import { Spinner } from '../../ui/shadcn/spinner.js';
 import { formatBytes } from './fileTreeNodes.js';
 
 /**

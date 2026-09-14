@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { VersionFileEntry } from '../../../api/types.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
-import { Spinner } from '../../ui/Spinner.js';
+import { Skeleton } from '../../ui/shadcn/skeleton.js';
 import { FilePreviewDialog } from './FilePreviewDialog.js';
 import { FileTree } from './FileTree.js';
 
@@ -27,9 +27,12 @@ export function FilesTab({
   return (
     <div>
       {files === null ? (
-        // R2：波 2 文件清单未就 → 加载占位（防误导性「暂无文件」闪烁）
-        <div className="flex justify-center py-[26px]">
-          <Spinner />
+        // R2：波 2 文件清单未就 → 载态骨架（本批 §3.10：官方 `Skeleton` 替手搓居中占位）
+        <div className="flex flex-col gap-2 py-1">
+          <Skeleton className="h-4 w-[70%]" />
+          <Skeleton className="h-4 w-[62%]" />
+          <Skeleton className="h-4 w-[56%]" />
+          <Skeleton className="h-4 w-[44%]" />
         </div>
       ) : files.length === 0 ? (
         <p className="py-5 text-center text-[13px] text-muted-foreground">{t('common', 'empty')}</p>

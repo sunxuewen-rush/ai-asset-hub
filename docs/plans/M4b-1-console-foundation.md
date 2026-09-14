@@ -1,8 +1,8 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ 2026-09-14**；T4-T8 ⬜）
+> Updated: 2026-09-14（**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
+> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅（落地完成，待提交批准）2026-09-14**；T5-T8 ⬜）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -86,7 +86,10 @@
   ① `Badge` 的 `success`/`warning` 两 variant 使用 `--success`/`--warning` token（**非硬编码色**）；
      3 个消费点（`DiffNav`/`DiffView`/`VersionCompare`）grep 到 `ui/Badge` 的 tone 映射而未出现自绘 span
   ② `AssetAvatar` 渲染链含 `AvatarFallback`（`grep -c 'AvatarFallback' apps/web/src/components/ui/AssetAvatar.tsx` ≥1）
-  ③ 6 处 `Spinner` 消费点全部指向官方 `spinner`（`grep -rn "components/ui/shadcn/spinner" apps/web/src | wc -l` = 6）
+  ③ **载态口径（2026-09-14 实测改写，原写「6 处 `Spinner`」）**：**页面级载态 4 处 → 官方 `Skeleton`**
+     （`CenterPage`/`AssetDetail`/`OverviewTab`×2/`FilesTab`）· **局部等待 2 处 → 官方 `Spinner`**
+     （`FilePreviewDialog`/`VersionCompare`，`grep -rn "ui/shadcn/spinner" apps/web/src` = 2 文件）——
+     依官方用法（`Skeleton` = 页面/列表占位，`Spinner` = 局部等待），`ui/Spinner.tsx` 已删除
   ④ `ErrorState` 结构含 `Alert`/`AlertTitle`/`AlertDescription`；**按 code 本地化与重试行为不变**（dogfood 404 断言复用）
   ⑤ `grep -rn 'animate-pulse' apps/web/src --include='*.tsx' | grep -v 'ui/shadcn/'` = 0（自绘载态归零）
   ⑥ 空态文案两套策略保留（`EmptyState` 调用点断言）
@@ -229,6 +232,36 @@
 - **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（78 文件 0 诊断）· `format:check` ✅（223 文件）· `build` ✅
 - **Commit**: `fix(web): restore center header width (CardHeader size containment)`
 
+**T4 展示件归位 ✅（2026-09-14 落地；design §3.5-§3.10）**
+
+- 归位 **5 件**：`ui/Badge` → 官方 `Badge`（`cva` 增 `success`/`warning` 两 variant，AIH 侧**薄映射**
+  `tone`→`variant`，3 消费点零改动）· `ui/AssetAvatar` → 官方 `Avatar` + **`AvatarFallback`** ·
+  `ui/Spinner` → **删除**（消费点直连官方件）· `ui/EmptyState` → 官方 `Empty` 结构 ·
+  `ui/ErrorState` → 官方 `Alert` + `Button`
+- 载态：**页面级 → `Skeleton`（4 文件）· 局部 → `Spinner`（2 文件）**（口径见执行期说明 1）
+- 断言实测（真浏览器，1440×900）：
+  - **①** `Badge` 运行时 `data-variant`：`MODIFIED`→`warning`（bg `oklch(0.666 0.157 58.3)` = `--warning` ·
+    前景 `rgb(255,251,235)` = `--warning-foreground`）· `ADDED`→`success`（bg `oklch(0.627 0.17 149.2)` = `--success`）·
+    `DELETED`→`destructive`；`rounded-full`（computed 极大值）· `text-xs` 12px · `mono` 保留 ✓
+  - **②** `AvatarFallback` 在渲染链：`/skills` 实测 avatar **3 / fallback 3**；40×40 · 圆角 **10px** ·
+    实底 `--ava-N`（`rgb(5,150,105)`/`rgb(124,58,237)`/`rgb(99,102,241)`）· 白字 17px ⇒ **视觉零变化** ✓
+  - **③** 官方 `Spinner` 消费点 **2 文件** · 官方 `Skeleton` 消费点 **4 文件**（实测）
+  - **④** 错态（`/assets/zzz-no-such-slug`）：`[data-slot=alert]` + `role="alert"` · 标题
+    `未找到该资源或版本`（**按 code 本地化不变**）· 重试 `Button` 在 `AlertDescription` · 描边 1px ✓
+  - **⑤** `animate-pulse` 自绘归零：非 `ui/shadcn` 命中 **0** ✓
+  - **⑥** 空态两套文案保留：`CenterPage` → `EmptyState(message=t('market','noResult'))`；
+    `FilesTab`/`OverviewTab`/`VersionCompare` 仍用 `common.empty` ✓
+  - **载态骨架**：冷加载 **103ms 采样 = 8 壳**（`h-[166px]` · `rounded-xl` 14px · `bg-accent`
+    `rgb(234,241,253)` · `animate-pulse` 2s）· 加载完成归零 ✓
+- **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（77 文件 0 诊断）· `format` ✅ · `build` ✅
+  （CSS **106.92 kB**（T2 后 108.91 → **−1.99**）· JS **588.96 kB**（自 T2 起累计 +23.29，含官方 Dialog/Tabs/Avatar 等件注入））
+- **执行期说明 1**：载态按官方用法拆分「页面级 `Skeleton` / 局部 `Spinner`」⇒ 计划断言③的「6 处 `Spinner`」
+  按实测改写为 **Spinner 2 处 + Skeleton 4 处**；`FilePreviewDialog` 对话框内保留 `Spinner` + 居中容器
+  （局部等待语义，非页面载态）
+- **执行期说明 2**：`ErrorState` 结构 = `AlertTitle`（错误文案，按 code 本地化）+ `AlertDescription`
+  （重试 `Button`）；**未新增 i18n 键**（避免超批范围）
+- **Commit**（待用户批准）：`refactor(web): migrate display primitives to official components`
+
 **T3 Dialog + Tabs 归位 ✅**
 
 - `FilePreviewDialog`：自绘浮层（`role="dialog"` + `aria-modal` + 手挂 Esc + 真 button 遮罩 + 手写
@@ -284,5 +317,6 @@
 | v0.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户定：主 design ↔ 批 design）**——全篇 `umbrella` → **主 design**（2 处）；引用链措辞统一 |
 | v0.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§1 目标）② 依赖口径 → **4 个包 / 3 组**（落地记录 + §3 风险）③ 对上游主 design 的 2 处硬版本引用去值（版本头 Updated · 引用链）④ T1 Files 的 `login-03` 按执行期修正 1 回写为「已移除」⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
 | v0.4 | 2026-09-14 | sunxuewen-rush | **T2 落地回写**：Card 全站归位 **8 处**（Hero/CenterPage 页头/FilterStrip/DetailTabs 壳/AssetDetail×3/AssetCard）· 断言 ②③④⑤ 全绿（④ = 真浏览器 8/8 卡 14px + 1px 描边实测）· 门禁 web 四连绿（CSS 108.91 kB / JS 565.67 kB）· **执行期说明 2 处**（「13 处」按实测拆账 = 8 卡 + 5~6 tile，登记 T8 回写；官方子件按需使用 + `h1`/`h3` 语义保留） |
+| v0.7 | 2026-09-14 | sunxuewen-rush | **T4 落地回写**：5 件展示件归位官方（`Badge` 加 `success`/`warning` variant + 薄映射 · `Avatar`+`Fallback` · `Spinner` 删除直连 · `Empty` · `Alert`+`Button`）· 页面级载态改 `Skeleton`（4 文件）· 断言①-⑥ 全绿（真浏览器：token 色值/fallback 链/alert role/骨架 8 壳/自绘 pulse 归零/两套空态文案）· 门禁四件绿 · **执行期说明 2 条**（载态口径按实测改写 = Spinner 2 + Skeleton 4；`ErrorState` 未新增 i18n 键） |
 | v0.6 | 2026-09-14 | sunxuewen-rush | **T2 回归修复**：`CardHeader` 的 `container-type: inline-size` 致页头宽度塌陷（描述 43~64px → 6~12 行 → 卡高 240~357px，三页实测），补 `flex-1`；三页 × 两档视口复测 + 门禁四件绿。**执行期说明**：窄屏 <768 多行属响应式策略，未夹带（用户拍板 A） |
 | v0.5 | 2026-09-14 | sunxuewen-rush | **T3 落地回写**：`FilePreviewDialog` → 官方 `Dialog`（手写 z 值与 Esc 监听整段删除）· `DetailTabs` → 官方 `Tabs`（`variant="line"` + `forceMount` + 激活线覆盖 `--primary` 2px）· 断言①-⑥ 全绿（②③⑤⑥ 均为真浏览器探针实证：焦点陷阱/三路关闭/键盘左右/切走切回零重拉）· **执行期说明 3 处**（Radix forceMount 不下发 hidden → 补 `data-[state=inactive]:hidden`（此前三面板叠显，页面损坏）· 无 DialogTrigger 时焦点归还自补 · forceMount 使 compare 请求提前，登记 T8 复核） |

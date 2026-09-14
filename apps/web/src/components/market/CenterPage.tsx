@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardHeader } from '@/components/ui/shadcn/card';
 import { Input } from '@/components/ui/shadcn/input';
+import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { fetchAssetList } from '../../api/assets.js';
 import { fetchStats } from '../../api/stats.js';
 import type { AssetType } from '../../api/types.js';
@@ -10,12 +11,17 @@ import { useI18n } from '../../i18n/I18nProvider.js';
 import { EmptyState } from '../ui/EmptyState.js';
 import { ErrorState } from '../ui/ErrorState.js';
 import { Pagination } from '../ui/Pagination.js';
-import { Spinner } from '../ui/Spinner.js';
 import { TypeIcon } from '../ui/TypeIcon.js';
 import { AssetCard, AssetGrid } from './AssetCard.js';
 import { FilterStrip } from './FilterStrip.js';
 
 const PAGE_SIZE = 20;
+
+/**
+ * 载态骨架槽位（本批 §3.10：各页载态 → 官方 `Skeleton`）：**8 壳 = 1440 断点首屏可见量**
+ * （`AssetGrid` 4 列 × 2 行）。槽位名做 `key`（`noArrayIndexKey` 规则：禁数组下标做 key）。
+ */
+const LOADING_SLOTS = ['sk1', 'sk2', 'sk3', 'sk4', 'sk5', 'sk6', 'sk7', 'sk8'];
 
 type MarketKey =
   | 'centerTitleSkill'
@@ -191,9 +197,12 @@ export function CenterPage({ type }: { type: AssetType }) {
       </div>
 
       {loading && (
-        <div className="flex justify-center py-14">
-          <Spinner />
-        </div>
+        // 载态骨架（本批 §3.10：官方 `Skeleton` 替手搓居中占位）
+        <AssetGrid>
+          {LOADING_SLOTS.map((slot) => (
+            <Skeleton key={slot} className="h-[166px] rounded-xl" />
+          ))}
+        </AssetGrid>
       )}
       {error && <ErrorState error={error} onRetry={() => setRetryTick((tick) => tick + 1)} />}
       {!loading && !error && list && list.items.length === 0 && (

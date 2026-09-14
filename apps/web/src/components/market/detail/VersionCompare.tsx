@@ -5,7 +5,7 @@ import type { CompareResponse, VersionListItem } from '../../../api/types.js';
 import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 import { Badge } from '../../ui/Badge.js';
-import { Spinner } from '../../ui/Spinner.js';
+import { Spinner } from '../../ui/shadcn/spinner.js';
 import { formatDate } from '../format.js';
 import { DiffNav } from './DiffNav.js';
 import { DiffView } from './DiffView.js';

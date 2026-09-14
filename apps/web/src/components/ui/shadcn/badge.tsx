@@ -9,6 +9,14 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground [a&]:hover:bg-primary/90',
+        /**
+         * AIH 站点级补丁（design §3.5，官方第 ④ 条路径「改组件源码加 variant」）：
+         * 语义色走 `--success`/`--warning` token（`aih-theme.css` @theme 已注册
+         * `--color-success-foreground`/`--color-warning-foreground`），样式与官方 `destructive`
+         * 同构（实底 + 前景色 + hover 90%）；**不逐点用 className 覆盖颜色**。
+         */
+        success: 'bg-success text-success-foreground [a&]:hover:bg-success/90',
+        warning: 'bg-warning text-warning-foreground [a&]:hover:bg-warning/90',
         secondary: 'bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
         destructive:
           'bg-destructive text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90',
