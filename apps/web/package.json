@@ -10,12 +10,16 @@
     "lint": "biome check src"
   },
   "dependencies": {
+    "@tanstack/react-table": "^9.2.4",
     "class-variance-authority": "^0.7.1",
+    "cmdk": "^1.1.1",
     "cn": "^0.2.6",
+    "date-fns": "^4.4.0",
     "lucide-react": "^1.44.0",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.6.7",
     "react": "^19.0.0",
+    "react-day-picker": "^10.0.1",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.3",

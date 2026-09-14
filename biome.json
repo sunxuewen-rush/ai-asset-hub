@@ -22,10 +22,22 @@
   "overrides": [
     {
       "includes": ["apps/web/src/components/ui/shadcn/**"],
+      "assist": {
+        "actions": {
+          "source": {
+            "organizeImports": "off"
+          }
+        }
+      },
       "linter": {
         "rules": {
           "suspicious": {
-            "noDocumentCookie": "off"
+            "noDocumentCookie": "off",
+            "noDoubleEquals": "off",
+            "noArrayIndexKey": "off"
+          },
+          "style": {
+            "useImportType": "off"
           },
           "correctness": {
             "useExhaustiveDependencies": "off"
@@ -33,7 +45,8 @@
           "a11y": {
             "useFocusableInteractive": "off",
             "useSemanticElements": "off",
-            "noRedundantRoles": "off"
+            "noRedundantRoles": "off",
+            "useKeyWithClickEvents": "off"
           }
         }
       }
