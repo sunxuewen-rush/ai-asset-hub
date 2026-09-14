@@ -1,14 +1,18 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.11：T7 合规清理落地回写**——`FilterStrip` chips → 官方 `ToggleGroup`/`Toggle`
+> Updated: 2026-09-14（**v0.12：T8 收尾回写（批完成）**——五门禁逐项 exit 0（含用户授权 `test --force`：475 例
+> 474/1/0 = 与基线一致）· 双冒烟 chain **29/29** + dogfood **36/36 + NO JS ERRORS** · marker 0 · design §9 六条
+> 逐条复验（⑥ `forceMount` 活体复验：`/api` 13→13→13 零新增）· **连带修复冒烟脚本输入保真**（官方 `Tabs` 走
+> mousedown ⇒ 合成 click 不激活；官方 `Dialog` ✕ 无 `aria-label` ⇒ 旧关闭选择器静默失效；断言 36 条零改动，
+> 修后 36/36）· 孤儿键 `common.close` 清理 · **观感复看 ✅ 用户复核通过**；**v0.11：T7 合规清理落地回写**——`FilterStrip` chips → 官方 `ToggleGroup`/`Toggle`
 > （`variant="chip"`+`size="chip"` 落官方源码，官方第 ④ 路径）· 根行=组/子行与「全部」= `Toggle` · 原自绘
 > 三段模板串常量与 `cls(on)` 整段删除 · 真页面交互回归（`?label=`+收窄+复位）· hover 四态与 chip 观感真值
 > 实测 · 5 条执行期说明（`spacing` 标度乘数 · 内距统一 12px · 两处 `!` 提权 · 断言①重界定 · `--radius-2xl` 维持）；
 > **v0.10：版本八态映射拍板回写**——`UPLOADED` = warning（对标 21-skillhub 列表页）
 > + `YANKED` destructive → secondary（对标 skillhub 详情页）；`StatusPill` 映射与断言④ 复测，
 > 主 design 同步升 **v1.7**（执行期说明 2 由「待确认」转「已闭合」）；**v0.9：T6 落地回写**——10 件控制台/跨面件落仓（PageHeader/DataTable/Drawer/ConfirmDialog/StatusPill/FilterBar + Toaster/SkeletonLoader/RoleGuard/CopyButton）+ `main.tsx` 挂 Toaster + i18n 三组骨架键；断言①-⑥ 全绿（临时探针页 `/__probe` 渲染全件实测后删除）；3 条执行期说明（TanStack v9 走官方 `/legacy` 子路径 · design 缺 `UPLOADED` 映射 · 探针期复现后台标签冻结 CSS 退出动画）；**v0.8：T5 落地回写**——面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible` · 分页→官方 `Pagination` 结构；断言①-④ 实测（「翻页回顶」经 grep 核查为契约-代码不一致 → **用户拍板补齐 + 可判定实测**）；**4 条执行期说明**（未用官方 `PaginationLink`（`<a>` 不可聚焦）· 回顶缺项 · `mx-auto` 口径修正 · 面包屑非零变化）；**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **执行中**（**T1-T6 ✅ 2026-09-14（已推送）· T7 ✅ 落地完成，待提交批准**；T8 ⬜）
+> Status: **批完成**（**T1-T8 ✅ 2026-09-14**；T1-T7 已推送，**观感复看 ✅ 用户已复核通过**，待提交批准 · 批间门见主 design §2.3）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -177,16 +181,51 @@
   （CSS **107.77 kB** · JS **638.38 kB**；较 T6 +5.09 kB = `radix-ui` Toggle/ToggleGroup 原语首次进包）
 - **Commit**（待用户批准）：`refactor(web): apply shadcn compliance rules (toggle chips + i18n skeletons)`
 
-### T8 门禁 + 冒烟 + 自检 + 文档回写
-- **Files**: Modify design（版本头/修订记录/§8/§9 状态）· 本 plan（Task 状态 + 落地记录）· `docs/00` §5 M4b-1 行 ·
-  （如需）新建 `docs/smoke/2026-09-14-m4b1-foundation.md`
-- **Assert**:
-  ① 五门禁全绿（`typecheck`/`lint`/`format:check`/`build`/`db:migrate`/`test`；**test 需用户授权**，
-     口径 `CI=true` + 单库 `ai_asset_hub` + `--force`，基线 **475 例 474 pass / 1 skip / 0 fail**）
-  ② `m4a-chain-smoke` **PASS** + `m4a-dogfood` **36/36 + NO JS ERRORS**（`SMOKE_SHOT_PREFIX=m4b1-`）
-  ③ 生产包 marker 断言：`ReviewControls`/`data-review` = 0（沿用 M4a 口径）
-  ④ design §9 六条本批特有断言逐条复验并记录
-  ⑤ **观感复看由用户确认**（首页/三中心/详情页/预览/对比）——结论写入记录
+### T8 门禁 + 冒烟 + 自检 + 文档回写 ✅（2026-09-14 落地；**观感复看已由用户复核通过**）
+- **Files**: Modify 批 design（版本头/修订记录/§9 验收结果）· 本 plan · `docs/00` §5 M4b-1 行 ·
+  **新建** `docs/smoke/2026-09-14-m4b1-foundation.md`（硬证据记录）· 连带修复
+  `docs/smoke/scripts/m4a-dogfood.ts`（输入保真，见执行期说明 1）· `apps/web/src/i18n/{zh,en}.ts`（孤儿键清理，见执行期说明 2）
+- **落地实测**:
+  - **① 五门禁逐项 exit 0**：`typecheck` ✅ · `lint` ✅（web 87 / server 113 / protocol 16 / cli 1，0 诊断）·
+    `format:check` ✅（232 文件）· `build` ✅（CSS **107.77 kB** · JS **638.36 kB**）·
+    `db:migrate` ✅（`migrations applied`，无新迁移）· **`test`（用户 2026-09-14 授权）**：
+    `CI=true bun run test --force` → protocol **27 pass**；server **475 例 474 pass / 1 skip / 0 fail**
+    （1150 expect · 47 文件）⇒ **与基线完全一致 = 零回归**
+  - **② 双冒烟**：`m4a-chain-smoke` **29/29 PASS** · `m4a-dogfood`（`SMOKE_SHOT_PREFIX=m4b1-`）
+    **36/36 PASS + NO JS ERRORS**（404 网络 log 2 条 = 404 态断言预期触发）· 截图 **11 张** 落 `docs/smoke/m4b1-*.png`
+  - **③ marker**：`grep -c 'data-review' dist/*.js` = **0** · `ReviewControls` = **0** · `src/dev/ReviewControls.tsx` **已删**
+  - **④ design §9 六条**：① 零残留 ✅（已删件引用 0 / `.module.css` 0 / 手搓 chip 常量 0）② 覆盖层手写 `z-*` **0** ✅
+    （唯一 `z-50` 命中为 `Drawer.tsx` 注释）③ `SheetTitle`/`DialogTitle` 齐备 · `Avatar`: Fallback = 1:1 ✅
+    ④ `ToggleGroup` 结构合规 · `InputGroup` **零消费**（T7 判定「并列 ⇒ 保持」，属 §6.2 规定动作）✅
+    ⑤ offset 语义 —— **真数据不可达**（库内 3 资产 < limit 20 ⇒ 分页控件正当缺席，dogfood 同名断言 PASS）；
+    能判定的部分**沿用 T5 探针实测**（回顶 `scrollY 291→0` 而 `maxScroll` 仍 291 · 末页双禁用 · 零 `href` 泄漏）✅
+    ⑥ Tabs 缓存 —— **活体复验**：`performance` 资源计数，点「文件」→「总览」→「文件」`/api` 请求
+    **13 → 13 → 13**（files 族恒 3 条）⇒ `forceMount` 生效、切回零新增请求 ✅
+  - **⑤ 观感复看**：✅ **用户 2026-09-14 复核通过**（五面：首页 / 三中心 / 详情页三 tab / 文件预览 / 版本对比，原话「ok」）；
+  另**补验两处真数据下不可见项**（用户原话「探针 OK」）—— 临时探针页 `/__probe-t8`：① 分页控件三态（首页 1/3 ·
+  中间 2/3 · 末页 3/3 双禁用态；实测 `aria-disabled` + `pointer-events:none` + `opacity .5`，英文 `Previous`/`Next`
+  硬编码与键盘不可达两条代价现场可见）② 筛选条两行形态（2 根 + 1 子）③ chip 四态对照；探针**验后已删、零残留**
+  （`grep -rn 'ProbeT8\|__probe' apps/web/src` = **0**；stub 做**路径作用域限定**，实测不污染真页面）
+- **执行期说明 1（连带修复：冒烟脚本「输入保真」）**：首跑 dogfood **32/36**（4 FAIL），定性 = **脚本输入手段与 T3 归位后的官方件不匹配**，
+  **非应用回归**（真指针 + `mousedown` 双证 4/4 全过）：
+  - 根因 ① 官方 `Tabs`（radix-ui `TabsPrimitive.Trigger`）激活在 **`onMouseDown`/`onFocus`** 路径 ⇒ 页内合成
+    `el.click()` 不激活（实测：click 事件确已派发到 `document`、计数 1，但 `aria-selected`/panel 不变；补
+    `mousedown`+`mouseup`+`click` 即正常）。历史对照：`git show 2b4d432^:DetailTabs.tsx:49` 为手搓
+    `<button onClick={…}>` ⇒ M4a 基线时代旧写法可用，**T3 归位后失效**
+  - 根因 ② 官方 `Dialog` 内置 ✕ **无 `aria-label`**（`sr-only` 文本 = `Close`）⇒ 旧脚本
+    `querySelector('button[aria-label="关闭"]')` 自 T3 起**恒 null 且静默失效**（`evalJs` 吞异常）——
+    旧「关闭」实为 no-op，仅因后续断言恰好仍过而未暴露；换成真指针点 tab 后，**未关的遮罩吞掉点击** ⇒ 版本 tab 连带 3 条 FAIL
+  - **修法（36 条断言字符串零改动，仅输入保真）**：新增 `clickReal()`（CDP `Input.dispatchMouseEvent` 真指针 +
+    「目标须为该点最顶层元素」守卫）替换 **3 处 tab 激活**；新增 `closeDialog()`（Esc → 兜底点官方 ✕ → 轮询「对话框消失」）
+    替换 **2 处**旧关闭写法；文件头登记两条机制口径。**修后 36/36**
+- **执行期说明 2（连带清理：孤儿 i18n 键）**：`common.close` 自 T3 起**零消费**（官方内置 ✕ 用 `sr-only` `Close`）
+  ⇒ `zh/en` 各删 1 键，`common` 组键集 **6 → 5**、两侧对齐（同 T5 `common.prev/next` 先例）
+- **执行期说明 3（T5 副产物观察项）**：曾 2/3 复现的「URL 更新但视图未重渲染」在本 Task 两组独立浏览器跑中**均未复现**
+  （dogfood 五路由 + 三 tab 交互全绿 · §9 ⑥ 请求计数正常 · NO JS ERRORS）⇒ **保留观察项，未定性为缺陷**
+- **执行期说明 4（待批末 converge）**：批 design §3.7 / §3.11 / §3.12 三处预期列与实测不符（见各 Task 执行期说明）——
+  随批收尾统一回改（不单开提交）
+- **硬证据记录**：`docs/smoke/2026-09-14-m4b1-foundation.md`
+- **Commit**（待用户批准）：`docs(m4b1): record gate/smoke evidence and fix smoke input fidelity`
   ⑥ 自检打分：代码 18 维 + 文档 8 维 ≥9（换靶：本批靶 = 归位完整性与官方规则合规性）
 - **Commit**: `test(web): run m4b-1 gates and smoke`
 
@@ -480,3 +519,4 @@
 | v0.9 | 2026-09-14 | sunxuewen-rush | **T6 落地回写**：新建 10 件（console 6 + ui 4）+ `main.tsx` 挂 `Toaster` + i18n 三组骨架键；断言①-⑥ 全绿（探针页实测：表头 40 / 单元格 p-2 / 三态齐 / 抽屉宽 560 / SheetTitle / 原因必填门 / 状态映射 / toast 单条 / 守卫两跳 / 剪贴板读回）；门禁四件绿（JS 633.16 kB，+39 kB）；**执行期说明 3 条**（TanStack v9 走官方 `/legacy` 子路径避未声明依赖 · design 缺 `UPLOADED` 映射取 secondary 待确认 · 探针期后台标签冻结 CSS 退出动画致「关闭不卸载」已定性为环境非缺陷） |
 | v0.10 | 2026-09-14 | sunxuewen-rush | **版本八态映射拍板回写**：`UPLOADED` = **warning**（对标 21-skillhub 列表页 review 档；原 design 只列 7 态、初版推断取 secondary）+ `YANKED` destructive → **secondary**（对标 skillhub 详情页灰档，且与门户侧 `VersionCompare` 代码实况一致）；主 design 同步升 **v1.7**（八态映射缺口闭合 · 执行期说明 2 由待确认转已闭合）；M4a design §4.4 门户侧表述订正 `destructive` → `neutral`（升 v0.25）；本件断言④ 映射复测。**顺带订正**：修订记录 v0.5-v0.9 行序倒挂（历史追加所致）→ 统一升序 |
 | v0.11 | 2026-09-14 | sunxuewen-rush | **T7 合规清理落地回写**：`FilterStrip` chips → 官方 `ToggleGroup`/`ToggleGroupItem`（根行）+ `Toggle`（「全部」与子行）；chip 外观落 **官方 `toggle.tsx` 加 `variant="chip"`+`size="chip"`**（第 ④ 路径，同 T4 Badge 法）；原自绘三段模板串常量与 `cls(on)` 删除 ⇒ 全仓模板串条件类 **= 0**；`Hero` 搜索行判定「并列 → 保持」+ 判据注释。断言①-④ 全绿（真浏览器：`/skills?label=agentic` + 卡片 3→1 + 「筛选结果：1」+ 「全部」复位；hover 四态 `forcePseudoState` 确定性读；i18n zh/en 各 3 键 + 切 EN 零裸键）。门禁四件绿（JS 638.38 kB，+5.09 kB = Toggle 原语首次进包）。**执行期说明 5 条**（`spacing` 按 0.25rem 标度 ⇒ 用 1.75 得 7px；内距统一 `px-3` 12px；两处 `!` 提权=`rounded-full!` + 未选态 hover 字色；断言① 的 `cn(` 项重界定为「全仓模板串=0」；`--radius-2xl` 维持不改） |
+| v0.12 | 2026-09-14 | sunxuewen-rush | **T8 收尾回写（批完成）**：① 五门禁逐项 exit 0（`typecheck`/`lint`/`format:check`/`build`/`db:migrate`/`test --force`；test **475 例 474 pass / 1 skip / 0 fail** = 与基线一致，经用户授权）② 双冒烟 **29/29** + **36/36 + NO JS ERRORS**（`SMOKE_SHOT_PREFIX=m4b1-`，11 张截图）③ marker `data-review`/`ReviewControls` = 0 ④ design §9 六条逐条复验（⑥ `forceMount` 活体：`/api` 13→13→13）⑤ **连带修复冒烟脚本输入保真**：官方 `Tabs` 激活走 `onMouseDown`（合成 `el.click()` 不激活——实测 click 已派发但 `aria-selected` 不变；补 mousedown 即正常；历史对照 `git show 2b4d432^:DetailTabs.tsx:49` 手搓 `onClick` 故M4a 时代可用）；官方 `Dialog` 内置 ✕ 无 `aria-label`（`sr-only`=`Close`）⇒ 旧 `button[aria-label="关闭"]` 自 T3 起恒 null 且静默失效、未关遮罩吞掉真指针点击。修法 = `clickReal()`（CDP 真指针 + 最顶层守卫，替换 3 处 tab 激活）+ `closeDialog()`（Esc → 官方 ✕ 兜底 → 轮询消失，替换 2 处），**36 条断言零改动**；修后 **36/36** ⑥ 连带清理孤儿键 `common.close`（T3 起零消费；`common` 组 6 → 5，zh/en 对齐）⑦ T5 副产物「URL 更新但视图未重渲染」本 Task **未复现** ⇒ 保留观察项 ⑧ **观感复看 ✅ 用户复核通过**（五面 + 补充探针） ⑨ 硬证据记录新建 `docs/smoke/2026-09-14-m4b1-foundation.md` |

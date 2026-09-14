@@ -95,7 +95,6 @@ export const zh = {
     loading: '加载中…',
     empty: '暂无数据',
     retry: '重试',
-    close: '关闭',
     download: '下载',
     pageOf: '{n} / {total} · 每页 {size}',
   },

@@ -7,6 +7,14 @@
 //   变量名是 `SMOKE_SHOT_PREFIX`，不是 `SHOT_PREFIX`——2026-09-11 实测踩过）。
 // 视口：脚本自带 `Emulation.setDeviceMetricsOverride` 1440×900 桌面（见 main() 注释）。
 // 断言：五路由真实数据渲染 + 详情三 tab 交互 + console 零错误；截图写入 docs/smoke/（覆盖同名）。
+// ⚠ **tab 激活必须用 `clickReal()`（CDP 真指针）**，不能用页内合成 `el.click()`：官方 `Tabs`
+//   （radix-ui `TabsPrimitive.Trigger`）的激活在 `onMouseDown`/`onFocus` 路径上 —— M4b-1 T8 实测：
+//   合成 click 事件确已派发到 document，但 `aria-selected`/panel 不变；补 mousedown 即正常。
+//   M4a 时代 `DetailTabs` 是手搓 `onClick` 版本，故本脚本旧写法当时可用（M4b-1 T3 归位后失效）。
+// ⚠ **关闭对话框用 `closeDialog()`**：官方 `Dialog` 的内置 ✕ **无 `aria-label`**（`sr-only` 文本 = `Close`），
+//   故 `button[aria-label="关闭"]` 自 M4b-1 T3 起**恒为 null 且静默失效**（`evalJs` 吞异常）——旧脚本
+//   「关闭」实为 no-op，仅因后续断言恰好仍过而未暴露；真指针点 tab 时则被未关的遮罩吞掉（T8 实证）。
+//   新助手 = Esc（官方标准路径，焦点在框内）→ 兜底点内置 ✕ → 轮询「对话框消失」。
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const ok = (n: string, c: boolean, extra = '') =>
   console.log(`${c ? 'PASS' : 'FAIL'} ${n}${extra ? ' :: ' + extra : ''}`);
@@ -124,6 +132,95 @@ async function main() {
     for (let i = 0; i < 7; i++) {
       if (await fn()) return true;
       await sleep(900);
+    }
+    return false;
+  };
+
+  /**
+   * **真指针点击**（CDP `Input.dispatchMouseEvent`）：凡「激活类官方件」（`Tabs` 等）都用它。
+   * 入参 = 求值为目标元素的表达式（与 `evalJs` 同风格，便于按文本谓词定位）。
+   * 判据见文件头 ⚠ 段：官方 `Tabs` 走 mousedown 激活，合成 `.click()` 不生效（2026-09-14 实测）。
+   * 返回是否命中元素（未命中 → false，供断言失败时定位）。
+   */
+  const clickReal = async (findExpr: string) => {
+    // 守卫：等目标成为该点**最顶层元素**——否则点击会被退出动画中的 overlay / 未关闭的对话框吞掉
+    // （T8 实证：上一步对话框没真关 ⇒ 点 tab 落到遮罩上，tab 不激活、后续 innerText 断言连带失效）
+    for (let i = 0; i < 10; i++) {
+      const topmost = (await evalJs(`(() => {
+        const el = ${findExpr};
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        const t = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+        return !!t && (t === el || el.contains(t) || t.contains(el));
+      })()`)) as boolean;
+      if (topmost) break;
+      await sleep(300);
+    }
+    const box = (await evalJs(`(() => {
+      const el = ${findExpr};
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+    })()`)) as { x: number; y: number } | null;
+    if (!box) return false;
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: box.x,
+      y: box.y,
+      button: 'none',
+      buttons: 0,
+    });
+    await send('Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      x: box.x,
+      y: box.y,
+      button: 'left',
+      buttons: 1,
+      clickCount: 1,
+    });
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      x: box.x,
+      y: box.y,
+      button: 'left',
+      buttons: 0,
+      clickCount: 1,
+    });
+    await sleep(400); // 激活后等面板渲染（与旧写法后续 sleep 叠加仍成立）
+    return true;
+  };
+
+  /**
+   * **关闭官方 `Dialog`**：Esc（官方标准路径，焦点须在框内）→ 兜底点内置 ✕ → 轮询「对话框已消失」。
+   * 取代旧写法 `querySelector('button[aria-label="关闭"]').click()`（T3 起该选择器恒 null，见文件头 ⚠）。
+   */
+  const closeDialog = async () => {
+    const present = async () =>
+      (await evalJs(`!!document.querySelector('[role="dialog"]')`)) === true;
+    if (!(await present())) return true;
+    for (const mode of ['escape', 'close-button'] as const) {
+      if (mode === 'escape') {
+        for (const type of ['keyDown', 'keyUp'] as const) {
+          await send('Input.dispatchKeyEvent', {
+            type,
+            key: 'Escape',
+            code: 'Escape',
+            windowsVirtualKeyCode: 27,
+            nativeVirtualKeyCode: 27,
+          });
+        }
+      } else {
+        await evalJs(`(() => {
+          const btns = [...document.querySelectorAll('[role="dialog"] button')];
+          const b = btns.find((x) => x.textContent.includes('Close')) ?? btns[btns.length - 1];
+          if (b) b.click();
+          return !!b;
+        })()`);
+      }
+      for (let i = 0; i < 8; i++) {
+        if (!(await present())) return true;
+        await sleep(300);
+      }
     }
     return false;
   };
@@ -250,8 +347,8 @@ async function main() {
   );
   await shot('3-skill-detail');
 
-  await evalJs(
-    `[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('文件')).click()`,
+  await clickReal(
+    `[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('文件'))`,
   );
   await sleep(1500);
   const ftxt = () => evalJs('document.body.innerText') as Promise<string>;
@@ -274,7 +371,7 @@ async function main() {
   );
   ok('对话框 role=dialog', (await evalJs(`!!document.querySelector('[role="dialog"]')`)) === true);
   await shot('4-skill-files-dialog');
-  await evalJs(`document.querySelector('button[aria-label="关闭"]').click()`);
+  await closeDialog();
   await sleep(600);
 
   // §3 表 9（T25 补）：**嵌套路径文件预览**——目录未展开则先展开 → 点嵌套文件 → 断言路径与内容
@@ -306,11 +403,11 @@ async function main() {
     await until(async () => ((await dtxt()) ?? '').includes('lib/embedding.ts')),
   );
   await shot('4b-skill-nested-preview');
-  await evalJs(`document.querySelector('button[aria-label="关闭"]').click()`);
+  await closeDialog();
   await sleep(600);
 
-  await evalJs(
-    `[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('版本')).click()`,
+  await clickReal(
+    `[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('版本'))`,
   );
   await sleep(2500);
   const vtxt = () => evalJs('document.body.innerText') as Promise<string>;
@@ -332,8 +429,8 @@ async function main() {
     'mcp 总览 README',
     await until(async () => ((await dtxt()) ?? '').includes('HTTP Echo MCP Server')),
   );
-  await evalJs(
-    `[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('版本')).click()`,
+  await clickReal(
+    `[...document.querySelectorAll('[role="tab"]')].find((b) => b.textContent.includes('版本'))`,
   );
   await sleep(1500);
   ok('mcp 单版本 → 暂无数据', ((await dtxt()) ?? '').includes('暂无数据'));

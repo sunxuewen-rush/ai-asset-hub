@@ -101,7 +101,6 @@ export const en: Dict = {
     loading: 'Loading…',
     empty: 'No data',
     retry: 'Retry',
-    close: 'Close',
     download: 'Download',
     pageOf: '{n} / {total} · page size {size}',
   },

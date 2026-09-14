@@ -1,7 +1,14 @@
 # M4b-1 地基批设计（组件归位 + 控制台组件面域）
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v1.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**（原「补装 13 件」= 表列编号数）② 依赖口径 → **4 个包 / 3 组**（原「3 项」按组计数）③ 对本文件上游主 design 的 3 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除，见执行期修正 1）；**v1.2：术语标准化**——上游文档统一称 **主 design**（跨批不变层），本文件 = **M4b-1 批 design**；v1.1：T1 执行回写（2 处执行期修正）；v1.0 初稿：M4b 拆批后**首批 `M4b-1` 的对齐定稿**——① 手搓展示件归位官方件 **14 处**（Card 族 / Dialog / Tabs / FileTree / Pagination / Badge / Avatar / Spinner / Empty / Error / 面包屑 / 载态）② 官方件**新落仓 11 件（表列 13 项）**（另有新增依赖 **4 个包 / 3 组**）③ 控制台面域组件 **6 件** + 跨面件 **4 件** ④ **合规清理 4 项**（ToggleGroup / InputGroup / `cn()` / 圆角轴登记）⑤ 依据用户 2026-09-14 拍板 A′/B′/C′/D′ + shadcn 官方 Skill 硬规则；8 维自检见 §11）
+> Updated: 2026-09-14（**v1.4：T8 收尾 —— 门禁/冒烟/§9 复验结果登记（批完成）**——① 五门禁逐项 exit 0
+> （含用户授权的 `db:migrate` + `test --force`：475 例 474 pass / 1 skip / 0 fail = **与基线一致零回归**）
+> ② 双冒烟：chain-smoke **29/29** · dogfood **36/36** + **NO JS ERRORS** ③ 生产包 marker `data-review`/
+> `ReviewControls` = 0 · `dev/ReviewControls.tsx` 已删 ④ §9 六条本批特有断言逐条复验（⑥ forceMount 缓存
+> **活体复验**：切走切回 `/api` 请求 13→13→13 零新增）⑤ 连带修复**冒烟脚本输入保真**（官方 `Tabs` 走
+> mousedown ⇒ 合成 `el.click()` 不激活；官方 `Dialog` 内置 ✕ 无 `aria-label` ⇒ 旧关闭选择器静默失效）
+> —— 断言 36 条**零改动**，仅替换点击/关闭机制；修后 36/36 ⑥ **观感复看 ✅ 用户复核通过**（五面 + 补充探针）⑦ 遗留观察项
+> 与孤儿键清理见硬证据记录；**v1.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**（原「补装 13 件」= 表列编号数）② 依赖口径 → **4 个包 / 3 组**（原「3 项」按组计数）③ 对本文件上游主 design 的 3 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除，见执行期修正 1）；**v1.2：术语标准化**——上游文档统一称 **主 design**（跨批不变层），本文件 = **M4b-1 批 design**；v1.1：T1 执行回写（2 处执行期修正）；v1.0 初稿：M4b 拆批后**首批 `M4b-1` 的对齐定稿**——① 手搓展示件归位官方件 **14 处**（Card 族 / Dialog / Tabs / FileTree / Pagination / Badge / Avatar / Spinner / Empty / Error / 面包屑 / 载态）② 官方件**新落仓 11 件（表列 13 项）**（另有新增依赖 **4 个包 / 3 组**）③ 控制台面域组件 **6 件** + 跨面件 **4 件** ④ **合规清理 4 项**（ToggleGroup / InputGroup / `cn()` / 圆角轴登记）⑤ 依据用户 2026-09-14 拍板 A′/B′/C′/D′ + shadcn 官方 Skill 硬规则；8 维自检见 §11）
 > Status: **定稿**（8 维自检 **9.63** ≥9——**实测值**，2026-09-14 按维表逐维打分；上游主 design `docs/designs/2026-09-10-m4b-admin-console-design.md` §2.3 的子批之一；主 design 版本随其自身演进，**以其版本头为准**）
 > Scope: **仅 M4b-1（地基批）**——把手搓展示件归位到 shadcn 官方件 + 补装官方件 + 建控制台面域组件与跨面件 + 合规清理；**零路由新增、零页面新增、零服务端改动**
 > 引用链：本文档 → 上游主 design `docs/designs/2026-09-10-m4b-admin-console-design.md`（模型/契约/路由/视觉基线/拆批表；**版本随主 design 演进，以其版本头为准**）→ 规范 `00` §5/§7 · `07` · M4a design **§4.4**（全站视觉真值 SSOT，引用不复制）；官方硬规则源 = 本机 `~/04-ws/00-ui/skills/shadcn`（SKILL.md + rules/*，2026-09-14 实测）
@@ -167,13 +174,17 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 | 8.6 | 筛选条 chip 结构改 `ToggleGroup`/`Toggle`（形态保持 chip 观感） | `FilterStrip` | 🟡 结构变化，观感目标不变 |
 | 8.7 | 空态 / 错误态 / 载态 / 徽章 结构官方化 | 门户各处 | 🟡 细微 |
 
-**观感复看清单（交用户人工确认，实现侧不代看）**：首页 · 三中心 · 详情页三 tab · 文件预览 · 版本对比。
+**观感复看清单（交用户人工确认，实现侧不代看）**：首页 · 三中心 · 详情页三 tab · 文件预览 · 版本对比 —— **T8 结论：✅ 用户 2026-09-14 复核通过**（原话「ok」；另补探针「分页三态 · chip 两行/四态」用户原话「探针 OK」）。
 
 ## 9. 回归面与验证口径
 
 - **受影响页面**：首页 `/` · 三中心 `/skills|/mcps|/agents` · 详情页 `/assets/:slug`（三 tab）· 文件预览 · 版本对比
 - **门禁**：`typecheck` → `lint` → `format:check` → `build` → `db:migrate` → `test`（CI 口径：`CI=true` + 单库 `ai_asset_hub` + `--force`；基线 **475 例 474 pass / 1 skip / 0 fail**）
 - **冒烟**：`m4a-chain-smoke`（29 断言）+ `m4a-dogfood`（36/36 + NO JS ERRORS）
+- **本批验收结果（T8 · 2026-09-14）**：五门禁逐项 exit 0（test 475 例 474/1/0 = 与基线一致）· chain **29/29** ·
+  dogfood **36/36 + NO JS ERRORS** · marker 0 · §9 六条逐条复验（⑥ 活体：切走切回零新增请求）·
+  - **观感复看（T8 结果 ✅）**：用户 2026-09-14 复核通过（五面 + 补充探针：分页三态 · chip 两行/四态）
+  —— **硬证据记录**：`docs/smoke/2026-09-14-m4b1-foundation.md`（含冒烟脚本输入保真修复的根因与实证）
 - **回归断言（本批特有）**：
   ① 归位件**零残留**：`grep -rn "<已删手搓件名>" apps/web/src` = 0
   ② **无 `z-*` 手写在官方覆盖层上**（`Dialog`/`Sheet`/`Popover`）
@@ -206,3 +217,4 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 | v1.1 | 2026-09-14 | sunxuewen-rush | **T1 执行回写（2 处执行期修正）**：① §4.12 `login-03` 落仓方式修正（demo 文件不常驻 → M4b-2 用时 CLI 落地；理由：零消费者 + 6 条 a11y 违规）；② §4 补 biome 例外扩展记录（`shadcn/**` 增 `useImportType`/`noDoubleEquals`/`noArrayIndexKey`/`useKeyWithClickEvents`/`organizeImports` off——沿用 M4a 先例）+ 既有 7 件格式漂移定性（纯 import 风格，零语义）；实测：落仓 22 → **33 件** · 新增依赖 4 项 · 门禁四连绿（web lint 0 诊断）· 详见 plan「落地记录（2026-09-14）」 ④ **自检数字修正**：v1.0 头部原写「8 维自检 9.56」系**未实测的自产数字**（照抄他文档），同轮按维表逐维实测修正为 **9.63**（标准 4 + 深度 4，逐维证据见本轮报告） |
 | v1.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户 2026-09-14 定：主 design ↔ 批 design）**——本文件全篇 `umbrella` → **主 design**（12 处）；定位表述改为「本文件 = **M4b-1 批 design**，上游 = `2026-09-10-m4b-admin-console-design.md`（**主 design**，跨批不变层）」 |
 | v1.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§4 标题 + 版本头；并补「计数口径」说明行；v1.0 行原「补装 13 件」为当时口径，语义以本条为准）② 依赖口径 → **4 个包 / 3 组**（§4 依赖纪律 · §10 配置行；原「3 项」按组计数）③ 对上游主 design 的 3 处硬版本引用去值（版本头 Status · 引用链 · §10 引用文件清单）④ T1 Files 回写 `login-03` 实际处置（执行期修正 1：已移除）⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
+| v1.4 | 2026-09-14 | sunxuewen-rush | **T8 收尾（批完成）：门禁/冒烟/§9 复验结果登记** —— ① 五门禁逐项 exit 0（typecheck / lint / format:check / build / db:migrate / test：`CI=true` + 单库 `ai_asset_hub` + `--force`，**475 例 474 pass / 1 skip / 0 fail** = 与基线一致、零回归；经用户 2026-09-14 授权）② 双冒烟：chain-smoke **29/29** · dogfood **36/36 + NO JS ERRORS**（`SMOKE_SHOT_PREFIX=m4b1-`，11 张截图）③ marker：`data-review` 0 · `ReviewControls` 0 · `dev/ReviewControls.tsx` 已删 ④ §9 六条逐条复验（③ `SheetTitle`/`DialogTitle`/`Avatar`+`Fallback` 齐备 · ④ `InputGroup` 零消费属 §6.2「并列则保持」· ⑤ 分页真数据 < limit 正当缺席、canonical 实测沿用 T5 探针 · ⑥ `forceMount` 缓存**活体复验**：`/api` 请求 13→13→13 零新增）⑤ **连带修复冒烟脚本输入保真**：官方 `Tabs` 激活走 `onMouseDown` ⇒ 页内合成 `el.click()` 不激活（实测：click 已派发但 `aria-selected` 不变；补 mousedown 即正常；历史对照 `git show 2b4d432^:DetailTabs.tsx:49` 为手搓 `onClick`）；官方 `Dialog` 内置 ✕ 无 `aria-label`（`sr-only` = `Close`）⇒ 旧 `button[aria-label="关闭"]` 自 T3 起恒 null 且静默失效、未关遮罩吞掉真指针点击。修法 = 新增 `clickReal()`（CDP 真指针 + 最顶层守卫，替换 3 处 tab 激活）+ `closeDialog()`（Esc → 官方 ✕ 兜底 → 轮询消失，替换 2 处），**36 条断言零改动**；修后 36/36。⑥ `common.close` 孤儿键清理（T3 起零消费；`common` 组 6 → 5 键，zh/en 对齐）⑦ T5 副产物「URL 更新但视图未重渲染」本 Task **未复现** ⇒ 保留观察项（未定性为缺陷）⑧ **观感复看 ✅ 用户复核通过**（五面 + 补充探针）—— 硬证据记录：`docs/smoke/2026-09-14-m4b1-foundation.md` |
