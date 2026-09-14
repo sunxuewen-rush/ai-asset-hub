@@ -1,16 +1,16 @@
 # M4b-1 地基批设计（组件归位 + 控制台组件面域）
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v1.0 初稿**：M4b 拆批后**首批 `M4b-1` 的对齐定稿**——① 手搓展示件归位官方件 **14 处**（Card 族 / Dialog / Tabs / FileTree / Pagination / Badge / Avatar / Spinner / Empty / Error / 面包屑 / 载态）② 官方件补装 **13 件**（含 4 件带新 npm 依赖）③ 控制台面域组件 **6 件** + 跨面件 **4 件** ④ **合规清理 4 项**（ToggleGroup / InputGroup / `cn()` / 圆角轴登记）⑤ 依据用户 2026-09-14 拍板 A′/B′/C′/D′ + shadcn 官方 Skill 硬规则；8 维自检见 §11）
-> Status: **定稿**（8 维自检 **9.63** ≥9——**实测值**，2026-09-14 按维表逐维打分；上游 umbrella `2026-09-10-m4b-admin-console-design.md` **v1.4 §2.3** 的子批之一）
+> Updated: 2026-09-14（**v1.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**（原「补装 13 件」= 表列编号数）② 依赖口径 → **4 个包 / 3 组**（原「3 项」按组计数）③ 对本文件上游主 design 的 3 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除，见执行期修正 1）；**v1.2：术语标准化**——上游文档统一称 **主 design**（跨批不变层），本文件 = **M4b-1 批 design**；v1.1：T1 执行回写（2 处执行期修正）；v1.0 初稿：M4b 拆批后**首批 `M4b-1` 的对齐定稿**——① 手搓展示件归位官方件 **14 处**（Card 族 / Dialog / Tabs / FileTree / Pagination / Badge / Avatar / Spinner / Empty / Error / 面包屑 / 载态）② 官方件**新落仓 11 件（表列 13 项）**（另有新增依赖 **4 个包 / 3 组**）③ 控制台面域组件 **6 件** + 跨面件 **4 件** ④ **合规清理 4 项**（ToggleGroup / InputGroup / `cn()` / 圆角轴登记）⑤ 依据用户 2026-09-14 拍板 A′/B′/C′/D′ + shadcn 官方 Skill 硬规则；8 维自检见 §11）
+> Status: **定稿**（8 维自检 **9.63** ≥9——**实测值**，2026-09-14 按维表逐维打分；上游主 design `docs/designs/2026-09-10-m4b-admin-console-design.md` §2.3 的子批之一；主 design 版本随其自身演进，**以其版本头为准**）
 > Scope: **仅 M4b-1（地基批）**——把手搓展示件归位到 shadcn 官方件 + 补装官方件 + 建控制台面域组件与跨面件 + 合规清理；**零路由新增、零页面新增、零服务端改动**
-> 引用链：本文档 → 上游 umbrella `docs/designs/2026-09-10-m4b-admin-console-design.md`（**v1.4**：模型/契约/路由/视觉基线/拆批表）→ 规范 `00` §5/§7 · `07` · M4a design **§4.4**（全站视觉真值 SSOT，引用不复制）；官方硬规则源 = 本机 `~/04-ws/00-ui/skills/shadcn`（SKILL.md + rules/*，2026-09-14 实测）
+> 引用链：本文档 → 上游主 design `docs/designs/2026-09-10-m4b-admin-console-design.md`（模型/契约/路由/视觉基线/拆批表；**版本随主 design 演进，以其版本头为准**）→ 规范 `00` §5/§7 · `07` · M4a design **§4.4**（全站视觉真值 SSOT，引用不复制）；官方硬规则源 = 本机 `~/04-ws/00-ui/skills/shadcn`（SKILL.md + rules/*，2026-09-14 实测）
 
 ## 1. 背景与批界
 
-**为什么要拆批**：umbrella 的 M4b 原为「9 视图 + ~26 组件 + 2 处服务端改动」的单块，一次立 plan 会导致
+**为什么要拆批**：主 design 的 M4b 原为「9 视图 + ~26 组件 + 2 处服务端改动」的单块，一次立 plan 会导致
 任务清单过长、对齐/实现粒度失控。用户 2026-09-14 拍板拆为 **M4b-1 … M4b-6** 六个子里程碑，
-**一个一个对齐 → 立 plan → 实现 → 收敛**（拆批表见 umbrella §2.3）。
+**一个一个对齐 → 立 plan → 实现 → 收敛**（拆批表见 主 design §2.3）。
 
 **M4b-1 在依赖链的位置**：本地基批是其余五批的**共同前置**——门户与后续控制台都在同一批官方件上生长，
 故必须在任何新页面之前完成（否则会出现「门户手搓件 vs 控制台官方件」的双栈混搭期，
@@ -58,7 +58,7 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 
 - 官方件**默认值**就是新真值（A′/B′），不再用 className 把官方件「掰」回旧值；
 - 站点级差异（AIH 的 `--success`/`--warning`、类型色）走**官方认可的 token / 变体路径**（§3.5、§3.10）；
-- 业务语义（状态映射、坐标、文案）仍属 AIH，登记在 umbrella §10.1，不在本批改写。
+- 业务语义（状态映射、坐标、文案）仍属 AIH，登记在 主 design §10.1，不在本批改写。
 
 ## 3. 组件归位规格（14 处）
 
@@ -81,10 +81,12 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 | 3.13 | `VersionCompare` 双原生 `<select>` | **本批不动**（原生 select 是 M4a 有意保留：换原语 = 行为变更） | — | 保留 + 注释说明；如需换另立 | ⚪ 零变化 |
 | 3.14 | `market/Hero` / `DiffView` / `DiffNav` / `ui/TypeIcon` / `ui/MarkdownRenderer` | **官方无对应件** | — | **保留手搓**（官方 registry 63 件实测无 hero/diff/type-icon/markdown 件；sidebar-11 仅作文件树参照） | ⚪ 零变化 |
 
-## 4. 官方件补装清单（13 件）
+## 4. 官方件补装清单（新落仓 **11 件** · 表列 13 项）
 
 > 落点 = `apps/web/src/components/ui/shadcn/`（项目 alias `ui`，见 `components.json`）。
 > 「性质」= **源码落仓**（写文件进仓，不动 lockfile）／**新增 npm 依赖**（动 `apps/web/package.json` + `bun.lock`）。
+>
+> **计数口径（2026-09-14 修正）**：本表按**表列项**编号共 **13 项**；其中**新落仓源码件 = 11 件**（§4.1–§4.10，`toggle` + `toggle-group` 计两件）· **新增依赖 = 4 个包 / 3 组**（§4.9 `cmdk` · §4.10 `react-day-picker` + `date-fns` · §4.11 `@tanstack/react-table`）· §4.11 = 官方 recipe（无源码件）· §4.12 `login-03` **延后至 M4b-2** · §4.13 的 9 件 M4a 已在仓，本批**首次消费**。
 
 | # | 件 | npm 依赖 | 性质 | 本批用途 / 后续消费批 |
 |---|----|---------|------|---------------------|
@@ -102,7 +104,7 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 | 4.12 | `login-03` **block** | 无 | **M4b-2 用时 CLI 落地**（T1 曾落仓后移除——见 plan 落地记录执行期修正 1：demo 文件零消费者 + 自带 6 条 a11y 违规，不宜常驻） | 取 `field` 组合作登录页基座；消费 → M4b-2 |
 | 4.13 | `breadcrumb` / `card` / `tabs` / `pagination` / `collapsible` / `avatar` / `badge` / `dialog` / `skeleton` | 无 | **已在仓**（M4a T2 落位，本批首次消费） | 本批（§3） |
 
-**依赖纪律**：新增 npm 依赖 3 项（`cmdk` · `react-day-picker`+`date-fns` · `@tanstack/react-table`）——
+**依赖纪律**：新增 npm 依赖 **4 个包 / 3 组**（`cmdk` · `react-day-picker`+`date-fns` · `@tanstack/react-table`）——
 用户 2026-09-14 已授权；落位后必须跑 `bun install` + 全门禁，且 **`bun.lock` 同批提交**。
 
 ## 5. 控制台面域组件与跨面件规格（6 + 4）
@@ -112,10 +114,10 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 | 件 | 官方件组合 | 规格真值 |
 |----|-----------|---------|
 | `PageHeader` | 无官方对应（`Card` 内组合） | 标题（`text-xl font-semibold`）+ 副述（`text-sm text-muted-foreground`）+ 右侧动作槽（`CardAction` 语义） |
-| `DataTable` | `Table` 全族 + `@tanstack/react-table`（官方 recipe 模式） | 列定义驱动；**表头高 40 / 单元格 `p-2`**（umbrella §10.1 待拍板项，本批沿用 40 档）；载态 `Skeleton` 行；空态 `Empty`；错态 `Alert`；行内动作槽 |
-| `Drawer` | `Sheet` 封装 | **宽 560**（`sm:max-w-[560px]`，umbrella §10.1 待拍板项取 560）；**必须带 `SheetTitle`**；遮罩 `bg-black/50`；**禁手写 z-index** |
+| `DataTable` | `Table` 全族 + `@tanstack/react-table`（官方 recipe 模式） | 列定义驱动；**表头高 40 / 单元格 `p-2`**（主 design §10.1 待拍板项，本批沿用 40 档）；载态 `Skeleton` 行；空态 `Empty`；错态 `Alert`；行内动作槽 |
+| `Drawer` | `Sheet` 封装 | **宽 560**（`sm:max-w-[560px]`，主 design §10.1 待拍板项取 560）；**必须带 `SheetTitle`**；遮罩 `bg-black/50`；**禁手写 z-index** |
 | `ConfirmDialog` | `AlertDialog` 封装（官方 customization §4 示例形态） | 危险确认专用；`AlertDialogTitle` + `AlertDialogDescription` 必填；确认钮 `variant="destructive"`；**支持「需输入原因」变体**（`field` + `Textarea`，对应 yank 的服务端 `reason` 必填） |
-| `StatusPill` | `Badge`（`variant="success"｜"warning"｜"destructive"｜"secondary"`） | 资产三态 → ACTIVE=`success` / HIDDEN=`warning` / ARCHIVED=`secondary`；版本八态映射见 umbrella §10.1 |
+| `StatusPill` | `Badge`（`variant="success"｜"warning"｜"destructive"｜"secondary"`） | 资产三态 → ACTIVE=`success` / HIDDEN=`warning` / ARCHIVED=`secondary`；版本八态映射见 主 design §10.1 |
 | `FilterBar` | `Select` + `Input` +（可选）`Calendar` | 状态下拉 + 关键词；粒度与位序见各消费批（M4b-3…6） |
 
 ### 5.2 `components/ui/` —— 跨面件（4 件）
@@ -124,13 +126,13 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 |----|-----------|------|
 | `Toaster` | `Sonner` 封装 | **全局单例**挂 App 根（M4b 首个可见反馈载体，M4b-2 起消费） |
 | `SkeletonLoader` | `Skeleton` 组合 | 表格/详情两类骨架预设 |
-| `RoleGuard` | 无官方件（`Outlet` 包装 + 重定向） | `role >= N` 判定；未登录 → `/login?next=`；已登录不足 → `/dashboard` + 轻提示（umbrella §4） |
+| `RoleGuard` | 无官方件（`Outlet` 包装 + 重定向） | `role >= N` 判定；未登录 → `/login?next=`；已登录不足 → `/dashboard` + 轻提示（主 design §4） |
 | `CopyButton` | `Button variant="ghost" size="icon-sm"` + `Tooltip` | 复制坐标/令牌明文/sha；明文场景**关闭即清** |
 
 ### 5.3 i18n 资源组骨架
 
 `dashboard` / `admin` / `review` 三组键结构落位（zh 真源 + en 对齐）；本批**只落骨架键**（页标题/通用动作/空态），
-业务文案随各批补。规范依据：umbrella §11 · `07` §3。
+业务文案随各批补。规范依据：主 design §11 · `07` §3。
 
 ## 6. 合规清理项（4）
 
@@ -149,8 +151,8 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 
 | 变更 | 端点/位置 | 归属批 | 来源 |
 |------|----------|-------|------|
-| 新增「我可管理的资产」读面 | `GET /api/me/assets?status&q&limit&offset` | **M4b-4** | umbrella §7.2 R6 |
-| 非 ACTIVE 读面授权集扩展 | `assertAssetReadable`（含 `.../versions`/`files`/`download` 族） | **M4b-4** | umbrella §7.2 R6-b |
+| 新增「我可管理的资产」读面 | `GET /api/me/assets?status&q&limit&offset` | **M4b-4** | 主 design §7.2 R6 |
+| 非 ACTIVE 读面授权集扩展 | `assertAssetReadable`（含 `.../versions`/`files`/`download` 族） | **M4b-4** | 主 design §7.2 R6-b |
 | `ReviewListItem` 增 `reviewComment` 字段（列表露拒绝原因） | `review/query.ts` 的 `LIST_SELECT` | **M4b-3** | 2026-09-14 用户拍板 D34（推荐采纳） |
 
 ## 8. UI-UX 变动总览（本批用户可见变化）
@@ -182,7 +184,7 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 
 ## 10. 引用文件清单
 
-- 上游 design：`docs/designs/2026-09-10-m4b-admin-console-design.md`（**v1.4**：§2.3 拆批表 / §2.4 对齐决策登记 / §10.1 视觉基线）
+- 上游**主 design**：`docs/designs/2026-09-10-m4b-admin-console-design.md`（§2.3 拆批表 / §2.4 对齐决策登记 / §10.1 视觉基线；**版本以其版本头为准**）
 - 视觉 SSOT：`docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（色彩 token / 圆角轴 / 字阶 / 组件真值 / AIH 补丁表）
 - 规范：`docs/00-product-direction.md` §5/§7 · `docs/07-i18n-conventions.md` §3
 - 官方规则源（本机）：`~/04-ws/00-ui/skills/shadcn/{SKILL.md,rules/*.md}`
@@ -193,7 +195,7 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
   · `apps/web/src/pages/AssetDetail.tsx` · `apps/web/src/main.tsx`（Toaster 挂载）
   · 新增 `apps/web/src/components/ui/shadcn/**` · `apps/web/src/components/console/**` · `apps/web/src/components/ui/{Toaster,SkeletonLoader,RoleGuard,CopyButton}.tsx`
   · `apps/web/src/i18n/{zh,en}.ts`（三组骨架）
-- 配置：`apps/web/components.json`（alias `ui` = `@/components/ui/shadcn`）· `apps/web/package.json`（3 项新增依赖）
+- 配置：`apps/web/components.json`（alias `ui` = `@/components/ui/shadcn`）· `apps/web/package.json`（4 个包 / 3 组新增依赖）
 - 测试/冒烟（复用，不改语义）：`docs/smoke/scripts/{m4a-chain-smoke,m4a-dogfood}.ts`
 
 ## 11. 修订记录
@@ -202,3 +204,5 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 |------|------|------|------|
 | v1.0 | 2026-09-14 | sunxuewen-rush | 初稿：M4b 拆批首批（M4b-1 地基批）对齐定稿——拍板 A′-F（Card/Dialog 接受官方默认；chip 改 `ToggleGroup`/`Toggle`；`Alert`/`InputGroup`/`cn()` 合规清理；依赖清单；CLI 纪律）· 组件归位 **14 处**规格（含每处消费点与视觉净变化）· 官方件补装 **13 件**（含 3 项新增 npm 依赖与落点）· 控制台面域 **6 件** + 跨面 **4 件** + i18n 骨架 · 合规清理 **4 项** · 接口变更「本批零服务端改动 + 3 项登记归属」· UI 变动 **7 条**与观感复看清单 · 回归面与 6 条本批特有断言；依据：用户 2026-09-14 对齐逐条拍板 + shadcn 官方 Agent Skill 硬规则（本机 `00-ui/skills/shadcn` 实测）；8 维自检 **9.56**（⚠ **自产数字，未实测**——同轮按维表实测修正为 **9.63**，见 v1.1 行） |
 | v1.1 | 2026-09-14 | sunxuewen-rush | **T1 执行回写（2 处执行期修正）**：① §4.12 `login-03` 落仓方式修正（demo 文件不常驻 → M4b-2 用时 CLI 落地；理由：零消费者 + 6 条 a11y 违规）；② §4 补 biome 例外扩展记录（`shadcn/**` 增 `useImportType`/`noDoubleEquals`/`noArrayIndexKey`/`useKeyWithClickEvents`/`organizeImports` off——沿用 M4a 先例）+ 既有 7 件格式漂移定性（纯 import 风格，零语义）；实测：落仓 22 → **33 件** · 新增依赖 4 项 · 门禁四连绿（web lint 0 诊断）· 详见 plan「落地记录（2026-09-14）」 ④ **自检数字修正**：v1.0 头部原写「8 维自检 9.56」系**未实测的自产数字**（照抄他文档），同轮按维表逐维实测修正为 **9.63**（标准 4 + 深度 4，逐维证据见本轮报告） |
+| v1.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户 2026-09-14 定：主 design ↔ 批 design）**——本文件全篇 `umbrella` → **主 design**（12 处）；定位表述改为「本文件 = **M4b-1 批 design**，上游 = `2026-09-10-m4b-admin-console-design.md`（**主 design**，跨批不变层）」 |
+| v1.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§4 标题 + 版本头；并补「计数口径」说明行；v1.0 行原「补装 13 件」为当时口径，语义以本条为准）② 依赖口径 → **4 个包 / 3 组**（§4 依赖纪律 · §10 配置行；原「3 项」按组计数）③ 对上游主 design 的 3 处硬版本引用去值（版本头 Status · 引用链 · §10 引用文件清单）④ T1 Files 回写 `login-03` 实际处置（执行期修正 1：已移除）⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |

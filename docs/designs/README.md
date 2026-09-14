@@ -9,5 +9,6 @@
   正文可按需加「验收口径」「后置延伸」小节（非强制段）
 - 门禁：8 维自检 ≥9 → grilling → 重评 ≥9
 - 合并铁律：同主题小迭代追加既有 design（bump 版本），不新建散文档
+- **拆批里程碑**：**主 design**（跨批不变层）留在 `designs/`；**批 design** 命名 `YYYY-MM-DD-m4b<n>-<主题>-design.md`；批内内容随批迁出、主 design 留指针（不双写）
 
 体系定义见 `docs/00-product-direction.md` §7。

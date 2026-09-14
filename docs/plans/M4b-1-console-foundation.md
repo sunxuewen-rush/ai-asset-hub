@@ -1,14 +1,14 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据 design `2026-09-14-m4b1-console-foundation-design.md` **v1.0 定稿** 与上游 umbrella **v1.4 §2.3**）
+> Updated: 2026-09-14（**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
 > Status: **执行中**（**T1 ✅ 2026-09-14**；T2-T8 ⬜）
-> 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游 umbrella `docs/designs/2026-09-10-m4b-admin-console-design.md` v1.4 → 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
+> 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
 ## 1. 目标与范围
 
-**目标**：把门户里**手搓的展示件**归位到 shadcn 官方件（14 处），补装官方件（13 件），建立**控制台组件面域**
+**目标**：把门户里**手搓的展示件**归位到 shadcn 官方件（14 处），补装官方件（新落仓 **11 件** · 表列 13 项），建立**控制台组件面域**
 （6 件）与**跨面基础件**（4 件），并落实官方硬规则带来的**合规清理**（4 项）——为 M4b-2…6 提供
 「门户与控制台共用同一套官方件」的单一底座。
 
@@ -37,7 +37,7 @@
 ### T1 官方件补装 + 依赖落位 ✅（2026-09-14 落地；执行期修正 2 处见「落地记录」）
 - **Files**: Modify `apps/web/package.json`（`cmdk` · `react-day-picker` · `date-fns` · `@tanstack/react-table`）·
   `bun.lock` · Create `apps/web/src/components/ui/shadcn/{field,empty,spinner,alert-dialog,popover,alert,toggle,toggle-group,input-group,command,calendar}.tsx` ·
-  Create `login-03` block 文件（取 `components/login-form.tsx`；`page.tsx` 丢弃）·
+  Create `login-03` block 文件 → **已移除**（执行期修正 1：demo 文件零消费者 + 6 条 a11y 违规；延后 M4b-2 用时 CLI 落地）·
   Modify `apps/web/src/components/ui/shadcn/{badge,card}.tsx`（T4/T6 的变体添加在各自 Task 内做，本 Task 只落官方原样）
 - **Assert**:
   ① `bunx --bun shadcn@latest info` 回显 `base=radix` · `tailwindVersion=v4` · `framework=vite` · alias `ui`
@@ -145,7 +145,7 @@
 - 落地：CLI（`bunx --bun shadcn@latest add … -y`）落仓 **11 件**——`field` · `empty` · `spinner` · `alert-dialog` ·
   `popover` · `alert` · `toggle` · `toggle-group` · `input-group` · `command` · `calendar`；
   `components/ui/shadcn/*.tsx` **22 → 33**（`ls | wc -l` 实测）
-- 依赖：`apps/web/package.json` 新增 **4 项**——`cmdk@^1.1.1`（command）· `date-fns@^4.4.0` +
+- 依赖：`apps/web/package.json` 新增 **4 个包（3 组）**——`cmdk@^1.1.1`（command）· `date-fns@^4.4.0` +
   `react-day-picker@^10.0.1`（calendar）· `@tanstack/react-table@9.2.4`（data-table recipe，手动 `bun add`）；
   `bun.lock` 同批更新
 - 校验：`shadcn info` 回显 `framework=Vite` · `tailwindVersion=v4` · `style=new-york` · **`base=radix`** ·
@@ -175,7 +175,7 @@
 - **风险 ①（观感）**：A′ 使页面级卡 18→14px + 全站卡加 1px 描边 ⇒ **唯一需要用户复看的项**（design §8.1）
 - **风险 ②（a11y 结构变更）**：`Dialog`/`Tabs` 换官方件后 DOM 结构变化 ⇒ 既有 dogfood 若依赖旧选择器需同步调整
   （**只改选择器不改语义**；若出现断言语义冲突 → 停下回 design）
-- **风险 ③（依赖新增）**：3 项新增 npm 依赖 ⇒ 落位后必须 `bun install` + lockfile 同批提交 + 全门禁
+- **风险 ③（依赖新增）**：4 个包（3 组）新增 npm 依赖 ⇒ 落位后必须 `bun install` + lockfile 同批提交 + 全门禁
 - **不做**：为归位改测试语义 / 放宽断言（归位是来源变更，测试红 = 越界信号，须查根因）
 - **登记（不阻塞）**：`--radius-2xl` 潜在零消费者（design §6.4）· `VersionCompare` 原生 select 保留 ·
   `Hero`/`DiffView`/`DiffNav`/`TypeIcon`/`MarkdownRenderer` 官方无对应件（design §3.13/§3.14）
@@ -185,3 +185,5 @@
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v0.1 | 2026-09-14 | sunxuewen-rush | 初稿：M4b-1 地基批 Task 清单 **T1-T8**（补装+依赖 → Card → Dialog+Tabs → 展示件 → 面包屑/Collapsible/Pagination → 控制台面域+跨面件+Toaster → 合规清理 → 门禁/冒烟/自检/回写），每 Task 含 Files / Assert（可现场跑）/ Commit；风险与回退、登记项；依据 design `2026-09-14-m4b1-console-foundation-design.md` v1.0 定稿 |
+| v0.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户定：主 design ↔ 批 design）**——全篇 `umbrella` → **主 design**（2 处）；引用链措辞统一 |
+| v0.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§1 目标）② 依赖口径 → **4 个包 / 3 组**（落地记录 + §3 风险）③ 对上游主 design 的 2 处硬版本引用去值（版本头 Updated · 引用链）④ T1 Files 的 `login-03` 按执行期修正 1 回写为「已移除」⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
