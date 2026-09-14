@@ -76,8 +76,6 @@ export const zh = {
     retry: '重试',
     close: '关闭',
     download: '下载',
-    prev: '上一页',
-    next: '下一页',
     pageOf: '{n} / {total} · 每页 {size}',
   },
   errors: {

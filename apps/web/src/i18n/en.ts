@@ -82,8 +82,6 @@ export const en: Dict = {
     retry: 'Retry',
     close: 'Close',
     download: 'Download',
-    prev: 'Prev',
-    next: 'Next',
     pageOf: '{n} / {total} · page size {size}',
   },
   errors: {
