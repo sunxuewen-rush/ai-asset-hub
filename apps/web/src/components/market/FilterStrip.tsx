@@ -36,7 +36,8 @@ export function labelName(label: LabelDto): string {
  *   `variant="chip"` + `size="chip"`**（官方第 ④ 条路径「改组件源码加 variant」）——原自绘三段模板串
  *   常量与 `cls(on)` 三元**整段删除**（硬规则 13「条件类用 cn()」在本件
  *   已无适用场景：开/关两态由 variant 的 `data-[state=on]` 承载，全仓模板串条件类归零）。
- * - 组内 `spacing={7}` 与行 `gap-[7px]` 同值（沿用旧 chip 行距）；组 `flex-1 flex-wrap` 使根标签在
+ * - 组内 `spacing={1.75}`（= **7px**——`spacing` 是 0.25rem **乘数**，写 `7` 会得 28px；见下行注释）
+ *   与行 `gap-[7px]` 同值（沿用旧 chip 行距）；组 `flex-1 flex-wrap` 使根标签在
  *   剩余宽度内换行（`w-fit` 会让组不换行而溢出）。
  * 不变：两级组树与 `labelName` 回退链 · 根行首「全部」= `onClearAll` · 多值 OR 切换（`onToggle`）·
  * `aria` 无（沿用原状）· 标签源空/未就 → 整条不渲染（优雅降级）· 对外 props 契约零变更。

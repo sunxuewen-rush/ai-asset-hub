@@ -1,7 +1,8 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.12：T8 收尾回写（批完成）**——五门禁逐项 exit 0（含用户授权 `test --force`：475 例
+> Updated: 2026-09-14（**v0.13：收尾整体审计（批完成最后一环）**—— 承 M4a T17-T26 惯例，十维覆盖式扫描 ⇒ **findings 8 项**（§3）：修 **1**（F1 `FilterStrip.tsx:39` 注释 `spacing={7}` → `1.75`）· 订正 **1**（F2 design §6.4 `--radius-2xl` 从「潜在零消费者」候选剔除）· 回填 **1**（F3 M4a 审计第 24 项 chip 类串重复 → 本批已收敛）· 口径登记 **5**（F4 地基批有意零消费 · F5 越轴值 · F6 i18n 计数方法 · F7 既有死导出 · F8 残留/硬规则/数字全绿）；**无未决项**；
+> **v0.12：T8 收尾回写（批完成）**——五门禁逐项 exit 0（含用户授权 `test --force`：475 例
 > 474/1/0 = 与基线一致）· 双冒烟 chain **29/29** + dogfood **36/36 + NO JS ERRORS** · marker 0 · design §9 六条
 > 逐条复验（⑥ `forceMount` 活体复验：`/api` 13→13→13 零新增）· **连带修复冒烟脚本输入保真**（官方 `Tabs` 走
 > mousedown ⇒ 合成 click 不激活；官方 `Dialog` ✕ 无 `aria-label` ⇒ 旧关闭选择器静默失效；断言 36 条零改动，
@@ -12,7 +13,7 @@
 > **v0.10：版本八态映射拍板回写**——`UPLOADED` = warning（对标 21-skillhub 列表页）
 > + `YANKED` destructive → secondary（对标 skillhub 详情页）；`StatusPill` 映射与断言④ 复测，
 > 主 design 同步升 **v1.7**（执行期说明 2 由「待确认」转「已闭合」）；**v0.9：T6 落地回写**——10 件控制台/跨面件落仓（PageHeader/DataTable/Drawer/ConfirmDialog/StatusPill/FilterBar + Toaster/SkeletonLoader/RoleGuard/CopyButton）+ `main.tsx` 挂 Toaster + i18n 三组骨架键；断言①-⑥ 全绿（临时探针页 `/__probe` 渲染全件实测后删除）；3 条执行期说明（TanStack v9 走官方 `/legacy` 子路径 · design 缺 `UPLOADED` 映射 · 探针期复现后台标签冻结 CSS 退出动画）；**v0.8：T5 落地回写**——面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible` · 分页→官方 `Pagination` 结构；断言①-④ 实测（「翻页回顶」经 grep 核查为契约-代码不一致 → **用户拍板补齐 + 可判定实测**）；**4 条执行期说明**（未用官方 `PaginationLink`（`<a>` 不可聚焦）· 回顶缺项 · `mx-auto` 口径修正 · 面包屑非零变化）；**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **批完成**（**T1-T8 ✅ 2026-09-14**；T1-T7 已推送，**观感复看 ✅ 用户已复核通过**，待提交批准 · 批间门见主 design §2.3）
+> Status: **批完成**（**T1-T8 ✅ 2026-09-14**，提交链已推送 · **整体审计 ✅（F1-F8 登记，见 §3）** · **观感复看 ✅ 用户已复核通过** · 批间门见主 design §2.3）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -493,7 +494,26 @@
    保留**（对比基/目标选择不因切 tab 丢失）；代价 = 每访问详情页多 1 次 compare 请求。→ **登记为
    T8/收尾复核项**（若判定该代价不可接受，可改为「active 面板才 forceMount」或让 VersionCompare 懒取数）
 
-## 3. 风险与回退
+## 3. 整体审计（收尾 · 2026-09-14）
+
+**口径来源**：M4a 先例 `docs/smoke/2026-09-11-m4a-visual-s1.md` §9（T17-T26 整体审计）+ `M4a-visual-shadcn.md` 登记表第 20-26 条 ——
+做法 = **收尾对全仓跑一轮覆盖式扫描，findings 逐条登记 + 处置（修 / 订正 / 维持现状+理由）**。
+**本批执行**：十维扫描（死导出 · i18n 键 · 已删件残留 · 类串重复 · 越轴值 · token 消费者 · 注释腐化 · 文档数字实测 · 官方件硬规则 · 既有登记项状态）。
+
+| # | 维度 | 发现（实测） | 处置 |
+|---|------|--------------|------|
+| F1 | 注释腐化 | `market/FilterStrip.tsx:39` 文档注释写 `spacing={7}`，真值 `spacing={1.75}`（= 7px；`spacing` 是 0.25rem 乘数）；行内注释本就正确 | **修**（1 行注释） |
+| F2 | 既有登记项 | design §6.4 把 `--radius-2xl` 登记为「潜在零消费者 token」候选，但**同表「现状」列已记 1 个消费点**（`SideNav.tsx:71`，经 `rounded-2xl` utility 消费）⇒ 自相矛盾 | **订正**（从候选剔除）。**跨里程碑挂账**：M4a plan §3 表 25 的同类项（「真零消费者 9 个 token」）**未被本批反驳**，其口径仍以 M4a plan 为准，留待 **M4b 全部子批收尾的完整 converge** 复核（本批只订正 design §6.4 单条） |
+| F3 | 类串重复 | M4a 审计第 24 项（chip 类串跨 **4** 文件重复，建议 M4b 前抽共享） | **回填**（本批已收敛：chip 外观落官方 `toggle.tsx` `variant="chip"`，`FilterStrip` 零手搓类串） |
+| F4 | 死导出 | 本批新增件中 console **6** 件（`PageHeader`/`StatusPill`/`DataTable`/`Drawer`/`ConfirmDialog`/`FilterBar`）+ 跨面 **4** 件（`Toaster`/`SkeletonLoader`/`RoleGuard`/`CopyButton`）+ i18n 三组 **15** 键（`dashboard` 4 · `admin` 6 · `review` 5）**零外部消费** | **登记·不改**（地基批「落件不接线」的预期形态，消费点 M4b-2..6；非死代码） |
+| F5 | 越轴任意值 | `SkeletonLoader h-[120px]` · `FilterBar w-[240px]`/`w-[180px]` · `Drawer max-w-[560px]`（契约值）· `FilterStrip text-[11px]`（**在轴**上，§4.4 首档） | **登记·不改**（布局级；官方允许 className 做布局） |
+| F6 | 方法教训 | i18n 键计数用宽松正则会把**嵌套键**计入 ⇒ market 假阳性「zh 53 / en 58」；按**顶层缩进**重算 = **53/53 对齐**（六组：common 5 · market 53 · dashboard 4 · admin 6 · review 5 · errors 2 全对齐） | **登记**（后续审计按顶层键匹配） |
+| F7 | 死导出（既有） | `FilterStrip` 的 `buildLabelRows`/`labelName` 零外部消费者 | **维持**（M4a 审计 21 已澄清「文件内使用，非死代码」，状态不变） |
+| F8 | 残留 / 硬规则 / 数字 | 已删件残留 **8 类全 0**（`ui/Spinner` · `common.close\|prev\|next` · `CHIP_*` · `.module.css` · 手写 `z-[` · 模板串条件类 · `ReviewControls` · `__probe`）· 官方件硬规则 **6 项 0 违规**（`Sheet` 带 Title · `Avatar` 带 Fallback · `TabsTrigger` 在 `TabsList` 内 · 无手写 z-index · Button 无 `isPending` · `size-*` 代 `w-N h-N`）· 文档量化声明 **8 项实测一致**（官方件新落仓 **11** · 表列 **13** 项 · 归位 **14** 处 · 合规 **4** 项 · console **6** 件 · 跨面 **4** 件 · 依赖 **4** 个包 · `ui/shadcn` 现存 **33** 件） | **无需动作** |
+
+**处置合计**：修 1 · 订正 1 · 回填 1 · 口径登记 5（F4/F5/F6/F7/F8）—— **无未决项**。
+
+## 4. 风险与回退
 
 - **回退面**：逐 Task 独立 commit ⇒ 可单件 `git revert`；官方件与手搓件在归位期间**并存同 commit**，无中间态
 - **风险 ①（观感）**：A′ 使页面级卡 18→14px + 全站卡加 1px 描边 ⇒ **唯一需要用户复看的项**（design §8.1）
@@ -501,10 +521,10 @@
   （**只改选择器不改语义**；若出现断言语义冲突 → 停下回 design）
 - **风险 ③（依赖新增）**：4 个包（3 组）新增 npm 依赖 ⇒ 落位后必须 `bun install` + lockfile 同批提交 + 全门禁
 - **不做**：为归位改测试语义 / 放宽断言（归位是来源变更，测试红 = 越界信号，须查根因）
-- **登记（不阻塞）**：`--radius-2xl` 潜在零消费者（design §6.4）· `VersionCompare` 原生 select 保留 ·
+- **登记（不阻塞）**：`--radius-2xl` **经 `rounded-2xl` utility 有消费点 ⇒ 非零消费者**（整体审计 F2 已订正 design §6.4）· `VersionCompare` 原生 select 保留 ·
   `Hero`/`DiffView`/`DiffNav`/`TypeIcon`/`MarkdownRenderer` 官方无对应件（design §3.13/§3.14）
 
-## 4. 修订记录
+## 5. 修订记录
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
@@ -520,3 +540,4 @@
 | v0.10 | 2026-09-14 | sunxuewen-rush | **版本八态映射拍板回写**：`UPLOADED` = **warning**（对标 21-skillhub 列表页 review 档；原 design 只列 7 态、初版推断取 secondary）+ `YANKED` destructive → **secondary**（对标 skillhub 详情页灰档，且与门户侧 `VersionCompare` 代码实况一致）；主 design 同步升 **v1.7**（八态映射缺口闭合 · 执行期说明 2 由待确认转已闭合）；M4a design §4.4 门户侧表述订正 `destructive` → `neutral`（升 v0.25）；本件断言④ 映射复测。**顺带订正**：修订记录 v0.5-v0.9 行序倒挂（历史追加所致）→ 统一升序 |
 | v0.11 | 2026-09-14 | sunxuewen-rush | **T7 合规清理落地回写**：`FilterStrip` chips → 官方 `ToggleGroup`/`ToggleGroupItem`（根行）+ `Toggle`（「全部」与子行）；chip 外观落 **官方 `toggle.tsx` 加 `variant="chip"`+`size="chip"`**（第 ④ 路径，同 T4 Badge 法）；原自绘三段模板串常量与 `cls(on)` 删除 ⇒ 全仓模板串条件类 **= 0**；`Hero` 搜索行判定「并列 → 保持」+ 判据注释。断言①-④ 全绿（真浏览器：`/skills?label=agentic` + 卡片 3→1 + 「筛选结果：1」+ 「全部」复位；hover 四态 `forcePseudoState` 确定性读；i18n zh/en 各 3 键 + 切 EN 零裸键）。门禁四件绿（JS 638.38 kB，+5.09 kB = Toggle 原语首次进包）。**执行期说明 5 条**（`spacing` 按 0.25rem 标度 ⇒ 用 1.75 得 7px；内距统一 `px-3` 12px；两处 `!` 提权=`rounded-full!` + 未选态 hover 字色；断言① 的 `cn(` 项重界定为「全仓模板串=0」；`--radius-2xl` 维持不改） |
 | v0.12 | 2026-09-14 | sunxuewen-rush | **T8 收尾回写（批完成）**：① 五门禁逐项 exit 0（`typecheck`/`lint`/`format:check`/`build`/`db:migrate`/`test --force`；test **475 例 474 pass / 1 skip / 0 fail** = 与基线一致，经用户授权）② 双冒烟 **29/29** + **36/36 + NO JS ERRORS**（`SMOKE_SHOT_PREFIX=m4b1-`，11 张截图）③ marker `data-review`/`ReviewControls` = 0 ④ design §9 六条逐条复验（⑥ `forceMount` 活体：`/api` 13→13→13）⑤ **连带修复冒烟脚本输入保真**：官方 `Tabs` 激活走 `onMouseDown`（合成 `el.click()` 不激活——实测 click 已派发但 `aria-selected` 不变；补 mousedown 即正常；历史对照 `git show 2b4d432^:DetailTabs.tsx:49` 手搓 `onClick` 故M4a 时代可用）；官方 `Dialog` 内置 ✕ 无 `aria-label`（`sr-only`=`Close`）⇒ 旧 `button[aria-label="关闭"]` 自 T3 起恒 null 且静默失效、未关遮罩吞掉真指针点击。修法 = `clickReal()`（CDP 真指针 + 最顶层守卫，替换 3 处 tab 激活）+ `closeDialog()`（Esc → 官方 ✕ 兜底 → 轮询消失，替换 2 处），**36 条断言零改动**；修后 **36/36** ⑥ 连带清理孤儿键 `common.close`（T3 起零消费；`common` 组 6 → 5，zh/en 对齐）⑦ T5 副产物「URL 更新但视图未重渲染」本 Task **未复现** ⇒ 保留观察项 ⑧ **观感复看 ✅ 用户复核通过**（五面 + 补充探针） ⑨ 硬证据记录新建 `docs/smoke/2026-09-14-m4b1-foundation.md` |
+| v0.13 | 2026-09-14 | sunxuewen-rush | **收尾整体审计（承 M4a T17-T26 惯例；用户 2026-09-14 拍板「按建议处置」）**—— 新增 §3「整体审计」登记表（十维扫描 → findings **8 项**）：**F1 修**（`FilterStrip.tsx:39` 注释腐化：`spacing={7}` → `1.75`，标度为 0.25rem 乘数，真值 7px）· **F2 订正**（design §6.4 `--radius-2xl` 从「潜在零消费者」候选剔除：`rounded-2xl` utility 有 1 消费点 `SideNav.tsx:71`，与同表「现状」列自相矛盾）· **F3 回填**（M4a 审计第 24 项 chip 类串跨 4 文件重复 → 本批落官方 `toggle.tsx` `variant="chip"` 已收敛）· **F4 登记**（地基批「有意零消费」：console 6 件 + 跨面 4 件 + i18n 三组 15 键 → 消费点 M4b-2..6，非死代码）· **F5 登记**（越轴任意值 4 处为布局级；`text-[11px]` 在轴上）· **F6 登记**（i18n 键计数须按顶层缩进；嵌套计入致 market 假阳性 53/58 → 顶层键重算 53/53 对齐）· **F7 维持**（`buildLabelRows`/`labelName`）· **F8 无需动作**（残留 8 类全 0 · 硬规则 6 项 0 违规 · 文档数字 8 项实测一致）；§3 风险项内 `--radius-2xl` 登记口径随 F2 订正；章节目次顺延（§3 整体审计 / §4 风险与回退 / §5 修订记录）；**无未决项** |
