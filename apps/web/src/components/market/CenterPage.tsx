@@ -145,6 +145,18 @@ export function CenterPage({ type }: { type: AssetType }) {
   // 🟡2 计数语义区分：徽章 = 该类型全站总量（stats）；结果头在筛选激活时改用「筛选结果」文案
   const filtersActive = labels.length > 0 || committedQ !== '';
 
+  /**
+   * 翻页 → 滚动复位（design §3.11「**翻页回顶**」语义）。
+   *
+   * 2026-09-14 补齐：该语义在 M4a T9/T11 与批 design 均写入契约，但**代码中从无实现**（全仓滚动 API
+   * 核查仅 `VersionCompare` 的 `scrollIntoView`）——按 design 「不变」契约补上，避免把「文档声明 vs
+   * 代码」的债留到批末。瞬时滚动（不用 `smooth`：避免与列表重发 + 骨架替换叠动画）。
+   */
+  function handlePageChange(nextOffset: number) {
+    setPage(Math.floor(nextOffset / PAGE_SIZE) + 1);
+    window.scrollTo({ top: 0 });
+  }
+
   return (
     <div className="flex flex-col">
       {/*
@@ -219,7 +231,7 @@ export function CenterPage({ type }: { type: AssetType }) {
             total={list.total}
             limit={PAGE_SIZE}
             offset={(page - 1) * PAGE_SIZE}
-            onPageChange={(nextOffset) => setPage(Math.floor(nextOffset / PAGE_SIZE) + 1)}
+            onPageChange={handlePageChange}
           />
         </>
       )}

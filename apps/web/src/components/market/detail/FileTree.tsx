@@ -3,6 +3,11 @@ import { type ReactNode, useState } from 'react';
 import type { VersionFileEntry } from '../../../api/types.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../../ui/shadcn/collapsible.js';
+import {
   buildFileTree,
   dirFileCount,
   type FileNode,
@@ -24,9 +29,12 @@ const INDENT = ['', 'pl-5', 'pl-10', 'pl-[60px]'] as const;
  *
  * 换皮（T19）：原 `FileTree.module.css` 全量 Tailwind 化——`--text-2/3`→`muted-foreground` ·
  * `--sha-bg`（slate 淡底，§4.4 ⑦ **无映射**）→ `bg-muted`（登记项）· 10.5px→`text-[11px]`（⑤ 首档）。
- * 折叠行为零变更：`useState<Set>` + `aria-expanded` + `▶` 字形（不换 lucide，超出「纯视觉」范围）。
- * 文案修订（用户 2026-09-11 同意）：目录计数由写死的 `{count} files` 改走 i18n `market.fileUnit`
- * （zh「文件」/ en「files」——该键早已存在且被 `VersionCompare` 消费，此处属**补齐既有 i18n 缺口**）。
+ * 文案修订（用户 2026-09-11 同意）：目录计数由写死的 `{count} files` 改走 i18n `market.fileUnit`。
+ *
+ * 归位（本批 §3.4）：折叠容器/内容换官方 `Collapsible` + `CollapsibleTrigger`/`CollapsibleContent`
+ * （`data-state=open|closed`），**零样式包装** —— 层级/缩进仍由 AIH 逻辑生成（`INDENT`）；
+ * `CollapsibleTrigger asChild` 让既有 `<button>` 承接 Radix 的 `aria-expanded`/`data-state`/键盘行为，
+ * `▶` 旋转与行样式不变 ⇒ **折叠行为与视觉零变更**。
  */
 export function FileTree({
   files,
@@ -39,10 +47,11 @@ export function FileTree({
   const nodes = buildFileTree(files);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 
-  function toggleDir(path: string) {
+  /** Radix `onOpenChange(next)` → 集合语义（收起集合 = 反向存储，向后兼容原状态形状） */
+  function setOpen(path: string, open: boolean) {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
+      if (open) next.delete(path);
       else next.add(path);
       return next;
     });
@@ -54,31 +63,32 @@ export function FileTree({
       const open = !collapsed.has(node.path);
       const count = dirFileCount(node);
       return (
-        <div key={node.path}>
-          <button
-            type="button"
-            className={cn(ROW, 'font-semibold', pad)}
-            onClick={() => toggleDir(node.path)}
-            aria-expanded={open}
-          >
-            <span
-              aria-hidden="true"
-              className={cn(
-                'inline-block w-3.5 shrink-0 text-[9px] text-muted-foreground transition-transform duration-[120ms]',
-                open && 'rotate-90',
-              )}
-            >
-              ▶
-            </span>
-            <span className="flex-1 truncate">{node.name}/</span>
-            <span className="shrink-0 text-[11px] text-muted-foreground">
-              {count} {t('market', 'fileUnit')}
-            </span>
-          </button>
-          {open && node.children && (
-            <div>{node.children.map((child) => renderNode(child, depth + 1))}</div>
-          )}
-        </div>
+        <Collapsible
+          key={node.path}
+          open={open}
+          onOpenChange={(next: boolean) => setOpen(node.path, next)}
+        >
+          <CollapsibleTrigger asChild>
+            <button type="button" className={cn(ROW, 'font-semibold', pad)}>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'inline-block w-3.5 shrink-0 text-[9px] text-muted-foreground transition-transform duration-[120ms]',
+                  open && 'rotate-90',
+                )}
+              >
+                ▶
+              </span>
+              <span className="flex-1 truncate">{node.name}/</span>
+              <span className="shrink-0 text-[11px] text-muted-foreground">
+                {count} {t('market', 'fileUnit')}
+              </span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div>{node.children?.map((child) => renderNode(child, depth + 1))}</div>
+          </CollapsibleContent>
+        </Collapsible>
       );
     }
     if (node.type === 'file') {

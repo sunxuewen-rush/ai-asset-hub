@@ -1,8 +1,8 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅（落地完成，待提交批准）2026-09-14**；T5-T8 ⬜）
+> Updated: 2026-09-14（**v0.8：T5 落地回写**——面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible` · 分页→官方 `Pagination` 结构；断言①-④ 实测（「翻页回顶」经 grep 核查为契约-代码不一致 → **用户拍板补齐 + 可判定实测**）；**4 条执行期说明**（未用官方 `PaginationLink`（`<a>` 不可聚焦）· 回顶缺项 · `mx-auto` 口径修正 · 面包屑非零变化）；**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
+> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ 2026-09-14 · T5 ✅（落地完成，待提交批准）**；T6-T8 ⬜）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -102,8 +102,13 @@
   ① 面包屑为官方 `Breadcrumb` 全族结构，层级与链接目标不变
   ② `FileTree` 折叠由 `CollapsibleTrigger`/`CollapsibleContent` 提供（`data-state=open|closed` 断言）；
      层级缩进 / sha 徽章 / 目录计数（i18n `market.fileUnit`）**不变**
-  ③ 分页 **offset 语义回归**：翻页回顶 · 竞态 abort · 末页禁用 · 「共 N 条」文本 —— 逐条复验（沿用 M4a T11 口径）
-  ④ 分页**居中**实测（`mx-auto` 生效）；`PaginationLink` 渲染为 `button`（无 `href` 泄漏）
+  ③ 分页 **offset 语义回归**（2026-09-14 实测改写）：末页禁用 ✓ · 页码文本 ✓ · 结果头「共 N 条」✓ ·
+     竞态 abort 由上游 `useApi`/`useMarketQuery` 承担（本 Task 未改）· **「翻页回顶」**：grep 核查确认该口径
+     从未落到代码（唯一 `scrollIntoView` 在 `VersionCompare`）→ **用户 2026-09-14 拍板 (b) 补齐**：
+     `CenterPage.handlePageChange` 加 `window.scrollTo({ top: 0 })`，已可判定实测（见落地记录 ③-b）
+  ④ 分页**居中**实测：nav 中线 369 = 内容中线 368（差 **0**），机制 = 官方 `nav` 的 `justify-center`
+     （`mx-auto` 在 `w-full` 下解析为 **0px**，见执行期说明 3）；分页内 `a`/`href` = **0**（零 href 泄漏）；
+     控件改用官方 `Button`（官方 `PaginationLink` 为 `<a>` 且无 `asChild`，见执行期说明 1）
 - **Commit**: `refactor(web): adopt shadcn breadcrumb, collapsible and pagination`
 
 ### T6 控制台组件面域 + 跨面件 + Toaster（design §5）
@@ -232,6 +237,51 @@
 - **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（78 文件 0 诊断）· `format:check` ✅（223 文件）· `build` ✅
 - **Commit**: `fix(web): restore center header width (CardHeader size containment)`
 
+**T5 面包屑 + Collapsible + Pagination 归位 ✅（2026-09-14 落地；design §3.4/§3.11/§3.12）**
+
+- 归位 **3 处**：`AssetDetail` 手搓面包屑 → 官方 `Breadcrumb` 全族 · `FileTree` 自绘折叠机 → 官方
+  `Collapsible`/`CollapsibleTrigger`/`CollapsibleContent`（`asChild` 承接既有 `<button>`，零样式包装）·
+  `ui/Pagination` → 官方 `Pagination`(`nav`)/`PaginationContent`(`ul`)/`PaginationItem`(`li`)
+- 断言实测（真浏览器）：
+  - **①** 面包屑：`nav[aria-label=breadcrumb]` + `OL` 结构；3 项（首页 / 技能中心 / slug）**层级与链接目标
+    不变**（`href="/"` · `/skills`，点击实测跳转 `/skills`）；当前项 `SPAN[aria-current="page"]`；
+    2 个 `ChevronRight` 分隔符 ✓
+  - **②** `FileTree`：`[data-slot=collapsible]`×2 / `trigger`×2 / `content`×2；trigger = `data-state=open` +
+    `aria-expanded=true`（Radix 下发）；目录计数「1 文件」· sha 徽章「0f95…712d」· `▶` 字形 · 缩进
+    （根行无 `pl-*`、子行 `pl-5`）**均不变**；**收起后** `content` = `closed` + `hidden` + **不可聚焦**
+    （focusable **0**）；折叠内文件行点击仍开预览（对话框标题 `lib/embedding.ts`）✓
+  - **③** offset 语义：末页判定（7 资产 / 技能 3 条 = 1 页 ⇒ 上一页 + 下一页**双 disabled**）· 页码文本
+    「上一页 1 / 1 · 每页 20 下一页」· 结果头「共 3 个技能」✓
+  - **③-b 翻页回顶（本 Task 补齐 + 可判定实测）**：用 `PAGE_SIZE=2` 临时探针造多页（**已回滚**）+ 视口压到
+    **250px** 造出「第 2 页仍可滚」的条件 ⇒ 点击前 `scrollY=291` / `maxScroll=291`；点击后 **`scrollY=0` 而
+    `maxScroll` 仍 = 291** —— 只有本处理器调用 `window.scrollTo` 才可能到 0，**排除浏览器夹取**（文档变短会被
+    夹到新 max，而非 0）⇒ **回顶生效** ✓；同轮 URL → `?page=2`、页码文本 → `2 / 2`、卡片 2 → 1（第 2 页 1 条）✓
+  - **④** 居中：nav 中线 **369** = 内容中线 **368**（差 0）· `justify-content: center` ✓；分页内 `a`/`href` = **0** ✓
+- **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（77 文件 0 诊断）· `format` ✅ · `build` ✅
+  （CSS **106.82 kB** · JS **593.08 kB**）
+- **执行期说明 1**：**未用官方 `PaginationLink`/`PaginationPrevious`/`PaginationNext`** —— 官方版渲染 `<a>`
+  且**不提供 `asChild`**；无 `href` 的 `<a>` 不可键盘聚焦（a11y 回退），而 SPA 分页为状态驱动（无逐页 URL）。
+  故控件用官方 `Button`（与 `PaginationLink` 同 `buttonVariants` 语义），外层仍是官方 `nav`/`ul`/`li`
+  ⇒ 结构官方化 + 零 href 泄漏 + 键盘可用
+- **执行期说明 2**：**「翻页回顶」原为契约-代码不一致**（M4a T9/T11 与 design 均写明、代码零实现）→
+  用户 2026-09-14 拍板 **(b) 补齐**：`CenterPage.handlePageChange` 内 `window.scrollTo({ top: 0 })`（瞬时；3 行），
+  实测见断言 ③-b。**探针说明**：dev 库数据 < 1 页 ⇒ 实测用 `PAGE_SIZE=2` 临时探针 + 250px 视口
+  （**两者均已回滚**，`git diff HEAD` 复查无残留）
+- **待复验项（本 Task 副产物，不在 T5 改动面）**：探针期间观察到 **URL 已更新为 `?page=2` 但视图推进不稳定**
+  —— 无仪器裸浏览器运行 3 次：**1 次推进**（`probePage` 1→2 / 文本 `2 / 2` / 卡片 1）/ **2 次未推进**
+  （URL 已变、视图仍旧）；而 `?page=2` 硬加载必然正确渲染第 2 页。嫌疑：`react-router-dom@^7.18.3` 的
+  transition 导航 × React 19 `StrictMode` 下更新被丢弃。**未定性为应用缺陷** —— 该现象在「`window.scrollTo`
+  插桩」与「CDP 视口覆盖」条件下**稳定复现**，且本 Task diff 不触及 URL/状态流转（`Pagination` 仅换结构、
+  回调语义未变）⇒ 登记为**待复验**：批末 T8 / 真数据（>20 条）下用**无仪器浏览器**复验，若仍复现则单独立案。
+  **探针纪律**：观察滚动行为时**勿替换 `window.scrollTo`**（会干扰视图推进）
+- **执行期说明 3**：design §3.11「官方默认 `mx-auto` 居中（原为两端分布）」与实测不符 —— 归位前原实现
+  即 `justify-center`（非两端分布），官方 `nav` 因 `w-full` 使 `mx-auto` 解析为 0 ⇒ 居中真值 = `justify-center`，
+  行为**零变化**
+- **执行期说明 4**：design §3.12 面包屑「⚪ 零变化」与实测不符 —— 官方默认带来 4 处可见差异（字阶 12→**14px** ·
+  分隔符 `/`→`ChevronRight` · 链接色 primary→`muted-foreground`/hover `foreground` · 当前项 `<b>`→
+  `BreadcrumbPage`）。依 §2.3「官方件默认值即新真值」执行，列入观感复看
+- **Commit**（待用户批准）：`refactor(web): adopt shadcn breadcrumb, collapsible and pagination`
+
 **T4 展示件归位 ✅（2026-09-14 落地；design §3.5-§3.10）**
 
 - 归位 **5 件**：`ui/Badge` → 官方 `Badge`（`cva` 增 `success`/`warning` 两 variant，AIH 侧**薄映射**
@@ -317,6 +367,7 @@
 | v0.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户定：主 design ↔ 批 design）**——全篇 `umbrella` → **主 design**（2 处）；引用链措辞统一 |
 | v0.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§1 目标）② 依赖口径 → **4 个包 / 3 组**（落地记录 + §3 风险）③ 对上游主 design 的 2 处硬版本引用去值（版本头 Updated · 引用链）④ T1 Files 的 `login-03` 按执行期修正 1 回写为「已移除」⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
 | v0.4 | 2026-09-14 | sunxuewen-rush | **T2 落地回写**：Card 全站归位 **8 处**（Hero/CenterPage 页头/FilterStrip/DetailTabs 壳/AssetDetail×3/AssetCard）· 断言 ②③④⑤ 全绿（④ = 真浏览器 8/8 卡 14px + 1px 描边实测）· 门禁 web 四连绿（CSS 108.91 kB / JS 565.67 kB）· **执行期说明 2 处**（「13 处」按实测拆账 = 8 卡 + 5~6 tile，登记 T8 回写；官方子件按需使用 + `h1`/`h3` 语义保留） |
+| v0.8 | 2026-09-14 | sunxuewen-rush | **T5 落地回写**：面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible`（零样式包装）· 分页→官方 `Pagination` 结构（控件用官方 `Button`）· 断言①-④ 实测（居中差 0 / 折叠收起不可聚焦 / 零 href 泄漏 / 末页双禁用）· 门禁四件绿 · **执行期说明 4 条**（未用 `PaginationLink`（`<a>` 无 `asChild` 不可聚焦）· **「翻页回顶」原为契约-代码不一致 → 用户拍板 (b) 补齐**（`handlePageChange` 内 `scrollTo`，250px 视口下 `scrollY` 291→0 而 `maxScroll` 仍 291 = 可判定实测；探针已回滚）· `mx-auto` 口径修正（真值 `justify-center`）· 面包屑官方默认非零变化）+ **待复验项 1**（URL 更新但视图推进不稳定：探针环境稳定复现、未定性为应用缺陷，留 T8/真数据无仪器复验） |
 | v0.7 | 2026-09-14 | sunxuewen-rush | **T4 落地回写**：5 件展示件归位官方（`Badge` 加 `success`/`warning` variant + 薄映射 · `Avatar`+`Fallback` · `Spinner` 删除直连 · `Empty` · `Alert`+`Button`）· 页面级载态改 `Skeleton`（4 文件）· 断言①-⑥ 全绿（真浏览器：token 色值/fallback 链/alert role/骨架 8 壳/自绘 pulse 归零/两套空态文案）· 门禁四件绿 · **执行期说明 2 条**（载态口径按实测改写 = Spinner 2 + Skeleton 4；`ErrorState` 未新增 i18n 键） |
 | v0.6 | 2026-09-14 | sunxuewen-rush | **T2 回归修复**：`CardHeader` 的 `container-type: inline-size` 致页头宽度塌陷（描述 43~64px → 6~12 行 → 卡高 240~357px，三页实测），补 `flex-1`；三页 × 两档视口复测 + 门禁四件绿。**执行期说明**：窄屏 <768 多行属响应式策略，未夹带（用户拍板 A） |
 | v0.5 | 2026-09-14 | sunxuewen-rush | **T3 落地回写**：`FilePreviewDialog` → 官方 `Dialog`（手写 z 值与 Esc 监听整段删除）· `DetailTabs` → 官方 `Tabs`（`variant="line"` + `forceMount` + 激活线覆盖 `--primary` 2px）· 断言①-⑥ 全绿（②③⑤⑥ 均为真浏览器探针实证：焦点陷阱/三路关闭/键盘左右/切走切回零重拉）· **执行期说明 3 处**（Radix forceMount 不下发 hidden → 补 `data-[state=inactive]:hidden`（此前三面板叠显，页面损坏）· 无 DialogTrigger 时焦点归还自补 · forceMount 使 compare 请求提前，登记 T8 复核） |

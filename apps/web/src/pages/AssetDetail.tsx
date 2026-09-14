@@ -1,5 +1,13 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/shadcn/breadcrumb';
 import { Card } from '@/components/ui/shadcn/card';
 import { fetchAssetDetail } from '../api/assets.js';
 import type { AssetType } from '../api/types.js';
@@ -157,24 +165,30 @@ export function AssetDetail() {
 
   return (
     <div className="flex flex-col">
-      {/* 面包屑（T17 换皮：字阶 12.5 → `text-xs`（§4.4 ⑤ 的 12/12.5 桶）；链接 = primary +
-          hover 下划线 + `underline-offset-2`（旧 `.crumb a:hover` 的 2px 偏移，逐项核对补回） */}
-      <div className="mb-3.5 text-xs text-muted-foreground">
-        <Link
-          to="/"
-          className="font-medium text-primary no-underline hover:underline hover:underline-offset-2"
-        >
-          {t('market', 'crumbHome')}
-        </Link>{' '}
-        /{' '}
-        <Link
-          to={centerPath}
-          className="font-medium text-primary no-underline hover:underline hover:underline-offset-2"
-        >
-          {labelTitle}
-        </Link>{' '}
-        / <b className="font-medium text-foreground">{slug}</b>
-      </div>
+      {/* 面包屑（本批 §3.12 归位官方 `Breadcrumb` 全族）。形态随官方默认：`text-sm` 字阶 ·
+          **图标分隔符**（`ChevronRight`，替原 `/` 字面）· 链接走官方色（`muted-foreground` →
+          hover `foreground`）· 当前项 `BreadcrumbPage`（`role="link"` + `aria-current="page"`）——
+          与原「`text-xs` + `/` + primary 链接 + `<b>`」为可见差异（design §8 观感项）。
+          **层级与链接目标零变更**：首页 → 类型中心 → 当前 slug。 */}
+      <Breadcrumb className="mb-3.5">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/">{t('market', 'crumbHome')}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to={centerPath}>{labelTitle}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{slug}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* 头卡（T17 换皮：玻璃面 + 光斑 → 白卡 + 极轻阴影，页面级 2xl 圆角，与 hero 同档） */}
       <Card className="mb-4 gap-0 px-7 py-6">
