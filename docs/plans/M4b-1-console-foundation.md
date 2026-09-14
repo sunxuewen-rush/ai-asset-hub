@@ -1,8 +1,10 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.8：T5 落地回写**——面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible` · 分页→官方 `Pagination` 结构；断言①-④ 实测（「翻页回顶」经 grep 核查为契约-代码不一致 → **用户拍板补齐 + 可判定实测**）；**4 条执行期说明**（未用官方 `PaginationLink`（`<a>` 不可聚焦）· 回顶缺项 · `mx-auto` 口径修正 · 面包屑非零变化）；**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ 2026-09-14 · T5 ✅（落地完成，待提交批准）**；T6-T8 ⬜）
+> Updated: 2026-09-14（**v0.10：版本八态映射拍板回写**——`UPLOADED` = warning（对标 21-skillhub 列表页）
+> + `YANKED` destructive → secondary（对标 skillhub 详情页）；`StatusPill` 映射与断言④ 复测，
+> 主 design 同步升 **v1.7**（执行期说明 2 由「待确认」转「已闭合」）；**v0.9：T6 落地回写**——10 件控制台/跨面件落仓（PageHeader/DataTable/Drawer/ConfirmDialog/StatusPill/FilterBar + Toaster/SkeletonLoader/RoleGuard/CopyButton）+ `main.tsx` 挂 Toaster + i18n 三组骨架键；断言①-⑥ 全绿（临时探针页 `/__probe` 渲染全件实测后删除）；3 条执行期说明（TanStack v9 走官方 `/legacy` 子路径 · design 缺 `UPLOADED` 映射 · 探针期复现后台标签冻结 CSS 退出动画）；**v0.8：T5 落地回写**——面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible` · 分页→官方 `Pagination` 结构；断言①-④ 实测（「翻页回顶」经 grep 核查为契约-代码不一致 → **用户拍板补齐 + 可判定实测**）；**4 条执行期说明**（未用官方 `PaginationLink`（`<a>` 不可聚焦）· 回顶缺项 · `mx-auto` 口径修正 · 面包屑非零变化）；**v0.7：T4 落地回写**——5 件展示件归位官方（Badge 加 success/warning variant + 薄映射 / Avatar+Fallback / Spinner 删除直连 / Empty / Alert）+ 页面级载态改 Skeleton；断言①-⑥ 全绿（真浏览器实测）；**载态口径按实测改写**（Spinner 2 处 + Skeleton 4 处）；**v0.6：T2 回归修复**——`CardHeader`（shadcn v4）的 `container-type: inline-size` 尺寸包含致页头宽度塌陷（实测 `/skills` `/mcps` `/agents` 三页描述 43~64px / 6~12 行 / 卡高 240~357px），补 `flex-1` + 三页 × 两档视口复测 + 门禁四件绿；**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
+> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ 2026-09-14 · T6 ✅（落地完成，待提交批准）**；T7-T8 ⬜）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -239,6 +241,54 @@
 - **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（78 文件 0 诊断）· `format:check` ✅（223 文件）· `build` ✅
 - **Commit**: `fix(web): restore center header width (CardHeader size containment)`
 
+**T6 控制台组件面域 + 跨面件 + Toaster ✅（2026-09-14 落地；design §5）**
+
+- 新建 **10 件**：
+  - `components/console/`：`PageHeader`（官方 `Card` + `CardAction` 两栏）· `DataTable`（官方 `Table` 全族 +
+    `@tanstack/react-table` 列定义驱动）· `Drawer`（官方 `Sheet`；`SheetTitle` 做成**必填 props**）·
+    `ConfirmDialog`（官方 `AlertDialog` + `Field`/`Textarea` 原因变体）· `StatusPill`（官方 `Badge` 映射）·
+    `FilterBar`（官方 `Select` + `Input`）
+  - `components/ui/`：`Toaster`（官方 `Sonner` 封装）· `SkeletonLoader`（官方 `Skeleton` 表格/详情预设）·
+    `RoleGuard`（`role >= minRole` + 两条重定向）· `CopyButton`（官方 `Button` `ghost`/`icon-sm` + `Tooltip`）
+- `main.tsx` 挂 `<Toaster />`（路由之外 ⇒ 跨页存活）· i18n 新增 `dashboard`/`admin`/`review` 三组骨架键（zh/en 同步）
+- 断言实测（真浏览器；**临时探针页 `/__probe` 渲染全部 10 件，验证后已删除**）：
+  - **①** `DataTable`：列定义驱动；**表头高 40**（官方 `TableHead` `h-10` 实测 = 40px）· 单元格 `padding: 8px`
+    （官方 `p-2`）· 行内动作槽 = 追加列（`sr-only` 表头「行操作」+ 3 个动作单元格）· **三态齐**：
+    `state=loading` → 骨架 **10**（5 行 × 2 列）· `empty` → 官方 `Empty` ×1 · `error` → 官方 `Alert` ×1
+    （标题「未找到该资源或版本」）
+  - **②** `Drawer`：宽 **560**（`sm:max-w-[560px]` 实测）· `SheetTitle` 在位 · `z-index` = **50**（官方值，零手写）·
+    官方 ✕ 关闭后组件**卸载** ✓
+  - **③** `ConfirmDialog`：`Title`/`Description` 在位 · 确认钮 `data-variant="destructive"` ✓ ·
+    **需输入原因变体**：`TEXTAREA` 在位，原因为空 ⇒ 确认钮 `disabled=true`；输入后 ⇒ `disabled=false` ✓ ·
+    「取消」关闭后卸载 ✓
+  - **④** `StatusPill` 映射实测：`ACTIVE→success` · `HIDDEN→warning` · `ARCHIVED→secondary` ·
+    `PUBLISHED→success` · `UPLOADED`/`PENDING_REVIEW→warning` · `SCAN_FAILED`/`REJECTED→destructive` ·
+    `YANKED`/`DRAFT`/`SCANNING→secondary`（`UPLOADED`/`YANKED` 两档 = 用户 2026-09-14 拍板后复测值）
+  - **⑤** `Toaster`：单例挂载实测（`section[aria-label="Notifications alt+T"]`）；`toast.success('已保存')`
+    调用一次 → **1 条** toast（文本命中）✓
+  - **⑥** `RoleGuard`：本批**只落组件、未接线路由**（按批约定）；实测 `role=null` → **`/login?next=%2F__probe`**
+    （编码正确）· `role=1 < minRole=10` → **`/dashboard`** ✓ · `CopyButton` 点击 → **剪贴板读回 = 写入值** ·
+    图标切 ✓ · `aria-live` =「已复制」✓
+- **门禁**（web 侧）：`typecheck` ✅ · `lint` ✅（87 文件 0 诊断）· `format` ✅（232 文件）· `build` ✅
+  （CSS **106.94 kB** · JS **633.16 kB**；较 T5 +39 kB = `sonner` + `@tanstack/react-table` +
+  `sheet`/`alert-dialog`/`select`/`field`/`textarea` 官方件注入）
+- **执行期说明 1（TanStack 版本路径）**：本仓 `@tanstack/react-table@9.2.4` 的**原生 API 为特性注册式**
+  （`useTable` + `coreRowModel`/`rowSortingFeature` 等特性对象，特性来自**传递依赖** `@tanstack/table-core`
+  —— 直接 import 会形成**未声明依赖**）⇒ 采用 v9 **官方 `/legacy` 子路径**（`useLegacyTable` +
+  `getCoreRowModel`）：与官方 shadcn data-table recipe 形态一一对应、**零新增依赖**；`flexRender` 取自主入口。
+  行类型约束用**本地等价结构类型** `RowDataLike = Record<string, unknown> | unknown[]`
+  （等价 `table-core` 的 `RowData`，同样为规避隐藏依赖）
+- **执行期说明 2（design 缺口 → 已闭合）**：主 design §10.1 版本八态映射原只列 **7 态**（缺 `UPLOADED`）
+  ⇒ 本件初版推断取 `secondary` 并登记待确认；**2026-09-14 用户拍板收口**：`UPLOADED` = **warning**
+  （对标 21-skillhub `web/src/pages/dashboard/my-skills.tsx` 列表页 review 档）+ `YANKED` destructive →
+  **secondary**（对标 skillhub 详情页 `version-status-badge.tsx` 灰档，且与门户侧代码实况一致）
+  ⇒ 主 design 升 **v1.7**、本件映射表与断言④ 同步复测；（被否决的「独立蓝/紫 token」路径不入档）
+- **执行期说明 3（探针环境）**：探针期复现「浮层关闭后不卸载」——根因 = **后台标签
+  `visibilityState=hidden` 冻结 CSS 退出动画**（Radix `Presence` 等不到 `animationend`）；
+  `Page.bringToFront` 后两件（Sheet / AlertDialog）关闭即正常卸载 ✓（**非应用缺陷**）。
+  另：叠加层状态曾出现「无操作回初始值」（疑似 remount）—— 归入 T8 待复验项一并观察
+- **Commit**（待用户批准）：`feat(web): add console component layer and cross-surface primitives`
+
 **T5 面包屑 + Collapsible + Pagination 归位 ✅（2026-09-14 落地；design §3.4/§3.11/§3.12）**
 
 - 归位 **3 处**：`AssetDetail` 手搓面包屑 → 官方 `Breadcrumb` 全族 · `FileTree` 自绘折叠机 → 官方
@@ -386,7 +436,9 @@
 | v0.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户定：主 design ↔ 批 design）**——全篇 `umbrella` → **主 design**（2 处）；引用链措辞统一 |
 | v0.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§1 目标）② 依赖口径 → **4 个包 / 3 组**（落地记录 + §3 风险）③ 对上游主 design 的 2 处硬版本引用去值（版本头 Updated · 引用链）④ T1 Files 的 `login-03` 按执行期修正 1 回写为「已移除」⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
 | v0.4 | 2026-09-14 | sunxuewen-rush | **T2 落地回写**：Card 全站归位 **8 处**（Hero/CenterPage 页头/FilterStrip/DetailTabs 壳/AssetDetail×3/AssetCard）· 断言 ②③④⑤ 全绿（④ = 真浏览器 8/8 卡 14px + 1px 描边实测）· 门禁 web 四连绿（CSS 108.91 kB / JS 565.67 kB）· **执行期说明 2 处**（「13 处」按实测拆账 = 8 卡 + 5~6 tile，登记 T8 回写；官方子件按需使用 + `h1`/`h3` 语义保留） |
-| v0.8 | 2026-09-14 | sunxuewen-rush | **T5 落地回写**：面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible`（零样式包装）· 分页→官方 `Pagination` 全族（控件按用户拍板 (c) 用官方 `PaginationPrevious`/`Next`）· 断言①-④ 实测（居中差 0 / 折叠收起不可聚焦 / 零 href 泄漏 / 末页双禁用）· 门禁四件绿 · **执行期说明 4 条**（(c) 严格用官方 `PaginationLink`：**英文硬编码标签 + 键盘不可达**两条代价实测登记、`common.prev/next` 键删除· **「翻页回顶」原为契约-代码不一致 → 用户拍板 (b) 补齐**（`handlePageChange` 内 `scrollTo`，250px 视口下 `scrollY` 291→0 而 `maxScroll` 仍 291 = 可判定实测；探针已回滚）· `mx-auto` 口径修正（真值 `justify-center`）· 面包屑官方默认非零变化）+ **待复验项 1**（URL 更新但视图推进不稳定：探针环境稳定复现、未定性为应用缺陷，留 T8/真数据无仪器复验） |
-| v0.7 | 2026-09-14 | sunxuewen-rush | **T4 落地回写**：5 件展示件归位官方（`Badge` 加 `success`/`warning` variant + 薄映射 · `Avatar`+`Fallback` · `Spinner` 删除直连 · `Empty` · `Alert`+`Button`）· 页面级载态改 `Skeleton`（4 文件）· 断言①-⑥ 全绿（真浏览器：token 色值/fallback 链/alert role/骨架 8 壳/自绘 pulse 归零/两套空态文案）· 门禁四件绿 · **执行期说明 2 条**（载态口径按实测改写 = Spinner 2 + Skeleton 4；`ErrorState` 未新增 i18n 键） |
-| v0.6 | 2026-09-14 | sunxuewen-rush | **T2 回归修复**：`CardHeader` 的 `container-type: inline-size` 致页头宽度塌陷（描述 43~64px → 6~12 行 → 卡高 240~357px，三页实测），补 `flex-1`；三页 × 两档视口复测 + 门禁四件绿。**执行期说明**：窄屏 <768 多行属响应式策略，未夹带（用户拍板 A） |
 | v0.5 | 2026-09-14 | sunxuewen-rush | **T3 落地回写**：`FilePreviewDialog` → 官方 `Dialog`（手写 z 值与 Esc 监听整段删除）· `DetailTabs` → 官方 `Tabs`（`variant="line"` + `forceMount` + 激活线覆盖 `--primary` 2px）· 断言①-⑥ 全绿（②③⑤⑥ 均为真浏览器探针实证：焦点陷阱/三路关闭/键盘左右/切走切回零重拉）· **执行期说明 3 处**（Radix forceMount 不下发 hidden → 补 `data-[state=inactive]:hidden`（此前三面板叠显，页面损坏）· 无 DialogTrigger 时焦点归还自补 · forceMount 使 compare 请求提前，登记 T8 复核） |
+| v0.6 | 2026-09-14 | sunxuewen-rush | **T2 回归修复**：`CardHeader` 的 `container-type: inline-size` 致页头宽度塌陷（描述 43~64px → 6~12 行 → 卡高 240~357px，三页实测），补 `flex-1`；三页 × 两档视口复测 + 门禁四件绿。**执行期说明**：窄屏 <768 多行属响应式策略，未夹带（用户拍板 A） |
+| v0.7 | 2026-09-14 | sunxuewen-rush | **T4 落地回写**：5 件展示件归位官方（`Badge` 加 `success`/`warning` variant + 薄映射 · `Avatar`+`Fallback` · `Spinner` 删除直连 · `Empty` · `Alert`+`Button`）· 页面级载态改 `Skeleton`（4 文件）· 断言①-⑥ 全绿（真浏览器：token 色值/fallback 链/alert role/骨架 8 壳/自绘 pulse 归零/两套空态文案）· 门禁四件绿 · **执行期说明 2 条**（载态口径按实测改写 = Spinner 2 + Skeleton 4；`ErrorState` 未新增 i18n 键） |
+| v0.8 | 2026-09-14 | sunxuewen-rush | **T5 落地回写**：面包屑→官方 `Breadcrumb` 全族 · `FileTree` 折叠→官方 `Collapsible`（零样式包装）· 分页→官方 `Pagination` 全族（控件按用户拍板 (c) 用官方 `PaginationPrevious`/`Next`）· 断言①-④ 实测（居中差 0 / 折叠收起不可聚焦 / 零 href 泄漏 / 末页双禁用）· 门禁四件绿 · **执行期说明 4 条**（(c) 严格用官方 `PaginationLink`：**英文硬编码标签 + 键盘不可达**两条代价实测登记、`common.prev/next` 键删除· **「翻页回顶」原为契约-代码不一致 → 用户拍板 (b) 补齐**（`handlePageChange` 内 `scrollTo`，250px 视口下 `scrollY` 291→0 而 `maxScroll` 仍 291 = 可判定实测；探针已回滚）· `mx-auto` 口径修正（真值 `justify-center`）· 面包屑官方默认非零变化）+ **待复验项 1**（URL 更新但视图推进不稳定：探针环境稳定复现、未定性为应用缺陷，留 T8/真数据无仪器复验） |
+| v0.9 | 2026-09-14 | sunxuewen-rush | **T6 落地回写**：新建 10 件（console 6 + ui 4）+ `main.tsx` 挂 `Toaster` + i18n 三组骨架键；断言①-⑥ 全绿（探针页实测：表头 40 / 单元格 p-2 / 三态齐 / 抽屉宽 560 / SheetTitle / 原因必填门 / 状态映射 / toast 单条 / 守卫两跳 / 剪贴板读回）；门禁四件绿（JS 633.16 kB，+39 kB）；**执行期说明 3 条**（TanStack v9 走官方 `/legacy` 子路径避未声明依赖 · design 缺 `UPLOADED` 映射取 secondary 待确认 · 探针期后台标签冻结 CSS 退出动画致「关闭不卸载」已定性为环境非缺陷） |
+| v0.10 | 2026-09-14 | sunxuewen-rush | **版本八态映射拍板回写**：`UPLOADED` = **warning**（对标 21-skillhub 列表页 review 档；原 design 只列 7 态、初版推断取 secondary）+ `YANKED` destructive → **secondary**（对标 skillhub 详情页灰档，且与门户侧 `VersionCompare` 代码实况一致）；主 design 同步升 **v1.7**（八态映射缺口闭合 · 执行期说明 2 由待确认转已闭合）；M4a design §4.4 门户侧表述订正 `destructive` → `neutral`（升 v0.25）；本件断言④ 映射复测。**顺带订正**：修订记录 v0.5-v0.9 行序倒挂（历史追加所致）→ 统一升序 |

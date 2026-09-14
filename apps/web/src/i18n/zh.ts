@@ -70,6 +70,27 @@ export const zh = {
     fileUnit: '文件',
     diffNoChanges: '两版本无差异',
   },
+  dashboard: {
+    title: '个人工作台',
+    myAssets: '我的资产',
+    tokens: '访问令牌',
+    empty: '暂无数据',
+  },
+  admin: {
+    title: '管理后台',
+    reviews: '审核管理',
+    audit: '审计日志',
+    labels: '标签管理',
+    users: '用户管理',
+    empty: '暂无数据',
+  },
+  review: {
+    title: '审核详情',
+    approve: '通过',
+    reject: '驳回',
+    reason: '原因',
+    empty: '暂无待审条目',
+  },
   common: {
     loading: '加载中…',
     empty: '暂无数据',

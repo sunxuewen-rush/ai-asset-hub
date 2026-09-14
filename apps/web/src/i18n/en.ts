@@ -76,6 +76,27 @@ export const en: Dict = {
     fileUnit: 'files',
     diffNoChanges: 'No differences between the two versions',
   },
+  dashboard: {
+    title: 'Dashboard',
+    myAssets: 'My assets',
+    tokens: 'Access tokens',
+    empty: 'No data',
+  },
+  admin: {
+    title: 'Admin console',
+    reviews: 'Review queue',
+    audit: 'Audit log',
+    labels: 'Labels',
+    users: 'Users',
+    empty: 'No data',
+  },
+  review: {
+    title: 'Review detail',
+    approve: 'Approve',
+    reject: 'Reject',
+    reason: 'Reason',
+    empty: 'No pending items',
+  },
   common: {
     loading: 'Loading…',
     empty: 'No data',

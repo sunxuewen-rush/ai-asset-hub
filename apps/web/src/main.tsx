@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/ui/AppShell.js';
+import { Toaster } from './components/ui/Toaster.js';
 import { I18nProvider } from './i18n/I18nProvider.js';
 import { AssetDetail } from './pages/AssetDetail';
 import { Center, type CenterType } from './pages/Center';
@@ -40,6 +41,8 @@ createRoot(rootElement).render(
           </Route>
         </Routes>
       </BrowserRouter>
+      {/* 轻提示单例（design §5.2：全局挂 App 根，路由之外 ⇒ 跨页存活） */}
+      <Toaster />
     </I18nProvider>
   </StrictMode>,
 );
