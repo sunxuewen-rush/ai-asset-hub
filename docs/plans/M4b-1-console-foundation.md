@@ -1,7 +1,7 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.13：收尾整体审计（批完成最后一环）**—— 承 M4a T17-T26 惯例，十维覆盖式扫描 ⇒ **findings 8 项**（§3）：修 **1**（F1 `FilterStrip.tsx:39` 注释 `spacing={7}` → `1.75`）· 订正 **1**（F2 design §6.4 `--radius-2xl` 从「潜在零消费者」候选剔除）· 回填 **1**（F3 M4a 审计第 24 项 chip 类串重复 → 本批已收敛）· 口径登记 **5**（F4 地基批有意零消费 · F5 越轴值 · F6 i18n 计数方法 · F7 既有死导出 · F8 残留/硬规则/数字全绿）；**无未决项**；
+> Updated: 2026-09-14（**v0.14：审计口径补第十一维（本批漏扫项登记）**—— §3 增「口径增补」：本批十维**漏扫「旧口径/术语指针」**一维（实例 = 主 design §1/§7.2 两处单数「M4b plan」旧口径，该 plan 从未创建）⇒ 对齐轮已订正 + 主 design §2.3 增「批件登记表」；后续批次按 `docs/00` §7 ② **十一维**跑；**v0.13：收尾整体审计（批完成最后一环）**—— 承 M4a T17-T26 惯例，十维覆盖式扫描 ⇒ **findings 8 项**（§3）：修 **1**（F1 `FilterStrip.tsx:39` 注释 `spacing={7}` → `1.75`）· 订正 **1**（F2 design §6.4 `--radius-2xl` 从「潜在零消费者」候选剔除）· 回填 **1**（F3 M4a 审计第 24 项 chip 类串重复 → 本批已收敛）· 口径登记 **5**（F4 地基批有意零消费 · F5 越轴值 · F6 i18n 计数方法 · F7 既有死导出 · F8 残留/硬规则/数字全绿）；**无未决项**；
 > **v0.12：T8 收尾回写（批完成）**——五门禁逐项 exit 0（含用户授权 `test --force`：475 例
 > 474/1/0 = 与基线一致）· 双冒烟 chain **29/29** + dogfood **36/36 + NO JS ERRORS** · marker 0 · design §9 六条
 > 逐条复验（⑥ `forceMount` 活体复验：`/api` 13→13→13 零新增）· **连带修复冒烟脚本输入保真**（官方 `Tabs` 走
@@ -513,6 +513,11 @@
 
 **处置合计**：修 1 · 订正 1 · 回填 1 · 口径登记 5（F4/F5/F6/F7/F8）—— **无未决项**。
 
+**口径增补（2026-09-14，v0.14）**：本批十维扫描**漏扫一维** —— 「**旧口径/术语指针**」（正文里指向**已废弃文档形态/旧模型**的表述）。
+实例：主 design §1「流程定位」与 §7.2 尾仍写单数「**M4b plan**」——该 plan **从未创建**（全历史 `docs/plans/` 无 M4b 单块 plan，`git log --diff-filter=D -- docs/plans/` 零删除记录；
+2026-09-10 落档提交 c91a21a 自注 *m4b shelved*，拆批时以「逐批 design + 逐批 plan」**取代其意图**）。
+⇒ 对齐轮已订正 2 处 + 主 design §2.3 增「批件登记表」；**后续批次按 `docs/00` §7 ② 的十一维口径跑**。
+
 ## 4. 风险与回退
 
 - **回退面**：逐 Task 独立 commit ⇒ 可单件 `git revert`；官方件与手搓件在归位期间**并存同 commit**，无中间态
@@ -541,3 +546,4 @@
 | v0.11 | 2026-09-14 | sunxuewen-rush | **T7 合规清理落地回写**：`FilterStrip` chips → 官方 `ToggleGroup`/`ToggleGroupItem`（根行）+ `Toggle`（「全部」与子行）；chip 外观落 **官方 `toggle.tsx` 加 `variant="chip"`+`size="chip"`**（第 ④ 路径，同 T4 Badge 法）；原自绘三段模板串常量与 `cls(on)` 删除 ⇒ 全仓模板串条件类 **= 0**；`Hero` 搜索行判定「并列 → 保持」+ 判据注释。断言①-④ 全绿（真浏览器：`/skills?label=agentic` + 卡片 3→1 + 「筛选结果：1」+ 「全部」复位；hover 四态 `forcePseudoState` 确定性读；i18n zh/en 各 3 键 + 切 EN 零裸键）。门禁四件绿（JS 638.38 kB，+5.09 kB = Toggle 原语首次进包）。**执行期说明 5 条**（`spacing` 按 0.25rem 标度 ⇒ 用 1.75 得 7px；内距统一 `px-3` 12px；两处 `!` 提权=`rounded-full!` + 未选态 hover 字色；断言① 的 `cn(` 项重界定为「全仓模板串=0」；`--radius-2xl` 维持不改） |
 | v0.12 | 2026-09-14 | sunxuewen-rush | **T8 收尾回写（批完成）**：① 五门禁逐项 exit 0（`typecheck`/`lint`/`format:check`/`build`/`db:migrate`/`test --force`；test **475 例 474 pass / 1 skip / 0 fail** = 与基线一致，经用户授权）② 双冒烟 **29/29** + **36/36 + NO JS ERRORS**（`SMOKE_SHOT_PREFIX=m4b1-`，11 张截图）③ marker `data-review`/`ReviewControls` = 0 ④ design §9 六条逐条复验（⑥ `forceMount` 活体：`/api` 13→13→13）⑤ **连带修复冒烟脚本输入保真**：官方 `Tabs` 激活走 `onMouseDown`（合成 `el.click()` 不激活——实测 click 已派发但 `aria-selected` 不变；补 mousedown 即正常；历史对照 `git show 2b4d432^:DetailTabs.tsx:49` 手搓 `onClick` 故M4a 时代可用）；官方 `Dialog` 内置 ✕ 无 `aria-label`（`sr-only`=`Close`）⇒ 旧 `button[aria-label="关闭"]` 自 T3 起恒 null 且静默失效、未关遮罩吞掉真指针点击。修法 = `clickReal()`（CDP 真指针 + 最顶层守卫，替换 3 处 tab 激活）+ `closeDialog()`（Esc → 官方 ✕ 兜底 → 轮询消失，替换 2 处），**36 条断言零改动**；修后 **36/36** ⑥ 连带清理孤儿键 `common.close`（T3 起零消费；`common` 组 6 → 5，zh/en 对齐）⑦ T5 副产物「URL 更新但视图未重渲染」本 Task **未复现** ⇒ 保留观察项 ⑧ **观感复看 ✅ 用户复核通过**（五面 + 补充探针） ⑨ 硬证据记录新建 `docs/smoke/2026-09-14-m4b1-foundation.md` |
 | v0.13 | 2026-09-14 | sunxuewen-rush | **收尾整体审计（承 M4a T17-T26 惯例；用户 2026-09-14 拍板「按建议处置」）**—— 新增 §3「整体审计」登记表（十维扫描 → findings **8 项**）：**F1 修**（`FilterStrip.tsx:39` 注释腐化：`spacing={7}` → `1.75`，标度为 0.25rem 乘数，真值 7px）· **F2 订正**（design §6.4 `--radius-2xl` 从「潜在零消费者」候选剔除：`rounded-2xl` utility 有 1 消费点 `SideNav.tsx:71`，与同表「现状」列自相矛盾）· **F3 回填**（M4a 审计第 24 项 chip 类串跨 4 文件重复 → 本批落官方 `toggle.tsx` `variant="chip"` 已收敛）· **F4 登记**（地基批「有意零消费」：console 6 件 + 跨面 4 件 + i18n 三组 15 键 → 消费点 M4b-2..6，非死代码）· **F5 登记**（越轴任意值 4 处为布局级；`text-[11px]` 在轴上）· **F6 登记**（i18n 键计数须按顶层缩进；嵌套计入致 market 假阳性 53/58 → 顶层键重算 53/53 对齐）· **F7 维持**（`buildLabelRows`/`labelName`）· **F8 无需动作**（残留 8 类全 0 · 硬规则 6 项 0 违规 · 文档数字 8 项实测一致）；§3 风险项内 `--radius-2xl` 登记口径随 F2 订正；章节目次顺延（§3 整体审计 / §4 风险与回退 / §5 修订记录）；**无未决项** |
+| v0.14 | 2026-09-14 | sunxuewen-rush | **审计口径补第十一维（本批漏扫项如实登记）**：§3 增「口径增补」——本批十维扫描**漏扫「旧口径/术语指针」**（正文里指向已废弃文档形态/旧模型的表述）。实例：主 design §1「流程定位」与 §7.2 尾两处单数「M4b plan」；**git 全历史查证**该 plan 从未创建（`docs/plans/` 无该件 + `--diff-filter=D` 零删除记录 + 落档提交 c91a21a 自注 *m4b shelved*），拆批时以「逐批 design + 逐批 plan」取代其意图 ⇒ 属旧意图残留。处置：对齐轮订正 2 处 + 主 design §2.3 增「批件登记表」（主 design 升 **v1.10** · `docs/00` 升 **v1.28**，§7 ② 口径改**十一维**）⇒ **后续批次按十一维跑** |
