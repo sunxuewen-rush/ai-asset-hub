@@ -1,20 +1,35 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { fetchVersionFile } from '../../../api/content.js';
 import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 import { Spinner } from '../../ui/Spinner.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../ui/shadcn/dialog.js';
 import { formatBytes } from './fileTreeNodes.js';
 
 /**
- * 文件预览对话框（design §4.4 v0.7 / ③：居中白卡 `min(720px,88vw)`/76vh + **遮罩 `bg-black/50`
- * 无 blur**（原 `backdrop-filter: blur(3px)` 属 §4.4 废弃清单）+ mono pre-wrap；文本 G7 渲染 /
- * binary / truncated 提示；useApi 缓存——重复打开零重拉。
- * 关闭：✕ / 遮罩点击 / Esc。行为零变更（`role=dialog` + `aria-modal` + Esc 监听 + 真 button 遮罩）。
+ * 文件预览对话框（design §4.4 v0.7 / ③；**M4b-1 T3 归位官方 `Dialog`**）
  *
- * 换皮（T19）：原 `FilePreviewDialog.module.css` 全量 Tailwind 化——卡面 `bg-card` + `shadow-lg`
- * （浮层档，取消原 70px 大黑投影 → §4.4 ⑥）、圆角 16→`rounded-lg`（③ dialog 真值）、
- * `--text-2/3`→`muted-foreground` · `--line-soft`→`border`；截断提示走 **AIH `--warning`**
- * （原裸琥珀字面量，§4.4 ① 语义补丁层）；11.5→`text-[11px]` · 13→`text-[13px]` · 12→`text-xs`。
+ * T3 归位（design §3.2）：自绘浮层（`role="dialog"` + `aria-modal` + 手挂 Esc 监听 + 真 button 遮罩
+ * + 手写 z 层级（90 / 0 / 10））→ 官方 `Dialog`（`DialogContent` + `DialogHeader` + `DialogTitle`
+ * + `DialogDescription`）：白拿**焦点陷阱** / **滚动锁** / **内置 ✕**（`showCloseButton` 默认 true）
+ * + Esc / 点遮罩两路关闭；手写 `z-*` 与 Esc 监听整段删除（Radix 承担）。标题 = 文件路径
+ * （`DialogTitle` → 语义 `<h2>`），尺寸用 className 覆盖（`w-[min(720px,88vw)]` / `max-h-[76vh]`，
+ * 属布局，官方允许）。
+ * 视觉净变化（design §8.3）：**+1px 描边**；行为增强：焦点陷阱 / 滚动锁 / 内置 ✕。
+ *
+ * 不变：遮罩 `bg-black/50` 无 blur（§4.4 废弃清单）· mono pre-wrap · 文本 G7 渲染 / binary /
+ * truncated 提示（AIH `--warning`）· useApi 缓存（重复打开零重拉）· 加载 / 错误 / 二进制 /
+ * 截断四分支 · 关闭后由消费方卸载（`onClose`）。
+ *
+ * **焦点归还（本件特有）**：触发按钮在 `FileTree` 内，本件**无 `DialogTrigger`** ⇒ Radix 的
+ * 关闭自动归还（依赖 Trigger）不会生效（2026-09-14 实测：Esc 关闭后 `activeElement` ≠ 触发钮）。
+ * 故首渲染时捕获打开前焦点、卸载时归还（`restoreRef`）——补足断言②「关闭后焦点回到触发元素」。
  */
 export function FilePreviewDialog({
   file,
@@ -33,44 +48,33 @@ export function FilePreviewDialog({
     [slug, version, file.filePath],
   );
 
+  // 首渲染捕获打开前焦点（Radix 的 autoFocus 在子效果里跑，晚于此处的 render ⇒ 捕获到的是触发钮）
+  const restoreRef = useRef<HTMLElement | null>(null);
+  if (restoreRef.current === null && typeof document !== 'undefined') {
+    restoreRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    const target = restoreRef.current;
+    return () => target?.focus?.();
+  }, []);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center">
-      <button
-        type="button"
-        className="absolute inset-0 z-0 cursor-default border-0 bg-black/50"
-        aria-label={t('common', 'close')}
-        onClick={onClose}
-      />
-      <div
-        className="relative z-10 flex max-h-[76vh] w-[min(720px,88vw)] flex-col overflow-hidden rounded-lg bg-card shadow-lg"
-        role="dialog"
-        aria-modal="true"
-        aria-label={file.filePath}
-      >
-        <div className="flex items-center gap-2.5 border-b border-border px-[18px] py-[13px]">
-          <span className="flex-1 truncate font-mono text-[13px] font-semibold text-foreground">
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent className="flex max-h-[76vh] w-[min(720px,88vw)] flex-col gap-0 p-0 sm:max-w-[720px]">
+        <DialogHeader className="flex-row items-center gap-2.5 border-b border-border px-[18px] py-[13px] pr-12 text-left">
+          <DialogTitle className="flex-1 truncate font-mono text-[13px] font-semibold text-foreground">
             {file.filePath}
-          </span>
-          <span className="font-mono text-[11px] text-muted-foreground">
+          </DialogTitle>
+          <DialogDescription className="font-mono text-[11px]">
             {formatBytes(file.fileSize)}
-          </span>
-          <button
-            type="button"
-            className="size-[26px] shrink-0 cursor-pointer rounded-md border-0 bg-muted text-[13px] font-bold text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            onClick={onClose}
-            aria-label={t('common', 'close')}
-          >
-            ✕
-          </button>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
         <div className="overflow-auto px-[18px] py-4 font-mono text-xs leading-[1.7] text-muted-foreground">
           {loading && (
             <div className="flex justify-center py-10">
@@ -102,7 +106,7 @@ export function FilePreviewDialog({
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

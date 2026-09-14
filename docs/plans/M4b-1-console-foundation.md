@@ -1,8 +1,8 @@
 # M4b-1 地基批（组件归位 + 控制台组件面域）实现计划
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
-> Status: **执行中**（**T1 ✅ · T2 ✅ 2026-09-14**；T3-T8 ⬜）
+> Updated: 2026-09-14（**v0.5：T3 落地回写**——Dialog/Tabs 归位 + a11y 债清零（焦点陷阱/键盘导航/aria-controls 探针实证）/ 面板可见性缺陷同轮修 / forceMount 请求时点变更登记（详见「落地记录」）；**v0.4：T2 落地回写**——Card 全站归位 **8 处**（实测）/ 断言 ②③④⑤ 全绿 / 「13 处」拆账与官方子件按需使用已登记（详见「落地记录」）；**v0.3：口径统一 + 版本引用去硬值 + 执行回写**——① 官方件口径 → **新落仓 11 件（表列 13 项）**② 依赖口径 → **4 个包 / 3 组** ③ 对上游主 design 的 2 处硬版本引用去值（以版本头为准）④ T1 Files 回写 `login-03` 实际处置（已移除）；**v0.2：术语标准化**（主 design ↔ 批 design）+ 版本头同步；v0.1：初稿——M4b 拆批后首批 **M4b-1** 的 Task 清单（T1-T8）；依据批 design `2026-09-14-m4b1-console-foundation-design.md`（定稿）与上游主 design §2.3）
+> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ 2026-09-14**；T4-T8 ⬜）
 > 引用链：本文档 → 设计 `docs/designs/2026-09-14-m4b1-console-foundation-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层） `docs/designs/2026-09-10-m4b-admin-console-design.md`（版本以其版本头为准）→ 规范 `00` §5/§7 · M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -61,7 +61,7 @@
   ⑤ 受影响页三态（载/空/错）与交互零变更
 - **Commit**: `refactor(web): adopt shadcn Card across portal surfaces`
 
-### T3 Dialog + Tabs 归位（a11y 债清零；design §3.2/§3.3）
+### T3 Dialog + Tabs 归位 ✅（2026-09-14 落地；a11y 债清零；design §3.2/§3.3）
 - **Files**: Modify `components/market/detail/FilePreviewDialog.tsx` · `components/market/detail/DetailTabs.tsx`
 - **Assert**:
   ① `FilePreviewDialog` 改用官方 `Dialog`（`DialogContent` + `DialogHeader` + `DialogTitle`/`DialogDescription`）；
@@ -209,6 +209,42 @@
    `Card` + 子元素直挂（不硬塞 `CardContent`，避免为取消 `px-6` 写无意义覆盖）；**标题元素保持
    `h1`/`h3`**（`CardTitle` 渲染为 `div`，替换会降级标题语义——a11y 优先）
 
+**T3 Dialog + Tabs 归位 ✅**
+
+- `FilePreviewDialog`：自绘浮层（`role="dialog"` + `aria-modal` + 手挂 Esc + 真 button 遮罩 + 手写
+  `z-*`）→ 官方 `Dialog`（`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogDescription`）；
+  **手写 `z-*` 与 Esc 监听整段删除**；标题 = 文件路径（`DialogTitle` → `<h2>`）；尺寸用 className 覆盖
+- `DetailTabs`：自绘 `role=tablist/tab/tabpanel` + 手挂激活线 → 官方 `Tabs`（`TabsList variant="line"`
+  + `TabsTrigger` + `TabsContent` **`forceMount`**）；激活指示覆盖为 **实底 `--primary` 2px 下划线**
+- 门禁（web 侧）：`typecheck` ✅ · `lint` ✅（78 文件 0 诊断）· `format` ✅ · `build` ✅
+- **断言①**：`grep 'z-\[' FilePreviewDialog.tsx` = **0** ✓（原注释里出现该串已改写，避免误命中）
+- **断言②（探针实证）**：Dialog 打开后连按 Tab ×6，`activeElement` **始终在 dialog 内**（焦点陷阱 ✅）；
+  **关闭后焦点归还触发元素 ✅**（见执行期说明 ②）
+- **断言③（探针实证）**：**Esc** ✅ · **点遮罩**（边缘点，非中心）✅ · **内置 ✕** ✅ 三路关闭；
+  尺寸实测（computed，前台标签）：**w = 658.234px = `min(720px, 88vw)`** · **max-h = 358.72px = 76vh** ·
+  `border-width` **1px** · 圆角 **10px**（官方 `rounded-lg`）· **滚动锁** `body overflow: hidden` ✓
+- **断言④**：`Tabs`/`TabsList variant="line"`/`TabsTrigger`/`TabsContent forceMount` 齐 ✓；
+  激活线 `::after` 计算值 = `oklch(0.488 0.243 264.376)`（= **`--primary`**）· `height: 2px` · `opacity: 1` ✓
+- **断言⑤（探针实证）**：Tab 聚焦后派发 **ArrowRight（CDP 可信键）** ⇒ `aria-selected`
+  `[true,false,false]` → `[false,true,false]` ✓ · `aria-controls` 已接线 ✓
+- **断言⑥（探针实证）**：`window.fetch` 插桩 —— 页面加载 **6** 请求 → 切 versions → **6** → 切回 overview
+  → **6**（**增量 0**）✓
+
+**执行期说明（3 处，均含实测证据）**
+
+1. **面板可见性缺陷（同轮修）**：Radix `forceMount` **不下发 `hidden` 属性**（实测三面板
+   `display:block` 全可见、叠高至 1995px ⇒ 页面明显损坏）⇒ `TabsContent` 补
+   **`data-[state=inactive]:hidden`**；修后实测 **mounted 3 / visible 1** ✓（同时修掉「非激活面板进入
+   a11y 树」）——该坑已写入组件注释
+2. **焦点归还自补**：触发按钮在 `FileTree` 内、本件**无 `DialogTrigger`** ⇒ Radix 关闭自动归还（依赖
+   Trigger）不生效（实测 Esc 后 `activeElement ≠ 触发钮`）⇒ 首渲染捕获打开前焦点、卸载时归还
+   （`restoreRef`）；修后实测 **焦点归还 = true** ✓
+3. **`forceMount` 的请求时点变更（登记）**：`forceMount` 使 `VersionCompare` 在**页面加载**即挂载 ⇒
+   其 compare 请求由「切到 versions 时」提前到「页面加载时」（实测 fetch **5 → 6**，增量即
+   `GET /versions/compare?from=1.0.0&to=1.1.0`）。design §3.3 明列 `forceMount`，收益 = **面板内状态
+   保留**（对比基/目标选择不因切 tab 丢失）；代价 = 每访问详情页多 1 次 compare 请求。→ **登记为
+   T8/收尾复核项**（若判定该代价不可接受，可改为「active 面板才 forceMount」或让 VersionCompare 懒取数）
+
 ## 3. 风险与回退
 
 - **回退面**：逐 Task 独立 commit ⇒ 可单件 `git revert`；官方件与手搓件在归位期间**并存同 commit**，无中间态
@@ -228,3 +264,4 @@
 | v0.2 | 2026-09-14 | sunxuewen-rush | **术语标准化（用户定：主 design ↔ 批 design）**——全篇 `umbrella` → **主 design**（2 处）；引用链措辞统一 |
 | v0.3 | 2026-09-14 | sunxuewen-rush | **口径统一 + 版本引用去硬值 + 执行回写**：① 官方件口径 → **新落仓 11 件（表列 13 项）**（§1 目标）② 依赖口径 → **4 个包 / 3 组**（落地记录 + §3 风险）③ 对上游主 design 的 2 处硬版本引用去值（版本头 Updated · 引用链）④ T1 Files 的 `login-03` 按执行期修正 1 回写为「已移除」⑤ 本轮文档模型变更 8 维自检记录于主 design v1.6 行（修正前 8.94 → 修正后 **9.50**） |
 | v0.4 | 2026-09-14 | sunxuewen-rush | **T2 落地回写**：Card 全站归位 **8 处**（Hero/CenterPage 页头/FilterStrip/DetailTabs 壳/AssetDetail×3/AssetCard）· 断言 ②③④⑤ 全绿（④ = 真浏览器 8/8 卡 14px + 1px 描边实测）· 门禁 web 四连绿（CSS 108.91 kB / JS 565.67 kB）· **执行期说明 2 处**（「13 处」按实测拆账 = 8 卡 + 5~6 tile，登记 T8 回写；官方子件按需使用 + `h1`/`h3` 语义保留） |
+| v0.5 | 2026-09-14 | sunxuewen-rush | **T3 落地回写**：`FilePreviewDialog` → 官方 `Dialog`（手写 z 值与 Esc 监听整段删除）· `DetailTabs` → 官方 `Tabs`（`variant="line"` + `forceMount` + 激活线覆盖 `--primary` 2px）· 断言①-⑥ 全绿（②③⑤⑥ 均为真浏览器探针实证：焦点陷阱/三路关闭/键盘左右/切走切回零重拉）· **执行期说明 3 处**（Radix forceMount 不下发 hidden → 补 `data-[state=inactive]:hidden`（此前三面板叠显，页面损坏）· 无 DialogTrigger 时焦点归还自补 · forceMount 使 compare 请求提前，登记 T8 复核） |

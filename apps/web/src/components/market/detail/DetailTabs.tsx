@@ -1,5 +1,6 @@
 import { type ReactNode, useState } from 'react';
 import { Card } from '@/components/ui/shadcn/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/shadcn/tabs';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 
 export type DetailTab = 'overview' | 'files' | 'versions';
@@ -14,54 +15,63 @@ const TABS: ReadonlyArray<{
 ];
 
 /**
- * 详情 Tab 卡（design §4.4；plan T17 换皮）
+ * 详情 Tab 卡（design §4.4；plan T17 换皮 · **M4b-1 T3 归位官方 `Tabs`**）
  *
- * 换皮：玻璃卡 → **白卡**（`rounded-xl` + `shadow-sm`，无边框——与 `AssetCard` 同档）；
- * 激活指示由「底部 2px **蓝青渐变线**」改 **实底 `--primary` 2px**。用绝对定位 `span`
- * 覆盖在容器 `border-b` 之上（而非给按钮加 `border-b-2`——那会让激活项高 1px 抖动）。
- * 字阶收敛 13.5 → **13**；未激活 `text-muted-foreground`（hover → `text-foreground`）。
- * 内容面板去掉原 0.15s `fadein`（目标体系 Tabs 内容无动画；`--animate-rise` 只用于首屏入场）。
+ * 卡壳 = 官方 `Card`（T2，`overflow-hidden gap-0 py-0` + AIH 内距）。
  *
- * **不引 shadcn `Tabs` 原语**（同 T11 Pagination 的取舍）：本件是 `renderPane(active)` 回调 +
- * 消费方缓存实现懒加载，与 Radix `TabsContent` 的挂载语义不同——换原语 = 行为变更，超出
- * T17「纯视觉」范围（`shadcn/tabs.tsx` 留给需要其语义的落点，如 M4b）。
+ * T3 归位（design §3.3）：自绘 `role=tablist/tab/tabpanel` + 手挂绝对定位激活线
+ * → 官方 `Tabs`（`TabsList variant="line"` + `TabsTrigger` + `TabsContent`）：
+ * - **行为增强**：键盘左右切换（Radix roving focus，`activationMode` 默认自动）· `aria-controls` /
+ *   `aria-labelledby` 由 Radix 自动接线（原自绘件无）
+ * - **`TabsContent` 加 `forceMount`**：三面板常驻挂载 ⇒ ① 切换**保留面板内状态**（如版本对比的
+ *   基/目标选择）② 切走再切回**零重拉**（useApi 缓存语义不变）
+ *   ⚠ **坑（2026-09-14 实测）**：Radix `forceMount` **不下发 `hidden` 属性**（实测三面板
+ *   `display:block` 全可见、叠高 —— 页面明显损坏）⇒ 必须由消费方补 `data-[state=inactive]:hidden`
+ *   （本件 className 已补；`hidden` 同时修掉「非激活面板进入 a11y 树」的问题）
+ * - **激活指示覆盖为 AIH 真值**（design §3.3）：实底 `--primary` 2px 下划线——官方 `line` 变体默认
+ *   `after:bg-foreground` / `after:inset-x-0` / `after:bottom-[-5px]`，本件覆盖为
+ *   `after:bg-primary` / `after:inset-x-2.5` / `after:bottom-[-1px]` / `after:h-0.5`
+ * - 字阶与未激活色沿 AIH（`text-[13px] font-semibold` / `text-muted-foreground`；官方默认
+ *   `text-sm` / `text-foreground/60` 不引入未登记观感变化）
  *
- * 行为零变更：`role=tablist / tab / tabpanel` · `aria-selected` · `useState` 激活态 ·
- * i18n 动态键（`t('market', labelKey)`）· 懒加载由消费方（`AssetDetail.renderPane`）承担。
+ * 不变：三 tab 集合与 i18n 键 · 默认激活 `overview` · 面板内容由消费方 `renderPane(tab)` 注入
+ * （懒加载数据源仍在 `AssetDetail`，本次不改其取数时机）。
  */
 export function DetailTabs({ renderPane }: { renderPane: (tab: DetailTab) => ReactNode }) {
   const { t } = useI18n();
   const [active, setActive] = useState<DetailTab>('overview');
   return (
     <Card className="overflow-hidden gap-0 py-0">
-      <div className="flex gap-1 border-b border-border px-2.5 pt-2" role="tablist">
-        {TABS.map(({ key, labelKey }) => {
-          const on = active === key;
-          return (
-            <button
+      <Tabs
+        value={active}
+        onValueChange={(value) => setActive(value as DetailTab)}
+        className="gap-0"
+      >
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start rounded-none border-b border-border bg-transparent px-2.5 pt-2"
+        >
+          {TABS.map(({ key, labelKey }) => (
+            <TabsTrigger
               key={key}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              className={`relative cursor-pointer bg-transparent px-4 py-[9px] text-[13px] font-semibold transition-colors ${
-                on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setActive(key)}
+              value={key}
+              className="h-auto flex-none rounded-none px-4 py-[9px] text-[13px] font-semibold text-muted-foreground after:inset-x-2.5 after:bottom-[-1px] after:h-0.5 after:bg-primary"
             >
               {t('market', labelKey)}
-              {on && (
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-2.5 -bottom-px h-0.5 rounded-full bg-primary"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <div className="px-[18px] pt-4 pb-[18px]" role="tabpanel">
-        {renderPane(active)}
-      </div>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {TABS.map(({ key }) => (
+          <TabsContent
+            key={key}
+            value={key}
+            forceMount
+            className="px-[18px] pt-4 pb-[18px] data-[state=inactive]:hidden"
+          >
+            {renderPane(key)}
+          </TabsContent>
+        ))}
+      </Tabs>
     </Card>
   );
 }
