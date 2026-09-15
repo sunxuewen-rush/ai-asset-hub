@@ -1,7 +1,7 @@
 # M4b-pre 认证整车迁移设计（better-auth）
 
 > Date: 2026-09-15
-> Updated: 2026-09-15（v1.5：**T1 提交前补丁**——R16 定稿为**两包均精确钉定**（`better-auth@1.7.5` + `@better-auth/api-key@1.7.5`；依据 = lock 实测插件 peerDeps 要求内核同版本，caret 会在 `bun update` 后错配；用户 2026-09-15 拍板）；v1.4：**T1 落地修正**——① R16 依赖数「1 个包」→ **2 个包**（`better-auth` + `@better-auth/api-key`，实测官方不导出 `apiKey`）② 类型注记（`declaration: true` 下实例类型不可命名 ⇒ `AihAuth = Auth` + 插件端点调用点局部窄化）③ P4 仓内复现（首次 API 调用即 schema check ⇒ `getSession` 断言归 T2）；**自检换靶轮（提交前）**——靶 = 数字可验证性 + 跨文档一致 + 指针时效性；回修 **2 类数字错 + 1 类时效指针 + 1 处流程缺口**（认证面测试 14→**16 文件** · fixture 触点 18 文件/24 处→**15 文件/20 处** · 正文硬写的仓外临时路径去时效 · M4b-pre 立项登记同步 `docs/00` **v1.30** + 主 design **v1.12**）⇒ 逐维重评 **9.44**（v1.2 9.38；⚠ 提高因补齐验证缺口 + 立项登记，非产物变好）；**用户整体批准 + 批准后实测修正（X8）**——① Status 改「定稿（用户 2026-09-15 整体批准）」· §2.1 待批表转「已批准」② **R13 邮箱值修正**：`admin@local` → **`admin@local.test`**（实测：官方 CLI 对 `admin@local` 直接拒 `Invalid email address.`；RFC 6761 保留 TLD `.test` 明确「不可投递」语义）③ **seed 落地姿势定案**：官方 `create-admin` **非幂等**（同 email 二次执行 → `Error: User already exists. Use another email.`，**`--force` 亦不覆盖**）⇒ seed 保留自建幂等路径（官方 API 服务端直呼），`create-admin` 定位为**一次性运维工具**（不入选种子链路）④ §2.3 增 **X8**（官方 CLI 实测：`create-admin` 落点 = user + credential account · `--role` 接受自定义档名 `superadmin` · `--data` 可写额外字段）；v1.1：**8 维自检修订轮**（v1.0 初稿 → 逐维复核 → 回修 6 类缺陷 + 补 1 项实证）——① **数字订正**：生产调用面口径（`requireRole()` 3 → **1** · `ACCOUNT_ROLE.` 33/7 文件 → **32/10 文件**；合计 57 处不变）· HTTP 面处置（保留 1 → **2**）· 净变化估算（新增 500–620 → **500–590**；净减 ~470–590 → **498–588**）· §1.1 写路由口径改实测（24 写路由 / 14 处解析 JSON 体）② **文件清单补漏 5 项**（`db/schema/users.ts` · `db/schema/index.ts` · `auth/token-scopes.ts` · `auth/tokens.ts` · `http/oidc-routes.ts` ⇒ 新增「保持不变」节）+ 删「登出兼容别名（若批准保留）」待定措辞 → 定案不保留 ③ **新增 X7 实证**（存量令牌迁移规则端到端：§5.3 的 SQL 公式写回 `apikey.key` 后**原明文仍可被官方验证**，错明文被拒）+ §5.3 补 `rate_limit_enabled`/`start`/`prefix` 与权限码 JSON 的 SQL 处理方式 ④ §2.2 补 cookie 实测属性（`better-auth.session_token` · HttpOnly · SameSite=Lax）；⑤ §8 补登录/注册的响应体与入参差异、§10 补 I4（依赖清洁室声明）；⑥ §12 配置归属订正（`AUTH_TRUSTED_ORIGINS` 挂 `05 §5`）；v1.0：初稿——spike 结论（X1-X6）转入选型定稿）
+> Updated: 2026-09-15（v1.6：**迁移时序与 Task 边界重划（用户 2026-09-15 批准方案 A）**——① §5.1 由「`RENAME` 一次性搬迁」改为**建表与搬迁分离**：`0008` 纯结构（建 6 表 · 零数据）· `0009` 用户域搬迁（随认证面切流同批）· `0010` 令牌搬迁（随令牌面切流同批）· `0011` 收口（13 条 FK 重指向 + 删旧 4 表）⇒ **任一时刻只有一个真值源**（无冻结快照、无双写）② §7 阶段范围/出口与 §5.4 回滚边界同步 ③ §10 R7 补「过渡期零消费」口径 ④ 重划依据（实测）：旧表消费面 `user_account` **52 处/10 文件**（含 13 条 FK 定义）· `identity_binding` 8/2 · `local_credential` 26/4 · `api_token` 27/4（合计 **113 处 / 12 文件**）——`RENAME` 会让 7 个生产文件当轮编译失败；且「会话签发 ↔ 档位判定 ↔ 令牌鉴权」是一条链，分批切流必产生「一端写新表、一端读旧表」的不可运行中间态 ⑤ plan 同步升 **v0.5**；v1.5：**T1 提交前补丁**——R16 定稿为**两包均精确钉定**（`better-auth@1.7.5` + `@better-auth/api-key@1.7.5`；依据 = lock 实测插件 peerDeps 要求内核同版本，caret 会在 `bun update` 后错配；用户 2026-09-15 拍板）；v1.4：**T1 落地修正**——① R16 依赖数「1 个包」→ **2 个包**（`better-auth` + `@better-auth/api-key`，实测官方不导出 `apiKey`）② 类型注记（`declaration: true` 下实例类型不可命名 ⇒ `AihAuth = Auth` + 插件端点调用点局部窄化）③ P4 仓内复现（首次 API 调用即 schema check ⇒ `getSession` 断言归 T2）；**自检换靶轮（提交前）**——靶 = 数字可验证性 + 跨文档一致 + 指针时效性；回修 **2 类数字错 + 1 类时效指针 + 1 处流程缺口**（认证面测试 14→**16 文件** · fixture 触点 18 文件/24 处→**15 文件/20 处** · 正文硬写的仓外临时路径去时效 · M4b-pre 立项登记同步 `docs/00` **v1.30** + 主 design **v1.12**）⇒ 逐维重评 **9.44**（v1.2 9.38；⚠ 提高因补齐验证缺口 + 立项登记，非产物变好）；**用户整体批准 + 批准后实测修正（X8）**——① Status 改「定稿（用户 2026-09-15 整体批准）」· §2.1 待批表转「已批准」② **R13 邮箱值修正**：`admin@local` → **`admin@local.test`**（实测：官方 CLI 对 `admin@local` 直接拒 `Invalid email address.`；RFC 6761 保留 TLD `.test` 明确「不可投递」语义）③ **seed 落地姿势定案**：官方 `create-admin` **非幂等**（同 email 二次执行 → `Error: User already exists. Use another email.`，**`--force` 亦不覆盖**）⇒ seed 保留自建幂等路径（官方 API 服务端直呼），`create-admin` 定位为**一次性运维工具**（不入选种子链路）④ §2.3 增 **X8**（官方 CLI 实测：`create-admin` 落点 = user + credential account · `--role` 接受自定义档名 `superadmin` · `--data` 可写额外字段）；v1.1：**8 维自检修订轮**（v1.0 初稿 → 逐维复核 → 回修 6 类缺陷 + 补 1 项实证）——① **数字订正**：生产调用面口径（`requireRole()` 3 → **1** · `ACCOUNT_ROLE.` 33/7 文件 → **32/10 文件**；合计 57 处不变）· HTTP 面处置（保留 1 → **2**）· 净变化估算（新增 500–620 → **500–590**；净减 ~470–590 → **498–588**）· §1.1 写路由口径改实测（24 写路由 / 14 处解析 JSON 体）② **文件清单补漏 5 项**（`db/schema/users.ts` · `db/schema/index.ts` · `auth/token-scopes.ts` · `auth/tokens.ts` · `http/oidc-routes.ts` ⇒ 新增「保持不变」节）+ 删「登出兼容别名（若批准保留）」待定措辞 → 定案不保留 ③ **新增 X7 实证**（存量令牌迁移规则端到端：§5.3 的 SQL 公式写回 `apikey.key` 后**原明文仍可被官方验证**，错明文被拒）+ §5.3 补 `rate_limit_enabled`/`start`/`prefix` 与权限码 JSON 的 SQL 处理方式 ④ §2.2 补 cookie 实测属性（`better-auth.session_token` · HttpOnly · SameSite=Lax）；⑤ §8 补登录/注册的响应体与入参差异、§10 补 I4（依赖清洁室声明）；⑥ §12 配置归属订正（`AUTH_TRUSTED_ORIGINS` 挂 `05 §5`）；v1.0：初稿——spike 结论（X1-X6）转入选型定稿）
 > Status: **定稿（用户 2026-09-15 整体批准）**——8 维自检 **9.44** ≥9（**提交换靶轮实测值**：v1.1 9.38 → v1.3 9.44；逐维证据见 §13）；依据 = 沙箱实测 **X1-X8 全通过**（记录不入库）+ 本仓实扫量化（两轮独立实测核对）；实施由 `docs/plans/M4b-pre-auth-migration.md` 承接
 > Scope: M4b-pre（认证整车迁移）——把自研认证面（会话 / CSRF / 令牌 / 设备流 / 角色判定）迁到 better-auth（MIT · 官方件），含企业目录自定义凭证插件 · 会话落库 · 4 档角色用官方 admin 插件表达 · 设备流按官方两段式契约
 > 引用链：本文档 → 规范 01 §3.3 · 05 §3/§4.1/§5/§6 · 08 §3/§8 · 00 §5（引用不复制）；M4b 主 design（批件登记表与批间门）→ `2026-09-10-m4b-admin-console-design` §2.3
@@ -229,17 +229,23 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 
 ## 5. 数据迁移
 
-### 5.1 表级映射（现状 12 表 → 迁后 14 表）
+### 5.1 表级映射与迁移时序（现状 12 表 → 迁后 14 表）
+
+**时序原则（防冻结快照 / 单真值源）**：搬迁 SQL 与**其消费面的切流同批落地**——`0008` 只建结构（零数据）·
+用户域搬迁随认证面切流（`0009`）· 令牌搬迁随令牌面切流（`0010`）· 旧表与 13 条 FK 在全部消费面切完后收口
+（`0011`：重指向 FK + 删旧表）。任一时刻的读写真值源**只有一处**（旧表或新表），既无冻结快照，也无双写（§10 R7）。
+依据 = 实测：旧表消费面合计 **113 处 / 12 文件**（`user_account` 52/10 · `identity_binding` 8/2 · `local_credential` 26/4 · `api_token` 27/4），
+且「会话签发 ↔ 档位判定 ↔ 令牌鉴权」不可分批切流。
 
 | 现状表 | 迁后 | 动作 |
 |--------|------|------|
-| `user_account` | `user` | `RENAME`（13 条 FK 按 OID 自动跟随）· 列调整（`display_name`→`name` · `avatar_url`→`image` · `role` `smallint`→`text` 档名 · `email` 补 `NOT NULL + UNIQUE` · 新增 `email_verified`/`username`/`display_username`/`banned`/`ban_reason`/`ban_expires`） |
-| `identity_binding` | `account` | `RENAME` + `provider`→`provider_id` · `provider_subject`→`account_id`；补官方 token 列（本批全 NULL） |
-| `local_credential` | `account` | **合入**（`password_hash`→`password` · `username`→`account_id` · `provider_id='credential'`）；`id` 由脚本生成文本主键；`failed_attempts`/`locked_until` 由官方限流语义承接 ⇒ **不迁**（记入影响声明） |
-| `api_token` | `apikey` | 列映射（见 §5.3） |
-| — | `session` | 新建（无存量：现为进程内内存 ⇒ **迁移即全员登出**，见 §10） |
-| — | `verification` · `device_code` | 新建（无存量） |
-| 残留 | — | `0009` 清理：删旧表空壳 / 无用列 / 旧索引 |
+| `user_account` | `user` | `0008` **建新表**（列调整：`display_name`→`name` · `avatar_url`→`image` · `role` `smallint`→`text` 档名 · `email` 补 `NOT NULL + UNIQUE` · 新增 `email_verified`/`username`/`display_username`/`banned`/`ban_reason`/`ban_expires`）→ **`0009` 搬迁**（`INSERT … SELECT` + 列级规则见 §5.2）；旧表与 13 条 FK 保留至 `0011` |
+| `identity_binding` | `account` | `0008` **建新表** → **`0009` 搬迁**（`provider`→`provider_id` · `provider_subject`→`account_id`；补官方 token 列，本批全 NULL） |
+| `local_credential` | `account` | **合入 `account`**（同上批）：`password_hash`→`password` · `username`→`account_id` · `provider_id='credential'`；`id` 由脚本生成文本主键；`failed_attempts`/`locked_until` 由官方限流语义承接 ⇒ **不迁**（记入 §10 I2） |
+| `api_token` | `apikey` | `0008` **建新表** → **`0010` 搬迁**（列映射与 re-encode 见 §5.3） |
+| — | `session` | `0008` 新建（无存量：现为进程内内存 ⇒ **迁移即全员登出**，见 §10 I1） |
+| — | `verification` · `device_code` | `0008` 新建（无存量） |
+| 残留 | — | `0011` 收口：**13 条 FK 重指向新 `user` 表** + 删旧 4 表（`user_account`/`identity_binding`/`local_credential`/`api_token`）+ 无用列/旧索引清理 |
 
 ### 5.2 列级规则
 
@@ -260,12 +266,12 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | API 令牌 | **re-encode 迁移**（明文不变 ⇒ 持有者无感）：官方存储 = `base64url(sha256(明文))`（源码依据 `@better-auth/api-key/dist/index.mjs:2311` 默认 hasher），我方存储 = `sha256(明文)` 的 **hex** ⇒ 同一字节串换编码 | SQL：`translate(rtrim(encode(decode(token_hash,'hex'),'base64'),'='), '+/', '-_')`；迁后**原明文 token** 仍可访问业务端点（401 → 200 对照），吊销/过期语义保持 |
 | 令牌权限码 | `scope`（逗号串）→ 官方 `permissions` JSON（`asset:publish` → `{asset:['publish']}`） | 非空 scope 的 token 超范围访问仍 403；`''`/`cli`（全量）→ `permissions = NULL` |
 | 令牌行其它列 | `config_id='default'` · `reference_id` = 原 `user_id` · `enabled` = `revoked_at IS NULL` · `rate_limit_enabled = false`（对齐 R7 全局关闭）· `start`/`prefix` = `NULL`（官方仅用于展示，现状本就无明文前缀 ⇒ 展示口径不变） | 迁后令牌列表不显示前缀（与现状一致）；不因官方默认限流被意外拦截 |
-| 权限码转换方式 | 在 `0008` 迁移 SQL 内用 `split_part(scope, ':', 1/2)` + `jsonb_object_agg` 生成 `permissions`（**不引一次性脚本**，保持前向迁移单一路径） | 迁移后 `permissions` 与 scope 逐项等价（对账断言：非空 scope 的 token 超范围访问仍 403） |
+| 权限码转换方式 | 在 `0010` 迁移 SQL 内用 `split_part(scope, ':', 1/2)` + `jsonb_object_agg` 生成 `permissions`（**不引一次性脚本**，保持前向迁移单一路径） | 迁移后 `permissions` 与 scope 逐项等价（对账断言：非空 scope 的 token 超范围访问仍 403） |
 | 会话 | **不迁**（现为进程内内存，无持久化形态） | 迁移执行后所有既有会话失效（用户需重登一次）——影响声明固定一条 |
 
 ### 5.4 回滚边界
 
-`forward-only`（仓库既有纪律）：`0008` 结构 + 搬迁、`0009` 清理均不入回滚脚本；**执行前备份**为运维动作（记入 runbook 待办，M6）。沙箱已实证官方 6 表可建表并可完成 CRUD 全流程（记录不入库）。
+`forward-only`（仓库既有纪律）：`0008` 建表 · `0009`/`0010` 搬迁 · `0011` 收口**均不入回滚脚本**（每一步都是前向；「回退」= 恢复备份）；**执行前备份**为运维动作（记入 runbook 待办，M6）。沙箱已实证官方 6 表可建表并可完成 CRUD 全流程（记录不入库）。
 
 ## 6. 测试改写策略
 
@@ -289,11 +295,11 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 
 | 阶段 | 范围 | 出口口径 |
 |------|------|---------|
-| S1 骨架与数据层 | 装依赖 · `db/schema/auth.ts`（官方 CLI `generate --adapter drizzle --dialect pg` 产物并入）· 迁移 `0008`（结构 + 搬迁，走我们既有 drizzle-kit 流程入库）· `better-auth.ts` 实例 · `roles.ts` · env 新增项（`auth secret` / `info` 可作辅助校验） | 冷库 `0000→0008` 按序迁移成功 · 6 表 + 搬迁后行数对账（逐表 count 相等）· 五门禁绿（含既有测试未因结构变化而红） |
+| S1 骨架与数据层 | 装依赖 · `db/schema/auth.ts`（官方 CLI `generate --adapter drizzle --dialect pg` 产物并入）· 迁移 `0008`（**纯结构**，走我们既有 drizzle-kit 流程入库）· `better-auth.ts` 实例 · `roles.ts` · env 新增项（`auth secret` / `info` 可作辅助校验） | 冷库 `0000→0008` 按序迁移成功 · 6 表结构与约束实测齐 · **旧 4 表与既有测试零变化**（本阶段搬迁尚未发生）· 门禁绿 |
 | S2 目录凭证插件 | 插件三路分派 · `ldap.ts` 取 mail · 错误码映射 · bootstrap 种子改道 | X1 同级负例全绿（错密码 401 · 目录禁用 401 · 缺字段 400 · 邮箱缺失拒 · 邮箱冲突拒）· 原密码登录通（R10） |
-| S3 业务面切流 | `rbac.ts`/`auth-middleware`/`token-middleware`/`tokens.ts` 改造 · 删 `csrf.ts` | 生产 57 处调用面**零改动**编译通过 · 授权断言（超管全放 · user 档精确 DENY/ALLOW）· 令牌三端点形状不变 · 令牌全流程（签发/列表/吊销/超范围 403） |
+| S3 业务面切流 | 目录插件 + `0009` 用户域搬迁（**与切流同批**）· `rbac.ts`/`auth-middleware`/`token-middleware`（用户查询面）改造 · 删 `csrf.ts`/`session.ts`；令牌面 `tokens.ts` + `0010` 搬迁随其后同批 | 生产 57 处调用面**零改动**编译通过 · 授权断言（超管全放 · user 档精确 DENY/ALLOW）· 令牌三端点形状不变 · 令牌全流程（签发/列表/吊销/超范围 403） |
 | S4 设备流与 CLI 契约 | 官方四端点契约 · `bearer` 插件 · CLI 契约定档（实现归 M5） | 两段式闭环 + 未认领 approve 400 + 轮询 `authorization_pending`/`slow_down` + Bearer 可达业务端点 · 旧 device 契约残留 grep = 0 |
-| S5 清理与规范同步 | 删旧表（`0009`）· 删死代码 · 05/08 原地改写 · `docs/00` §5 回写 | 死代码 grep = 0（旧符号：`InMemorySessionStore`/`csrfProtection`/`DevicePendingStore`/`sessions.createSession`）· 文档-代码对齐（数字实测）· 五门禁绿 |
+| S5 清理与规范同步 | 删旧表（`0011`：FK 重指向 + 删旧 4 表）· 删死代码 · 05/08 原地改写 · `docs/00` §5 回写 | 死代码 grep = 0（旧符号：`InMemorySessionStore`/`csrfProtection`/`DevicePendingStore`/`sessions.createSession`）· 文档-代码对齐（数字实测）· 五门禁绿 |
 | S6 收尾 | converge（8 维重评）+ **整体审计**（十一维全仓扫描） | 批间门五件全闭合 · findings 逐条登记无未决 |
 
 ## 8. 接口变更总览
@@ -345,7 +351,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | R4 | OIDC 通道无可实测 IdP（`OIDC_ENABLED=false`） | 本批对该通道只做「会话签发接缝」最小改动；勾选式验收（R11 可翻转） |
 | R5 | 目录插件是本批最大自绘面（150–200 行） | 官方零支持已交底（§1.4）；插件只消费官方文档化扩展点，不改官方核心 |
 | R6 | 设备流契约变更 | 无既有消费方（CLI 2 行占位）；M5 按新契约实现 |
-| R7 | 迁移期**不做双写**（官方表与旧表并存过渡） | 明确不做：双写会让两套真值并存，与「一事一提交 / 前向迁移」纪律冲突；迁移为一次性切流（含备份动作） |
+| R7 | 迁移期**不做双写** | 明确不做：双写会让两套真值并存，与「一事一提交 / 前向迁移」纪律冲突。过渡形态 = `0008` 后新表**存在但零消费**（`session`/`verification`/`device_code` 除外——它们无旧表对应，是纯增量）；`0009`/`0010` 各自与对应消费面的切流**同批**执行，切完即该域单真值源；`0011` 收口删旧表（含备份动作） |
 | R8 | 既有下载/上传限流与官方限流并存 | 职责切分：官方限流只覆盖 `/api/auth/*`；业务面限流保留（`rate-limit.ts` 不动） |
 
 ## 11. 引用文件清单
@@ -373,6 +379,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-15 | sunxuewen-rush | 初稿：spike 结论（X1-X6 全通过 + 8 条坑）转入选型定稿；**17 项拍板**（R1-R17；其中 R1/R2/R14 已确认，其余待批）（实扫量化：认证核心 16 文件/1492 行 · HTTP 面 6 文件/669 行 · 测试 16 文件/2471 行 · `createSession` 触点 15 测试文件/20 处 + 生产 3 处 · 调用面 57 处 · 运行库 12 表 · 13 条 FK）|
+| v1.6 | 2026-09-15 | sunxuewen-rush | **迁移时序与 Task 边界重划（用户 2026-09-15 批准方案 A）**：① §5.1 表级映射改「建表/搬迁分离 + 迁移时序原则」——`0008` 建 6 表（零数据）· `0009` 用户域搬迁 · `0010` 令牌搬迁 · `0011` FK 重指向 + 删旧表；搬迁一律**与消费面切流同批**（防冻结快照，单真值源）② §5.3 权限码转换迁移文件 `0008` → **`0010`** · §5.4 回滚边界按四步改写 · §7 S1/S3/S5 范围与出口同步 · §10 R7 补「过渡期零消费」口径 ③ 重划依据（实测，2026-09-15）：旧表消费面 **113 处 / 12 文件**（`user_account` 52/10 含 13 条 FK 定义 · `identity_binding` 8/2 · `local_credential` 26/4 · `api_token` 27/4）⇒ `RENAME` 会让 7 个生产文件当轮编译失败；且认证链（会话↔档位↔令牌）分批切流必产生不可运行中间态 ④ 方案对照：保持原边界（接受中间态不可运行）与被否决的「官方 adapter 表名映射套用既有表」（推翻已批准 R3 + 永久映射层）均已评估 ⑤ plan 同步升 **v0.5** |
 | v1.5 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：R16 由「`better-auth@^1.7.5` + 插件精确」改为**两包均精确钉定**（`better-auth@1.7.5` + `@better-auth/api-key@1.7.5`）——依据 = lockfile 实测插件 `peerDependencies` 要求 `better-auth: ^1.7.5` / `@better-auth/core: ^1.7.5` / `better-call: 1.4.0`，内核用 caret 时 `bun update` 会造成内核/插件错配；对标公开参考项目（其 better-auth 系列 5 包全精确）。同轮：`docs/00` §5 M6 行补登记 `SECURITY.md` + `CODE_OF_CONDUCT.md`（升 **v1.31**）|
 | v1.4 | 2026-09-15 | sunxuewen-rush | **T1 落地修正（依赖数与实例类型注记）**：① **R16 修正**「新增 1 个包」→ **2 个包**（`better-auth` + `@better-auth/api-key` 同版本）——实测 better-auth 1.7.5 不导出 `apiKey`（`exports` 无 `./plugins/api-key`、`plugins` 面不含、`@better-auth/*` 未提升）② **类型注记**：`declaration: true` 下实例/选项推断类型不可命名（TS2742/TS7056；选项注解为官方 `BetterAuthOptions` 亦不成立——`Auth<BetterAuthOptions>` 与实例 `$context` 逆变不相容）⇒ 定案 `AihAuth = Auth` + 构造处单次断言，**插件端点（api-key）调用点局部窄化**（T5；与 P6/P7「服务端直呼」一致）③ **P4 仓内复现**：官方在首次 API 调用即做 schema check ⇒ `getSession` 断言归 T2（此前仅沙箱证据）|
 | v1.3 | 2026-09-15 | sunxuewen-rush | **自检换靶轮（提交前）**——靶 = 数字可验证性 + 跨文档一致 + 指针时效性；**回修 2 类数字错 + 1 类时效指针 + 1 处流程缺口**，均来自「上一轮未穷尽核验」：① **测试文件数错**：认证面测试「14 文件」→ **16 文件**（`auth/**` **10** 文件 1051 行——上轮漏计 `ldap.test.ts` 179 行；+ `http/**` 6 文件 1420 行；**行数 2471 不变**）② **fixture 触点口径错**：「18 源文件 / 24 处」→ **15 个测试文件 / 20 处**（原 24 处含生产调用 3 处与定义 1 处，不属 fixture 改写面）③ **时效指针**：正文硬写仓外临时目录路径 → 改「仓外临时环境」（committed 文档不该指向会被清理的路径）④ **流程缺口补齐**：M4b-pre 立项后须同步 `docs/00` §5 追踪表（状态唯一源）+ 主 design §2.3 批件登记表（主↔批唯一源）⇒ 本轮同步升 `docs/00` **v1.30** · 主 design **v1.12**⑤ **逐维**：简洁 9.5 · 极致 9.5 · 正确 9.5 · 一致 9.5 · 安全 9.0 · 前瞻 9.5 · 直白易懂 9.5 · 好维护 9.5 ⇒ **均值 9.44**（⚠ v1.2 的 9.38 → 9.44 的提高**因补齐验证缺口与立项登记，非产物变好**；上一轮「正确 9.5」含未穷尽核验——本轮回测出 2 处数字错，如实登记）|

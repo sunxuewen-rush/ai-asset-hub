@@ -57,6 +57,13 @@
       "when": 1789027199098,
       "tag": "0007_remove_asset_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789473026140,
+      "tag": "0008_icy_argent",
+      "breakpoints": true
     }
   ]
 }
