@@ -124,7 +124,9 @@ describe('queryAudit（T19：组合过滤 + 稳定分页 + 总数）', () => {
   });
 
   it('action 过滤只返回匹配 action', async () => {
-    const r = await queryAudit(db, { limit: 20, offset: 0, action: 'auth.login.failed' });
+    // 首页须足够大：同库并发测试文件（登录失败/限流类）也会落 `login.failed` 行，
+    // limit=20 会被它们挤满 ⇒ 自己的行落页外 → 假红（AGENTS.md 硬规则：只依赖自己造的数据）
+    const r = await queryAudit(db, { limit: 500, offset: 0, action: 'auth.login.failed' });
     // 并发文件（登录失败测试）也可能落 login.failed 行——断言过滤语义：
     // 返回全部行 action 均匹配 + 自己行在其中（存在性——并发数据不破坏断言）
     expect(r.items.length).toBeGreaterThanOrEqual(1);
@@ -157,8 +159,9 @@ describe('queryAudit（T19：组合过滤 + 稳定分页 + 总数）', () => {
 
   it('时间窗 from/to 组合', async () => {
     // middle(NOW-30s) 与 newer(NOW-10s) 在内，old(NOW-60s) 在外
+    // 同 action 用例：窗口内并发文件行可挤占首页 ⇒ limit 取足量（断言本身不变）
     const r = await queryAudit(db, {
-      limit: 20,
+      limit: 500,
       offset: 0,
       from: new Date(NOW - 40_000),
       to: new Date(NOW - 5_000),

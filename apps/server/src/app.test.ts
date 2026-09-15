@@ -17,7 +17,7 @@ import { InMemoryRateLimiter } from './auth/rate-limit.js';
 import { createClient, type Db } from './db/client.js';
 import { account, auditLog, user } from './db/schema/index.js';
 import { createLocalStorage } from './storage/local.js';
-import { createTestUser, TEST_PASSWORD } from './test-utils/auth-fixture.js';
+import { cleanupCreatedUsers, createTestUser, TEST_PASSWORD } from './test-utils/auth-fixture.js';
 
 /**
  * 认证全链路集成测试（M4b-pre T3 · design §8 契约表）：
@@ -63,6 +63,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // 夹具登记制清理（含 `api_token` → `user` 的 FK 顺序；本文件有签发令牌的用例——
+  // 少了它 user 删除会被 `api_token_user_id_user_id_fk` 拦下，残留行会让下次运行撞 `user_pkey`）
+  await cleanupCreatedUsers(db);
   // 前缀清理（禁全表 delete——纪律）；顺序满足 FK：audit_log → user（session/account 级联）
   await db.delete(auditLog).where(like(auditLog.targetId, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
@@ -207,6 +210,80 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     });
     expect(noOrigin.status).toBe(403);
     expect(await noOrigin.json()).toMatchObject({ code: 'MISSING_OR_NULL_ORIGIN' });
+  });
+
+  it('业务面同源守卫：cookie 写请求跨源/缺 Origin → 403；无 cookie 与 Bearer 通道豁免', async () => {
+    // 守卫恒开（不随官方 `NODE_ENV=test` 跳过 Origin 校验的隐藏行为走）——设计意图：业务面防线不因环境弱化
+    const app = makeApp();
+    const id = await createTestUser(db, {
+      id: `${PREFIX}guarded`,
+      displayName: `${PREFIX}guarded`,
+    });
+    const signIn = await app.request('/api/auth/sign-in/aih', {
+      method: 'POST',
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+    });
+    const cookie = sessionCookieOf(signIn);
+
+    // ① 跨源（cookie 通道）→ 403 `auth.csrf_failed`（沿用删除前 `csrf.ts` 的错误码：前端映射零新增）
+    const crossOrigin = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: 'http://evil.test',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    expect(crossOrigin.status).toBe(403);
+    expect(await crossOrigin.json()).toMatchObject({ code: 'auth.csrf_failed' });
+
+    // ② 带 cookie 但无 Origin/Referer → 403（官方平面第三态同款机制，业务面同口径）
+    const noOrigin = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: { cookie, host: 'localhost:3000', 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(noOrigin.status).toBe(403);
+    expect(await noOrigin.json()).toMatchObject({ code: 'auth.csrf_failed' });
+
+    // ③ 同源（官方 baseURL 自动入白名单，``AUTH_TRUSTED_ORIGINS`` 空亦可）→ 放行进业务：201 签发
+    const sameOrigin = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: { cookie, ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(sameOrigin.status).toBe(201);
+
+    // ④ 无 cookie（CLI / 匿名通道）→ 守卫不介入（官方同构的 cookie 门），由路由层判 401
+    const noCookie = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: {
+        origin: 'http://evil.test',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    expect(noCookie.status).toBe(401);
+    expect(await noCookie.json()).toMatchObject({ code: 'auth.session_expired' });
+
+    // ⑤ Bearer 显式通道跳过守卫（含无效 Bearer 不降级回 cookie）→ 跨源 + 无效 Bearer 仍是 401
+    const invalidBearer = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: {
+        cookie,
+        authorization: 'Bearer not-a-real-token',
+        origin: 'http://evil.test',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    expect(invalidBearer.status).toBe(401);
+    expect(await invalidBearer.json()).toMatchObject({ code: 'auth.session_expired' });
   });
 
   it('rate limits repeated failed logins (429)', async () => {

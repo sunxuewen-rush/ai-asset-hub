@@ -73,6 +73,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | R7 | 令牌 = 官方 api-key 插件；**`rateLimit` 关闭**；REST 端点形状不变（内部服务端直呼签发） | 官方 api-key 默认带 10 次/24h 限流，会与我们既有语义（无令牌级限流，限流在下载/上传面）冲突 ⇒ 显式关闭。签发必须服务端直呼（带 headers 时 `permissions` 属 server-only 属性，否则 400 `SERVER_ONLY_PROPERTY`，spike 实证） |
 | R8 | 设备流 = 官方契约（`POST /device/code` → `GET /device?user_code` 认领 → `POST /device/approve` → `POST /device/token`）+ 启用官方 `bearer` 插件 | 官方设备 token 是 Bearer 形式，不加 `bearer` 插件则受保护端点 401（spike 实证）；两段式是官方要求（未认领直接 approve → 400） |
 | R9 | 删自研 `csrf.ts`（62 行），Origin 校验交官方；dev 白名单经 env（`AUTH_TRUSTED_ORIGINS`） | 官方 origin 校验在跑（spike 实证：无 Origin 的写请求 → 403 `MISSING_OR_NULL_ORIGIN`）；同时原生解掉 A1（dev 5173 非 GET 被 403 的阻塞） |
+| R9a | **业务面同源守卫**（T3 收尾补）：新增 `http/origin-guard.ts`，cookie 写请求经官方 `auth.$context.isTrustedOrigin()` 校验（**与官方同一白名单**，不重写比较逻辑）；出口沿用 `auth.csrf_failed`（07 §4） | 官方 origin 校验只覆盖 `/api/auth/*`；业务面不然只剩 cookie `SameSite=Lax`（挡跨站、挡不住「同站跨源」）⇒ 相对迁移前是防线回归。语义与官方 `validateOrigin` 同构：安全方法跳过 · Bearer 显式通道跳过 · 无 `cookie` 头跳过 · `origin → referer` 回退 · 缺 Origin 即 403 |
 | R10 | 密码哈希 = **注入我方既有 `hashPassword`/`verifyPassword`**（scrypt N=2^17, r=8, p=1） | 官方提供配置化注入点；沿用既有算法 ⇒ 存量 `local_credential.password_hash` **原样可验**，无密码重置 |
 | R11 | OIDC 通道**保留既有 `openid-client` 编排**，仅把「会话签发」接官方 | ① 通道默认关闭（`OIDC_ENABLED=false`）且**无可实测 IdP**——改到官方 `genericOAuth` 会引入无法验收的面（用户明确厌恶未验证声明）② 编排用标准库、不是自造协议 ③ 迁移收益（多 provider / 账号链接）非本期需求。**此条可翻转**（用户若要求「尽量官方」，则改为 `genericOAuth` 并接受该面测不了） |
 | R12 | 目录邮箱：**优先 `mail`，取不到即拒**（`auth.email_missing`），绝不按规则拼 | 实测：主收信域 ≠ AD 域 ⇒ 拼不出；官方 `user.email` 是 `NOT NULL + UNIQUE` 硬约束（非偏好）；合成邮箱会污染账号真值并造成唯一键错配 |
@@ -135,7 +136,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | P7 | 权限不足与 key 不存在共用同一错误码 | 错误码映射须显式区分（否则会泄露 key 存在性） |
 | P8 | 官方 api-key 默认限流 10 次/24h | 不显式关闭会把既有令牌语义改掉（见 R7） |
 
-**T3 实施期新增坑（P9-P13，全部实测，代码内已留注记）**
+**T3 实施期新增坑（P9-P14，全部实测，代码内已留注记）**
 
 | # | 实测现象（源码/实证依据） | 处置 |
 |---|--------------------------|------|
@@ -144,6 +145,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | P11 | 全局 `originCheckMiddleware` **仅当请求带 cookie 时才校验 Origin**（`api/middlewares/origin-check.mjs:108`：`if (!(forceValidate \|\| useCookies)) return`） | 自绘登录端点必须挂官方 `formCsrfMiddleware`（官方内建 sign-in/sign-up 同款）：它在「有 Origin/Referer 但无 cookie」时也强校验 |
 | P12 | 官方 `hooks.after` 在 `/sign-out` 路径**取不到会话**（会话行已先删，实测 `ctx.context.session` 为空） | 登出审计改由 `app.ts` 官方 handler 包装层承担（先 `getSession` → 转发 → 补审计）；注册审计仍走官方 `databaseHooks.user.create.after` ✓ |
 | P13 | drizzle-kit 生成的「FK 重指向 + 删旧表」迁移**顺序不可直接采用**：先 `DROP TABLE … CASCADE` 会连带删除依赖约束，随后的 `DROP CONSTRAINT` 报「约束不存在」 | 迁移 SQL 手工定序：摘旧约束 → 挂新约束 → 删旧表；journal/snapshot 描述终态，不受定序影响 |
+| P14 | 官方 `isTrustedOrigin` 是**上下文对象上的方法**（内部读 `this.trustedOrigins`，`context/create-context.mjs:143`）——`const { isTrustedOrigin } = await auth.$context` 解构后调用直接 `TypeError: undefined is not an object`（实测：业务面守卫首跑 500） | 必须以方法形式调用（`const ctx = await auth.$context; ctx.isTrustedOrigin(url, …)`）；同族注意：凡官方上下文方法读 `this` 者（`$context` 面）都不得解构 |
 
 ## 3. 影响面总览（实扫量化）
 
@@ -174,6 +176,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `apps/server/src/auth/plugins/ldap-credentials.ts` | 150–200 行 | 自绘凭证插件：三路分派（R15）· bind → 取 mail/name → 建号（`role` = 默认档 · `status` = ACTIVE）· 错误码映射 |
 | `apps/server/src/db/schema/auth.ts` | ~170 行 | 官方 CLI 生成产物并入（6 表 + 关系）；`status` 作为 `additionalFields` 落列 |
 | `apps/server/src/http/auth-routes.ts` | ~60 行 | 薄层：`GET /api/auth/me`（形状不变，R14）。**不做旧登出别名**——官方 `sign-out` 是唯一登出端点（前端未实现，零迁移成本） |
+| `apps/server/src/http/origin-guard.ts` | ~70 行 | **业务面同源守卫**（R9a，T3 收尾补）：`/api/*` 除官方平面外的 cookie 写请求 → 官方 `auth.$context.isTrustedOrigin()`（同一 `trustedOrigins`）；出口 `auth.csrf_failed`（07 §4） |
 
 **改造**
 
@@ -189,14 +192,14 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `db/schema/users.ts` | 129 行 | 用户域表定义整体移交 `db/schema/auth.ts`（本文件退化为空——随 S5 删除）；`ACCOUNT_ROLE` 常量拆到 `auth/roles.ts`（数值档位单点） |
 | `db/schema/index.ts` | 5 行 | re-export 调整为 `auth.ts`（保持既有 import 路径不变） |
 | `db/seed.ts` | — | bootstrap 账号改官方建号路径（服务端直呼官方 API，保持**幂等契约**：存在性检查 → 不存在才建）；合成邮箱按 R13（`SEED_ADMIN_EMAIL`，默认 `admin@local.test`）；**不调用官方 `create-admin`**（非幂等，实测 X8） |
-| `app.ts` | — | 装配序调整：`/api/auth/*` → 官方 handler（置于业务中间件之前）· 业务面保留 `tokenAuthMiddleware` → `sessionMiddleware`（改为官方 `getSession` 薄封装）· 删除 `csrfProtection` 挂载 |
+| `app.ts` | — | 装配序调整：`/api/auth/*` → 官方 handler（置于业务中间件之前）· 业务面 `tokenAuthMiddleware` → **`trustedOriginGuard`** → 官方 `getSession` 薄封装 → 路由（`csrfProtection` 挂载删除，防线由 `origin-guard.ts` 以官方同源语义补回） |
 | `http/request-context.ts` | 28 行 | 保留（审计与限流仍取 clientIp/UA）；官方会话同时记录 `ip_address`/`user_agent`（列已存在） |
 
 **删除**
 
 | 文件 | 行数 | 理由 |
 |------|------|------|
-| `auth/csrf.ts` | 62 | 交官方 origin 校验（R9） |
+| `auth/csrf.ts` | 62 | 交官方 origin 校验（R9）；**业务面缺口由 `http/origin-guard.ts` 补回**（R9a：原实现按 `Host` 比对，dev 跨端口必 403 = A1 根因；新守卫按官方 `trustedOrigins` 判定） |
 | `auth/session.ts` | 87 | 官方 `session` 表 + cookie（R17） |
 | `auth/session-middleware.ts` | 55 | 官方 `getSession` 薄封装替代（cookie 名/TTL 官方管） |
 | `auth/device-store.ts` | 113 | 官方 `device_code` 表接管 pending 状态 |
@@ -233,7 +236,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `SESSION_TTL_HOURS` | 不变（默认 8） | 映射为官方 `session.expiresIn`（秒） |
 | `PUBLIC_BASE_URL` | 不变 | 映射为官方 `baseURL`（回调/设备 verification_uri 推导） |
 | `REGISTRATION_ENABLED` | 不变 | 映射为官方 `emailAndPassword.disableSignUp` |
-| `AUTH_TRUSTED_ORIGINS` | **新增**（逗号分隔，空 = 仅同源） | dev 填 `http://localhost:5173`；**生产留空**（反代同源） |
+| `AUTH_TRUSTED_ORIGINS` | **新增**（逗号分隔，空 = 仅 `PUBLIC_BASE_URL` 同源） | **认证面（官方）与业务面（`origin-guard.ts`）共用同一白名单**；dev 填 `http://localhost:5173`（不填则前端 cookie 写请求 403——两平面同时生效）；**生产留空**（反代同源，官方自动纳入 `baseURL`） |
 | `SEED_ADMIN_EMAIL` | **新增**（默认 **`admin@local.test`**） | bootstrap 账号合成邮箱（R13；`.test` = RFC 6761 保留 TLD，明确不可投递；`admin@local` 会被官方校验拒） |
 | LDAP 组 / OIDC 组 / 限流组 | 不变 | 通道实现与限流落点不动（§4.1） |
 
@@ -242,17 +245,18 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 ### 5.1 表级映射与迁移时序（现状 12 表 → 迁后 14 表）
 
 **时序原则（防冻结快照 / 单真值源）**：搬迁 SQL 与**其消费面的切流同批落地**——`0008` 只建结构（零数据）·
-用户域搬迁随认证面切流（`0009`）· 令牌搬迁随令牌面切流（`0010`）· 旧表与 13 条 FK 在全部消费面切完后收口
-（`0011`：重指向 FK + 删旧表）。任一时刻的读写真值源**只有一处**（旧表或新表），既无冻结快照，也无双写（§10 R7）。
+`0009` 用户域搬迁 + **`0010` 13 条 FK 重指向与旧 3 表删除**（**随认证面切流同批**，T3）·
+`0011` 令牌搬迁与收口（随令牌面切流，T4）。任一时刻的读写真值源**只有一处**（旧表或新表），既无冻结快照，也无双写（§10 R7）。
+**FK 必须随切流批重指向**（非留到收口批）：新账号只写官方 `user`，业务表若仍引用 `user_account`，新用户的资产/审计写入会被外键直接拒绝——单真值源不允许两批之间悬空。
 依据 = 实测：旧表消费面合计 **113 处 / 12 文件**（`user_account` 52/10 · `identity_binding` 8/2 · `local_credential` 26/4 · `api_token` 27/4），
 且「会话签发 ↔ 档位判定 ↔ 令牌鉴权」不可分批切流。
 
 | 现状表 | 迁后 | 动作 |
 |--------|------|------|
-| `user_account` | `user` | `0008` **建新表**（列调整：`display_name`→`name` · `avatar_url`→`image` · `role` `smallint`→`text` 档名 · `email` 补 `NOT NULL + UNIQUE` · 新增 `email_verified`/`username`/`display_username`/`banned`/`ban_reason`/`ban_expires`）→ **`0009` 搬迁**（`INSERT … SELECT` + 列级规则见 §5.2）；旧表与 13 条 FK 保留至 `0011` |
+| `user_account` | `user` | `0008` **建新表**（列调整：`display_name`→`name` · `avatar_url`→`image` · `role` `smallint`→`text` 档名 · `email` 补 `NOT NULL + UNIQUE` · 新增 `email_verified`/`username`/`display_username`/`banned`/`ban_reason`/`ban_expires`）→ **`0009` 搬迁**（`INSERT … SELECT` + 列级规则见 §5.2）→ **`0010` 重指向 11 条 FK + 删本表**（另 2 条随 `identity_binding`/`local_credential` 删除 ⇒ 合计 13 条） |
 | `identity_binding` | `account` | `0008` **建新表** → **`0009` 搬迁**（`provider`→`provider_id` · `provider_subject`→`account_id`；补官方 token 列，本批全 NULL） |
 | `local_credential` | `account` | **合入 `account`**（同上批）：`password_hash`→`password` · `username`→`account_id` · `provider_id='credential'`；`id` 由脚本生成文本主键；`failed_attempts`/`locked_until` 由官方限流语义承接 ⇒ **不迁**（记入 §10 I2） |
-| `api_token` | `apikey` | `0008` **建新表** → **`0010` 搬迁**（列映射与 re-encode 见 §5.3） |
+| `api_token` | `apikey` | `0008` **建新表** → **`0011` 搬迁**（列映射与 re-encode 见 §5.3；随令牌面切流，T4） |
 | — | `session` | `0008` 新建（无存量：现为进程内内存 ⇒ **迁移即全员登出**，见 §10 I1） |
 | — | `verification` · `device_code` | `0008` 新建（无存量） |
 | 残留 | — | `0010`（**切流批，已完成**）：**11 条 FK 重指向新 `user` 表**（另 2 条随 `identity_binding`/`local_credential` 删除 ⇒ 合计 13 条）+ 删旧 3 表（`user_account`/`identity_binding`/`local_credential`）；`0011`（收口批）：删 `api_token` 空壳 + 无用列/旧索引清理 |
@@ -389,6 +393,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-15 | sunxuewen-rush | 初稿：spike 结论（X1-X6 全通过 + 8 条坑）转入选型定稿；**17 项拍板**（R1-R17；其中 R1/R2/R14 已确认，其余待批）（实扫量化：认证核心 16 文件/1492 行 · HTTP 面 6 文件/669 行 · 测试 16 文件/2471 行 · `createSession` 触点 15 测试文件/20 处 + 生产 3 处 · 调用面 57 处 · 运行库 12 表 · 13 条 FK）|
+| v1.8 | 2026-09-15 | sunxuewen-rush | **T3 收尾补丁回写（用户 2026-09-15 批准）**：① 新增 **R9a 业务面同源守卫**（`http/origin-guard.ts`：官方 `$context.isTrustedOrigin` 判定，不重写比较逻辑；出口 `auth.csrf_failed`）+ §4.1 新增/改造/删除三表同步（`app.ts` 装配序、`csrf.ts` 删除理由订正为「按 `Host` 比对是 A1 根因」）② §2.3 增 **P14**（官方上下文方法读 `this`，不可解构——首跑 500 实证）③ **§5.1 时序原则按 v1.7 口径订正**（`0009` 用户域搬迁 · **`0010` FK 重指向 + 删旧 3 表（随认证面切流）** · `0011` 令牌面收口）+ 表内 `user_account`/`api_token` 两行同步 ④ §12 `AUTH_TRUSTED_ORIGINS` 说明补「认证面与业务面共用同一白名单」 |
 | v1.7 | 2026-09-15 | sunxuewen-rush | **T3 落地回写（认证面整体切换）**：① §2.3 补 **P9-P13**（T3 实施期实测坑：官方 test 环境默认跳过 Origin 校验 · `ctx.json` 不设状态码 · 全局 origin 校验仅带 cookie 时生效 · 官方 `hooks.after` 在 sign-out 取不到会话 · drizzle-kit 迁移定序陷阱）② **§5.1 时序再收紧**：13 条外键的**重指向**由收口批提前到**切流批**（`0010`）——硬约束：新账号只写官方 `user`，业务表若仍引用 `user_account`，新用户的资产/审计写入会被外键直接拒绝（单真值源不允许两批之间悬空）③ 依赖透传位补充：`AuthRuntimeDeps.advanced`（测试断言 Origin 三态用）；口令哈希函数体随 §4.1 迁入 `better-auth.ts`（`password.ts` 已删）④ 覆盖口径：删除 4 个被替代测试文件（`csrf`/`session`/`users`/`provision`），当前 **465 例**（464 pass · 1 skip · 0 fail），缺口与新增测试面（令牌权限码 · 迁移对账 · 无 Origin 三态已补）由 T6 收口对齐 design §6 |
 | v1.6 | 2026-09-15 | sunxuewen-rush | **迁移时序与 Task 边界重划（用户 2026-09-15 批准方案 A）**：① §5.1 表级映射改「建表/搬迁分离 + 迁移时序原则」——`0008` 建 6 表（零数据）· `0009` 用户域搬迁 · `0010` 令牌搬迁 · `0011` FK 重指向 + 删旧表；搬迁一律**与消费面切流同批**（防冻结快照，单真值源）② §5.3 权限码转换迁移文件 `0008` → **`0010`** · §5.4 回滚边界按四步改写 · §7 S1/S3/S5 范围与出口同步 · §10 R7 补「过渡期零消费」口径 ③ 重划依据（实测，2026-09-15）：旧表消费面 **113 处 / 12 文件**（`user_account` 52/10 含 13 条 FK 定义 · `identity_binding` 8/2 · `local_credential` 26/4 · `api_token` 27/4）⇒ `RENAME` 会让 7 个生产文件当轮编译失败；且认证链（会话↔档位↔令牌）分批切流必产生不可运行中间态 ④ 方案对照：保持原边界（接受中间态不可运行）与被否决的「官方 adapter 表名映射套用既有表」（推翻已批准 R3 + 永久映射层）均已评估 ⑤ plan 同步升 **v0.5** |
 | v1.5 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：R16 由「`better-auth@^1.7.5` + 插件精确」改为**两包均精确钉定**（`better-auth@1.7.5` + `@better-auth/api-key@1.7.5`）——依据 = lockfile 实测插件 `peerDependencies` 要求 `better-auth: ^1.7.5` / `@better-auth/core: ^1.7.5` / `better-call: 1.4.0`，内核用 caret 时 `bun update` 会造成内核/插件错配；对标公开参考项目（其 better-auth 系列 5 包全精确）。同轮：`docs/00` §5 M6 行补登记 `SECURITY.md` + `CODE_OF_CONDUCT.md`（升 **v1.31**）|

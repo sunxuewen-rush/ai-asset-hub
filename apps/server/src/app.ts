@@ -16,6 +16,7 @@ import { createAuthRoutes } from './http/auth-routes.js';
 import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createLabelRoutes } from './http/labels.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
+import { trustedOriginGuard } from './http/origin-guard.js';
 import { requestContextMiddleware } from './http/request-context.js';
 import { createReviewRoutes } from './http/reviews.js';
 import { createStatsRoutes } from './http/stats.js';
@@ -32,9 +33,10 @@ import type { ObjectStorage } from './storage/types.js';
  * - 认证端点整体交官方 handler（`/api/auth/*`），**自留只有 `GET /api/auth/me`**（形状不变的薄层）
  * - 会话中间件换官方 `getSession` 薄封装（`officialSessionMiddleware`）；自研 `sessionMiddleware` /
  *   `InMemorySessionStore` / `csrfProtection` 全部删除
- * - Origin 校验交官方（`trustedOrigins` + 官方 origin-check）；业务面写请求的真值保护 =
- *   官方会话 cookie 的 `SameSite=Lax`（跨站不带 cookie ⇒ 匿名 ⇒ 401）
- * - 装配序：`tokenAuthMiddleware`（Bearer 显式通道）→ `officialSessionMiddleware` → 路由
+ * - Origin 校验：官方端点交官方（`trustedOrigins` + 官方 origin-check）；**业务面 + 自留 device/approve
+ *   由 `trustedOriginGuard` 补回**（与官方同源语义、同一白名单：`auth.$context.isTrustedOrigin`）——
+ *   `csrfProtection` 删除后业务面 cookie 写请求的防线回归（T3 收尾，用户 2026-09-15 批准）
+ * - 装配序：`tokenAuthMiddleware`（Bearer 显式通道）→ `trustedOriginGuard` → `officialSessionMiddleware` → 路由
  * - 官方 catch-all **最后注册**：自留路由（`/me`、`/device/*`、`/oidc/*`）先注册才不被吞
  */
 export interface AppDeps {
@@ -64,6 +66,8 @@ export function createApp(deps: AppDeps): Hono {
   app.use('*', rbacContext(rbac));
   // 认证装配序（T17）：Bearer 显式优先 → 无则官方 session cookie（token → session）
   app.use('/api/*', tokenAuthMiddleware(deps.db));
+  // 业务面同源守卫（在会话语义前拒绝，省一次会话查询；官方平面自带校验故内部排除）
+  app.use('/api/*', trustedOriginGuard(auth));
   app.use('/api/*', officialSessionMiddleware(auth));
 
   // 统一错误出口：AuthError/AssetError → 结构化 {code,message}；其余 500
