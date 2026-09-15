@@ -1,8 +1,8 @@
 # M4b-pre 认证整车迁移实现计划（better-auth）
 
 > Date: 2026-09-15
-> Updated: 2026-09-15（v0.2：**提交前自检换靶轮回修**——T7 fixture 口径 18 文件/24 处 → **15 文件/20 处** · **T3 补漏 `ldap.test.ts`** + 断言⑦ · 沙箱描述去时效 · design 同步升 **v1.3**（8 维 **9.44**）；v0.1：初稿——依据 design v1.2（用户整体批准）+ 沙箱实测 X1-X8；T1-T9 立项）
-> Status: **未开工**（T1-T9 待执行；design 已定稿批准 · 8 维自检 **9.44**（提交换靶轮））
+> Updated: 2026-09-15（v0.4：**T1 提交前补丁**——`better-auth` 版本精确化（`^1.7.5` → **`1.7.5`**，与插件包对齐 · 防内核/插件错配）+ `docs/00` M6 行登记 `SECURITY.md`/`CODE_OF_CONDUCT.md`（升 **v1.31**）；v0.3：**T1 落地回写****提交前自检换靶轮回修**——T7 fixture 口径 18 文件/24 处 → **15 文件/20 处** · **T3 补漏 `ldap.test.ts`** + 断言⑦ · 沙箱描述去时效 · design 同步升 **v1.3**（8 维 **9.44**）；v0.1：初稿——依据 design v1.2（用户整体批准）+ 沙箱实测 X1-X8；T1-T9 立项）
+> Status: **执行中**（**T1 ✅ 2026-09-15** · T2-T9 待执行；design 已定稿批准 · 8 维自检 **9.44**）
 > 引用链：本文档 → design `docs/designs/2026-09-15-m4b-pre-auth-migration-design.md`（§N 逐 Task 引用）→ 规范 `05` §3/§4.1/§5/§6 · `08` §3/§8 · `00` §5（引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -38,7 +38,7 @@ S5 清理与规范同步 = **T7/T8** · S6 收尾 = **T9**（测试 fixture 改�
 
 ## 2. Task 清单
 
-### T1 依赖落位 + 官方实例骨架（design §4.1 · §4.3）
+### T1 依赖落位 + 官方实例骨架 ✅（2026-09-15 落地；执行期说明 3 项见「落地记录」）（design §4.1 · §4.3）
 - **Files**: Modify `apps/server/package.json`（+ `better-auth@^1.7.5`；R16 = 仅此 1 个直接依赖）· `bun.lock` ·
   Create `apps/server/src/auth/roles.ts`（`ROLE_LEVEL` 数值映射单点 + `createAccessControl` statements + `ac.newRole` 三档）·
   Create `apps/server/src/auth/better-auth.ts`（drizzle adapter 带 schema · `baseURL`/`secret`/`session`/`trustedOrigins` ·
@@ -66,7 +66,8 @@ S5 清理与规范同步 = **T7/T8** · S6 收尾 = **T9**（测试 fixture 改�
   ④ `user.email` 无 NULL（缺失行按 `id||'@local'` 规则补齐）· `select distinct role` ⊆ {user, admin, superadmin}
   ⑤ 令牌 re-encode 后 `apikey.key ~ '^[A-Za-z0-9_-]+$'`（base64url）且长度 = 43
   ⑥ 13 条 FK 全部仍指向新 `user` 表（`pg_constraint` 查询，零重建）
-  ⑦ 门禁：typecheck/lint/format:check/build + `bun run db:migrate`（dev 库执行前已获授权）
+  ⑦ **`getSession`（空 cookie）→ `null`**：官方在首次 API 调用即做 schema check（T1 实测 `SCHEMA_MISMATCH`）⇒ 该断言随 6 张表落地后归本 Task
+  ⑧ 门禁：typecheck/lint/format:check/build + `bun run db:migrate`（dev 库执行前已获授权）
 - **Commit**: `feat(db): add better-auth schema and 0008 auth migration`
 
 ### T3 企业目录凭证插件 + bootstrap 建号（design §1.4 · §2.2 · R12/R13/R15）
@@ -156,6 +157,26 @@ S5 清理与规范同步 = **T7/T8** · S6 收尾 = **T9**（测试 fixture 改�
   ⑤ 批间门**出口五件**逐件登记；`docs/00` §5 M4b-pre 行 → 完成
 - **Commit**: `chore(m4b-pre): run gates and close batch`
 
+### 落地记录（2026-09-15 执行回写——实测证据）
+
+**T1 依赖落位 + 官方实例骨架 ✅**
+
+- **落仓**：Create `apps/server/src/auth/roles.ts`（**80 行**）· `apps/server/src/auth/better-auth.ts`（**113 行**）· `apps/server/src/auth/roles.test.ts`（**114 行**）；Modify `apps/server/src/config/env.ts`（+2 项）；`apps/server/package.json` + `bun.lock`
+- **依赖**：`better-auth@^1.7.5` + `@better-auth/api-key@1.7.5`（精确版本，防插件与内核半升级漂移；见执行期说明 1）
+- **断言实测**：
+  ① `git diff apps/server/package.json` = **2 项**（原计划 1 项 → 见执行期说明 1）
+  ② `bunx tsc --noEmit` **exit 0** · `bunx tsc -p tsconfig.json`（declaration emit）**exit 0**
+  ③ 实例可构造 + `handler` / `api.getSession` 面齐（探针实测）；`options.session.expiresIn` = **28800** · `disableSessionRefresh` = **true** · `options.baseURL` = PUBLIC_BASE_URL
+  ④ `SESSION_SECRET` <32 字符仍拒启动 ✓ · `AUTH_TRUSTED_ORIGINS` 默认 `''` → `parseTrustedOrigins` = `[]` ✓ · `SEED_ADMIN_EMAIL` 默认 `admin@local.test` ✓ · 多值解析（含空段）✓ · `disableSignUp` ← `REGISTRATION_ENABLED` 映射 ✓
+  ⑤ `bun test src/auth/roles.test.ts` → **9 pass / 0 fail**（39 expect）——含 `ROLE_LEVEL` 键集合 ↔ `ROLES` 键集合一致性、档位单调、未知档名不越权、三档授权面单调包含
+  ⑥ 辅助：`bun x auth@latest info` 识别栈（hono 4.13.7 · pg 8.23.0 · drizzle 0.45.2 · better-auth **1.7.5**）✓
+- **门禁**：`lint`（server）**0 error**（本批 4 文件零诊断）· `format:check` 236 文件 ✓ · `typecheck` ✓ · `build`（declaration emit）✓
+- **提交前补丁（用户 2026-09-15 拍板，含在 T1 提交内）**：① **版本精确化** `better-auth` `^1.7.5` → **`1.7.5`**（与 `@better-auth/api-key@1.7.5` 对齐；依据 = lock 实测插件 peerDeps 要求内核同版本 + 公开参考项目惯例，防 `bun update` 造成内核/插件错配）② **`docs/00` §5 M6 行登记** `SECURITY.md` + `CODE_OF_CONDUCT.md`（对标公开开源仓治理清单；升 **v1.31**）
+- **执行期说明 3 项**：
+  1. **依赖 2 个而非 1 个**：`apiKey` 插件在独立包 `@better-auth/api-key` —— 实测 better-auth 1.7.5 的 `exports` **无** `./plugins/api-key`、`better-auth/plugins` **不导出** `apiKey`、`@better-auth/*` 未被提升到 workspace 根 ⇒ 必须显式安装同版本。R16 已按实测修正（design v1.4）
+  2. **断言③ 拆分**：T1 = 实例可构造 + 实例面齐；`getSession`（空 cookie → null）**归 T2**（官方在**首次 API 调用**即做 schema check，报 `SCHEMA_MISMATCH: Missing tables user, session, account, verification, deviceCode, apikey`）⇒ P4 在**仓内**复现（此前仅沙箱证据）
+  3. **类型注记（TS2742 / TS7056）**：`declaration: true` 下「实例/选项的推断类型」不可命名（编译器要求把 zod / better-call 内部类型写进 `.d.ts` 且超长）；把选项注解为官方 `BetterAuthOptions` 也修不掉（`Auth<BetterAuthOptions>` 与实例的 `$context` 逆变不相容，赋值不成立）⇒ 定案 **`AihAuth = Auth` + 构造处单次断言**；代价 = **插件端点**（api-key 的 `createApiKey` / `verifyApiKey`）不在该 `api` 面上 ⇒ **T5 在调用点做局部窄化**（令牌签发本就要求服务端直呼，与 design P6/P7 一致）
+
 ## 3. 整体审计（收尾 · 待 T9 回写）
 
 **口径**：承 M4a T17-T26 / M4b-1 惯例（`docs/00` §7 ②）——收尾对全仓跑**十一维覆盖式扫描**（死导出 · i18n 键 ·
@@ -179,4 +200,6 @@ S5 清理与规范同步 = **T7/T8** · S6 收尾 = **T9**（测试 fixture 改�
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v0.1 | 2026-09-15 | sunxuewen-rush | 初稿：依据 design v1.2（用户整体批准）+ 沙箱实测 X1-X8 立项；T1-T9 任务清单（依赖与实例骨架 / schema 与迁移 0008 / 目录凭证插件 / 会话与档位切流 / 令牌面 / 设备流 / 测试 fixture 全量改写 / 清理与规范同步 / 门禁与收尾） |
+| v0.4 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：① `better-auth` `^1.7.5` → **`1.7.5`**（锁定形态与 `@better-auth/api-key@1.7.5` 一致；依据 = lock 实测插件 peerDeps 要求内核同版本 ⇒ caret 会在 `bun update` 后错配）② `docs/00` §5 M6 行补登记 **`SECURITY.md`** + **`CODE_OF_CONDUCT.md`**（升 **v1.31**）|
+| v0.3 | 2026-09-15 | sunxuewen-rush | **T1 落地回写（依赖与官方实例骨架）**：落仓 `roles.ts`（80 行）· `better-auth.ts`（113 行）· `roles.test.ts`（114 行 · 9 pass）· env +2 项；**执行期说明 3 项**（依赖 2 个而非 1 个 → R16 修正 · 断言③ 拆分归 T2（schema check 仓内复现）· TS2742/7056 类型注记 ⇒ 插件端点 T5 局部窄化）；T2 断言补 `getSession`（空 cookie → null）；Status → 执行中（T1 ✅）|
 | v0.2 | 2026-09-15 | sunxuewen-rush | **提交前自检换靶轮回修**：① T7 fixture 口径订正（`18 个测试文件 / 24 处` → **15 个测试文件 / 20 处**，对齐 design v1.3 §3）② **T3 补漏** `apps/server/src/auth/ldap.test.ts`（`searchSelf` 属性面变化会牵动其兜底断言）+ 新增断言 ⑦ ③ 沙箱描述去时效（不写仓外临时路径）④ 上游判定同步：design 升 **v1.3**（8 维 **9.44**）· `docs/00` 升 **v1.30** · 主 design 升 **v1.12** |

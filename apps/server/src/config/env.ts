@@ -81,9 +81,19 @@ const envSchema = z.object({
   LDAP_USER_ID_ATTR: z.string().default('sAMAccountName'),
   LDAP_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 
+  // Origin 白名单（design §4.3 R9：官方 `trustedOrigins`；空 = 仅同源比对；
+  // dev 填 web 源（如 http://localhost:5173），**生产留空**靠反代同源——官方文档同款告警口径）
+  AUTH_TRUSTED_ORIGINS: z.string().default(''),
+
   // 种子管理员（可选：设置则 db:seed 建 SUPER_ADMIN）
   SEED_ADMIN_USERNAME: z.string().optional(),
   SEED_ADMIN_PASSWORD: z.string().optional(),
+  /**
+   * bootstrap 管理员邮箱（design §5.2 R13：本地逃生账号无目录来源 ⇒ 本设计**唯一的合成邮箱点**）。
+   * 默认 `admin@local.test`——`.test` 是 RFC 6761 保留 TLD，语义即「不可投递」；
+   * 不可用 `admin@local`（实测官方校验直接拒：`Invalid email address.`）。
+   */
+  SEED_ADMIN_EMAIL: z.string().email().default('admin@local.test'),
 });
 
 export type Env = z.infer<typeof envSchema>;
