@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { createHash, randomUUID } from 'node:crypto';
-import { count, eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import {
@@ -21,6 +21,7 @@ import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
 import { apikey, auditLog, user } from '../db/schema/index.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
+import { tokenAuthMiddleware } from './token-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 
 /**
@@ -53,6 +54,8 @@ async function cookieFor(userId: string): Promise<string> {
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
+  // 装配镜像 app.ts：Bearer（tokens）→ 官方会话（cookie）
+  app.use('*', tokenAuthMiddleware(db, auth));
   app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
@@ -196,6 +199,70 @@ describe('POST /api/tokens（T14 签发）', () => {
     const cookie = await cookieFor(u1);
     const res = await postJson('/api/tokens', undefined, cookie);
     expect(res.status).toBe(201);
+  });
+
+  it('多 scope 同 resource → permissions 保全全部 action（防单层聚合静默丢权）', async () => {
+    const cookie = await cookieFor(u1);
+    const res = await postJson('/api/tokens', { scope: ['asset:publish', 'asset:manage'] }, cookie);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string };
+    const [row] = await db.select().from(apikey).where(eq(apikey.id, body.id));
+    expect((JSON.parse(row!.permissions ?? 'null') as { asset: string[] }).asset.sort()).toEqual([
+      'manage',
+      'publish',
+    ]);
+    // 列表回显 scope 码（逗号串；顺序无关）
+    const list = await buildApp().request('/api/tokens', { headers: { cookie } });
+    const items = ((await list.json()) as { items: Array<{ id: string; scope: string }> }).items;
+    const scopes = new Set(items.find((t) => t.id === body.id)!.scope.split(','));
+    expect(scopes).toEqual(new Set(['asset:publish', 'asset:manage']));
+  });
+
+  it('审计落 `target_type = api_key`（design §8 登记项：表已由 api_token 换为官方 apikey）', async () => {
+    const cookie = await cookieFor(u1);
+    const res = await postJson('/api/tokens', {}, cookie);
+    const body = (await res.json()) as { id: string };
+    const rows = await db
+      .select({
+        action: auditLog.action,
+        targetType: auditLog.targetType,
+        targetId: auditLog.targetId,
+      })
+      .from(auditLog)
+      .where(and(eq(auditLog.actorId, u1), eq(auditLog.targetId, body.id)));
+    const issue = rows.find((r) => r.action === 'token.issue');
+    expect(issue?.targetType).toBe('api_key');
+
+    const del = await buildApp().request(`/api/tokens/${body.id}`, {
+      method: 'DELETE',
+      headers: { cookie, ...ORIGIN, host: 'localhost:3000' },
+    });
+    expect(del.status).toBe(204);
+    const after = await db
+      .select({ action: auditLog.action, targetType: auditLog.targetType })
+      .from(auditLog)
+      .where(and(eq(auditLog.actorId, u1), eq(auditLog.targetId, body.id)));
+    expect(after.find((r) => r.action === 'token.revoke')?.targetType).toBe('api_key');
+  });
+
+  it('吊销后明文立即失效（端到端 401 对照：签发 201 → 吊销 204 → Bearer 401）', async () => {
+    const cookie = await cookieFor(u1);
+    const res = await postJson('/api/tokens', {}, cookie);
+    const body = (await res.json()) as { id: string; token: string };
+    // 未吊销前：Bearer 可用（令牌通道经 token-middleware → requireAuth）
+    const before = await buildApp().request('/api/tokens', {
+      headers: { ...ORIGIN, host: 'localhost:3000', authorization: `Bearer ${body.token}` },
+    });
+    expect(before.status).toBe(200);
+    const del = await buildApp().request(`/api/tokens/${body.id}`, {
+      method: 'DELETE',
+      headers: { cookie, ...ORIGIN, host: 'localhost:3000' },
+    });
+    expect(del.status).toBe(204);
+    const after = await buildApp().request('/api/tokens', {
+      headers: { ...ORIGIN, host: 'localhost:3000', authorization: `Bearer ${body.token}` },
+    });
+    expect(after.status).toBe(401);
   });
 });
 

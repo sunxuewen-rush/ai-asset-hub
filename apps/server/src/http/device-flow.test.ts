@@ -343,6 +343,95 @@ describe('设备流（官方四端点契约）', () => {
     expect(await claimExpired.json()).toMatchObject({ error: 'expired_token' });
   });
 
+  it('他人已认领的设备码：另一用户 approve → 403 access_denied（不能替他人授权）', async () => {
+    const app = makeApp();
+    const owner = await createTestUser(db, {
+      id: `${PREFIX}claim-owner`,
+      displayName: `${PREFIX}claim-owner`,
+    });
+    const other = await createTestUser(db, {
+      id: `${PREFIX}claim-other`,
+      displayName: `${PREFIX}claim-other`,
+    });
+    const code = (await (await requestCode(app)).json()) as { user_code: string };
+    await app.request(`/api/auth/device?user_code=${code.user_code}`, {
+      headers: { ...ORIGIN, cookie: await signInCookie(auth, owner) },
+    });
+    const res = await app.request('/api/auth/device/approve', {
+      method: 'POST',
+      headers: {
+        ...ORIGIN,
+        cookie: await signInCookie(auth, other),
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ userCode: code.user_code }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: 'access_denied' });
+  });
+
+  it('重复 approve（已处理）→ 400（DEVICE_CODE_ALREADY_PROCESSED，幂等边界明确）', async () => {
+    const app = makeApp();
+    const user = await createTestUser(db, {
+      id: `${PREFIX}double`,
+      displayName: `${PREFIX}double`,
+    });
+    const cookie = await signInCookie(auth, user);
+    const code = (await (await requestCode(app)).json()) as { user_code: string };
+    await app.request(`/api/auth/device?user_code=${code.user_code}`, {
+      headers: { ...ORIGIN, cookie },
+    });
+    const first = await app.request('/api/auth/device/approve', {
+      method: 'POST',
+      headers: { ...ORIGIN, cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ userCode: code.user_code }),
+    });
+    expect(first.status).toBe(200);
+    const second = await app.request('/api/auth/device/approve', {
+      method: 'POST',
+      headers: { ...ORIGIN, cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ userCode: code.user_code }),
+    });
+    expect(second.status).toBe(400);
+    expect(await second.json()).toMatchObject({ error: 'invalid_request' });
+  });
+
+  it('令牌一次性消费：同一 device_code 二次轮询不再签发（400）', async () => {
+    const app = makeApp();
+    const user = await createTestUser(db, { id: `${PREFIX}once`, displayName: `${PREFIX}once` });
+    const cookie = await signInCookie(auth, user);
+    const code = (await (await requestCode(app)).json()) as {
+      device_code: string;
+      user_code: string;
+    };
+    await app.request(`/api/auth/device?user_code=${code.user_code}`, {
+      headers: { ...ORIGIN, cookie },
+    });
+    await app.request('/api/auth/device/approve', {
+      method: 'POST',
+      headers: { ...ORIGIN, cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ userCode: code.user_code }),
+    });
+    await rewindPolling(code.device_code);
+    const first = await pollToken(app, code.device_code);
+    expect(first.status).toBe(200);
+    await rewindPolling(code.device_code);
+    const second = await pollToken(app, code.device_code);
+    expect(second.status).toBe(400);
+    expect((await second.json()) as { error: string }).toBeDefined();
+  });
+
+  it('未登录 GET /device：返回状态但**不含** client_id/scope（不泄露他的请求细节）', async () => {
+    const app = makeApp();
+    const code = (await (await requestCode(app)).json()) as { user_code: string };
+    const res = await app.request(`/api/auth/device?user_code=${code.user_code}`, {
+      headers: ORIGIN,
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body).toEqual({ user_code: code.user_code, status: 'pending' });
+  });
+
   it('旧自研契约已下线（grep 断言之外的端点级反证：自研 201/camelCase 形态不再存在）', async () => {
     const app = makeApp();
     const legacy = await app.request('/api/auth/device', {

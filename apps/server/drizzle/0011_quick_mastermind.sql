@@ -11,7 +11,8 @@
 --    `asset:publish,review:submit` → `{"asset":["publish"],"review":["submit"]}`；
 --    空串 / `cli`（历史全量语义）→ NULL（= 官方「无 permissions 限制」= 全量）
 --    两层聚合：先按 resource 收集 actions（jsonb_agg），再按行聚合为对象（jsonb_object_agg）
---    ——单层聚合会因同 resource 多 action 触发 duplicate key（实测不可用）
+--    ——单层聚合会**静默只保留最后一项**（实测：asset:publish,asset:manage → {"asset":"manage"}，
+--      publish 被丢弃且不报错）⇒ 必须两层聚合才能保全动作集
 -- 3. `enabled` = `revoked_at IS NULL`（吊销语义 = 官方 KEY_DISABLED，保留行 ⇒ 列表仍可见 revokedAt）
 -- 4. `rate_limit_enabled = false`（R7 全局关官方限流）；窗口/上限填官方默认值（不参与判定）
 -- 5. `start`/`prefix` = NULL（官方仅用于展示，旧库本就无明文前缀 ⇒ 列表展示口径不变）

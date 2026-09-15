@@ -2,7 +2,7 @@
 
 > Date: 2026-09-15
 > Updated: 2026-09-15（v0.6：**T2 落地回写**（实测证据见 §2 末「落地记录」）；v0.5：**Task 边界重划（用户 2026-09-15 批准方案 A）**——依据实测「旧表消费面 113 处 / 12 文件 + 认证链不可切片」，T2 收窄为**纯结构**（官方 schema + `0008`）；原 T3+T4 合并为「认证面整体切换」（含 `0009` 搬迁）；后续顺延：T4 令牌面（`0010` 搬迁）· T5 设备流 · T6 测试收口 · T7 清理与规范（`0011`）· T8 门禁与收尾。v0.4：T1 提交前补丁（`better-auth` 精确 `1.7.5` + `docs/00` M6 登记）；v0.3：T1 落地回写 + 自检换靶回修；v0.1：初稿）
-> Status: **执行中**（**T1 ✅** · **T2 ✅** · **T3 ✅ + 收尾补丁 ✅** · **T4 ✅** · **T5 ✅ 2026-09-15（落地记录见 §2 末）** · T6-T8 待执行；design 已定稿批准（v2.0）· 8 维自检 **9.44**）
+> Status: **执行中**（**T1 ✅** · **T2 ✅** · **T3 ✅ + 收尾补丁 ✅** · **T4 ✅** · **T5 ✅** · **T6 ✅ 2026-09-15（落地记录见 §2 末）** · T7-T8 待执行；design 已定稿批准（v2.1）· 8 维自检 **9.44**）
 > 引用链：本文档 → design `docs/designs/2026-09-15-m4b-pre-auth-migration-design.md`（§N 逐 Task 引用）→ 规范 `05` §3/§4.1/§5/§6 · `08` §3/§8 · `00` §5（引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -133,7 +133,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 - **Commit**: `refactor(server): adopt official device authorization flow`
 - **状态**：✅ 已落地（2026-09-15；实测见「落地记录」；`expiresIn: '30m'` / `interval: '5s'` 显式钉定 = 官方默认值）
 
-### T6 测试收口（fixture 全量 + 新增测试面）（design §6）
+### T6 测试收口 ✅（2026-09-15 落地；实测见「落地记录」）（design §6）
 - **Files**: Modify 剩余测试文件（`sessions.createSession(...)` 改写收尾——T3/T4/T5 各带本面；本 Task 兜底全仓清零）·
   Create 新增测试面（目录插件 · 会话落库/重启 · origin 三态 · 令牌权限码 · 档位一致性 · 迁移断言）
 - **Assert**:
@@ -295,7 +295,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 - **删除**：`db/schema/users.ts`（过渡期文件，与 `api_token` 表同批下线）
 - **迁移 `0011`**（`0011_quick_mastermind.sql`）：生成器产物只有 `DROP TABLE api_token CASCADE` ⇒ 手工补数据搬迁
   （re-encode：`translate(rtrim(encode(decode(token_hash,'hex'),'base64'),'='),'+/','-_')`；
-  `permissions` 两层聚合 `jsonb_object_agg(res, acts)::text`；`enabled = revoked_at IS NULL`；
+  `permissions` 两层聚合 `jsonb_object_agg(res, acts)::text`（单层会**静默丢同 resource 的其它 action**——v2.1 订正初稿「报 duplicate key」说法）；`enabled = revoked_at IS NULL`；
   `rate_limit_enabled=false` + 官方默认窗口/上限；时间列 `AT TIME ZONE 'UTC'` 归一）→ 后 DROP
 - **断言实测**：
   ① 三端点形状不变量：`POST` 201 `{id, token, expiresAt}`（明文一次性 · 47 字符 `aih_` 形态不变）·
@@ -353,6 +353,43 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
      token 事后以响应体 `access_token` 反查会话归属（明文不落审计）；设备码 TTL 10m → 30m（官方默认，显式钉定）
 - **新增坑 P19-P20 已回写 design v2.0**（强制请求字段与两类错误体 · 设备令牌=会话 token ⇒ bearer 通道须剥 cookie 防降级）
 
+**T6 测试收口 ✅（2026-09-15）**
+
+- **产出**：Create `apps/server/src/auth/session-lifecycle.test.ts`（**12 例**）· `apps/server/src/db/migration-rules.test.ts`（**11 例**）·
+  Modify `apps/server/src/http/device-flow.test.ts`（**+4**）· `apps/server/src/http/tokens.test.ts`（**+3**，并补 `tokenAuthMiddleware` 装配——原文件只装了会话中间件）
+- **断言实测**：
+  ① `grep -rn 'sessions.createSession' apps --include='*.ts'`（排除 dist）= **0** ✓——残留命中仅三类：
+     官方内部件 `ctx.context.internalAdapter.createSession`（自绘插件签发会话，正确用法）· 夹具/插件注释里的历史说明 · 无其他消费点
+  ② 覆盖口径：**501 例**（500 pass · 1 skip · 0 fail · 48 文件）≥ 目标 500 ✓（T5 471 → +30 = T6 501）
+  ③ 六类新增测试面**逐类点名**：
+     - 目录插件（真 ldapjs server，网络层 bind）→ `app.test.ts`（LDAP 段 5 例）
+     - 会话落库 + 进程重启存活 → `auth/session-lifecycle.test.ts`（12 例）+ `app.test.ts`（换实例同 cookie）
+     - origin 三态 → `app.test.ts`（官方平面 3 态）· T3 补丁用例（业务面 5 态）· `auth/better-auth.test.ts`（白名单解析 6 例）
+     - 令牌权限码逐项 → `auth/api-keys.test.ts`（15 例，含超范围/未知 key/`SERVER_ONLY_PROPERTY`/限流关闭）· `http/token-scope.test.ts`（8 例）
+     - `ROLE_LEVEL` ↔ `ac.roles` 键集合一致性 → `auth/roles.test.ts`（13 例）
+     - 迁移断言 → `db/migration-rules.test.ts`（11 例：表达式级 + 文件级不变量）· `db/schema/auth.test.ts`（6 例：表/约束/FK）
+  ④ 在**单库 + 干净 schema + `CI=true`** 下跑绿 ✓（本地与 CI 同库 `ai_asset_hub`；无自建库依赖）
+  ⑤ **§8「变更」表逐行 ↔ 用例对照**（断言未放宽）：
+     | §8 变更行 | 对应用例 |
+     |-----------|---------|
+     | 登录路径/响应体 | `app.test.ts`（登录 200 + 大写登录名归一 + 错口令 401） |
+     | 登出路径 | `app.test.ts`（sign-out）+ `session-lifecycle.test.ts`（行删除 + 旧 cookie 401） |
+     | 注册（官方 sign-up） | `app.test.ts`（注册 → me → sign-out 全流程） |
+     | 设备五端点 + 字段/状态码 | `device-flow.test.ts`（11 例，含两类错误体） |
+     | 设备令牌形态（会话 Bearer） | `device-flow.test.ts`（Bearer 达 `/api/auth/me` + `/api/tokens`） |
+     | 设备码 TTL/令牌时效 | `device-flow.test.ts`（`expires_in=1800`）+ `session-lifecycle.test.ts`（8h 绝对过期） |
+     | CSRF/origin 三态 | `app.test.ts` + 业务面守卫用例 |
+     | OIDC 不变 | `http/oidc-routes.test.ts`（6 例）+ `auth/oidc.test.ts`（3 例） |
+     | 令牌 `id` 文本主键 / `scope` 归一 | `tokens.test.ts`（列表/吊销/幂等 + scope 回显） |
+     | 过期令牌清行 · 吊销保留行 | `auth/api-keys.test.ts` + `token-middleware.test.ts` |
+     | 审计 `target_type = api_key` | `tokens.test.ts`（issue/revoke 双断言，本 Task 新增） |
+     | 会话属性/网络字段 | `session-lifecycle.test.ts`（cookie 属性 · ip/UA · 绝对过期） |
+- **门禁**：`typecheck` ✓ · `lint` 0 error ✓ · `format:check` ✓ · `build` ✓ · 全量测试 501 例 0 fail ✓
+- **事实订正（本轮自检逮到）**：T4/T5 文档把「单层 `jsonb_object_agg` 失效」写成**报 duplicate key**——实测为
+  **静默只留最后一项**（`asset:publish,asset:manage` → `{"asset":"manage"}`，属静默改权）。已在 design P16/§5.3、
+  迁移 `0011` 注释、本 plan T4 记录就地订正，并由 `db/migration-rules.test.ts` 常驻锁定该失效形态
+- **新增坑**：无（本轮为收口，未新增实现面）
+
 ## 3. 整体审计（收尾 · 待 T8 回写）
 
 **口径**：承 M4a T17-T26 / M4b-1 惯例（`docs/00` §7 ②）——收尾对全仓跑**十一维覆盖式扫描**（死导出 · i18n 键 ·
@@ -381,6 +418,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 | v0.2 | 2026-09-15 | sunxuewen-rush | **提交前自检换靶轮回修**：① T7 fixture 口径订正（`18 个测试文件 / 24 处` → **15 个测试文件 / 20 处**）② **T3 补漏** `ldap.test.ts` + 新增断言 ⑦ ③ 沙箱描述去时效 ④ 上游判定同步：design **v1.3** · `docs/00` **v1.30** · 主 design **v1.12** |
 | v0.3 | 2026-09-15 | sunxuewen-rush | **T1 落地回写**：落仓 4 文件 + env；**执行期说明 3 项**（依赖 2 个 → R16 修正 · 断言③ 拆分归 T2 · TS2742/7056 类型注记）；Status → 执行中（T1 ✅） |
 | v0.4 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：① `better-auth` → **`1.7.5`** ② `docs/00` M6 行补登记 `SECURITY.md` + `CODE_OF_CONDUCT.md`（升 **v1.31**） |
+| v0.11 | 2026-09-15 | sunxuewen-rush | **T6 落地回写（测试收口）**：新增 `session-lifecycle.test.ts`（12）+ `migration-rules.test.ts`（11）· 设备流 +4 · 令牌 +3；**实测 501 例（500 pass · 1 skip · 0 fail · 48 文件）≥ 目标 500**；六类测试面逐类点名 + **§8 变更表 ↔ 用例对照表**（断言未放宽）；`sessions.createSession` 残留 grep = 0；**事实订正**：单层 `jsonb_object_agg` 失效形态 =「静默只留最后一项」（非报 duplicate key）——design/迁移注释/T4 记录三处就地订正并常驻锁定 |
 | v0.10 | 2026-09-15 | sunxuewen-rush | **T5 落地回写（设备流整体交官方）**：删自研 `device-routes.ts`/`device-store.ts` + 旧测试两文件（16 例）· 官方 handler 包装层补设备审计 · Bearer 通道剥 cookie（放行会话令牌 + 防降级）· 新增 `device-flow.test.ts`（7 例）· **实测**：全量测试 **471 例 0 fail** · 五门禁绿 · §8 设备面全量重写（含 `client_id`/`grant_type` 强制、两类错误体、TTL 30m、`/device/deny`）· 新增坑 P19-P20 · 执行期说明 2 项（令牌形态改会话 token · 审计补记方式） |
 | v0.9 | 2026-09-15 | sunxuewen-rush | **T4 落地回写（令牌面切流）**：新增 `auth/api-keys.ts` 薄适配层 + 15 例新测试；三端点内部交官方（形状不变，`id` 文本主键入 design §8）；迁移 `0011`（re-encode + permissions 两层聚合 + 删 `api_token`）**克隆库双实证**（对账 + 存量明文端到端）；删 `db/schema/users.ts`；**实测**：dev 库表数 14 · 五门禁绿 · 全量测试 **480 例 0 fail**；执行期说明 3 项（list 直读官方表 · `keyExpiration` 边界补配置 · 明文形态零变化）；**T5 前置说明**（设备签发落点已在 T4 换官方）· **T7 复核项订正**（users.ts 已删 · FK 12 条） |
 | v0.8 | 2026-09-15 | sunxuewen-rush | **T3 收尾补丁（用户 2026-09-15 批准「按建议来」）+ 口径订正 3 处**：① **业务面同源守卫落件**（`http/origin-guard.ts` · `app.ts` 装配序 · `app.test.ts` +1 用例 5 态 · dev 3100 实测 12 组 curl 全符合预期）② 测试健壮性修复（`audit/query.test.ts` 两处 `limit: 20` → `500`：并发文件行挤满首页导致假红）③ `.env.example` 补 T1/T3 新增 env（`AUTH_TRUSTED_ORIGINS`/`SEED_ADMIN_EMAIL`）④ **口径订正**：T4 迁移编号 `0010` → **`0011`** · T7 删去「Create `0011`（13 FK + 删旧 4 表）」（已由 T3 的 `0010` 完成 ⇒ 改为复核）· T6 覆盖目标重定（基线 475 → T3 后 465 ⇒ **≥500 例**且 design §6 六类测试面可点名）；门禁五绿（466 例 0 fail） |
