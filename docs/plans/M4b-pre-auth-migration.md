@@ -2,7 +2,7 @@
 
 > Date: 2026-09-15
 > Updated: 2026-09-15（v0.6：**T2 落地回写**（实测证据见 §2 末「落地记录」）；v0.5：**Task 边界重划（用户 2026-09-15 批准方案 A）**——依据实测「旧表消费面 113 处 / 12 文件 + 认证链不可切片」，T2 收窄为**纯结构**（官方 schema + `0008`）；原 T3+T4 合并为「认证面整体切换」（含 `0009` 搬迁）；后续顺延：T4 令牌面（`0010` 搬迁）· T5 设备流 · T6 测试收口 · T7 清理与规范（`0011`）· T8 门禁与收尾。v0.4：T1 提交前补丁（`better-auth` 精确 `1.7.5` + `docs/00` M6 登记）；v0.3：T1 落地回写 + 自检换靶回修；v0.1：初稿）
-> Status: **执行中**（**T1 ✅** · **T2 ✅** · **T3 ✅ + 收尾补丁 ✅ 2026-09-15（落地记录见 §2 末）** · T4-T8 待执行；design 已定稿批准（v1.8）· 8 维自检 **9.44**）
+> Status: **执行中**（**T1 ✅** · **T2 ✅** · **T3 ✅ + 收尾补丁 ✅** · **T4 ✅ 2026-09-15（落地记录见 §2 末）** · T5-T8 待执行；design 已定稿批准（v1.9）· 8 维自检 **9.44**）
 > 引用链：本文档 → design `docs/designs/2026-09-15-m4b-pre-auth-migration-design.md`（§N 逐 Task 引用）→ 规范 `05` §3/§4.1/§5/§6 · `08` §3/§8 · `00` §5（引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -100,7 +100,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
   ⑬ 死符号 grep = 0（`InMemorySessionStore` · `csrfProtection` · `attachSessionCookie`）· 门禁四项 exit 0
 - **Commit**: `refactor(server): move auth chain onto better-auth with directory plugin`
 
-### T4 令牌面切流（design R7 · §5.3 · §8）
+### T4 令牌面切流 ✅（2026-09-15 落地；执行期说明 3 项见「落地记录」）（design R7 · §5.3 · §8）
 - **Files**: Create `apps/server/drizzle/**0011**_*.sql`（**令牌搬迁**：`api_token`→`apikey`，含 re-encode + `permissions` 转换；0009/0010 已被 T3 占用——用户域搬迁 + FK 重指向）·
   Modify `apps/server/src/http/token-middleware.ts`（改走官方 `verifyApiKey`，服务端直呼）·
   `apps/server/src/http/tokens.ts`（内部官方 create/list/delete，**响应形状不变**）· 令牌类测试改写
@@ -116,6 +116,8 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 - **Commit**: `refactor(server): move api tokens onto official api-key plugin`
 
 ### T5 设备流四端点 + bearer（design R8 · §8）
+- **前置说明**：T4 已把设备令牌**签发落点**换成官方 api-key（`api-keys.ts`，一次性消费语义不变）——
+  本 Task 只做契约面重写（四端点/字段名/状态码），签发调用面零改动。
 - **Files**: Modify `apps/server/src/http/device-routes.ts`（官方四端点契约）· Delete `apps/server/src/auth/device-store.ts` ·
   Modify `apps/server/src/app.ts`（路由挂载调整）· 设备流测试改写
 - **Assert**:
@@ -140,17 +142,16 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 - **Commit**: `test(server): close out better-auth fixture migration`
 
 ### T7 清理 + 规范同步（design §12 · §10 R2）
-- **Files**: Delete `apps/server/src/db/schema/users.ts`（用户域定义已整体移交 `auth.ts`）·
-  *（原「Create `0011`：13 条 FK 重指向 + 删旧 4 表」已由 T3 的 `0010` 提前完成——见 T3 落地记录执行期说明 1；
-  T4 产出 `0011`（令牌面收口），本 Task 只复核不复建）*
+- **Files**: *（原「Create `0011`：13 条 FK 重指向 + 删旧 4 表」已由 T3 的 `0010` 完成；「Delete `db/schema/users.ts`」
+  已随 T4 的 `0011` 一并删除——见 T4 落地记录；本 Task 只复核复核项：无遗留文件/无残留旧表引用）*
   Modify `apps/server/src/db/schema/auth.test.ts`（**旧表断言翻转**：「旧 4 表仍在 + 13 条 FK」→「旧 4 表不存在 + FK 指向新 `user` 表」）·
  `apps/server/src/auth/errors.ts`（错误码映射表改写）· `docs/05-identity-access.md`（§3 · §3.1 · §4.1 · §5 · §6.1）·
   `docs/08-data-model.md`（§3 用户域 · §8 约束汇总 · Status 表数）· `docs/00-product-direction.md`（§5 M4b-pre 行回写 + M4c/M5 注记）·
   主 design `2026-09-10-m4b-admin-console-design.md`（§2.3 批件登记表）
 - **Assert**:
-  ① 运行库表数 = **14**（实测 `psql`：T3 后 15 − T4 删 `api_token` 1）；**旧 3 表**（`user_account`/`identity_binding`/
-     `local_credential`）已由 T3 的 `0010` 删除、**11 条 FK 已重指向**（另 2 条随旧表删除 ⇒ 合计 13 条口径）——
-     本 Task 复核 `pg_constraint` 实测无残留旧表引用；`api_token` 空壳随 T4 `0011` 删除
+  ① 运行库表数 = **14**（实测 `psql`）；旧 4 表（`user_account`/`identity_binding`/`local_credential`/`api_token`）
+     全部不存在；指向官方 `user` 的 FK = **12 条**（11 重指向 + account/session 各 1——T4 删 `api_token` 后其 1 条 FK 一并消失）；
+     本 Task 复核 `pg_constraint` 实测无残留旧表引用
   ② 死代码与旧符号 grep 全 0（含**注释腐化**：引用已删符号/旧模型的注释）
   ③ `05`/`08` 改写后**量化声明逐条实测**（表数/列数/端点/角色档数）；`08` Status 表数 12 → 14
   ④ `docs/00` §5 M4b-pre 行状态回写 + M4c/M5 范围注记同步；主 design §2.3 登记（design/plan 文件名 + 版本 + 状态）
@@ -276,6 +277,46 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 - **门禁**：`typecheck` ✓ · `lint` 0 error（135 warn）✓ · `format:check` 230 文件 ✓ · `build` ✓ · 全量测试 **466 例（465 pass · 1 skip · 0 fail · 46 文件）** ✓（T3 后 465 → +1 = 守卫用例）
 - **新增坑**：P14（官方 `isTrustedOrigin` 是读 `this` 的方法，**不可解构**——首跑 500 实证）已回写 design §2.3
 
+**T4 令牌面切流 ✅（2026-09-15）**
+
+- **落仓（新增）**：`apps/server/src/auth/api-keys.ts`（**165 行**薄适配层：`issueApiKey` / `revokeApiKey` /
+  `verifyApiKey` / `listApiKeys` / `findApiKey`）· `apps/server/src/auth/api-keys.test.ts`（**15 例**，含 SQL⇔TS 等价与权限码逐项）
+- **落仓（改写）**：`http/token-middleware.ts`（官方 `verifyApiKey` + scope 由 `permissions` 派生）·
+  `http/tokens.ts`（三端点内部交官方，形状不变）· `http/device-routes.ts`（签发落点换官方，契约归 T5）·
+  `auth/tokens.ts`（只剩 `generateTokenSecret`，作官方 `customKeyGenerator`）· `auth/token-scopes.ts`（+ scope⇔permissions 转换）·
+  `auth/better-auth.ts`（apiKey：`rateLimit` 关 + `keyExpiration` 边界 + `customKeyGenerator`）· `app.ts`（装配传 `auth`）·
+  `db/schema/index.ts` · `db/schema/auth.test.ts` · `test-utils/auth-fixture.ts`（`mintApiKey` + apikey 清理）·
+  `http/{tokens,token-middleware,token-scope,audit,device-routes}.test.ts` · `auth/tokens.test.ts`
+- **删除**：`db/schema/users.ts`（过渡期文件，与 `api_token` 表同批下线）
+- **迁移 `0011`**（`0011_quick_mastermind.sql`）：生成器产物只有 `DROP TABLE api_token CASCADE` ⇒ 手工补数据搬迁
+  （re-encode：`translate(rtrim(encode(decode(token_hash,'hex'),'base64'),'='),'+/','-_')`；
+  `permissions` 两层聚合 `jsonb_object_agg(res, acts)::text`；`enabled = revoked_at IS NULL`；
+  `rate_limit_enabled=false` + 官方默认窗口/上限；时间列 `AT TIME ZONE 'UTC'` 归一）→ 后 DROP
+- **断言实测**：
+  ① 三端点形状不变量：`POST` 201 `{id, token, expiresAt}`（明文一次性 · 47 字符 `aih_` 形态不变）·
+     `GET` `{items:[{id, scope, expiresAt, revokedAt, createdAt}]}` · `DELETE` 幂等 204 ✓
+  ② 权限码逐项：范围内 VALID ✓ · 超范围 INVALID（`KEY_NOT_FOUND`）· 未知 key（`INVALID_API_KEY`）· 客户端带 headers 传 `permissions`
+     → 400 `SERVER_ONLY_PROPERTY` ✓
+  ③ 库中仅官方哈希：`key === base64url(sha256(明文))` 且 `^[A-Za-z0-9_-]{43}$`、明文零落库/零落审计 detail ✓
+  ④ **搬迁对账（`0011`）**（克隆库 `aih_t4_clone`，源 = dev 快照）：`apikey` 行数 = 源 `api_token` 2 ✓ ·
+     key 长度 43 且字符集合法 ✓ · `permissions` 逐项等价（`audit:read` → `{"audit":["read"]}`；空 scope → NULL）✓ ·
+     `reference_id` = 原 `user_id` ✓ · `enabled` = `revoked_at IS NULL` ✓ · 时间列与源值相等（naive UTC 归一）✓ · `api_token` 已删 ✓
+  ⑤ **存量令牌端到端**（专用克隆库 `aih_t4_verify`：注入已知明文 + 旧 hex 哈希 → 跑迁移）：**原明文经官方 `verifyApiKey` 判 valid**
+     （归属用户正确 · 全量语义 `scopes=null`）· 错明文 invalid ✓ · SQL 产物与 `base64url(sha256(明文))` **字节相等** ✓
+  ⑥ 账号 `status` 非 ACTIVE ⇒ 令牌失效（401）✓  ⑦ 官方默认限流已关（连续 12 次校验全 valid）✓
+  ⑧ 过期令牌 ⇒ 401（官方 `KEY_EXPIRED` 且清行）✓ · 吊销令牌 ⇒ 401（官方 `KEY_DISABLED`，行保留 ⇒ 列表可见 `revokedAt`）✓
+- **门禁**：`typecheck` ✓ · `lint` 0 error（136 warn）✓ · `format:check` **231 文件** ✓ · `build` ✓ · `db:migrate`（dev 已执行 `0011`）✓ ·
+  全量测试 **480 例（479 pass · 1 skip · 0 fail · 47 文件）** ✓
+- **dev 库终态**：`api_token` 已删 · `apikey` 2 行（key 43 位 · `permissions` 正确 · `enabled=t` · `rate_limit_enabled=f`）· 表数 **14** ✓
+- **执行期说明（3 项）**：
+  1. **list 直读官方表**（偏离 plan 的「内部官方 list」）：官方 `GET /api-key/list` 走 `sessionMiddleware`（需会话 cookie），
+     而 `/api/tokens` GET 允许**令牌通道**（Bearer）访问 ⇒ 改 drizzle 只读同表，形状可精确映射、两通道一致
+  2. **官方配置边界补两处**（P15）：`keyExpiration.maxExpiresIn=3650`（保既有契约）+ `minExpiresIn=1/24`（容纳设备流 1h 令牌）；
+     用户签发下限仍由路由 zod（≥1 天）收紧
+  3. **明文形态零变化**：`customKeyGenerator` 注入既有 `generateTokenSecret`（`aih_` + 43 位 base64url）⇒ 新签发与存量令牌同形，
+     `POST` 响应与既有断言零改动（故 `id` 文本主键为**唯一**形状变更，已入 design §8）
+- **新增坑 P15-P18 已回写 design v1.9**（`keyExpiration` 按天边界 · permissions 为 text + 两层聚合 · 过期即删行 · server-only 判定姿势）
+
 ## 3. 整体审计（收尾 · 待 T8 回写）
 
 **口径**：承 M4a T17-T26 / M4b-1 惯例（`docs/00` §7 ②）——收尾对全仓跑**十一维覆盖式扫描**（死导出 · i18n 键 ·
@@ -304,6 +345,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 | v0.2 | 2026-09-15 | sunxuewen-rush | **提交前自检换靶轮回修**：① T7 fixture 口径订正（`18 个测试文件 / 24 处` → **15 个测试文件 / 20 处**）② **T3 补漏** `ldap.test.ts` + 新增断言 ⑦ ③ 沙箱描述去时效 ④ 上游判定同步：design **v1.3** · `docs/00` **v1.30** · 主 design **v1.12** |
 | v0.3 | 2026-09-15 | sunxuewen-rush | **T1 落地回写**：落仓 4 文件 + env；**执行期说明 3 项**（依赖 2 个 → R16 修正 · 断言③ 拆分归 T2 · TS2742/7056 类型注记）；Status → 执行中（T1 ✅） |
 | v0.4 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：① `better-auth` → **`1.7.5`** ② `docs/00` M6 行补登记 `SECURITY.md` + `CODE_OF_CONDUCT.md`（升 **v1.31**） |
+| v0.9 | 2026-09-15 | sunxuewen-rush | **T4 落地回写（令牌面切流）**：新增 `auth/api-keys.ts` 薄适配层 + 15 例新测试；三端点内部交官方（形状不变，`id` 文本主键入 design §8）；迁移 `0011`（re-encode + permissions 两层聚合 + 删 `api_token`）**克隆库双实证**（对账 + 存量明文端到端）；删 `db/schema/users.ts`；**实测**：dev 库表数 14 · 五门禁绿 · 全量测试 **480 例 0 fail**；执行期说明 3 项（list 直读官方表 · `keyExpiration` 边界补配置 · 明文形态零变化）；**T5 前置说明**（设备签发落点已在 T4 换官方）· **T7 复核项订正**（users.ts 已删 · FK 12 条） |
 | v0.8 | 2026-09-15 | sunxuewen-rush | **T3 收尾补丁（用户 2026-09-15 批准「按建议来」）+ 口径订正 3 处**：① **业务面同源守卫落件**（`http/origin-guard.ts` · `app.ts` 装配序 · `app.test.ts` +1 用例 5 态 · dev 3100 实测 12 组 curl 全符合预期）② 测试健壮性修复（`audit/query.test.ts` 两处 `limit: 20` → `500`：并发文件行挤满首页导致假红）③ `.env.example` 补 T1/T3 新增 env（`AUTH_TRUSTED_ORIGINS`/`SEED_ADMIN_EMAIL`）④ **口径订正**：T4 迁移编号 `0010` → **`0011`** · T7 删去「Create `0011`（13 FK + 删旧 4 表）」（已由 T3 的 `0010` 完成 ⇒ 改为复核）· T6 覆盖目标重定（基线 475 → T3 后 465 ⇒ **≥500 例**且 design §6 六类测试面可点名）；门禁五绿（466 例 0 fail） |
 | v0.7 | 2026-09-15 | sunxuewen-rush | **T3 落地回写（认证面整体切换）**：插件/搬迁/切流/测试改写全量落仓 + 删除 8 个旧 auth 文件与 4 个被替代测试；**实测**：dev+克隆库双跑迁移（0009 搬迁对账 · 0010 摘约束→挂约束→删表定序）· 五项门禁 exit 0 · 全量测试 **465 例（464 pass · 1 skip · 0 fail）**；**执行期说明 4 项**（FK 重指向提前到切流批 · 业务面 Origin 深防移除待决策 · seed 直写官方表形态 · 夹具登记制清理 + 会话缓存）· **新增坑 P9-P13 回写 design v1.7** · 覆盖账（−40 例删除面 → 新落点 + T6 收口） |
 | v0.6 | 2026-09-15 | sunxuewen-rush | **T2 落地回写**：官方 CLI 产物并入 `db/schema/auth.ts`（191 行）+ `0008`（104 行，纯结构）+ `auth.test.ts`（5 例）；**实测全绿**（冷库 18 表/9 迁移 · 旧表与 13 条 FK 未动 · 全量 **495 pass / 0 fail** · 五项门禁 exit 0）；**自检换靶 18 维 9.45**，同轮修 3 项（`@__PURE__` 注记回填 · 断言③ 改真值（官方 `apikey.key` 为普通索引）· T7 补 `auth.test.ts` 旧表断言翻转）；登记 1 项（`relations` 零消费者，保留理由已写）+ 未跑项 3 项（seed / cookie 正路径 / `permissions` 转换，各归 T3/T4）|

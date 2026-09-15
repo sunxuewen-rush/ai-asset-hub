@@ -26,10 +26,8 @@ import { z } from 'zod';
  * `user.additionalFields`）· `username`/`displayUsername`（username 插件）·
  * `device_code`（deviceAuthorization 插件）· `apikey`（api-key 插件）。
  *
- * 与旧表并存（过渡期，design §5.1 时序原则）：
- * `user_account`/`identity_binding`/`local_credential`/`api_token` 仍在
- * `./users.ts` 中定义，**本批零改动**；搬迁随各自消费面的切流同批执行
- * （用户域 → `0009` · 令牌 → `0010`），旧表在收口批（`0011`）删除。
+ * 旧表已全部收口（design §5.1 时序原则）：`user_account`/`identity_binding`/`local_credential`
+ * 随 T3 的 `0010` 删除；`api_token` 随 T4 的 `0011` 删除（过渡期文件 `./users.ts` 同步下线）。
  *
  * 注：官方产物对 `apikey.key` 建的是**普通索引**（非唯一约束）——key 存
  * `base64url(sha256(明文))`，唯一性由生成算法保证；不额外加约束，避免偏离官方形态。

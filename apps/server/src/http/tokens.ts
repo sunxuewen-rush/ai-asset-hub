@@ -1,28 +1,35 @@
-import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
+import { findApiKey, issueApiKey, listApiKeys, revokeApiKey } from '../auth/api-keys.js';
+import type { AihAuth } from '../auth/better-auth.js';
 import { ACCOUNT_ROLE } from '../auth/rbac.js';
 import { ALL_TOKEN_SCOPES } from '../auth/token-scopes.js';
-import { generateTokenSecret, hashToken } from '../auth/tokens.js';
 import type { Db } from '../db/client.js';
-import { apiToken } from '../db/schema/index.js';
 import { requireAuth } from './auth-middleware.js';
 
 /**
  * /api/tokens 路由组（T14-T16，板块 C；05 §5 API Token——平台通用凭证）：
  * 任何 ACTIVE 用户签发本人凭证，无需权限码（签发自己 token 天然授权）。
- * 安全面（P6）：明文只在签发响应出现一次；落库仅 sha256（T13），不写日志/审计 detail。
- * 字段契约以 08 §3 为准：api_token = token_hash/scope/expires_at/revoked_at（无 label 列）。
+ *
+ * M4b-pre T4（令牌面切流）：内部改官方 api-key 插件（服务端直呼，`auth/api-keys.ts` 薄适配层）；
+ * **响应形状保持**（design §8）——明文只在签发响应出现一次；库中只有官方哈希（`base64url(sha256)`）。
+ * 登记的两处形状差异（design §8 变更表）：① `id` 由自增整数变官方文本主键 ② 历史 `scope='cli'`
+ * （设备令牌）在列表中回 `''`（迁移后同为 `permissions NULL` = 全量，语义等价）。
  */
 
 export interface TokenRoutesDeps {
   db: Db;
+  /** 官方实例（令牌 CRUD 直呼官方端点：create/update server-only 面，verify 亦 serverOnly） */
+  auth: AihAuth;
   /** 审计写入器（T17：token.issue/revoke 埋点——明文零落 detail） */
   audit?: AuditWriter;
 }
 
 const DAY_MS = 86_400_000;
+
+/** 官方 `apikey.id` 为文本主键（迁移行为数字串，新签发为随机字母数字）⇒ 形状校验放宽到通用 id 面 */
+const KEY_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** POST body（T14：省略 expiresInDays = 永不过期 expiresAt null；1-3650 天，超限 400；
  *  T15：可选 scope = **scope 码**白名单（交集收窄——R14；省略 = 空 scope 全量；
@@ -33,11 +40,11 @@ const issueBodySchema = z.object({
 });
 
 export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
-  const { db } = deps;
+  const { db, auth } = deps;
   const app = new Hono();
   app.use('*', requireAuth());
 
-  // POST /api/tokens（T14：签发明文一次 + 哈希落库）
+  // POST /api/tokens（T14：签发明文一次；哈希落库由官方完成）
   app.post('/', async (c) => {
     const principal = c.get('principal');
     // requireAuth() 已保证 principal（组级中间件）；守卫仅为类型窄化
@@ -57,66 +64,44 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
       parsed.data.expiresInDays === undefined
         ? null
         : new Date(Date.now() + parsed.data.expiresInDays * DAY_MS);
-    const plain = generateTokenSecret();
-    const [row] = await db
-      .insert(apiToken)
-      .values({
-        userId: principal.userId,
-        tokenHash: hashToken(plain),
-        // scope 缺省 = 空串 = 全量（05 §5；''/'cli' 认证时全量语义——M1 零破坏）；
-        // 显式 scope = scope 码逗号 join（交集收窄——T15 R14 新签发可设）
-        scope: parsed.data.scope === undefined ? '' : parsed.data.scope.join(','),
-        expiresAt,
-      })
-      .returning({ id: apiToken.id });
-    if (!row) throw new Error('api token insert returned no row');
-    // 审计（T17：token.issue——detail 零明文（明文只在签发响应；库中仅哈希））
+    const issued = await issueApiKey(auth, {
+      userId: principal.userId,
+      expiresAt,
+      // scope 缺省 = 全量（`permissions` 不写）；显式 scope = 交集收窄（T15 R14）
+      scope: parsed.data.scope ?? null,
+    });
+    // 审计（T17：token.issue——detail 零明文（明文只在签发响应；库中仅官方哈希））
     await deps.audit?.({
       actorId: principal.userId,
       action: 'token.issue',
-      targetType: 'api_token',
-      targetId: String(row.id),
-      detail: { expiresAt: expiresAt?.toISOString() ?? null },
+      targetType: 'api_key',
+      targetId: issued.id,
+      detail: { expiresAt: issued.expiresAt?.toISOString() ?? null },
     });
-    return c.json({ id: row.id, token: plain, expiresAt }, 201);
+    return c.json({ id: issued.id, token: issued.plain, expiresAt: issued.expiresAt }, 201);
   });
 
   // GET /api/tokens（T15：仅本人 token 全量——本人量小，分页后置 R9）
-  // 标识面说明：库中仅 sha256 不可逆（T13），无法反推明文做掩码；
-  // 列表以 id/时间/状态识别，掩码形态只存在于明文持有方（签发响应 → CLI/M4 展示）
+  // 标识面说明：库中仅哈希不可逆 ⇒ 列表以 id/时间/状态识别（旧口径不变）
   app.get('/', async (c) => {
     const principal = c.get('principal');
     if (!principal) throw new Error('requireAuth guard violated: principal missing');
-    const rows = await db
-      .select({
-        id: apiToken.id,
-        scope: apiToken.scope,
-        expiresAt: apiToken.expiresAt,
-        revokedAt: apiToken.revokedAt,
-        createdAt: apiToken.createdAt,
-      })
-      .from(apiToken)
-      .where(eq(apiToken.userId, principal.userId))
-      .orderBy(desc(apiToken.createdAt));
-    return c.json({ items: rows });
+    const items = await listApiKeys(db, principal.userId);
+    return c.json({ items });
   });
 
   // DELETE /api/tokens/:id（T16：吊销——本人或 SUPER_ADMIN；幂等 204；他人 token 视同 404 防枚举）
   app.delete('/:id', async (c) => {
     const principal = c.get('principal');
     if (!principal) throw new Error('requireAuth guard violated: principal missing');
-    const raw = c.req.param('id');
-    if (!/^\d+$/.test(raw)) {
+    const keyId = c.req.param('id');
+    if (!KEY_ID_PATTERN.test(keyId)) {
       return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
     }
-    const id = Number(raw);
-    const [token] = await db
-      .select({ userId: apiToken.userId, revokedAt: apiToken.revokedAt })
-      .from(apiToken)
-      .where(eq(apiToken.id, id));
+    const token = await findApiKey(db, keyId);
     if (!token) return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
 
-    const isOwner = token.userId === principal.userId;
+    const isOwner = token.referenceId === principal.userId;
     let isSuperAdmin = false;
     if (!isOwner) {
       const rbac = c.get('rbac');
@@ -128,14 +113,15 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
       // 防枚举：他人 token 视同不存在
       return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
     }
-    if (token.revokedAt) return c.body(null, 204); // 幂等：已吊销
-    await db.update(apiToken).set({ revokedAt: new Date() }).where(eq(apiToken.id, id));
+    if (token.enabled === false) return c.body(null, 204); // 幂等：已吊销
+    // 吊销 = 官方 `enabled=false`（保留行 ⇒ 列表仍可见 revokedAt；归属校验传原归属者 id）
+    await revokeApiKey(auth, { keyId, ownerId: token.referenceId });
     // 审计（T17：token.revoke——吊销动作；幂等分支不记）
     await deps.audit?.({
       actorId: principal.userId,
       action: 'token.revoke',
-      targetType: 'api_token',
-      targetId: String(id),
+      targetType: 'api_key',
+      targetId: keyId,
     });
     return c.body(null, 204);
   });

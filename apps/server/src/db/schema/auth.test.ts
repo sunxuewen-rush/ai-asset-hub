@@ -15,8 +15,8 @@ let db: Db;
  *
  * 三件事：
  * 1. 官方 6 表（`user`/`session`/`account`/`verification`/`device_code`/`apikey`）结构与关键约束到位；
- * 2. **过渡期共存**：旧 4 表（`user_account`/`identity_binding`/`local_credential`/`api_token`）
- *    与其 13 条外键**仍在且未被改动**（搬迁随各自消费面的切流同批执行，design §5.1 时序原则）；
+ * 2. **旧表已收口**：`user_account`/`identity_binding`/`local_credential`（T3 的 `0010`）与
+ *    `api_token`（T4 的 `0011`）**均已删除**；指向官方 `user` 的外键 12 条（含 11 条重指向）；
  * 3. `getAuth().api.getSession`（空 cookie）→ `null`——官方在首次 API 调用即做 schema check，
  *    该断言通过即证明 6 表结构被官方认可（T1 实测的 `SCHEMA_MISMATCH` 就此转正）。
  */
@@ -97,20 +97,19 @@ describe('认证域表结构（官方 6 表）', () => {
 });
 
 describe('用户域收口（design §5.1 时序原则：搬迁与切流同批）', () => {
-  it('旧用户域 3 表已删；令牌表 api_token 保留（随 T4 切流）', async () => {
+  it('旧用户域 3 表已删；令牌表 api_token 已删（T4 的 0011 收口）', async () => {
     const names = await tableNames();
-    for (const t of ['user_account', 'identity_binding', 'local_credential']) {
+    for (const t of ['user_account', 'identity_binding', 'local_credential', 'api_token']) {
       expect(names).not.toContain(t);
     }
-    expect(names).toContain('api_token');
   });
 
-  it('13 条外键全部指向官方 user 表（11 重指向 + account/session 各 1）', async () => {
+  it('12 条外键全部指向官方 user 表（T4 删 api_token 后：11 重指向 + account/session 各 1，旧表引用 0）', async () => {
     const toUser = await db.execute<{ count: string }>(
       sql`select count(*)::text as count from pg_constraint
           where contype = 'f' and confrelid = 'public."user"'::regclass`,
     );
-    expect(Number(toUser.rows[0]?.count ?? '0')).toBe(13);
+    expect(Number(toUser.rows[0]?.count ?? '0')).toBe(12);
     const stale = await db.execute<{ count: string }>(
       sql`select count(*)::text as count from pg_constraint
           where contype = 'f' and confrelid::regclass::text like '%user_account%'`,

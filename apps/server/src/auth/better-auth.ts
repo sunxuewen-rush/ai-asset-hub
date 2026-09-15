@@ -15,6 +15,7 @@ import type { LdapChannel } from './ldap.js';
 import { directoryCredentials } from './plugins/ldap-credentials.js';
 import { InMemoryRateLimiter, type RateLimiter } from './rate-limit.js';
 import { ac, ROLES } from './roles.js';
+import { generateTokenSecret } from './tokens.js';
 
 /**
  * better-auth 实例装配（design §4.1「新增」表 · §2.2 目标架构）。
@@ -136,8 +137,25 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
       deviceAuthorization(),
       /** 设备 token 以 Bearer 解析（实证：缺该插件则受保护端点 401） */
       bearer(),
-      /** API 令牌（R7：官方默认 10 次/24h 限流会改掉既有语义 ⇒ 显式关闭；限流仍在下载/上传面） */
-      apiKey({ rateLimit: { enabled: false } }),
+      /**
+       * API 令牌（R7 + T4 §5.3）：
+       * - `rateLimit: enabled=false`：官方默认 10 次/24h 限流会改掉既有语义（限流仍在下载/上传面）
+       * - `keyExpiration.maxExpiresIn=3650`（天）：保持既有 `POST /api/tokens { expiresInDays ≤ 3650 }` 契约
+       *   （官方默认上限 365 天会拒掉既有合法请求）
+       * - `customKeyGenerator`：明文形态保持 `aih_` + 43 位 base64url（官方扩展点；存储/校验仍全交官方）
+       */
+      apiKey({
+        rateLimit: { enabled: false },
+        /**
+         * 过期边界（天，官方口径）：
+         * - `maxExpiresIn: 3650` 保持 `POST /api/tokens { expiresInDays ≤ 3650 }` 契约（官方默认 365 会拒）
+         * - `minExpiresIn: 1/24`（= 1 小时）容纳设备流令牌 TTL（`DEVICE_TOKEN_TTL_SEC = 3600`；
+         *   官方默认最小 1 天会让设备令牌签发被拒——实测）
+         * 路由层仍自行收紧用户签发下限（`expiresInDays ≥ 1`，zod）
+         */
+        keyExpiration: { maxExpiresIn: 3650, minExpiresIn: 1 / 24 },
+        customKeyGenerator: () => generateTokenSecret(),
+      }),
       /** 企业目录凭证（本批唯一自绘件；官方零支持槽位，官方扩展点内实现） */
       directoryCredentials({
         db,

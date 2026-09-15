@@ -145,7 +145,15 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | P11 | 全局 `originCheckMiddleware` **仅当请求带 cookie 时才校验 Origin**（`api/middlewares/origin-check.mjs:108`：`if (!(forceValidate \|\| useCookies)) return`） | 自绘登录端点必须挂官方 `formCsrfMiddleware`（官方内建 sign-in/sign-up 同款）：它在「有 Origin/Referer 但无 cookie」时也强校验 |
 | P12 | 官方 `hooks.after` 在 `/sign-out` 路径**取不到会话**（会话行已先删，实测 `ctx.context.session` 为空） | 登出审计改由 `app.ts` 官方 handler 包装层承担（先 `getSession` → 转发 → 补审计）；注册审计仍走官方 `databaseHooks.user.create.after` ✓ |
 | P13 | drizzle-kit 生成的「FK 重指向 + 删旧表」迁移**顺序不可直接采用**：先 `DROP TABLE … CASCADE` 会连带删除依赖约束，随后的 `DROP CONSTRAINT` 报「约束不存在」 | 迁移 SQL 手工定序：摘旧约束 → 挂新约束 → 删旧表；journal/snapshot 描述终态，不受定序影响 |
-| P14 | 官方 `isTrustedOrigin` 是**上下文对象上的方法**（内部读 `this.trustedOrigins`，`context/create-context.mjs:143`）——`const { isTrustedOrigin } = await auth.$context` 解构后调用直接 `TypeError: undefined is not an object`（实测：业务面守卫首跑 500） | 必须以方法形式调用（`const ctx = await auth.$context; ctx.isTrustedOrigin(url, …)`）；同族注意：凡官方上下文方法读 `this` 者（`$context` 面）都不得解构 |
+
+**T4 实施期新增坑（P15-P18，全部实测，代码内已留注记）**
+
+| # | 实测现象（源码/实证依据） | 处置 |
+|---|--------------------------|------|
+| P15 | 官方 api-key `keyExpiration` 边界以**天**为单位：`minExpiresIn` 默认 **1 天** ⇒ **设备流 1h 令牌签发被拒**（`EXPIRES_IN_IS_TOO_SMALL`，实测 400）；`maxExpiresIn` 默认 **365 天** ⇒ 既有 `expiresInDays ≤ 3650` 契约被拒 | 显式配置 `keyExpiration: { maxExpiresIn: 3650, minExpiresIn: 1/24 }`（官方配置项）；用户签发下限仍由路由层 zod（`≥1` 天）收紧 |
+| P16 | 官方 `apikey.permissions` 是 **`text`**（源码 `create-api-key.ts:810` `JSON.stringify(permissions)`），**不是 jsonb**；且**单层** `jsonb_object_agg` 在「同 resource 多 action」（`asset:publish,asset:manage`）时报 duplicate key | 迁移 SQL 用 `jsonb_object_agg(res, acts)::text` 的**两层聚合**（`jsonb_agg` per resource → `object_agg` per row）；常驻用例锁定「SQL 表达式 ⇔ `token-scopes.ts` 映射」等价 |
+| P17 | 官方 `verifyApiKey` 对**过期**令牌抛 `KEY_EXPIRED` 并**删除该行**（`validate-api-key` 路径）⇒ 列表语义随之变化（旧实现保留过期行）；`enabled=false`（吊销）**保留行** | design §8 登记为变更；吊销仍走 `enabled=false`（列表可见 `revokedAt`），与旧契约一致 |
+| P18 | 官方 create/update 的 server-only 判定 = `ctx.request \|\| ctx.headers`（`create-api-key.ts:733`）⇒ **服务端直呼不得带 `headers`**；带 headers 传 `permissions` → 400 `SERVER_ONLY_PROPERTY`。`verifyApiKey` 端点本身为 `createAuthEndpoint.serverOnly` | 令牌面统一走 `auth/api-keys.ts` 薄适配层（不带 headers；`body.userId` 归属）；常驻用例覆盖 `SERVER_ONLY_PROPERTY` 负例 || P14 | 官方 `isTrustedOrigin` 是**上下文对象上的方法**（内部读 `this.trustedOrigins`，`context/create-context.mjs:143`）——`const { isTrustedOrigin } = await auth.$context` 解构后调用直接 `TypeError: undefined is not an object`（实测：业务面守卫首跑 500） | 必须以方法形式调用（`const ctx = await auth.$context; ctx.isTrustedOrigin(url, …)`）；同族注意：凡官方上下文方法读 `this` 者（`$context` 面）都不得解构 |
 
 ## 3. 影响面总览（实扫量化）
 
@@ -177,6 +185,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `apps/server/src/db/schema/auth.ts` | ~170 行 | 官方 CLI 生成产物并入（6 表 + 关系）；`status` 作为 `additionalFields` 落列 |
 | `apps/server/src/http/auth-routes.ts` | ~60 行 | 薄层：`GET /api/auth/me`（形状不变，R14）。**不做旧登出别名**——官方 `sign-out` 是唯一登出端点（前端未实现，零迁移成本） |
 | `apps/server/src/http/origin-guard.ts` | ~70 行 | **业务面同源守卫**（R9a，T3 收尾补）：`/api/*` 除官方平面外的 cookie 写请求 → 官方 `auth.$context.isTrustedOrigin()`（同一 `trustedOrigins`）；出口 `auth.csrf_failed`（07 §4） |
+| `apps/server/src/auth/api-keys.ts` | ~165 行 | **官方 api-key 薄适配层**（T4）：`issueApiKey`/`revokeApiKey`/`verifyApiKey`/`listApiKeys`/`findApiKey`——统一「服务端直呼（不带 headers）」姿势与 scope ⇔ permissions 映射 |
 
 **改造**
 
@@ -185,8 +194,9 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `auth/rbac.ts` | 67 行 | 内部实现改读官方 `user.role` 文本 → `ROLE_LEVEL`；`status` 判定不变；**导出签名不变** |
 | `auth/ldap.ts` | 162 行 | 通道实现保留；`searchSelf` 属性集 **+1**（取 `mail`） |
 | `http/auth-middleware.ts` | 80 行 | `requireAuth()`/`requireRole()` 签名与语义不变；principal 来源改官方 `getSession`；token scope 判定改官方权限码 |
-| `http/token-middleware.ts` | 85 行 | 改走官方 `verifyApiKey`（服务端直呼）；`authVia='bearer'` 语义保留（防凭证降级） |
-| `http/tokens.ts` | 144 行 | 内部改官方 create/list/delete（服务端直呼，R7）；**响应形状不变** |
+| `http/token-middleware.ts` | 85 行 | 改走官方 `verifyApiKey`（serverOnly 端点 · 服务端直呼）；`authVia='bearer'` 语义保留（防凭证降级）；scope 由官方 `permissions` 派生（`NULL` = 全量）；账号 `status` 门保留（官方不看该列） |
+| `http/tokens.ts` | 144 行 | 内部改官方（`auth/api-keys.ts`）：create/update 服务端直呼（R7）；**响应形状不变**（`id` 文本主键、`scope` 归一 → §8 登记）。**执行期偏离**：list 直读官方表（官方 `GET /api-key/list` 需会话 cookie，而本端点允许令牌通道 ⇒ 只读同表，形状可精确映射） |
+| `auth/tokens.ts` | 45 行 | 退化为**只剩明文生成器** `generateTokenSecret`（注入官方 `customKeyGenerator` ⇒ 明文形态逐字不变）；`hashToken`/`maskToken` 随切流删除 |
 | `http/device-routes.ts` | 154 行 | 按官方四端点契约改写（两段式，R8） |
 | `config/env.ts` | — | 增 `AUTH_TRUSTED_ORIGINS`（空 = 仅同源）· `SEED_ADMIN_EMAIL`；既有 `SESSION_SECRET` / `SESSION_TTL_HOURS` / `PUBLIC_BASE_URL` / `REGISTRATION_ENABLED` / LDAP 与 OIDC 组**全部保留**（映射进官方配置） |
 | `db/schema/users.ts` | 129 行 | 用户域表定义整体移交 `db/schema/auth.ts`（本文件退化为空——随 S5 删除）；`ACCOUNT_ROLE` 常量拆到 `auth/roles.ts`（数值档位单点） |
@@ -209,6 +219,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `auth/routes.ts` | 138 | 官方端点替代 + 薄层 `http/auth-routes.ts`（仅留 `/me`） |
 | `auth/password.ts` | 75 | **函数体保留**，迁入 `better-auth.ts` 的注入配置（文件删除） |
 | `auth/errors.ts` | 79 | 错误码表改写为「官方错误 → 我方 `{code,message}`」映射表（净减） |
+| `db/schema/users.ts` | 34（T3 后） | 过渡期文件：用户域已交 `auth.ts`（T3），余下的 `api_token` 表定义随 **T4 的 `0011`** 删除（文件与表同批下线） |
 
 **保持不变**（本批零改动）
 
@@ -277,15 +288,16 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 凭证 | 处理 | 断言（验收口径） |
 |------|------|-----------------|
 | 本地密码 | **零重置**：`account.password` = 原 `local_credential.password_hash`（格式自描述，注入的 verify 直接可验，R10） | 迁移后该账号**用原密码**登录成功；错误密码仍 401 |
-| API 令牌 | **re-encode 迁移**（明文不变 ⇒ 持有者无感）：官方存储 = `base64url(sha256(明文))`（源码依据 `@better-auth/api-key/dist/index.mjs:2311` 默认 hasher），我方存储 = `sha256(明文)` 的 **hex** ⇒ 同一字节串换编码 | SQL：`translate(rtrim(encode(decode(token_hash,'hex'),'base64'),'='), '+/', '-_')`；迁后**原明文 token** 仍可访问业务端点（401 → 200 对照），吊销/过期语义保持 |
-| 令牌权限码 | `scope`（逗号串）→ 官方 `permissions` JSON（`asset:publish` → `{asset:['publish']}`） | 非空 scope 的 token 超范围访问仍 403；`''`/`cli`（全量）→ `permissions = NULL` |
-| 令牌行其它列 | `config_id='default'` · `reference_id` = 原 `user_id` · `enabled` = `revoked_at IS NULL` · `rate_limit_enabled = false`（对齐 R7 全局关闭）· `start`/`prefix` = `NULL`（官方仅用于展示，现状本就无明文前缀 ⇒ 展示口径不变） | 迁后令牌列表不显示前缀（与现状一致）；不因官方默认限流被意外拦截 |
-| 权限码转换方式 | 在 `0010` 迁移 SQL 内用 `split_part(scope, ':', 1/2)` + `jsonb_object_agg` 生成 `permissions`（**不引一次性脚本**，保持前向迁移单一路径） | 迁移后 `permissions` 与 scope 逐项等价（对账断言：非空 scope 的 token 超范围访问仍 403） |
+| API 令牌 | **re-encode 迁移**（明文不变 ⇒ 持有者无感）：官方存储 = `base64url(sha256(明文))`（源码依据 `@better-auth/api-key/dist/index.mjs:2310-2313` 默认 hasher），我方存储 = `sha256(明文)` 的 **hex** ⇒ 同一字节串换编码 | SQL：`translate(rtrim(encode(decode(token_hash,'hex'),'base64'),'='), '+/', '-_')`；迁后**原明文 token** 仍可访问业务端点——**T4 已端到端实证**（克隆库：SQL 产物 `=== base64url(sha256(明文))` 字节相等 + 官方 `verifyApiKey` 判 valid；错明文 invalid） |
+| 令牌权限码 | `scope`（逗号串）→ 官方 `permissions`（`asset:publish` → `{asset:['publish']}`） | 非空 scope 的 token 超范围访问仍 403；`''`/`cli`（全量）→ `permissions = NULL` |
+| 令牌行其它列 | `config_id='default'` · `reference_id` = 原 `user_id` · `enabled` = `revoked_at IS NULL` · `rate_limit_enabled = false`（对齐 R7 全局关闭）· `rate_limit_time_window`/`rate_limit_max` = 官方默认（86400000/10，因行级关限流不参与判定）· `start`/`prefix` = `NULL`（官方仅用于展示，现状本就无明文前缀 ⇒ 展示口径不变）· 时间列按 **naive UTC** 归一（官方表为 `timestamp`；旧表 `timestamptz` ⇒ `AT TIME ZONE 'UTC'`） | 迁后令牌列表不显示前缀（与现状一致）；不因官方默认限流被意外拦截；`id` 由自增整数变官方**文本主键**（§8 变更表登记） |
+| 权限码转换方式 | 在 **`0011`** 迁移 SQL 内用 `split_part(scope, ':', 1/2)` + **两层聚合**（`jsonb_agg` per resource → `jsonb_object_agg` per row）生成 `permissions` **文本**（`jsonb_object_agg(...)::text`；**不引一次性脚本**，保持前向迁移单一路径）。**列型订正**：官方 `apikey.permissions` 是 **`text`**（源码 `JSON.stringify(permissions)`），**非 jsonb**（初稿误写）；单层聚合会因同 resource 多 action 触发 duplicate key（实测不可用） | 迁移后 `permissions` 与 scope 逐项等价——**T4 已实测**：SQL 表达式 ⇔ `token-scopes.ts` 映射逐条等价（含 `''`/`'cli'` → NULL、多码同 resource 归并、畸形码跳过），常驻用例锁定 |
 | 会话 | **不迁**（现为进程内内存，无持久化形态） | 迁移执行后所有既有会话失效（用户需重登一次）——影响声明固定一条 |
+| 设备流令牌（历史 `scope='cli'` 行） | 随同一批搬迁（`permissions = NULL` = 全量）；**签发点**自 T4 起直接走官方 api-key | 设备令牌 TTL 1h ⇒ 官方 `keyExpiration.minExpiresIn` 必须放宽到 `1/24` 天（P15），否则签发被拒 |
 
 ### 5.4 回滚边界
 
-`forward-only`（仓库既有纪律）：`0008` 建表 · `0009`/`0010` 搬迁 · `0011` 收口**均不入回滚脚本**（每一步都是前向；「回退」= 恢复备份）；**执行前备份**为运维动作（记入 runbook 待办，M6）。沙箱已实证官方 6 表可建表并可完成 CRUD 全流程（记录不入库）。
+`forward-only`（仓库既有纪律）：`0008` 建表 · `0009` 用户域搬迁 · `0010` FK 重指向与删旧 3 表 · `0011` 令牌搬迁与删 `api_token` **均不入回滚脚本**（每一步都是前向；「回退」= 恢复备份）；**执行前备份**为运维动作（记入 runbook 待办，M6）。沙箱已实证官方 6 表可建表并可完成 CRUD 全流程（记录不入库）。
 
 ## 6. 测试改写策略
 
@@ -301,7 +313,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 
 - 测试是上游契约：响应形状变化**逐条核对** §8 变更表；未列入变更表的字段差异一律视为实现缺陷。
 - 错误码映射须覆盖全部既有码（含设备流 `authorization_pending` / `slow_down` 与 P7 的「权限不足 vs key 不存在」区分），且**保留既有语义**（登录类统一 401 防枚举等）。
-- 覆盖不得下降：基线 475 例不减少，新增测试净增 ≥40 例。
+- 覆盖口径（**v0.8/plan 重定，v1.9 同步**）：批前基线 **475 例**；T3 删除 4 个被替代测试文件（≈40 例，断言落点逐条登记）⇒ 本批目标 = **≥500 例且 0 fail**，且下列六类新增测试面**逐类可点名**。（实测轨迹：T3 后 466 例 → T4 后 **480 例**，含 `auth/api-keys.test.ts` 新增 15 例。）
 - 迁移规则已在沙箱端到端跑通（X7：SQL 公式写回后**原明文仍可被官方验证**，错明文被拒）⇒ 迁移脚本按同公式落地，落地后以「原明文可访问 / 错明文 401」作对账断言。
 - 新增测试面：① 目录插件（真 ldapjs server，网络层真实 bind——沿用仓内既有做法）② 会话落库 + 进程重启存活 ③ origin 校验（无 Origin / 跨源 / 白名单命中 三态）④ 令牌权限码逐项（含超范围与提权被拦）⑤ `ROLE_LEVEL` 键集合 ↔ `ac.roles` 键集合一致性 ⑥ 迁移断言（原密码登录 · 原明文 token 可用 · 状态/档位映射）。
 
@@ -311,9 +323,9 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 |------|------|---------|
 | S1 骨架与数据层 | 装依赖 · `db/schema/auth.ts`（官方 CLI `generate --adapter drizzle --dialect pg` 产物并入）· 迁移 `0008`（**纯结构**，走我们既有 drizzle-kit 流程入库）· `better-auth.ts` 实例 · `roles.ts` · env 新增项（`auth secret` / `info` 可作辅助校验） | 冷库 `0000→0008` 按序迁移成功 · 6 表结构与约束实测齐 · **旧 4 表与既有测试零变化**（本阶段搬迁尚未发生）· 门禁绿 |
 | S2 目录凭证插件 | 插件三路分派 · `ldap.ts` 取 mail · 错误码映射 · bootstrap 种子改道 | X1 同级负例全绿（错密码 401 · 目录禁用 401 · 缺字段 400 · 邮箱缺失拒 · 邮箱冲突拒）· 原密码登录通（R10） |
-| S3 业务面切流 | 目录插件 + `0009` 用户域搬迁（**与切流同批**）· `rbac.ts`/`auth-middleware`/`token-middleware`（用户查询面）改造 · 删 `csrf.ts`/`session.ts`；令牌面 `tokens.ts` + `0010` 搬迁随其后同批 | 生产 57 处调用面**零改动**编译通过 · 授权断言（超管全放 · user 档精确 DENY/ALLOW）· 令牌三端点形状不变 · 令牌全流程（签发/列表/吊销/超范围 403） |
+| S3 业务面切流 | 目录插件 + `0009` 用户域搬迁（**与切流同批**）· `0010` 13 条 FK 重指向 + 删旧 3 表（**同批**）· `rbac.ts`/`auth-middleware`/`token-middleware`（用户查询面）改造 · 删 `csrf.ts`/`session.ts`；令牌面 `tokens.ts` + **`0011` 搬迁**随其后同批（T4） | 生产 57 处调用面**零改动**编译通过 · 授权断言（超管全放 · user 档精确 DENY/ALLOW）· 令牌三端点形状不变 · 令牌全流程（签发/列表/吊销/超范围 403） |
 | S4 设备流与 CLI 契约 | 官方四端点契约 · `bearer` 插件 · CLI 契约定档（实现归 M5） | 两段式闭环 + 未认领 approve 400 + 轮询 `authorization_pending`/`slow_down` + Bearer 可达业务端点 · 旧 device 契约残留 grep = 0 |
-| S5 清理与规范同步 | 删旧表（`0011`：FK 重指向 + 删旧 4 表）· 删死代码 · 05/08 原地改写 · `docs/00` §5 回写 | 死代码 grep = 0（旧符号：`InMemorySessionStore`/`csrfProtection`/`DevicePendingStore`/`sessions.createSession`）· 文档-代码对齐（数字实测）· 五门禁绿 |
+| S5 清理与规范同步 | 删旧表（**T3 `0010` 已删用户域 3 表；T4 `0011` 已删 `api_token`**）· 删死代码（`db/schema/users.ts` 已随 T4 删除）· 05/08 原地改写 · `docs/00` §5 回写 | 死代码 grep = 0（旧符号：`InMemorySessionStore`/`csrfProtection`/`DevicePendingStore`/`sessions.createSession`）· 文档-代码对齐（数字实测）· 五门禁绿 |
 | S6 收尾 | converge（8 维重评）+ **整体审计**（十一维全仓扫描） | 批间门五件全闭合 · findings 逐条登记无未决 |
 
 ## 8. 接口变更总览
@@ -338,6 +350,10 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 设备轮询 | `POST /api/auth/device/token {deviceCode}` → `{accessToken,tokenType,expiresIn}` | `POST /api/auth/device/token {device_code}` → `{access_token,token_type,expires_in}` | 字段名 + 错误码（`authorization_pending` / `slow_down`） |
 | 设备 token 形态 | 我方 API Token（`scope='cli'`） | 官方会话 Bearer（需 `bearer` 插件） | 凭证形态变更（scope 收窄概念不再存在=全量，与现状 `'cli'` 全量语义一致） |
 | CSRF | 自研 Origin/Referer 链 | 官方 origin 校验 + `trustedOrigins` | 实现替换 + dev 白名单机制 |
+| 令牌 `id` 形态 | `api_token.id`（自增整数） | 官方 `apikey.id`（**文本主键**：迁移行为原数字串，新签发为随机串） | 类型变更（删除端点 `:id` 校验放宽为通用 id 形态；无前端消费方） |
+| 令牌 `scope` 回显 | `''` 或 `'cli'` 各自原样 | 迁移后同为 `permissions NULL` ⇒ 列表统一回 `''` | 取值归一（语义等价：均表示全量） |
+| 过期令牌在列表中的去留 | 过期行保留（仅 `expiresAt` 过期） | **官方校验遇到过期即删除该行** ⇒ 过期令牌不再出现在列表 | 官方行为（`KEY_EXPIRED` 清行）；吊销行仍保留（`enabled=false`） |
+| 审计 `target_type` | `api_token` | `api_key`（表已换） | 枚举值更新（`token.issue`/`token.revoke`/`device.token_issued` 动作名不变） |
 | OIDC | `GET /api/auth/oidc/authorize` · `/callback` | **不变**（R11：编排保留，仅会话签发接官方） | 无 |
 
 ## 9. UI-UX 变动总览
@@ -393,6 +409,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-15 | sunxuewen-rush | 初稿：spike 结论（X1-X6 全通过 + 8 条坑）转入选型定稿；**17 项拍板**（R1-R17；其中 R1/R2/R14 已确认，其余待批）（实扫量化：认证核心 16 文件/1492 行 · HTTP 面 6 文件/669 行 · 测试 16 文件/2471 行 · `createSession` 触点 15 测试文件/20 处 + 生产 3 处 · 调用面 57 处 · 运行库 12 表 · 13 条 FK）|
+| v1.9 | 2026-09-15 | sunxuewen-rush | **T4 落地回写（令牌面切流）**：① §5.3 **列型订正**——官方 `apikey.permissions` 是 **`text`**（`JSON.stringify`）而非 jsonb；迁移需**两层聚合**（单层 `jsonb_object_agg` 同 resource 多 action 会 duplicate key）；补 `rate_limit_time_window`/`max` 官方默认值、时间列 naive-UTC 归一、`id` 文本主键说明 ② §5.1/§5.4/§7 的 `0010`/`0011` 归属**全量订正**（0010 = FK 重指向 + 删用户域 3 表；0011 = 令牌搬迁 + 删 `api_token`）③ §2.3 增 **P15-P18**（`keyExpiration` 边界按天：min 默认 1 天会拒设备流 1h 令牌、max 默认 365 天会拒既有 3650 天契约 · permissions 为 text + 两层聚合 · 官方校验遇过期即删行 · server-only 判定 = `ctx.request \|\| ctx.headers`）④ §4.1 三表补 `auth/api-keys.ts`（新增）/`token-middleware`·`tokens`·`auth/tokens.ts`（改造）/`db/schema/users.ts`（删除）⑤ §6 覆盖口径重定（≥500 例；实测 T4 后 **480 例** 0 fail）⑥ §8 变更表补令牌面 4 行（`id` 文本主键 · `scope` 归一 · 过期行去留 · 审计 `target_type`） |
 | v1.8 | 2026-09-15 | sunxuewen-rush | **T3 收尾补丁回写（用户 2026-09-15 批准）**：① 新增 **R9a 业务面同源守卫**（`http/origin-guard.ts`：官方 `$context.isTrustedOrigin` 判定，不重写比较逻辑；出口 `auth.csrf_failed`）+ §4.1 新增/改造/删除三表同步（`app.ts` 装配序、`csrf.ts` 删除理由订正为「按 `Host` 比对是 A1 根因」）② §2.3 增 **P14**（官方上下文方法读 `this`，不可解构——首跑 500 实证）③ **§5.1 时序原则按 v1.7 口径订正**（`0009` 用户域搬迁 · **`0010` FK 重指向 + 删旧 3 表（随认证面切流）** · `0011` 令牌面收口）+ 表内 `user_account`/`api_token` 两行同步 ④ §12 `AUTH_TRUSTED_ORIGINS` 说明补「认证面与业务面共用同一白名单」 |
 | v1.7 | 2026-09-15 | sunxuewen-rush | **T3 落地回写（认证面整体切换）**：① §2.3 补 **P9-P13**（T3 实施期实测坑：官方 test 环境默认跳过 Origin 校验 · `ctx.json` 不设状态码 · 全局 origin 校验仅带 cookie 时生效 · 官方 `hooks.after` 在 sign-out 取不到会话 · drizzle-kit 迁移定序陷阱）② **§5.1 时序再收紧**：13 条外键的**重指向**由收口批提前到**切流批**（`0010`）——硬约束：新账号只写官方 `user`，业务表若仍引用 `user_account`，新用户的资产/审计写入会被外键直接拒绝（单真值源不允许两批之间悬空）③ 依赖透传位补充：`AuthRuntimeDeps.advanced`（测试断言 Origin 三态用）；口令哈希函数体随 §4.1 迁入 `better-auth.ts`（`password.ts` 已删）④ 覆盖口径：删除 4 个被替代测试文件（`csrf`/`session`/`users`/`provision`），当前 **465 例**（464 pass · 1 skip · 0 fail），缺口与新增测试面（令牌权限码 · 迁移对账 · 无 Origin 三态已补）由 T6 收口对齐 design §6 |
 | v1.6 | 2026-09-15 | sunxuewen-rush | **迁移时序与 Task 边界重划（用户 2026-09-15 批准方案 A）**：① §5.1 表级映射改「建表/搬迁分离 + 迁移时序原则」——`0008` 建 6 表（零数据）· `0009` 用户域搬迁 · `0010` 令牌搬迁 · `0011` FK 重指向 + 删旧表；搬迁一律**与消费面切流同批**（防冻结快照，单真值源）② §5.3 权限码转换迁移文件 `0008` → **`0010`** · §5.4 回滚边界按四步改写 · §7 S1/S3/S5 范围与出口同步 · §10 R7 补「过渡期零消费」口径 ③ 重划依据（实测，2026-09-15）：旧表消费面 **113 处 / 12 文件**（`user_account` 52/10 含 13 条 FK 定义 · `identity_binding` 8/2 · `local_credential` 26/4 · `api_token` 27/4）⇒ `RENAME` 会让 7 个生产文件当轮编译失败；且认证链（会话↔档位↔令牌）分批切流必产生不可运行中间态 ④ 方案对照：保持原边界（接受中间态不可运行）与被否决的「官方 adapter 表名映射套用既有表」（推翻已批准 R3 + 永久映射层）均已评估 ⑤ plan 同步升 **v0.5** |

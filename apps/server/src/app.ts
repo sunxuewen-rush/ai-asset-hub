@@ -65,7 +65,7 @@ export function createApp(deps: AppDeps): Hono {
   app.use('*', requestContextMiddleware());
   app.use('*', rbacContext(rbac));
   // 认证装配序（T17）：Bearer 显式优先 → 无则官方 session cookie（token → session）
-  app.use('/api/*', tokenAuthMiddleware(deps.db));
+  app.use('/api/*', tokenAuthMiddleware(deps.db, auth));
   // 业务面同源守卫（在会话语义前拒绝，省一次会话查询；官方平面自带校验故内部排除）
   app.use('/api/*', trustedOriginGuard(auth));
   app.use('/api/*', officialSessionMiddleware(auth));
@@ -99,7 +99,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route(
     '/api/auth/device',
     createDeviceRoutes({
-      db: deps.db,
+      auth,
       store: deviceStore,
       // 匿名请求独立限流实例（10/分钟，不与登录共享 key 空间）
       rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
@@ -157,7 +157,7 @@ export function createApp(deps: AppDeps): Hono {
         ),
     }),
   );
-  app.route('/api/tokens', createTokenRoutes({ db: deps.db, audit: deps.audit }));
+  app.route('/api/tokens', createTokenRoutes({ db: deps.db, auth, audit: deps.audit }));
   app.route('/api/reviews', createReviewRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/labels', createLabelRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/stats', createStatsRoutes({ db: deps.db }));

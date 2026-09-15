@@ -19,7 +19,7 @@ import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, auditLog, user } from '../db/schema/index.js';
+import { auditLog, user } from '../db/schema/index.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import {
   APPROVE_LIMIT,
@@ -49,7 +49,7 @@ function buildApp(store?: DevicePendingStore): Hono {
   const app = new Hono();
   app.use('*', requestContextMiddleware());
   app.use('*', rbacContext(rbac));
-  app.use('*', tokenAuthMiddleware(db));
+  app.use('*', tokenAuthMiddleware(db, auth));
   app.use('*', officialSessionMiddleware(auth));
   // 镜像 app.ts：匿名 device 端点豁免；approve 保护
   app.onError((err, c) => {
@@ -64,7 +64,7 @@ function buildApp(store?: DevicePendingStore): Hono {
   app.route(
     '/api/auth/device',
     createDeviceRoutes({
-      db,
+      auth,
       store: store ?? new DevicePendingStore(),
       rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
       approveRateLimiter: new InMemoryRateLimiter(APPROVE_LIMIT.windowMs, APPROVE_LIMIT.max),
@@ -72,7 +72,7 @@ function buildApp(store?: DevicePendingStore): Hono {
     }),
   );
   // Bearer 验证面（T32：轮询所得 token 可走既有 token 通道）
-  app.route('/api/tokens', createTokenRoutes({ db }));
+  app.route('/api/tokens', createTokenRoutes({ db, auth }));
   return app;
 }
 
@@ -85,11 +85,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: user.id }).from(user).where(like(user.name, 'dev-%'));
-  for (const u of users) {
-    await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await cleanupCreatedUsers(db);
-  }
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 

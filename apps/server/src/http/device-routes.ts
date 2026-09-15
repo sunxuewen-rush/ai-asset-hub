@@ -1,11 +1,10 @@
 import { Hono } from 'hono';
 import type { AuditWriter } from '../audit/audit.js';
+import { issueApiKey } from '../auth/api-keys.js';
+import type { AihAuth } from '../auth/better-auth.js';
 import type { DevicePendingStore } from '../auth/device-store.js';
 import { AuthError } from '../auth/errors.js';
 import type { RateLimiter } from '../auth/rate-limit.js';
-import { generateTokenSecret, hashToken } from '../auth/tokens.js';
-import type { Db } from '../db/client.js';
-import { apiToken } from '../db/schema/index.js';
 import { requireAuth } from './auth-middleware.js';
 
 /**
@@ -17,7 +16,8 @@ import { requireAuth } from './auth-middleware.js';
  */
 
 export interface DeviceRoutesDeps {
-  db: Db;
+  /** 官方实例（设备令牌签发走官方 api-key：`auth/api-keys.ts` 薄适配层） */
+  auth: AihAuth;
   store: DevicePendingStore;
   rateLimiter: RateLimiter;
   /** approve 尝试限流（T33：每 user_code 5 次/分钟防爆破） */
@@ -38,7 +38,7 @@ export const DEVICE_TOKEN_TTL_SEC = 3600;
 export const APPROVE_LIMIT = { windowMs: 60_000, max: 5 } as const;
 
 export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
-  const { db, store, rateLimiter } = deps;
+  const { store, rateLimiter } = deps;
   const base = deps.publicBaseUrl.replace(/\/$/, '');
   const app = new Hono();
 
@@ -122,29 +122,24 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps): Hono {
         },
       );
     }
-    // 已 approve：签 API Token（scope=cli，T14 签发面复用；一次性消费）
-    const plain = generateTokenSecret();
-    const [row] = await db
-      .insert(apiToken)
-      .values({
-        userId: raw.userId,
-        tokenHash: hashToken(plain),
-        scope: 'cli',
-        expiresAt: new Date(now + DEVICE_TOKEN_TTL_SEC * 1000),
-      })
-      .returning({ id: apiToken.id });
+    // 已 approve：签 API Token（一次性消费）。M4b-pre T4：存储面切官方 api-key（薄适配层），
+    // scope 全量（官方 `permissions NULL`；等价旧 `scope='cli'` 的全量语义——design §5.3）。
+    // 注意：本文件整体契约（四端点/字段名）归 T5，本批只换签发落点。
+    const issued = await issueApiKey(deps.auth, {
+      userId: raw.userId,
+      expiresAt: new Date(now + DEVICE_TOKEN_TTL_SEC * 1000),
+    });
     await store.reject(deviceCode);
-    if (!row) throw new Error('api token insert returned no row');
     // 审计（T17：device.token_issued——device flow 产 token；明文零落 detail）
     await deps.audit?.({
       actorId: raw.userId,
       action: 'device.token_issued',
-      targetType: 'api_token',
-      targetId: String(row.id),
-      detail: { scope: 'cli' },
+      targetType: 'api_key',
+      targetId: issued.id,
+      detail: { scope: null },
     });
     return c.json({
-      accessToken: plain,
+      accessToken: issued.plain,
       tokenType: 'Bearer',
       expiresIn: DEVICE_TOKEN_TTL_SEC,
     });

@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import {
   cleanupCreatedUsers,
   createTestUser,
+  mintApiKey,
   setUserRole,
   signInCookie,
 } from '../test-utils/auth-fixture.js';
@@ -22,9 +23,8 @@ import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
-import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, asset, auditLog, user } from '../db/schema/index.js';
+import { asset, auditLog, user } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
 import { createAuditRoutes } from './audit.js';
@@ -69,15 +69,18 @@ async function issueToken(userId: string, scope?: string[]): Promise<string> {
   expect(res.status).toBe(201);
   return ((await res.json()) as { token: string }).token;
 }
-async function insertTokenRow(userId: string, scope: string): Promise<string> {
-  const plain = `aih_${PREFIX}${randomUUID()}`;
-  await db.insert(apiToken).values({ userId, tokenHash: hashToken(plain), scope });
+/**
+ * 造「全量」令牌（T4：官方 `permissions` 为 NULL = 全量）。
+ * 历史 `scope=''`/`'cli'` 两种全量来源在迁移后同为 NULL（design §5.3/§8）⇒ 本测试用同一形态覆盖。
+ */
+async function mintFullToken(userId: string): Promise<string> {
+  const { plain } = await mintApiKey(auth, userId, { scope: null });
   return plain;
 }
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
-  app.use('*', tokenAuthMiddleware(db));
+  app.use('*', tokenAuthMiddleware(db, auth));
   app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError)
@@ -86,7 +89,7 @@ function buildApp(): Hono {
       return c.json({ code: err.code, message: err.message }, err.status as 400 | 403 | 404);
     return c.json({ code: 'internal_error' }, 500);
   });
-  app.route('/api/tokens', createTokenRoutes({ db, audit }));
+  app.route('/api/tokens', createTokenRoutes({ db, auth, audit }));
   app.route('/api/audit', createAuditRoutes({ db }));
   app.route('/api/assets', createAssetRoutes({ db, audit, storage, uploadRateLimiter }));
   return app;
@@ -132,7 +135,6 @@ afterAll(async () => {
     .select({ id: user.id })
     .from(user)
     .where(like(user.id, `${PREFIX}%`));
-  await db.delete(apiToken).where(like(apiToken.userId, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   const ownedAssets = await db
     .select({ id: asset.id })
@@ -183,8 +185,8 @@ describe('Token scope 交集过滤（design §8 R14）', () => {
     expect(res.status).toBe(200);
   });
 
-  it("scope 'cli'（Device Flow）→ 全量：audit 200（05 §5 兼容语义）", async () => {
-    const plain = await insertTokenRow(auditorId, 'cli');
+  it("历史 scope 'cli'（设备令牌）→ 迁移后全量：audit 200（05 §5 兼容语义）", async () => {
+    const plain = await mintFullToken(auditorId);
     const res = await buildApp().request('/api/audit?limit=1', {
       method: 'GET',
       headers: { host: 'localhost:3000', authorization: `Bearer ${plain}` },

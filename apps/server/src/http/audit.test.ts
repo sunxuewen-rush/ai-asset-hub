@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import {
   cleanupCreatedUsers,
   createTestUser,
+  mintApiKey,
   setUserRole,
   signInCookie,
 } from '../test-utils/auth-fixture.js';
@@ -17,9 +18,8 @@ import { createAuditWriter } from '../audit/audit.js';
 import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE, RbacService } from '../auth/rbac.js';
-import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, auditLog, user } from '../db/schema/index.js';
+import { auditLog, user } from '../db/schema/index.js';
 import { createAuditRoutes } from './audit.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
@@ -38,15 +38,15 @@ async function setRole(userId: string, role: number): Promise<void> {
 }
 
 async function mintToken(userId: string): Promise<string> {
-  const plain = `aih_${randomUUID()}${randomUUID()}`.slice(0, 47);
-  await db.insert(apiToken).values({ userId, tokenHash: hashToken(plain), scope: '' });
+  // T4：令牌造数走官方 api-key（服务端直呼；明文一次性返回）
+  const { plain } = await mintApiKey(auth, userId);
   return plain;
 }
 
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
-  app.use('*', tokenAuthMiddleware(db));
+  app.use('*', tokenAuthMiddleware(db, auth));
   app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
@@ -110,11 +110,7 @@ afterAll(async () => {
   for (const l of logs) {
     await db.delete(auditLog).where(eq(auditLog.id, l.id));
   }
-  const users = await db.select({ id: user.id }).from(user).where(like(user.name, 'au-%'));
-  for (const u of users) {
-    await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await cleanupCreatedUsers(db);
-  }
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 

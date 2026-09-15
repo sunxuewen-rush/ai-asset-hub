@@ -101,7 +101,8 @@ export function requireAuth() {
 /**
  * token scope 交集判定（M3 design §8 R14）：session 通道恒过（无 scope）；
  * token 通道 scope 非空时要求含 code（凭证级白名单——白名单外拒）。
- * '' / 'cli'（全量）经 parseTokenScope → null → 恒过（M1 零破坏）。
+ * 全量令牌（官方 `permissions` 为 NULL）→ `tokenScopes` 为 null → 恒过（M1 零破坏；
+ *  历史 `''`/`'cli'` 两种全量来源在迁移 `0011` 后同为 NULL）。
  * 出口与角色拒同（auth.forbidden——不泄露 scope 细节）。
  */
 export function assertTokenScoped(c: Context, code: TokenScopeCode): void {

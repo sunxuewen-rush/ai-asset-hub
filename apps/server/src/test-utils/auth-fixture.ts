@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
+import { issueApiKey } from '../auth/api-keys.js';
 import { type AihAuth, hashPassword } from '../auth/better-auth.js';
 import { ACCOUNT_ROLE } from '../auth/roles.js';
 import type { Db } from '../db/client.js';
-import { account, apiToken, auditLog, session, user } from '../db/schema/index.js';
+import { account, apikey, auditLog, session, user } from '../db/schema/index.js';
 
 /**
  * 认证测试夹具（M4b-pre T3 · design §6 范式 A/B）——取代自研 `sessions.createSession(...)`。
@@ -16,7 +17,7 @@ import { account, apiToken, auditLog, session, user } from '../db/schema/index.j
  * 3. `createSignedInUser`：1+2 一步到位
  *
  * 范式 B（按档位断言）：`createSignedInUser(..., { role: 100 })` 或 `setUserRole` —— 档位读库即生效。
- * 范式 C（令牌断言）：令牌类用例仍走服务端直呼签发（`http/tokens.ts`）。
+ * 范式 C（令牌断言）：`mintApiKey` 走官方 api-key 服务端直呼（T4 起；取代直接写 `api_token`）。
  *
  * 注意：`auth` 必须是**被测 app 用的同一个实例**（`createApp({ auth })` 传同一对象），
  * 否则会话 cookie 的签名/config 可能与被测中间件不一致。
@@ -148,6 +149,23 @@ export async function createSignedInUser(
   return { id, cookie };
 }
 
+/**
+ * 造令牌（T4 起 = 官方 api-key；走官方服务端直呼路径，测试不手搓哈希）。
+ * 返回官方行 id（文本）与明文（明文仅此一次可得）。`scope: null` = 全量（`permissions` 不写）。
+ */
+export async function mintApiKey(
+  auth: AihAuth,
+  userId: string,
+  opts: { scope?: readonly string[] | null; expiresAt?: Date | null } = {},
+): Promise<{ id: string; plain: string }> {
+  const issued = await issueApiKey(auth, {
+    userId,
+    expiresAt: opts.expiresAt ?? null,
+    scope: opts.scope ?? null,
+  });
+  return { id: issued.id, plain: issued.plain };
+}
+
 /** 该用户的会话行数（会话落库断言用） */
 export async function countSessions(db: Db, userId: string): Promise<number> {
   const rows = await db.select({ id: session.id }).from(session).where(eq(session.userId, userId));
@@ -164,7 +182,7 @@ export async function cleanupCreatedUsers(db: Db): Promise<void> {
   if (ids.length === 0) return;
   // FK：audit_log.actor_id → user（NO ACTION）⇒ 先摘审计行；session/account 级联
   await db.delete(auditLog).where(inArray(auditLog.actorId, ids));
-  // 令牌表（过渡期仍在 api_token）引用 user ⇒ 先删，否则清理被 FK 拦下
-  await db.delete(apiToken).where(inArray(apiToken.userId, ids));
+  // 令牌行（官方 apikey，无 FK 但按归属清理——防残留行干扰「只依赖自己造的数据」断言）
+  await db.delete(apikey).where(inArray(apikey.referenceId, ids));
   await db.delete(user).where(inArray(user.id, ids));
 }

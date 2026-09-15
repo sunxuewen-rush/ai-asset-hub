@@ -1,28 +1,33 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, like } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import {
   cleanupCreatedUsers,
   createTestUser,
+  mintApiKey,
   setUserRole,
   signInCookie,
 } from '../test-utils/auth-fixture.js';
 
-process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
+process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
-import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, auditLog, user } from '../db/schema/index.js';
+import { apikey, auditLog, user } from '../db/schema/index.js';
 import { createAuditRoutes } from './audit.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
 import { createTokenRoutes } from './tokens.js';
+
+/**
+ * Bearer 通道集成测试（T17 语义 + M4b-pre T4 官方 api-key 切流）。
+ * 造数一律走官方签发（`mintApiKey`）——不手搓哈希、不直写表。
+ */
 
 let db: Db;
 let auth: AihAuth;
@@ -42,25 +47,39 @@ async function setRole(userId: string, role: AccountRole): Promise<void> {
 async function mintToken(
   userId: string,
   opts: { expiresAt?: Date | null; revoked?: boolean } = {},
-): Promise<{ id: number; plain: string }> {
-  const plain = `aih_${randomUUID()}${randomUUID()}`.slice(0, 47);
-  const [row] = await db
-    .insert(apiToken)
-    .values({
-      userId,
-      tokenHash: hashToken(plain),
-      scope: '',
-      expiresAt: opts.expiresAt ?? null,
-      revokedAt: opts.revoked ? new Date() : null,
-    })
-    .returning({ id: apiToken.id });
-  return { id: row!.id, plain };
+): Promise<{ id: string; plain: string }> {
+  // 官方 create 的最小过期 = 1 小时 ⇒ 「已过期」造数只能签发后改库（测试专用）
+  const alreadyExpired =
+    opts.expiresAt !== null &&
+    opts.expiresAt !== undefined &&
+    opts.expiresAt.getTime() <= Date.now();
+  const issued = await mintApiKey(auth, userId, {
+    expiresAt: alreadyExpired ? null : (opts.expiresAt ?? null),
+  });
+  if (alreadyExpired) {
+    await db.update(apikey).set({ expiresAt: opts.expiresAt! }).where(eq(apikey.id, issued.id));
+  }
+  if (opts.revoked) {
+    // 吊销 = 官方 enabled=false（走官方 update 端点，服务端直呼）
+    const { revokeApiKey } = await import('../auth/api-keys.js');
+    await revokeApiKey(auth, { keyId: issued.id, ownerId: userId });
+  }
+  return issued;
+}
+
+/** 该用户名下的令牌行数（列表断言用；官方表按 reference_id 归属） */
+async function keyCount(userId: string): Promise<number> {
+  const rows = await db
+    .select({ id: apikey.id })
+    .from(apikey)
+    .where(eq(apikey.referenceId, userId));
+  return rows.length;
 }
 
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
-  app.use('*', tokenAuthMiddleware(db));
+  app.use('*', tokenAuthMiddleware(db, auth));
   app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
@@ -71,7 +90,7 @@ function buildApp(): Hono {
     }
     return c.json({ code: 'internal_error' }, 500);
   });
-  app.route('/api/tokens', createTokenRoutes({ db }));
+  app.route('/api/tokens', createTokenRoutes({ db, auth }));
   app.route('/api/audit', createAuditRoutes({ db }));
   return app;
 }
@@ -84,11 +103,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const users = await db.select({ id: user.id }).from(user).where(like(user.name, 'bearer-%'));
-  for (const u of users) {
-    await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await cleanupCreatedUsers(db);
-  }
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 
@@ -99,17 +114,18 @@ function getWithAuth(plain?: string, cookie?: string) {
   return buildApp().request('/api/tokens', { headers });
 }
 
-describe('Bearer token 认证中间件（T17）', () => {
+describe('Bearer token 认证中间件（T17 · 官方 api-key 校验）', () => {
   it('合法 token → principal 生效（200 列表本人可见）', async () => {
     const u = await makeUser('bearer-u1');
     const { plain } = await mintToken(u);
     const res = await getWithAuth(plain);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: Array<{ id: number }> };
+    const body = (await res.json()) as { items: Array<{ id: string }> };
     expect(Array.isArray(body.items)).toBe(true);
+    expect(body.items).toHaveLength(await keyCount(u));
   });
 
-  it('吊销 token → 401（匿名，requireAuth 出）', async () => {
+  it('吊销 token（官方 enabled=false）→ 401（匿名，requireAuth 出）', async () => {
     const u = await makeUser('bearer-u2');
     const { plain } = await mintToken(u, { revoked: true });
     const res = await getWithAuth(plain);
@@ -137,7 +153,7 @@ describe('Bearer token 认证中间件（T17）', () => {
     expect(basic.status).toBe(401);
   });
 
-  it('token 用户 DISABLED → 拒（401）', async () => {
+  it('token 用户 DISABLED → 拒（401；账号状态门由本中间件判——官方 verify 不看该列）', async () => {
     const u = await makeUser('bearer-disabled', 'DISABLED');
     const { plain } = await mintToken(u);
     const res = await getWithAuth(plain);
@@ -152,13 +168,11 @@ describe('Bearer token 认证中间件（T17）', () => {
     const cookie = await signInCookie(auth, b);
     const res = await getWithAuth(plain, cookie);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: Array<{ id: number }> };
-    const aRows = await db.select().from(apiToken).where(eq(apiToken.userId, a));
-    const bRows = await db.select().from(apiToken).where(eq(apiToken.userId, b));
+    const body = (await res.json()) as { items: Array<{ id: string }> };
     // 列表 = A 的全部 token（不含 B 的）
-    expect(body.items).toHaveLength(aRows.length);
+    expect(body.items).toHaveLength(await keyCount(a));
     expect(body.items.length).toBeGreaterThan(0);
-    expect(bRows.length).toBeGreaterThan(0); // 前置条件成立
+    expect(await keyCount(b)).toBeGreaterThan(0); // 前置条件成立
   });
 
   it('无效 Bearer + 有效 cookie → 401（显式凭证不降级回 cookie）', async () => {
@@ -168,7 +182,7 @@ describe('Bearer token 认证中间件（T17）', () => {
     expect(res.status).toBe(401);
   });
 
-  it('Bearer POST 无 Origin → 非 403（显式凭证通道 CSRF 豁免）', async () => {
+  it('Bearer POST 无 Origin → 非 403（显式凭证通道 origin 守卫豁免）', async () => {
     const u = await makeUser('bearer-csrf');
     const { plain } = await mintToken(u);
     const res = await buildApp().request('/api/tokens', {
@@ -179,7 +193,7 @@ describe('Bearer token 认证中间件（T17）', () => {
     expect(res.status).toBe(201);
   });
 
-  it('T18：Bearer 与 session 通道走同一 requirePermission（RBAC 同判）', async () => {
+  it('T18：Bearer 与 session 通道走同一 requireRole（RBAC 同判）', async () => {
     const admin = await makeUser('bearer-rbac-admin');
     const plainUser = await makeUser('bearer-rbac-plain');
     await setRole(admin, ACCOUNT_ROLE.ADMIN);
