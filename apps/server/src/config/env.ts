@@ -97,7 +97,6 @@ const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
-export type AccessPolicy = z.infer<typeof accessPolicySchema>;
 
 export function parseEnv(source: Record<string, string | undefined> = process.env): Env {
   const env = envSchema.parse(source);

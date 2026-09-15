@@ -2,7 +2,7 @@
 
 > Date: 2026-09-15
 > Updated: 2026-09-15（v0.6：**T2 落地回写**（实测证据见 §2 末「落地记录」）；v0.5：**Task 边界重划（用户 2026-09-15 批准方案 A）**——依据实测「旧表消费面 113 处 / 12 文件 + 认证链不可切片」，T2 收窄为**纯结构**（官方 schema + `0008`）；原 T3+T4 合并为「认证面整体切换」（含 `0009` 搬迁）；后续顺延：T4 令牌面（`0010` 搬迁）· T5 设备流 · T6 测试收口 · T7 清理与规范（`0011`）· T8 门禁与收尾。v0.4：T1 提交前补丁（`better-auth` 精确 `1.7.5` + `docs/00` M6 登记）；v0.3：T1 落地回写 + 自检换靶回修；v0.1：初稿）
-> Status: **执行中**（**T1 ✅** · **T2 ✅** · **T3 ✅ + 收尾补丁 ✅** · **T4 ✅** · **T5 ✅** · **T6 ✅** · **T7 ✅ 2026-09-15（落地记录见 §2 末）** · T8 待执行；design 已定稿批准（v2.1）· 8 维自检 **9.44**）
+> Status: **✅ 完成（2026-09-15）**——**T1-T8 全绿**（落地记录见 §2 末；硬证据 `docs/smoke/2026-09-15-m4b-pre.md`）；批 design 8 维 converge 重评 **9.5** · 整体审计十一维 **无未决项** · 五门禁逐项 exit 0 · 全量测试 **501 例 0 fail**；**出口五件全绿**：①②③⑤ ✅ + **④ 本批不适用（移交 M4b-2）**——本批零 UI 改动且登录面未交付（`TopBar.tsx:33-39` 占位件 + 路由表无 `/login`），UI 登录态观感登记为 M4b-2 出口件
 > 引用链：本文档 → design `docs/designs/2026-09-15-m4b-pre-auth-migration-design.md`（§N 逐 Task 引用）→ 规范 `05` §3/§4.1/§5/§6 · `08` §3/§8 · `00` §5（引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -163,7 +163,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
   ⑤ 文档-代码对齐回查（converge 前置）：版本头/修订记录/引用/状态四项
 - **Commit**: `docs(m4b-pre): sync specs and drop legacy auth tables`
 
-### T8 门禁 + 收尾（converge + 整体审计）
+### T8 门禁 + 收尾（converge + 整体审计）✅（2026-09-15 落地；实测见「落地记录」）
 - **Files**: Modify `docs/designs/2026-09-15-m4b-pre-auth-migration-design.md`（converge 回写）· Create `docs/smoke/2026-09-15-m4b-pre.md`（硬证据记录）· 本 plan（回写）
 - **Assert**:
   ① 五门禁逐项 **exit 0**（`typecheck`/`lint`/`format:check`/`build`/`db:migrate`/`test`；test 需用户授权，`CI=true` 单库）
@@ -429,7 +429,41 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 - **门禁**：`typecheck` ✓ · `lint` 0 error（134 warn，皆既有）✓ · `format:check` 230 文件 ✓ · `build` ✓ ·
   全量测试 **501 例（500 pass · 1 skip · 0 fail）** ✓
 
-## 3. 整体审计（收尾 · 待 T8 回写）
+**T8 门禁 + 收尾（converge + 整体审计）✅（2026-09-15）**
+
+- **硬证据记录**：Create `docs/smoke/2026-09-15-m4b-pre.md`（五门禁逐项 · 冷库全量迁移 · 契约链冒烟 ·
+  dev 六态探针 · converge 8 维 · 十一维审计 findings 表 · 出口五件 · 人工项清单）
+- **断言实测**：
+  ① **五门禁逐项 exit 0**：`typecheck` / `lint`（0 error，134 warning 皆历史既有）/ `format:check`（**230 文件**）/
+     `build` / `db:migrate` / `test`（`CI=true` 单库 `ai_asset_hub`：**501 例 = 500 pass · 1 skip · 0 fail · 48 文件**）
+  ①-b **冷库全量迁移**（新增证据）：`CREATE DATABASE aih_t8_cold` → `DATABASE_URL=<cold> bun run db:migrate`
+     → **14 表** · 官方六表齐 · 指向官方 `user` 的外键 **12 条** · 旧表引用 **0**（连接串不回显）
+  ①-c **契约链冒烟**（真实例独立证据）：`bun docs/smoke/scripts/m4a-chain-smoke.ts` → **29/29 PASS**（`CHAIN SMOKE PASS`）
+  ② **converge**：批 design 8 维重评 **9.5**（≥9）+ 全部量化声明实测回写（14 表 · FK 12 · scope 码 5 · 档位 4 ·
+     TTL 8h · 设备码 30m/轮询 5s · 501 例 · 迁移文件 0000-0011）
+  ③ **整体审计（十一维全仓覆盖扫描）**：findings 逐条登记 + 处置 —— **修 8**（F1 同源守卫自身源推断读 `Host` 头 ·
+     F2-F8 七项零消费死导出删除）· 订正 0 · 回填 0 · **口径登记 6**（M4b-1 控制台组件待 M4b-2 消费 · 官方生成物 relations ·
+     §4.4 登记色值 · 类串重复 · 历史术语留痕）——**无未决项**；既有登记项四条全部闭合或明确移交（Referer 用例缺口闭环 ·
+     `client_id` 白名单→M5 · 设备授权页→M4b-2 · 05/08 规范层→T7 已完成）
+  ④ ~~人工确认项交用户：H1 dev 前端登录→浏览→登出 · H2 硬刷新仍在登录态~~ → **改判「本批不适用 → 移交 M4b-2」**
+     （用户 2026-09-15 选 A；实测反馈「dev 点登录无响应」经核实为**当前形态**：`TopBar.tsx:33-39` 的「登录」是占位
+     `<span>`（无 `onClick`/`href`）· 路由表**无 `/login`**——登录页归 **M4b-2**（因 M4b-pre 前置而暂停）⇒
+     本批零 UI 改动、登录面未交付，UI 观感**不可在本批验证**；**复盘点**：原 H1/H2 系收尾清单设计失误（把下一批交付的
+     UI 面写进本批人工项），已登记为 **M4b-2 出口件 + 其立项对齐必先核实的现状项**）
+  ⑤ **出口五件登记**（见 smoke §7）：① design 8 维 ≥9 ✅ ② Task 全绿 ✅ ③ 五门禁 ✅ **④ dogfood/观感 ✅ 本批不适用（移交 M4b-2）** ⑤ 整体审计 ✅ —— **五件全绿**
+
+- **执行期说明（1 项）**：本批**零 UI 改动** ⇒ 浏览器 dogfood（`m4a-dogfood.ts`）不随本批重跑，
+  归 **M4b-2 动工时随其跑**（避免对无 UI 变更的批次制造重复证据）；本批 dogfood 位置的替代证据 =
+  契约链冒烟 29/29 + dev 实例六态 HTTP 探针（含 A1 阻塞解除的 401 对照）
+- **T8 findings 详情**（十一维口径见 smoke §6）：
+  · **F1（🔴 真缺陷）**：`origin-guard.ts` 的「`Origin: null` + 同站标记」回退用请求 URL 的 origin 推断自身源，
+    `Host` 与 URL host 不一致时（代理/端口改写/测试客户端）误判合法同源 403；官方 `getBaseURL` 默认读 `Host` 头
+    ⇒ 改读 `Host`（缺则回退 URL）+ 新增 ⑦/⑦-b 用例 + design **P21** 回写
+  · **F2-F8（⚪）**：7 项真死导出（`AccessPolicy` / `ErrorResponse` / `MAX_LABEL_DEFINITIONS` / `ValidatorRegistry` /
+    `clearApiCache` / `resetAuthCache` / `resetCookieCache`）——零消费且非对外契约 ⇒ 删除（typecheck 反证）
+- **门禁**：`typecheck` ✓ · `lint` 0 error ✓ · `format:check` 230 文件 ✓ · `build` ✓ · `db:migrate` ✓ · 测试 501 例 0 fail ✓
+
+## 3. 整体审计（T8 已执行 · findings 见 §2 末「T8 记录」与 smoke 文档）
 
 **口径**：承 M4a T17-T26 / M4b-1 惯例（`docs/00` §7 ②）——收尾对全仓跑**十一维覆盖式扫描**（死导出 · i18n 键 ·
 已删件残留 · 类串重复 · 越轴值 · token 消费者 · 注释腐化 · 文档数字实测 · 官方件硬规则 · 既有登记项状态 ·
@@ -457,6 +491,8 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 | v0.2 | 2026-09-15 | sunxuewen-rush | **提交前自检换靶轮回修**：① T7 fixture 口径订正（`18 个测试文件 / 24 处` → **15 个测试文件 / 20 处**）② **T3 补漏** `ldap.test.ts` + 新增断言 ⑦ ③ 沙箱描述去时效 ④ 上游判定同步：design **v1.3** · `docs/00` **v1.30** · 主 design **v1.12** |
 | v0.3 | 2026-09-15 | sunxuewen-rush | **T1 落地回写**：落仓 4 文件 + env；**执行期说明 3 项**（依赖 2 个 → R16 修正 · 断言③ 拆分归 T2 · TS2742/7056 类型注记）；Status → 执行中（T1 ✅） |
 | v0.4 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：① `better-auth` → **`1.7.5`** ② `docs/00` M6 行补登记 `SECURITY.md` + `CODE_OF_CONDUCT.md`（升 **v1.31**） |
+| v0.14 | 2026-09-15 | sunxuewen-rush | **T8 收尾口径订正 + 批次完成**（用户选 A）：① 出口件 **④ dogfood/观感 → 本批不适用（移交 M4b-2）**——用户实测「dev 点登录无响应」，核实为**当前形态**（`TopBar.tsx:33-39` 占位 `<span>` 无 `onClick`/`href`；路由表无 `/login`；登录页归 M4b-2）⇒ 本批零 UI 改动、登录面未交付，UI 观感不可在本批验证 ② **复盘点登记**：原 H1/H2 系收尾清单设计失误（把下一批才交付的 UI 面写进本批人工项）——已回写 smoke §7/§8，并登记为 **M4b-2 出口件 + 立项对齐必核现状项**（`TopBar` 占位件 → 真认证入口 + `/login` + `AuthProvider`）③ **出口五件全绿** ⇒ 批 plan 状态 → **✅ 完成**；`docs/00` §5 M4b-pre 行 → ✅ 完成（v1.34）④ 本批硬证据 = smoke 文档（五门禁 / 冷库迁移 / chain smoke 29/29 / dev 六态探针 / converge 9.5 / 十一维审计） |
+| v0.13 | 2026-09-15 | sunxuewen-rush | **T8 落地回写（门禁 + converge + 整体审计）**：① 硬证据记录 `docs/smoke/2026-09-15-m4b-pre.md`（五门禁逐项 · **冷库全量迁移 0000→0011 = 14 表/FK 12/旧表引用 0** · **契约链冒烟 29/29** · dev 六态探针含 A1 解除 · converge 8 维 9.5 · 十一维 findings 表 · 出口五件 · 人工项）② **findings 修 8**（F1 同源守卫自身源推断改读 `Host` 头——真缺陷；F2-F8 七项零消费死导出删除）+ 口径登记 6 · 订正/回填 0，**无未决项** ③ 既有登记项四条全闭合或移交（Referer 用例缺口闭环 · `client_id` 白名单→M5 · 设备授权页→M4b-2 · 05/08→T7 完成）④ 状态 → **代码完成**；出口件 ④ 交用户（H1/H2）⑤ design 回写 **P21** + §4.1/R9a 行 + 修订记录 |
 | v0.12 | 2026-09-15 | sunxuewen-rush | **T7 落地回写（清理 + 规范层同步）**：`auth/errors.ts` 删 **8 个已死错误码**（自研注册 4 · 行级锁定 1 · 设备流 3）+ 对应状态分支；规范层**原地改写**——`05` → **v1.9**（五层图身份映射层/§3.1 锁除去/§4 实现状态注/§4.1 落库口径/**§5 会话与凭证整表重写** + 起源校验段 + scope 码表/§6 表名）· `08` → **v1.6**（**§3 用户域整节重写** = 官方六表 + 搬迁规则四条；§8 官方约束 6 行；**表数 12 → 14**）· `00` → **v1.32**（§5 M4b-pre 行 🔵 执行中 + M4c/M5 实证注记）· 主 design → **v1.13**（§2.3 登记表回填版本与五件进度）· `README` 索引行；**注释腐化 7 处修复**（全仓扫描四类 × apps+docs）；**实测**：14 表 · FK 12 · 旧表引用 0 · scope 码 5 · 档位 4 · TTL 8h；文档 8 维自检 **9.5**；五门禁绿 + 501 例 0 fail |
 | v0.11 | 2026-09-15 | sunxuewen-rush | **T6 落地回写（测试收口）**：新增 `session-lifecycle.test.ts`（12）+ `migration-rules.test.ts`（11）· 设备流 +4 · 令牌 +3；**实测 501 例（500 pass · 1 skip · 0 fail · 48 文件）≥ 目标 500**；六类测试面逐类点名 + **§8 变更表 ↔ 用例对照表**（断言未放宽）；`sessions.createSession` 残留 grep = 0；**事实订正**：单层 `jsonb_object_agg` 失效形态 =「静默只留最后一项」（非报 duplicate key）——design/迁移注释/T4 记录三处就地订正并常驻锁定 |
 | v0.10 | 2026-09-15 | sunxuewen-rush | **T5 落地回写（设备流整体交官方）**：删自研 `device-routes.ts`/`device-store.ts` + 旧测试两文件（16 例）· 官方 handler 包装层补设备审计 · Bearer 通道剥 cookie（放行会话令牌 + 防降级）· 新增 `device-flow.test.ts`（7 例）· **实测**：全量测试 **471 例 0 fail** · 五门禁绿 · §8 设备面全量重写（含 `client_id`/`grant_type` 强制、两类错误体、TTL 30m、`/device/deny`）· 新增坑 P19-P20 · 执行期说明 2 项（令牌形态改会话 token · 审计补记方式） |

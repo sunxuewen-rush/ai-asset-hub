@@ -198,11 +198,6 @@ export function getAuth(): AihAuth {
   return cached;
 }
 
-/** 测试用：清除缓存重建实例 */
-export function resetAuthCache(): void {
-  cached = undefined;
-}
-
 /* ────────────────────────── 口令哈希（原 `auth/password.ts` 迁入，design §4.1） ────────────────────────── */
 /**
  * 密码哈希（R3）：node:crypto scrypt，零 native 依赖。

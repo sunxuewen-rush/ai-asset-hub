@@ -16,5 +16,3 @@ export function createValidatorRegistry(): Record<AssetType, AssetValidator> {
     agent: createAgentValidator(),
   };
 }
-
-export type ValidatorRegistry = ReturnType<typeof createValidatorRegistry>;

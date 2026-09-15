@@ -51,9 +51,20 @@ export function trustedOriginGuard(auth: AihAuth) {
     }
 
     const origin = c.req.header('origin');
+    /**
+     * `Origin: null` + `Sec-Fetch-Site: same-origin` → 以**请求自身 origin** 参与校验。
+     * origin 取 `Host` 头（对齐官方 `getBaseURL(..., request, ...)` 的默认行为——官方也优先读 Host，
+     * 而非请求 URL）；缺 Host 才回退请求 URL 的 origin。T8 审计修正：原实现只读请求 URL，
+     * 在 `Host` 与 URL host 不一致（代理/端口改写，测试客户端即如此）时误判 403。
+     */
+    const selfOrigin = (() => {
+      const host = c.req.header('host');
+      const url = new URL(c.req.url);
+      return host ? `${url.protocol}//${host}` : url.origin;
+    })();
     const candidate =
       origin === 'null' && c.req.header('sec-fetch-site') === 'same-origin'
-        ? new URL(c.req.url).origin
+        ? selfOrigin
         : (origin ?? c.req.header('referer') ?? '');
 
     if (!candidate || candidate === 'null') {

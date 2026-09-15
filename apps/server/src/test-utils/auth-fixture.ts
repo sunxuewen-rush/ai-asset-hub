@@ -133,11 +133,6 @@ export async function signInCookie(
   return cookie;
 }
 
-/** 清空 cookie 缓存（需要「重新登录」语义的用例可调用） */
-export function resetCookieCache(): void {
-  cookieCache.clear();
-}
-
 /** 建号 + 登录取 cookie（范式 A/B 主入口） */
 export async function createSignedInUser(
   db: Db,

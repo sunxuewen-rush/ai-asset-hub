@@ -62,9 +62,6 @@ export interface ManagedLabel {
   translations: Array<{ locale: string; displayName: string }>;
 }
 
-/** 定义总数上限默认（skillhub label.max-definitions:100 同构——D1；env 可配 LABEL_MAX_DEFINITIONS——C7） */
-export const MAX_LABEL_DEFINITIONS = 100;
-
 /**
  * 翻译入参归一（skillhub LabelDefinitionService.normalize 同构——D8/D4）：
  * trim + _→- + 小写（07 BCP47 语言标签）；同批 locale 重复 → 400 明示（防 DB UNIQUE 误报 slug_taken）。

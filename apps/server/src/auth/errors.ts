@@ -73,9 +73,3 @@ export class AuthError extends Error {
     return httpStatusFor(this.code);
   }
 }
-
-/** 统一错误响应体（07 §4） */
-export interface ErrorResponse {
-  code: string;
-  message: string;
-}

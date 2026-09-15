@@ -51,11 +51,6 @@ export async function apiGet<T>(path: string, opts: ApiGetOptions = {}): Promise
   return request;
 }
 
-/** 当前语言清缓存（切换时若需强制刷新旧语言包可调；07 §5 允许按语言区分保留——默认不动） */
-export function clearApiCache(): void {
-  responseCache.clear();
-}
-
 async function doFetch<T>(path: string, signal?: AbortSignal): Promise<T> {
   let res: Response;
   try {

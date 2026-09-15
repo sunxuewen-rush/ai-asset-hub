@@ -284,6 +284,60 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     });
     expect(invalidBearer.status).toBe(401);
     expect(await invalidBearer.json()).toMatchObject({ code: 'auth.session_expired' });
+
+    // ⑥ Origin 缺失 → **Referer 回退**（T8 收口 T3 登记缺口：逻辑在、专用用例缺）
+    const refererTrusted = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: {
+        cookie,
+        referer: 'http://localhost:3000/dashboard',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    expect(refererTrusted.status).toBe(201); // 受信任 Referer → 放行进业务
+
+    const refererCross = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: {
+        cookie,
+        referer: 'http://evil.test/dashboard',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    expect(refererCross.status).toBe(403);
+    expect(await refererCross.json()).toMatchObject({ code: 'auth.csrf_failed' });
+
+    // ⑦ `Origin: null` + `Sec-Fetch-Site: same-origin` → 以请求自身 origin 参与校验（官方同款回退）
+    const nullOriginSameSite = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: 'null',
+        'sec-fetch-site': 'same-origin',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    expect(nullOriginSameSite.status).toBe(201);
+
+    // ⑦-b 同上但跨站标记 → 403（回退不放过真跨站）
+    const nullOriginCrossSite = await app.request('/api/tokens', {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: 'null',
+        'sec-fetch-site': 'cross-site',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    });
+    expect(nullOriginCrossSite.status).toBe(403);
   });
 
   it('rate limits repeated failed logins (429)', async () => {
