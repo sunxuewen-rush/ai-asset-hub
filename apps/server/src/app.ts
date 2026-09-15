@@ -1,19 +1,19 @@
+import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { AssetError } from './assets/errors.js';
 import { AUDIT_ACTIONS, type AuditWriter, auditMetaFromHeaders } from './audit/audit.js';
 import { type AihAuth, createAuth } from './auth/better-auth.js';
-import { DevicePendingStore } from './auth/device-store.js';
 import { AuthError } from './auth/errors.js';
 import type { LdapChannel } from './auth/ldap.js';
 import { InMemoryRateLimiter, type RateLimiter } from './auth/rate-limit.js';
 import { RbacService } from './auth/rbac.js';
 import { getEnv } from './config/env.js';
 import type { Db } from './db/client.js';
+import { session } from './db/schema/index.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './http/assets.js';
 import { createAuditRoutes } from './http/audit.js';
 import { officialSessionMiddleware, rbacContext } from './http/auth-middleware.js';
 import { createAuthRoutes } from './http/auth-routes.js';
-import { APPROVE_LIMIT, createDeviceRoutes, REQUEST_LIMIT } from './http/device-routes.js';
 import { createLabelRoutes } from './http/labels.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { trustedOriginGuard } from './http/origin-guard.js';
@@ -39,6 +39,38 @@ import type { ObjectStorage } from './storage/types.js';
  * - 装配序：`tokenAuthMiddleware`（Bearer 显式通道）→ `trustedOriginGuard` → `officialSessionMiddleware` → 路由
  * - 官方 catch-all **最后注册**：自留路由（`/me`、`/device/*`、`/oidc/*`）先注册才不被吞
  */
+/**
+ * 读取设备批准/拒绝请求体里的 `userCode`（审计目标；官方端点契约为 camelCase `userCode`）。
+ * 解析失败不阻断请求（审计非关键路径）。
+ */
+async function readUserCode(req: Request): Promise<string | null> {
+  try {
+    const body = (await req.clone().json()) as { userCode?: unknown };
+    return typeof body?.userCode === 'string' && body.userCode.length > 0 ? body.userCode : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 设备令牌签发的归属用户：响应体 `access_token` = 官方会话 token（`session.token` 列）。
+ * 仅用于审计 actorId（明文不落审计、不落日志）。
+ */
+async function sessionOwnerOfResponse(db: Db, res: Response): Promise<string | null> {
+  try {
+    const body = (await res.clone().json()) as { access_token?: unknown };
+    const token = typeof body?.access_token === 'string' ? body.access_token : null;
+    if (!token) return null;
+    const [row] = await db
+      .select({ userId: session.userId })
+      .from(session)
+      .where(eq(session.token, token));
+    return row?.userId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface AppDeps {
   db: Db;
   audit: AuditWriter;
@@ -48,8 +80,6 @@ export interface AppDeps {
   ldap: LdapChannel | null;
   storage: ObjectStorage;
   cookieSecure: boolean;
-  /** 对外基址（Device verificationUri / OIDC 302 推导；缺省 localhost:3000） */
-  publicBaseUrl?: string;
   /** 官方实例（可选注入；缺省按本 deps 构造——含 LDAP 通道/审计/登录限流） */
   auth?: AihAuth;
 }
@@ -58,8 +88,6 @@ export function createApp(deps: AppDeps): Hono {
   const rbac = new RbacService(deps.db);
   const auth =
     deps.auth ?? createAuth({ ldap: deps.ldap, audit: deps.audit, rateLimiter: deps.rateLimiter });
-  // Device Flow 状态（app 级单例：pending 跨请求共享；TTL 惰性清理——随 T5 交官方 device_code 表）
-  const deviceStore = new DevicePendingStore();
 
   const app = new Hono();
   app.use('*', requestContextMiddleware());
@@ -95,20 +123,8 @@ export function createApp(deps: AppDeps): Hono {
 
   // —— 自留认证端点（先注册；官方 catch-all 在最后）——
   app.route('/api/auth', createAuthRoutes());
-  // Device Flow（T30-T33 旧契约；T5 按官方两段式重写）
-  app.route(
-    '/api/auth/device',
-    createDeviceRoutes({
-      auth,
-      store: deviceStore,
-      // 匿名请求独立限流实例（10/分钟，不与登录共享 key 空间）
-      rateLimiter: new InMemoryRateLimiter(REQUEST_LIMIT.windowMs, REQUEST_LIMIT.max),
-      // approve 尝试限流（T33：每 user_code 5 次/分钟）
-      approveRateLimiter: new InMemoryRateLimiter(APPROVE_LIMIT.windowMs, APPROVE_LIMIT.max),
-      publicBaseUrl: deps.publicBaseUrl ?? 'http://localhost:3000',
-      audit: deps.audit,
-    }),
-  );
+  // Device Flow：M4b-pre T5 起**整体交官方**（`deviceAuthorization` 插件：/device/code · /device · /device/approve ·
+  // /device/deny · /device/token），自研路由与内存 pending 存储已删除
   // OIDC 授权码流（T24/T25；authorize/callback 为访客端点——无 requireAuth，走独立 state cookie）
   app.route(
     '/api/auth/oidc',
@@ -121,13 +137,21 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   // —— 官方端点（catch-all：登录/登出/注册/会话/设备流/令牌签发等）——
-  // 登出审计由本包装层记（官方 `hooks.after` 在 sign-out 路径取不到会话——
-  // 会话行已删；此处「先读会话 → 官方处理 → 补审计」，行为确定可测）
+  // 审计由本包装层补记（官方端点无业务钩子；统一「先读必要上下文 → 官方处理 → 成功即补审计」，
+  // 行为确定可测）：
+  // - `sign-out`：官方 `hooks.after` 取不到会话（会话行已先删，实测）⇒ 事前读会话
+  // - `device/approve` / `device/deny`：actor = 事前会话；目标 = 请求体的 `userCode`（短码，非一次性密钥）
+  // - `device/token`：匿名轮询 ⇒ 事后以响应体 `access_token` 反查会话归属（明文不落审计）
   app.all('/api/auth/*', async (c) => {
-    const isSignOut = c.req.path === '/api/auth/sign-out';
-    const before = isSignOut ? await auth.api.getSession({ headers: c.req.raw.headers }) : null;
+    const path = c.req.path;
+    const isSignOut = path === '/api/auth/sign-out';
+    const isDeviceApprove = path === '/api/auth/device/approve';
+    const isDeviceDeny = path === '/api/auth/device/deny';
+    const needsSession = isSignOut || isDeviceApprove || isDeviceDeny;
+    const before = needsSession ? await auth.api.getSession({ headers: c.req.raw.headers }) : null;
+    const userCode = isDeviceApprove || isDeviceDeny ? await readUserCode(c.req.raw) : null;
     const response = await auth.handler(c.req.raw);
-    if (isSignOut && before && response.ok) {
+    if (response.ok && before && isSignOut) {
       const meta = auditMetaFromHeaders(c.req.raw.headers);
       await deps.audit({
         ...meta,
@@ -136,6 +160,26 @@ export function createApp(deps: AppDeps): Hono {
         targetType: 'user',
         targetId: before.user.id,
       });
+    } else if (response.ok && before && (isDeviceApprove || isDeviceDeny)) {
+      const meta = auditMetaFromHeaders(c.req.raw.headers);
+      await deps.audit({
+        ...meta,
+        actorId: before.user.id,
+        action: isDeviceApprove ? AUDIT_ACTIONS.deviceApprove : AUDIT_ACTIONS.deviceDeny,
+        targetType: 'device_code',
+        ...(userCode ? { targetId: userCode } : {}),
+      });
+    } else if (response.ok && path === '/api/auth/device/token') {
+      const owner = await sessionOwnerOfResponse(deps.db, response);
+      if (owner) {
+        const meta = auditMetaFromHeaders(c.req.raw.headers);
+        await deps.audit({
+          ...meta,
+          actorId: owner,
+          action: AUDIT_ACTIONS.deviceTokenIssued,
+          targetType: 'session',
+        });
+      }
     }
     return response;
   });

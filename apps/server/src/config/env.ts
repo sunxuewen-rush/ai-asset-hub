@@ -59,7 +59,7 @@ const envSchema = z.object({
   // label 定义总数上限（M3 D1：skillhub label.max-definitions:100 同构——env 可配 C7）
   LABEL_MAX_DEFINITIONS: z.coerce.number().int().positive().default(100),
 
-  // 对外基址（OIDC 回调 / Device Flow verificationUri 推导）
+  // 对外基址（OIDC 回调推导；并作为官方 baseURL ⇒ 设备流 verification_uri / 回调地址以此为准）
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
 
   // OIDC 授权码流（05 §3/§5：单 Provider 配置化，R6；默认关闭独立部署不受影响）

@@ -11,6 +11,12 @@ export const AUDIT_ACTIONS = {
   provisionLdap: 'ldap.provisioned',
   /** OIDC 首登建号（原 `http/oidc-routes.ts` 内联字面量，随 M4b-pre T3 收敛到常量表） */
   provisionOidc: 'oidc.provisioned',
+  /** 设备流：用户确认设备授权（M4b-pre T5；官方端点无钩子 ⇒ 由 app 层包装层记） */
+  deviceApprove: 'device.approve',
+  /** 设备流：用户拒绝设备授权（官方 `/device/deny` 端点） */
+  deviceDeny: 'device.deny',
+  /** 设备流：CLI 凭 device_code 换得会话令牌（审计关联归属用户；明文不落 detail） */
+  deviceTokenIssued: 'device.token_issued',
 } as const;
 
 export interface AuditEntry {

@@ -153,7 +153,14 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | P15 | 官方 api-key `keyExpiration` 边界以**天**为单位：`minExpiresIn` 默认 **1 天** ⇒ **设备流 1h 令牌签发被拒**（`EXPIRES_IN_IS_TOO_SMALL`，实测 400）；`maxExpiresIn` 默认 **365 天** ⇒ 既有 `expiresInDays ≤ 3650` 契约被拒 | 显式配置 `keyExpiration: { maxExpiresIn: 3650, minExpiresIn: 1/24 }`（官方配置项）；用户签发下限仍由路由层 zod（`≥1` 天）收紧 |
 | P16 | 官方 `apikey.permissions` 是 **`text`**（源码 `create-api-key.ts:810` `JSON.stringify(permissions)`），**不是 jsonb**；且**单层** `jsonb_object_agg` 在「同 resource 多 action」（`asset:publish,asset:manage`）时报 duplicate key | 迁移 SQL 用 `jsonb_object_agg(res, acts)::text` 的**两层聚合**（`jsonb_agg` per resource → `object_agg` per row）；常驻用例锁定「SQL 表达式 ⇔ `token-scopes.ts` 映射」等价 |
 | P17 | 官方 `verifyApiKey` 对**过期**令牌抛 `KEY_EXPIRED` 并**删除该行**（`validate-api-key` 路径）⇒ 列表语义随之变化（旧实现保留过期行）；`enabled=false`（吊销）**保留行** | design §8 登记为变更；吊销仍走 `enabled=false`（列表可见 `revokedAt`），与旧契约一致 |
-| P18 | 官方 create/update 的 server-only 判定 = `ctx.request \|\| ctx.headers`（`create-api-key.ts:733`）⇒ **服务端直呼不得带 `headers`**；带 headers 传 `permissions` → 400 `SERVER_ONLY_PROPERTY`。`verifyApiKey` 端点本身为 `createAuthEndpoint.serverOnly` | 令牌面统一走 `auth/api-keys.ts` 薄适配层（不带 headers；`body.userId` 归属）；常驻用例覆盖 `SERVER_ONLY_PROPERTY` 负例 || P14 | 官方 `isTrustedOrigin` 是**上下文对象上的方法**（内部读 `this.trustedOrigins`，`context/create-context.mjs:143`）——`const { isTrustedOrigin } = await auth.$context` 解构后调用直接 `TypeError: undefined is not an object`（实测：业务面守卫首跑 500） | 必须以方法形式调用（`const ctx = await auth.$context; ctx.isTrustedOrigin(url, …)`）；同族注意：凡官方上下文方法读 `this` 者（`$context` 面）都不得解构 |
+| P18 | 官方 create/update 的 server-only 判定 = `ctx.request \|\| ctx.headers`（`create-api-key.ts:733`）⇒ **服务端直呼不得带 `headers`**；带 headers 传 `permissions` → 400 `SERVER_ONLY_PROPERTY`。`verifyApiKey` 端点本身为 `createAuthEndpoint.serverOnly` | 令牌面统一走 `auth/api-keys.ts` 薄适配层（不带 headers；`body.userId` 归属）；常驻用例覆盖 `SERVER_ONLY_PROPERTY` 负例 |
+
+**T5 实施期新增坑（P19-P20，全部实测，代码内已留注记）**
+
+| # | 实测现象（源码/实证依据） | 处置 |
+|---|--------------------------|------|
+| P19 | 设备流端点有**强制请求字段**：`POST /device/code` 的 `client_id` 必填（无 grant 配置时）；`POST /device/token` 三字段全必填 `grant_type`（**字面量** `urn:ietf:params:oauth:grant-type:device_code`）+ `device_code` + `client_id`——缺字段时官方返回 `{message, code:'VALIDATION_ERROR'}`（**不是** OAuth 体），只有进入业务校验才回 `{error, error_description}`（实测：`slow_down`/`authorization_pending`/`expired_token`/`access_denied`/`invalid_grant`，一律 **400**） | 契约按 §8 登记（含两种错误体形态）；测试按完整三字段轮询；CLI（M5）契约定在此 |
+| P20 | 设备令牌 = **官方会话 token**（`/device/token` 返回 `access_token = session.token`，`bearer` 插件把 Bearer 还原为会话 cookie）⇒ 与「API Token（api-key）走 Bearer」共用同一请求头；且官方 `bearer` 插件对**无效** Bearer 静默跳过（不抛错）⇒ 若不处理会「无效 Bearer + 有效 cookie = 降级成功」 | 会话中间件在 `authVia='bearer'` 时**剥掉 cookie 头**再解析会话：既放行设备流会话 Bearer，又保留「不降级」语义（旧 `csrf.ts`/T17 口径）；常驻用例：他人 cookie + 设备令牌 ⇒ 解析为令牌归属者 || P14 | 官方 `isTrustedOrigin` 是**上下文对象上的方法**（内部读 `this.trustedOrigins`，`context/create-context.mjs:143`）——`const { isTrustedOrigin } = await auth.$context` 解构后调用直接 `TypeError: undefined is not an object`（实测：业务面守卫首跑 500） | 必须以方法形式调用（`const ctx = await auth.$context; ctx.isTrustedOrigin(url, …)`）；同族注意：凡官方上下文方法读 `this` 者（`$context` 面）都不得解构 |
 
 ## 3. 影响面总览（实扫量化）
 
@@ -202,7 +209,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `db/schema/users.ts` | 129 行 | 用户域表定义整体移交 `db/schema/auth.ts`（本文件退化为空——随 S5 删除）；`ACCOUNT_ROLE` 常量拆到 `auth/roles.ts`（数值档位单点） |
 | `db/schema/index.ts` | 5 行 | re-export 调整为 `auth.ts`（保持既有 import 路径不变） |
 | `db/seed.ts` | — | bootstrap 账号改官方建号路径（服务端直呼官方 API，保持**幂等契约**：存在性检查 → 不存在才建）；合成邮箱按 R13（`SEED_ADMIN_EMAIL`，默认 `admin@local.test`）；**不调用官方 `create-admin`**（非幂等，实测 X8） |
-| `app.ts` | — | 装配序调整：`/api/auth/*` → 官方 handler（置于业务中间件之前）· 业务面 `tokenAuthMiddleware` → **`trustedOriginGuard`** → 官方 `getSession` 薄封装 → 路由（`csrfProtection` 挂载删除，防线由 `origin-guard.ts` 以官方同源语义补回） |
+| `app.ts` | — | 装配序调整：`/api/auth/*` → 官方 handler（置于业务中间件之前）· 业务面 `tokenAuthMiddleware` → **`trustedOriginGuard`** → 官方 `getSession` 薄封装 → 路由（`csrfProtection` 挂载删除，防线由 `origin-guard.ts` 以官方同源语义补回）· **官方 handler 包装层**承担官方端点缺失的审计（登出 + T5 的设备 approve/deny/token；`AppDeps.publicBaseUrl` 随设备路由删除而下线——设备 `verification_uri` 由官方按 `baseURL` 推导）· 设备路由挂载删除（T5） |
 | `http/request-context.ts` | 28 行 | 保留（审计与限流仍取 clientIp/UA）；官方会话同时记录 `ip_address`/`user_agent`（列已存在） |
 
 **删除**
@@ -220,6 +227,8 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `auth/password.ts` | 75 | **函数体保留**，迁入 `better-auth.ts` 的注入配置（文件删除） |
 | `auth/errors.ts` | 79 | 错误码表改写为「官方错误 → 我方 `{code,message}`」映射表（净减） |
 | `db/schema/users.ts` | 34（T3 后） | 过渡期文件：用户域已交 `auth.ts`（T3），余下的 `api_token` 表定义随 **T4 的 `0011`** 删除（文件与表同批下线） |
+| `http/device-routes.ts` | 149 | **T5**：设备流整体交官方 `deviceAuthorization` 插件（四端点 + deny）；自研路由与限流实例删除 |
+| `auth/device-store.ts` | 113 | **T5**：内存 pending 存储由官方 `device_code` 表接管（0008 建表，含 `status`/`pollingInterval`/`lastPolledAt`） |
 
 **保持不变**（本批零改动）
 
@@ -345,10 +354,13 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 登录 | `POST /api/auth/login` `{username,password}` → `{user:{id,displayName}}` | `POST /api/auth/sign-in/aih`（同入参语义）→ 官方会话响应 | 路径 + 响应体变更（前端属 M4b-2 未动工 ⇒ 零既有消费方）；**会话读取统一走 `/api/auth/me`**（形状不变） |
 | 登出 | `POST /api/auth/logout` → 204 | `POST /api/auth/sign-out` → 官方响应 | 路径变更 |
 | 注册 | `POST /api/auth/register` `{username,password,displayName?,email?}` | 官方 `sign-up/email`（开关 ← `REGISTRATION_ENABLED` → 官方 `disableSignUp`） | 路径 + 入参变更（官方以 email 为标识；无前端消费方） |
-| 设备授权请求 | `POST /api/auth/device` → `{deviceCode,userCode,verificationUri,expiresIn,interval}`（201） | `POST /api/auth/device/code` → `{device_code,user_code,verification_uri,verification_uri_complete,expires_in,interval}`（200，字段 snake_case） | 契约变更（无消费方） |
-| 设备批准 | `POST /api/auth/device/approve {userCode}` 单步 | `GET /api/auth/device?user_code=` 认领 **+** `POST /api/auth/device/approve` | **两段式**（官方要求） |
-| 设备轮询 | `POST /api/auth/device/token {deviceCode}` → `{accessToken,tokenType,expiresIn}` | `POST /api/auth/device/token {device_code}` → `{access_token,token_type,expires_in}` | 字段名 + 错误码（`authorization_pending` / `slow_down`） |
-| 设备 token 形态 | 我方 API Token（`scope='cli'`） | 官方会话 Bearer（需 `bearer` 插件） | 凭证形态变更（scope 收窄概念不再存在=全量，与现状 `'cli'` 全量语义一致） |
+| 设备授权请求 | `POST /api/auth/device` → `{deviceCode,userCode,verificationUri,expiresIn,interval}`（**201**） | `POST /api/auth/device/code` `{client_id}`（**必填**）→ `{device_code,user_code,verification_uri,verification_uri_complete,expires_in,interval}`（**200**） | 契约变更（路径/字段名/状态码/新增 `verification_uri_complete`；`client_id` 为官方强制字段，无消费方依赖） |
+| 设备批准 | `POST /api/auth/device/approve {userCode}` 单步 | **`GET /api/auth/device?user_code=` 认领** + `POST /api/auth/device/approve {userCode}` | **两段式**（官方要求；未认领直接 approve → 400 `invalid_request`，含 `DEVICE_CODE_NOT_CLAIMED` 文案） |
+| 设备拒绝 | 无 | `POST /api/auth/device/deny {userCode}` → `{success:true}` | **新增端点**（官方能力；审计 `device.deny`） |
+| 设备轮询 | `POST /api/auth/device/token {deviceCode}` → `{accessToken,tokenType,expiresIn}` | `POST /api/auth/device/token` `{grant_type:'urn:ietf:params:oauth:grant-type:device_code', device_code, client_id}`（**三字段均必填**）→ `{access_token,token_type:'Bearer',expires_in,scope}` | 字段名 + 请求形态（RFC 8628 标准）；错误 = **400** + OAuth 体 `{error, error_description}`：`authorization_pending`/`slow_down`/`expired_token`/`access_denied`/`invalid_grant`/`invalid_request`（旧契约 `{code,message}` + 401/404 形态不再有） |
+| 设备 token 形态 | 我方 API Token（`scope='cli'`） | **官方会话 token**（Bearer；由 `bearer` 插件还原为会话） | 凭证形态变更（全量语义与现状 `'cli'` 一致；会话有效期 = `SESSION_TTL_HOURS` 8h，旧实现设备令牌 1h，见下） |
+| 设备码/令牌时效 | 设备码 TTL **10 分钟** · 轮询下限 5s · 令牌 1 小时 | 设备码 TTL **30 分钟**（官方默认，显式钉定）· 轮询下限 5s · 令牌 = 会话 8h | 时效变更（设备码窗口变宽、令牌变长；均为官方配置项，M5 CLI 契约以本节为准） |
+| 认领页地址 | `${PUBLIC_BASE_URL}/api/auth/device/verify`（自研路径） | `${baseURL}/device`（官方 `verificationUri` 缺省值 ⇒ 由 `PUBLIC_BASE_URL` 推导） | 路径变更；**页面本体归 M4b-2**（本批只定契约） |
 | CSRF | 自研 Origin/Referer 链 | 官方 origin 校验 + `trustedOrigins` | 实现替换 + dev 白名单机制 |
 | 令牌 `id` 形态 | `api_token.id`（自增整数） | 官方 `apikey.id`（**文本主键**：迁移行为原数字串，新签发为随机串） | 类型变更（删除端点 `:id` 校验放宽为通用 id 形态；无前端消费方） |
 | 令牌 `scope` 回显 | `''` 或 `'cli'` 各自原样 | 迁移后同为 `permissions NULL` ⇒ 列表统一回 `''` | 取值归一（语义等价：均表示全量） |
@@ -363,7 +375,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 面 | 交互契约 |
 |----|---------|
 | 登录页 | 单表单（标识 + 密码）→ `POST /api/auth/sign-in/aih`；错误码按 `07 §4` 映射文案（`auth.email_missing` / `auth.email_conflict` 为新增码，需在 i18n 资源登记） |
-| 设备授权页（**归本批落地**） | 两段式：URL 带 `user_code` → 先 `GET /api/auth/device?user_code=` 认领（未登录 → 先登录再回跳）→ 展示确认页（客户端/范围/有效期）→ `POST /api/auth/device/approve`；码错误/过期给出重取路径 |
+| 设备授权页（**契约归本批，页面归 M4b-2**） | 两段式：URL 带 `user_code` → 先 `GET /api/auth/device?user_code=` 认领（未登录 → 先登录再回跳）→ 展示确认页（客户端/范围/有效期）→ `POST /api/auth/device/approve`（拒绝走 `/deny`）；码错误/过期给出重取路径。地址由官方 `verification_uri` 给出 = `${PUBLIC_BASE_URL}/device`（**前端需提供该路由**，T5 起契约即此值；错误体为 OAuth 风格 `{error,error_description}`，前端需映射文案） |
 | 401 分流 | 不变（M4b-2 契约） |
 | 用户菜单 / 角色感知 | 不变（消费 `GET /api/auth/me` 形状不变） |
 
@@ -409,6 +421,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-15 | sunxuewen-rush | 初稿：spike 结论（X1-X6 全通过 + 8 条坑）转入选型定稿；**17 项拍板**（R1-R17；其中 R1/R2/R14 已确认，其余待批）（实扫量化：认证核心 16 文件/1492 行 · HTTP 面 6 文件/669 行 · 测试 16 文件/2471 行 · `createSession` 触点 15 测试文件/20 处 + 生产 3 处 · 调用面 57 处 · 运行库 12 表 · 13 条 FK）|
+| v2.0 | 2026-09-15 | sunxuewen-rush | **T5 落地回写（设备流整体交官方）**：① §8 设备面**全量重写**为实测契约（`client_id` 必填 · token 三字段含 `grant_type` 字面量 · 一律 400 + OAuth 体 `{error,error_description}` · 新增 `/device/deny` 与 `verification_uri_complete` · 设备码 TTL 10m→30m · 令牌 = 会话 8h · `verification_uri` = `${baseURL}/device`）② §4.1 删除表补 `http/device-routes.ts` + `auth/device-store.ts`；`app.ts` 行补「官方 handler 包装层补审计 + `publicBaseUrl` 下线」③ §2.3 增 **P19-P20**（强制字段与两种错误体 · 设备令牌=会话 token 且官方 bearer 插件不拒无效 Bearer ⇒ 必须剥 cookie 防降级）④ §9 设备授权页行明确「契约归本批、页面归 M4b-2」+ 前端需提供 `/device` 路由与 OAuth 错误文案映射 |
 | v1.9 | 2026-09-15 | sunxuewen-rush | **T4 落地回写（令牌面切流）**：① §5.3 **列型订正**——官方 `apikey.permissions` 是 **`text`**（`JSON.stringify`）而非 jsonb；迁移需**两层聚合**（单层 `jsonb_object_agg` 同 resource 多 action 会 duplicate key）；补 `rate_limit_time_window`/`max` 官方默认值、时间列 naive-UTC 归一、`id` 文本主键说明 ② §5.1/§5.4/§7 的 `0010`/`0011` 归属**全量订正**（0010 = FK 重指向 + 删用户域 3 表；0011 = 令牌搬迁 + 删 `api_token`）③ §2.3 增 **P15-P18**（`keyExpiration` 边界按天：min 默认 1 天会拒设备流 1h 令牌、max 默认 365 天会拒既有 3650 天契约 · permissions 为 text + 两层聚合 · 官方校验遇过期即删行 · server-only 判定 = `ctx.request \|\| ctx.headers`）④ §4.1 三表补 `auth/api-keys.ts`（新增）/`token-middleware`·`tokens`·`auth/tokens.ts`（改造）/`db/schema/users.ts`（删除）⑤ §6 覆盖口径重定（≥500 例；实测 T4 后 **480 例** 0 fail）⑥ §8 变更表补令牌面 4 行（`id` 文本主键 · `scope` 归一 · 过期行去留 · 审计 `target_type`） |
 | v1.8 | 2026-09-15 | sunxuewen-rush | **T3 收尾补丁回写（用户 2026-09-15 批准）**：① 新增 **R9a 业务面同源守卫**（`http/origin-guard.ts`：官方 `$context.isTrustedOrigin` 判定，不重写比较逻辑；出口 `auth.csrf_failed`）+ §4.1 新增/改造/删除三表同步（`app.ts` 装配序、`csrf.ts` 删除理由订正为「按 `Host` 比对是 A1 根因」）② §2.3 增 **P14**（官方上下文方法读 `this`，不可解构——首跑 500 实证）③ **§5.1 时序原则按 v1.7 口径订正**（`0009` 用户域搬迁 · **`0010` FK 重指向 + 删旧 3 表（随认证面切流）** · `0011` 令牌面收口）+ 表内 `user_account`/`api_token` 两行同步 ④ §12 `AUTH_TRUSTED_ORIGINS` 说明补「认证面与业务面共用同一白名单」 |
 | v1.7 | 2026-09-15 | sunxuewen-rush | **T3 落地回写（认证面整体切换）**：① §2.3 补 **P9-P13**（T3 实施期实测坑：官方 test 环境默认跳过 Origin 校验 · `ctx.json` 不设状态码 · 全局 origin 校验仅带 cookie 时生效 · 官方 `hooks.after` 在 sign-out 取不到会话 · drizzle-kit 迁移定序陷阱）② **§5.1 时序再收紧**：13 条外键的**重指向**由收口批提前到**切流批**（`0010`）——硬约束：新账号只写官方 `user`，业务表若仍引用 `user_account`，新用户的资产/审计写入会被外键直接拒绝（单真值源不允许两批之间悬空）③ 依赖透传位补充：`AuthRuntimeDeps.advanced`（测试断言 Origin 三态用）；口令哈希函数体随 §4.1 迁入 `better-auth.ts`（`password.ts` 已删）④ 覆盖口径：删除 4 个被替代测试文件（`csrf`/`session`/`users`/`provision`），当前 **465 例**（464 pass · 1 skip · 0 fail），缺口与新增测试面（令牌权限码 · 迁移对账 · 无 Origin 三态已补）由 T6 收口对齐 design §6 |

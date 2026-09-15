@@ -56,12 +56,16 @@ export function rbacContext(rbac: RbacService) {
  */
 export function officialSessionMiddleware(auth: AihAuth) {
   return async (c: Context, next: Next) => {
-    // T17：Bearer 显式通道在场 → cookie 会话不参与（含无效 Bearer 不降级，防凭证混淆）
-    if (c.get('authVia') === 'bearer') {
-      await next();
-      return;
-    }
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    /**
+     * Bearer 显式通道在场（`authorization: Bearer …`）：**剥掉 cookie 后**再解析会话——
+     * - 设备流令牌 = **官方会话 token**（`/device/token` 返回 `access_token`，由 `bearer` 插件把
+     *   Bearer 还原为会话 cookie）⇒ 必须能在此解析（T5 起）
+     * - 无效 Bearer **不得降级**回 cookie 会话（凭证混淆防护；旧 `csrf.ts`/T17 语义保留）
+     * ——两者由「不带 cookie 头」同时满足。
+     */
+    const headers = new Headers(c.req.raw.headers);
+    if (c.get('authVia') === 'bearer') headers.delete('cookie');
+    const session = await auth.api.getSession({ headers });
     if (session) {
       const status = (session.user as unknown as { status?: string | null }).status;
       if (status === undefined || status === 'ACTIVE') {

@@ -133,8 +133,13 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
       username(),
       /** 4 档角色与权限码（R4） */
       admin({ ac, roles: ROLES, defaultRole: 'user' }),
-      /** 设备流（R8：官方两段式契约） */
-      deviceAuthorization(),
+      /**
+       * 设备流（R8：官方两段式契约）。参数显式钉定（与官方默认同值，避免上游默认值漂移改变对外契约）：
+       * - `expiresIn: '30m'` 设备码有效期（旧自研实现 10min → 官方默认 30m，design §8 登记）
+       * - `interval: '5s'` 轮询下限（与旧实现一致；过快轮询官方回 `slow_down`）
+       * - `verificationUri` 缺省 `/device`（官方按 `baseURL` 解析为绝对地址）⇒ 认证页由 M4b-2 提供
+       */
+      deviceAuthorization({ expiresIn: '30m', interval: '5s' }),
       /** 设备 token 以 Bearer 解析（实证：缺该插件则受保护端点 401） */
       bearer(),
       /**

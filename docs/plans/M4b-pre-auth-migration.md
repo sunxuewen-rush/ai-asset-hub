@@ -2,7 +2,7 @@
 
 > Date: 2026-09-15
 > Updated: 2026-09-15（v0.6：**T2 落地回写**（实测证据见 §2 末「落地记录」）；v0.5：**Task 边界重划（用户 2026-09-15 批准方案 A）**——依据实测「旧表消费面 113 处 / 12 文件 + 认证链不可切片」，T2 收窄为**纯结构**（官方 schema + `0008`）；原 T3+T4 合并为「认证面整体切换」（含 `0009` 搬迁）；后续顺延：T4 令牌面（`0010` 搬迁）· T5 设备流 · T6 测试收口 · T7 清理与规范（`0011`）· T8 门禁与收尾。v0.4：T1 提交前补丁（`better-auth` 精确 `1.7.5` + `docs/00` M6 登记）；v0.3：T1 落地回写 + 自检换靶回修；v0.1：初稿）
-> Status: **执行中**（**T1 ✅** · **T2 ✅** · **T3 ✅ + 收尾补丁 ✅** · **T4 ✅ 2026-09-15（落地记录见 §2 末）** · T5-T8 待执行；design 已定稿批准（v1.9）· 8 维自检 **9.44**）
+> Status: **执行中**（**T1 ✅** · **T2 ✅** · **T3 ✅ + 收尾补丁 ✅** · **T4 ✅** · **T5 ✅ 2026-09-15（落地记录见 §2 末）** · T6-T8 待执行；design 已定稿批准（v2.0）· 8 维自检 **9.44**）
 > 引用链：本文档 → design `docs/designs/2026-09-15-m4b-pre-auth-migration-design.md`（§N 逐 Task 引用）→ 规范 `05` §3/§4.1/§5/§6 · `08` §3/§8 · `00` §5（引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -115,11 +115,15 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
   ⑦ 官方默认限流已关（连续 >10 次调用不被拦）· 门禁四项 exit 0
 - **Commit**: `refactor(server): move api tokens onto official api-key plugin`
 
-### T5 设备流四端点 + bearer（design R8 · §8）
-- **前置说明**：T4 已把设备令牌**签发落点**换成官方 api-key（`api-keys.ts`，一次性消费语义不变）——
-  本 Task 只做契约面重写（四端点/字段名/状态码），签发调用面零改动。
-- **Files**: Modify `apps/server/src/http/device-routes.ts`（官方四端点契约）· Delete `apps/server/src/auth/device-store.ts` ·
-  Modify `apps/server/src/app.ts`（路由挂载调整）· 设备流测试改写
+### T5 设备流四端点 + bearer ✅（2026-09-15 落地；执行期说明 2 项见「落地记录」）（design R8 · §8）
+- **前置说明（与 T4 的衔接订正）**：T4 曾把设备令牌**签发落点**暂接官方 api-key。T5 复核后定案——设备令牌按官方
+  语义 = **会话 token**（`/device/token` 返回 `access_token = session.token`，`bearer` 插件还原为会话）⇒ 自研设备路由
+  **整体删除**，不再需要「签发落点」适配（T4 的那段临时接线随本 Task 一并移除）。
+- **Files**: Delete `apps/server/src/http/device-routes.ts` · `apps/server/src/auth/device-store.ts`（设备流交官方四端点 + `device_code` 表）·
+  Modify `apps/server/src/app.ts`（去设备路由挂载 · 官方 handler 包装层补 approve/deny/token 审计 · `AppDeps.publicBaseUrl` 下线）·
+  `apps/server/src/http/{auth-middleware,origin-guard}.ts`（Bearer 通道剥 cookie 放行会话令牌 · 守卫例外回收）·
+  `apps/server/src/auth/{better-auth,audit}.ts`（设备插件参数钉定 · 审计动作常量）· `apps/server/src/index.ts`；
+  Create `apps/server/src/http/device-flow.test.ts`；Delete 旧设备测试两文件
 - **Assert**:
   ① 两段式闭环：`POST /device/code` → `GET /device?user_code=` 认领 → `POST /device/approve` → `POST /device/token`（Bearer）
   ② 边界：未认领直接 approve → 400 · 未批准轮询 → `authorization_pending` · 过快轮询 → `slow_down` · 错码 → 不泄露存在性
@@ -127,6 +131,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
   ④ 旧契约残留 grep = 0（`DevicePendingStore` · `verificationUri` · `deviceCode:` camelCase 契约字段）
   ⑤ design §8 契约表复验（字段名/状态码逐条对照）· 门禁四项 exit 0
 - **Commit**: `refactor(server): adopt official device authorization flow`
+- **状态**：✅ 已落地（2026-09-15；实测见「落地记录」；`expiresIn: '30m'` / `interval: '5s'` 显式钉定 = 官方默认值）
 
 ### T6 测试收口（fixture 全量 + 新增测试面）（design §6）
 - **Files**: Modify 剩余测试文件（`sessions.createSession(...)` 改写收尾——T3/T4/T5 各带本面；本 Task 兜底全仓清零）·
@@ -317,6 +322,37 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
      `POST` 响应与既有断言零改动（故 `id` 文本主键为**唯一**形状变更，已入 design §8）
 - **新增坑 P15-P18 已回写 design v1.9**（`keyExpiration` 按天边界 · permissions 为 text + 两层聚合 · 过期即删行 · server-only 判定姿势）
 
+**T5 设备流整体交官方 ✅（2026-09-15）**
+
+- **落仓**：Delete `http/device-routes.ts`（149 行）· `auth/device-store.ts`（113 行）· 旧设备测试两文件（16 例）⇒
+  设备流 = 官方 `deviceAuthorization` 插件四端点（`/device/code` · `GET /device` · `/device/approve` · `/device/deny` · `/device/token`）
+- **改写**：`app.ts`（去设备路由挂载 + 官方 handler 包装层补 approve/deny/token 审计 + `AppDeps.publicBaseUrl` 下线）·
+  `http/auth-middleware.ts`（**Bearer 通道剥 cookie**：放行设备流会话令牌，同时保持「不降级」）·
+  `http/origin-guard.ts`（`/api/auth/device/approve` 自留例外回收——官方平面自校验）·
+  `auth/better-auth.ts`（设备插件显式钉定 `expiresIn:'30m'` / `interval:'5s'`）· `auth/audit.ts`（+3 动作常量）· `index.ts`
+- **新增**：`http/device-flow.test.ts`（**7 例**）
+- **断言实测**：
+  ① 两段式闭环：`POST /device/code`（`client_id` 必填；返回 snake_case 全 6 字段，`expires_in=1800`、`interval=5`、
+     `verification_uri=http://localhost:3000/device`）→ `GET /device?user_code=` 认领（`status:'pending'`、`client_id`）→
+     approve（`{success:true}`）→ 轮询 → `{access_token, token_type:'Bearer', expires_in, scope:''}` ✓
+  ② 边界：未认领直接 approve → 400 ✓ · 未批准轮询 → 400 `authorization_pending` ✓ · 紧随轮询 → 400 `slow_down` ✓ ·
+     错 device_code → 400 `invalid_grant` ✓ · 错 user_code 认领 → 400 `invalid_request` ✓ ·
+     缺字段轮询 → 400 `VALIDATION_ERROR`（两种错误体形态均实测）✓ · 过期设备码 → 400 `expired_token` 且**清行** ✓ ·
+     deny → 200 → 轮询 400 `access_denied` ✓
+  ③ 令牌可达受保护端点：`GET /api/auth/me` 200（归属正确）+ `GET /api/tokens` 200（`bearer` 插件生效）✓
+  ④ 防凭证混淆：**他人 cookie + 设备令牌 Bearer ⇒ 解析为令牌归属者**（cookie 被剥）✓
+  ⑤ 审计：`device.approve` + `device.token_issued`（actor 归属正确、明文零落）· `device.deny` ✓
+  ⑥ 旧契约残留 grep = 0（`DevicePendingStore` / `verificationUri` / camelCase `deviceCode:` 契约字段；
+     残留命中仅为历史说明注释与 schema 列名 `deviceCode`——口径登记同 T3）✓
+- **门禁**：`typecheck` ✓ · `lint` 0 error（133 warn）✓ · `format:check` **228 文件** ✓ · `build` ✓ ·
+  全量测试 **471 例（470 pass · 1 skip · 0 fail · 46 文件）** ✓（T4 480 → 删 16 旧例 + 增 7 新例 = 471）
+- **执行期说明（2 项）**：
+  1. **设备令牌形态改为官方会话 token**（T4 曾暂接 api-key 签发，本 Task 复核为官方语义后移除该接线）——
+     令牌时效随之由 1h 变为会话 TTL 8h（design §8 登记）；CLI 契约（M5）以 §8 为准
+  2. **审计由 app 层包装层补记**（官方设备端点无业务钩子）：approve/deny 事前读会话取 actor、
+     token 事后以响应体 `access_token` 反查会话归属（明文不落审计）；设备码 TTL 10m → 30m（官方默认，显式钉定）
+- **新增坑 P19-P20 已回写 design v2.0**（强制请求字段与两类错误体 · 设备令牌=会话 token ⇒ bearer 通道须剥 cookie 防降级）
+
 ## 3. 整体审计（收尾 · 待 T8 回写）
 
 **口径**：承 M4a T17-T26 / M4b-1 惯例（`docs/00` §7 ②）——收尾对全仓跑**十一维覆盖式扫描**（死导出 · i18n 键 ·
@@ -345,6 +381,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
 | v0.2 | 2026-09-15 | sunxuewen-rush | **提交前自检换靶轮回修**：① T7 fixture 口径订正（`18 个测试文件 / 24 处` → **15 个测试文件 / 20 处**）② **T3 补漏** `ldap.test.ts` + 新增断言 ⑦ ③ 沙箱描述去时效 ④ 上游判定同步：design **v1.3** · `docs/00` **v1.30** · 主 design **v1.12** |
 | v0.3 | 2026-09-15 | sunxuewen-rush | **T1 落地回写**：落仓 4 文件 + env；**执行期说明 3 项**（依赖 2 个 → R16 修正 · 断言③ 拆分归 T2 · TS2742/7056 类型注记）；Status → 执行中（T1 ✅） |
 | v0.4 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：① `better-auth` → **`1.7.5`** ② `docs/00` M6 行补登记 `SECURITY.md` + `CODE_OF_CONDUCT.md`（升 **v1.31**） |
+| v0.10 | 2026-09-15 | sunxuewen-rush | **T5 落地回写（设备流整体交官方）**：删自研 `device-routes.ts`/`device-store.ts` + 旧测试两文件（16 例）· 官方 handler 包装层补设备审计 · Bearer 通道剥 cookie（放行会话令牌 + 防降级）· 新增 `device-flow.test.ts`（7 例）· **实测**：全量测试 **471 例 0 fail** · 五门禁绿 · §8 设备面全量重写（含 `client_id`/`grant_type` 强制、两类错误体、TTL 30m、`/device/deny`）· 新增坑 P19-P20 · 执行期说明 2 项（令牌形态改会话 token · 审计补记方式） |
 | v0.9 | 2026-09-15 | sunxuewen-rush | **T4 落地回写（令牌面切流）**：新增 `auth/api-keys.ts` 薄适配层 + 15 例新测试；三端点内部交官方（形状不变，`id` 文本主键入 design §8）；迁移 `0011`（re-encode + permissions 两层聚合 + 删 `api_token`）**克隆库双实证**（对账 + 存量明文端到端）；删 `db/schema/users.ts`；**实测**：dev 库表数 14 · 五门禁绿 · 全量测试 **480 例 0 fail**；执行期说明 3 项（list 直读官方表 · `keyExpiration` 边界补配置 · 明文形态零变化）；**T5 前置说明**（设备签发落点已在 T4 换官方）· **T7 复核项订正**（users.ts 已删 · FK 12 条） |
 | v0.8 | 2026-09-15 | sunxuewen-rush | **T3 收尾补丁（用户 2026-09-15 批准「按建议来」）+ 口径订正 3 处**：① **业务面同源守卫落件**（`http/origin-guard.ts` · `app.ts` 装配序 · `app.test.ts` +1 用例 5 态 · dev 3100 实测 12 组 curl 全符合预期）② 测试健壮性修复（`audit/query.test.ts` 两处 `limit: 20` → `500`：并发文件行挤满首页导致假红）③ `.env.example` 补 T1/T3 新增 env（`AUTH_TRUSTED_ORIGINS`/`SEED_ADMIN_EMAIL`）④ **口径订正**：T4 迁移编号 `0010` → **`0011`** · T7 删去「Create `0011`（13 FK + 删旧 4 表）」（已由 T3 的 `0010` 完成 ⇒ 改为复核）· T6 覆盖目标重定（基线 475 → T3 后 465 ⇒ **≥500 例**且 design §6 六类测试面可点名）；门禁五绿（466 例 0 fail） |
 | v0.7 | 2026-09-15 | sunxuewen-rush | **T3 落地回写（认证面整体切换）**：插件/搬迁/切流/测试改写全量落仓 + 删除 8 个旧 auth 文件与 4 个被替代测试；**实测**：dev+克隆库双跑迁移（0009 搬迁对账 · 0010 摘约束→挂约束→删表定序）· 五项门禁 exit 0 · 全量测试 **465 例（464 pass · 1 skip · 0 fail）**；**执行期说明 4 项**（FK 重指向提前到切流批 · 业务面 Origin 深防移除待决策 · seed 直写官方表形态 · 夹具登记制清理 + 会话缓存）· **新增坑 P9-P13 回写 design v1.7** · 覆盖账（−40 例删除面 → 新落点 + T6 收口） |

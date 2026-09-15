@@ -20,21 +20,18 @@ import type { AihAuth } from '../auth/better-auth.js';
  *
  * 出口错误码沿用删除前 `auth.csrf_failed`（07 §4 结构化 `{code,message}`；前端映射表无需新增项）。
  *
- * 适用路径：`/api/*` 中除官方 handler 平面（`/api/auth/*`）以外的全部路由；自留的
- * `/api/auth/device/*` 属 cookie 写通道（`approve`）故仍在守卫内（官方平面请求由官方自校验，
- * 重复校验会覆盖官方错误码，故显式排除）。
+ * 适用路径：`/api/*` 中除官方 handler 平面（`/api/auth/*`）以外的全部路由。官方平面（含设备流
+ * `/api/auth/device/*`）由官方 origin 校验自管——重复校验会覆盖官方错误码，故显式排除
+ * （M4b-pre T5 起设备流不再自留，早前的 `/api/auth/device/approve` 例外已回收）。
  */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/** 官方 handler 平面前缀（自带 origin 校验） */
+/** 官方 handler 平面前缀（自带 origin 校验；M4b-pre T5 起设备流亦在该平面内） */
 const OFFICIAL_PLANE = '/api/auth/';
-/** 官方平面内仍需守卫的自留路由（cookie 写通道；T5 交官方后本例外回收） */
-const SELF_MANAGED_IN_AUTH_PLANE = '/api/auth/device/';
 
 export function trustedOriginGuard(auth: AihAuth) {
   return async (c: Context, next: Next) => {
-    const path = c.req.path;
-    if (path.startsWith(OFFICIAL_PLANE) && !path.startsWith(SELF_MANAGED_IN_AUTH_PLANE)) {
+    if (c.req.path.startsWith(OFFICIAL_PLANE)) {
       await next();
       return;
     }

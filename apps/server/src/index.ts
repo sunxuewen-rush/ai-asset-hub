@@ -39,7 +39,6 @@ const app = createApp({
   storage,
   ldap,
   cookieSecure: env.NODE_ENV === 'production',
-  publicBaseUrl: env.PUBLIC_BASE_URL,
 });
 
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {
