@@ -2,12 +2,18 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import { auditLog, userAccount } from '../db/schema/index.js';
+import { auditLog, user } from '../db/schema/index.js';
 import { createAuditWriter } from './audit.js';
 import { queryAudit } from './query.js';
 
@@ -15,9 +21,7 @@ let db: Db;
 
 /** 审计 actor 需真实 user 行（FK）；displayName 前缀 aq- */
 async function makeUser(displayName: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName });
 }
 
 beforeAll(async () => {
@@ -33,13 +37,7 @@ afterAll(async () => {
   for (const r of reqIds) {
     await db.delete(auditLog).where(eq(auditLog.id, r.id));
   }
-  const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, 'aq-%'));
-  for (const u of users) {
-    await db.delete(userAccount).where(eq(userAccount.id, u.id));
-  }
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 
@@ -61,12 +59,8 @@ describe('queryAudit（T19：组合过滤 + 稳定分页 + 总数）', () => {
     for (const r of stale) {
       await db.delete(auditLog).where(eq(auditLog.id, r.id));
     }
-    const staleUsers = await db
-      .select({ id: userAccount.id })
-      .from(userAccount)
-      .where(like(userAccount.displayName, 'aq-%'));
+    const staleUsers = await db.select({ id: user.id }).from(user).where(like(user.name, 'aq-%'));
     for (const u of staleUsers) {
-      await db.delete(userAccount).where(eq(userAccount.id, u.id));
     }
 
     u1 = await makeUser('aq-u1');
@@ -117,7 +111,8 @@ describe('queryAudit（T19：组合过滤 + 稳定分页 + 总数）', () => {
   });
 
   it('无过滤：分页 + total 全量 + createdAt desc（最新在前）', async () => {
-    const page = await queryAudit(db, { limit: 20, offset: 0 });
+    // 并发测试文件也会写 audit_log（同库多文件共享）⇒ 首页须取足够大以覆盖本文件的 4 行
+    const page = await queryAudit(db, { limit: 500, offset: 0 });
     expect(page.total).toBeGreaterThanOrEqual(4);
     // 并发文件审计行（createdAt 更新）可能居首——本用例断言自己 4 行在页内且倒序保序
     // （createdAt desc 语义：aq-new 最新 → aq-old 最旧，index 严格递增）

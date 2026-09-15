@@ -135,6 +135,16 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | P7 | 权限不足与 key 不存在共用同一错误码 | 错误码映射须显式区分（否则会泄露 key 存在性） |
 | P8 | 官方 api-key 默认限流 10 次/24h | 不显式关闭会把既有令牌语义改掉（见 R7） |
 
+**T3 实施期新增坑（P9-P13，全部实测，代码内已留注记）**
+
+| # | 实测现象（源码/实证依据） | 处置 |
+|---|--------------------------|------|
+| P9 | 官方 `NODE_ENV=test` 下**默认跳过 Origin 校验**（`context/create-context.mjs:211`：`skipOriginCheck = isTest() ? true : false`） | 生产/开发默认开启（无需配置）；测试要断言 Origin 三态须显式 `advanced: { disableOriginCheck: false }`（`AuthRuntimeDeps.advanced` 透传位已备） |
+| P10 | better-call `ctx.json(json, { status })` 在 HTTP 路由下**不设状态码**（`context.mjs:70-76`：`asResponse=false` 时只回 `json`，`routerResponse` 仅 `asResponse` 调用生效） | 定制错误状态必须 `throw ctx.error(...)` / `throw new APIError(status, body, headers)`；实证：登录限流曾静默返回 200 |
+| P11 | 全局 `originCheckMiddleware` **仅当请求带 cookie 时才校验 Origin**（`api/middlewares/origin-check.mjs:108`：`if (!(forceValidate \|\| useCookies)) return`） | 自绘登录端点必须挂官方 `formCsrfMiddleware`（官方内建 sign-in/sign-up 同款）：它在「有 Origin/Referer 但无 cookie」时也强校验 |
+| P12 | 官方 `hooks.after` 在 `/sign-out` 路径**取不到会话**（会话行已先删，实测 `ctx.context.session` 为空） | 登出审计改由 `app.ts` 官方 handler 包装层承担（先 `getSession` → 转发 → 补审计）；注册审计仍走官方 `databaseHooks.user.create.after` ✓ |
+| P13 | drizzle-kit 生成的「FK 重指向 + 删旧表」迁移**顺序不可直接采用**：先 `DROP TABLE … CASCADE` 会连带删除依赖约束，随后的 `DROP CONSTRAINT` 报「约束不存在」 | 迁移 SQL 手工定序：摘旧约束 → 挂新约束 → 删旧表；journal/snapshot 描述终态，不受定序影响 |
+
 ## 3. 影响面总览（实扫量化）
 
 | 面 | 实测 | 本批处置 |
@@ -245,7 +255,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | `api_token` | `apikey` | `0008` **建新表** → **`0010` 搬迁**（列映射与 re-encode 见 §5.3） |
 | — | `session` | `0008` 新建（无存量：现为进程内内存 ⇒ **迁移即全员登出**，见 §10 I1） |
 | — | `verification` · `device_code` | `0008` 新建（无存量） |
-| 残留 | — | `0011` 收口：**13 条 FK 重指向新 `user` 表** + 删旧 4 表（`user_account`/`identity_binding`/`local_credential`/`api_token`）+ 无用列/旧索引清理 |
+| 残留 | — | `0010`（**切流批，已完成**）：**11 条 FK 重指向新 `user` 表**（另 2 条随 `identity_binding`/`local_credential` 删除 ⇒ 合计 13 条）+ 删旧 3 表（`user_account`/`identity_binding`/`local_credential`）；`0011`（收口批）：删 `api_token` 空壳 + 无用列/旧索引清理 |
 
 ### 5.2 列级规则
 
@@ -379,6 +389,7 @@ M4b-2 = 「认证 + 壳」两半。若采纳整车，「认证」那一半（登
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-15 | sunxuewen-rush | 初稿：spike 结论（X1-X6 全通过 + 8 条坑）转入选型定稿；**17 项拍板**（R1-R17；其中 R1/R2/R14 已确认，其余待批）（实扫量化：认证核心 16 文件/1492 行 · HTTP 面 6 文件/669 行 · 测试 16 文件/2471 行 · `createSession` 触点 15 测试文件/20 处 + 生产 3 处 · 调用面 57 处 · 运行库 12 表 · 13 条 FK）|
+| v1.7 | 2026-09-15 | sunxuewen-rush | **T3 落地回写（认证面整体切换）**：① §2.3 补 **P9-P13**（T3 实施期实测坑：官方 test 环境默认跳过 Origin 校验 · `ctx.json` 不设状态码 · 全局 origin 校验仅带 cookie 时生效 · 官方 `hooks.after` 在 sign-out 取不到会话 · drizzle-kit 迁移定序陷阱）② **§5.1 时序再收紧**：13 条外键的**重指向**由收口批提前到**切流批**（`0010`）——硬约束：新账号只写官方 `user`，业务表若仍引用 `user_account`，新用户的资产/审计写入会被外键直接拒绝（单真值源不允许两批之间悬空）③ 依赖透传位补充：`AuthRuntimeDeps.advanced`（测试断言 Origin 三态用）；口令哈希函数体随 §4.1 迁入 `better-auth.ts`（`password.ts` 已删）④ 覆盖口径：删除 4 个被替代测试文件（`csrf`/`session`/`users`/`provision`），当前 **465 例**（464 pass · 1 skip · 0 fail），缺口与新增测试面（令牌权限码 · 迁移对账 · 无 Origin 三态已补）由 T6 收口对齐 design §6 |
 | v1.6 | 2026-09-15 | sunxuewen-rush | **迁移时序与 Task 边界重划（用户 2026-09-15 批准方案 A）**：① §5.1 表级映射改「建表/搬迁分离 + 迁移时序原则」——`0008` 建 6 表（零数据）· `0009` 用户域搬迁 · `0010` 令牌搬迁 · `0011` FK 重指向 + 删旧表；搬迁一律**与消费面切流同批**（防冻结快照，单真值源）② §5.3 权限码转换迁移文件 `0008` → **`0010`** · §5.4 回滚边界按四步改写 · §7 S1/S3/S5 范围与出口同步 · §10 R7 补「过渡期零消费」口径 ③ 重划依据（实测，2026-09-15）：旧表消费面 **113 处 / 12 文件**（`user_account` 52/10 含 13 条 FK 定义 · `identity_binding` 8/2 · `local_credential` 26/4 · `api_token` 27/4）⇒ `RENAME` 会让 7 个生产文件当轮编译失败；且认证链（会话↔档位↔令牌）分批切流必产生不可运行中间态 ④ 方案对照：保持原边界（接受中间态不可运行）与被否决的「官方 adapter 表名映射套用既有表」（推翻已批准 R3 + 永久映射层）均已评估 ⑤ plan 同步升 **v0.5** |
 | v1.5 | 2026-09-15 | sunxuewen-rush | **T1 提交前补丁（用户拍板）**：R16 由「`better-auth@^1.7.5` + 插件精确」改为**两包均精确钉定**（`better-auth@1.7.5` + `@better-auth/api-key@1.7.5`）——依据 = lockfile 实测插件 `peerDependencies` 要求 `better-auth: ^1.7.5` / `@better-auth/core: ^1.7.5` / `better-call: 1.4.0`，内核用 caret 时 `bun update` 会造成内核/插件错配；对标公开参考项目（其 better-auth 系列 5 包全精确）。同轮：`docs/00` §5 M6 行补登记 `SECURITY.md` + `CODE_OF_CONDUCT.md`（升 **v1.31**）|
 | v1.4 | 2026-09-15 | sunxuewen-rush | **T1 落地修正（依赖数与实例类型注记）**：① **R16 修正**「新增 1 个包」→ **2 个包**（`better-auth` + `@better-auth/api-key` 同版本）——实测 better-auth 1.7.5 不导出 `apiKey`（`exports` 无 `./plugins/api-key`、`plugins` 面不含、`@better-auth/*` 未提升）② **类型注记**：`declaration: true` 下实例/选项推断类型不可命名（TS2742/TS7056；选项注解为官方 `BetterAuthOptions` 亦不成立——`Auth<BetterAuthOptions>` 与实例 `$context` 逆变不相容）⇒ 定案 `AihAuth = Auth` + 构造处单次断言，**插件端点（api-key）调用点局部窄化**（T5；与 P6/P7「服务端直呼」一致）③ **P4 仓内复现**：官方在首次 API 调用即做 schema check ⇒ `getSession` 断言归 T2（此前仅沙箱证据）|

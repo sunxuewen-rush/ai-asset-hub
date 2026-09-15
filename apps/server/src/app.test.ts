@@ -1,187 +1,226 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { eq, like } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import { eq, gte, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import type { Hono } from 'hono';
 import ldap from 'ldapjs';
 
-// 集成测试：真实 PG（ai_asset_hub_test）+ 真实 HTTP 全链路（app.request）
-process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
+// 集成测试：真实 PG + 真实 HTTP 全链路（app.request）
+process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { type AppDeps, createApp } from './app.js';
 import { createAuditWriter } from './audit/audit.js';
+import { type AihAuth, createAuth } from './auth/better-auth.js';
 import { LdapChannel } from './auth/ldap.js';
 import { InMemoryRateLimiter } from './auth/rate-limit.js';
-import { InMemorySessionStore, SessionManager } from './auth/session.js';
 import { createClient, type Db } from './db/client.js';
-import { auditLog, identityBinding, localCredential, userAccount } from './db/schema/index.js';
+import { account, auditLog, user } from './db/schema/index.js';
 import { createLocalStorage } from './storage/local.js';
+import { createTestUser, TEST_PASSWORD } from './test-utils/auth-fixture.js';
+
+/**
+ * 认证全链路集成测试（M4b-pre T3 · design §8 契约表）：
+ * - 自助注册 = 官方 `POST /api/auth/sign-up/email`（响应体按官方契约；前端属 M4b-2 未动工）
+ * - 登录 = 自绘 `POST /api/auth/sign-in/aih`（三路分派；`{code}` 结构化错误沿用 07 §4）
+ * - 登出 = 官方 `POST /api/auth/sign-out`；会话读取 = `GET /api/auth/me`（形状不变）
+ * - Origin 校验 = 官方（`INVALID_ORIGIN` 等官方错误码）
+ * - 会话落库：**换一个 app 实例（= 进程重启等价）同一 cookie 仍 200**（缺陷修复实证，断言⑪）
+ */
 
 let db: Db;
-// 跨用例共享：session manager + audit writer（同一进程内 cookie 语义连续）
-let shared: { sessions: SessionManager; audit: ReturnType<typeof createAuditWriter> };
-
-const LDAP_BASE = 'ou=people,dc=example,dc=com';
-
-function startLdapServer(): Promise<{ server: ldap.Server; port: number }> {
-  return new Promise((resolve) => {
-    const server = ldap.createServer();
-    server.bind(LDAP_BASE, (req: any, res: any) => {
-      const dn = req.dn.toString().toLowerCase();
-      const user = dn === `cn=alice,${LDAP_BASE}`.toLowerCase();
-      if (user && req.credentials === 'ldap-pass-1') {
-        res.end();
-      } else {
-        res.send(49);
-      }
-    });
-    server.search(LDAP_BASE, (_req: any, res: any) => {
-      res.end();
-    });
-    server.listen(0, '127.0.0.1', () => {
-      const address = (server as unknown as { address: () => { port: number } }).address();
-      resolve({ server, port: address.port });
-    });
-  });
-}
+let auth: AihAuth;
+const PREFIX = 'authit-';
 
 function makeApp(depsOverrides?: Partial<AppDeps>): Hono {
   return createApp({
     db,
-    sessions: shared.sessions,
-    audit: shared.audit,
+    // 不传 `auth`：由 createApp 按本 deps 构造实例（LDAP 通道随 `ldap` 注入进入插件）
+    audit: createAuditWriter(db),
     rateLimiter: new InMemoryRateLimiter(60_000, 5),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
-    registrationEnabled: true,
-    sessionTtlHours: 8,
     cookieSecure: false,
     ...depsOverrides,
   });
 }
 
-async function registerAndGetCookie(
-  app: Hono,
-  username: string,
-  password = 'password-123',
-): Promise<string> {
-  const res = await app.request('/api/auth/register', {
-    method: 'POST',
-    headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-    body: JSON.stringify({ username, password, displayName: username }),
-  });
-  expect(res.status).toBe(201);
-  const setCookie = res.headers.get('set-cookie') ?? '';
-  const match = /aih_session=([^;]+)/.exec(setCookie);
-  expect(match, 'session cookie present').not.toBeNull();
-  return match![1]!;
+/** 取响应里的官方会话 cookie（`better-auth.session_token=…`） */
+function sessionCookieOf(res: Response): string {
+  const entry = res.headers
+    .getSetCookie()
+    .find((value) => value.startsWith('better-auth.session_token='));
+  expect(entry, 'official session cookie present').toBeDefined();
+  return entry!.split(';')[0]!;
 }
+
+const ORIGIN_HEADERS = { origin: 'http://localhost:3000', host: 'localhost:3000' };
 
 beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
-  shared = {
-    sessions: new SessionManager(new InMemorySessionStore(8 * 60 * 60 * 1000)),
-    audit: createAuditWriter(db),
-  };
+  auth = createAuth({ ldap: null });
 });
 
 afterAll(async () => {
-  // 清理集成测试数据（顺序：audit_log → local_credential → identity_binding → user_account，FK 依赖）
-  await db.delete(auditLog).where(like(auditLog.action, 'auth.%'));
-  await db.delete(localCredential).where(like(localCredential.username, 'authit-%'));
-  await db.delete(identityBinding).where(like(identityBinding.userId, 'authit-%'));
-  await db.delete(identityBinding).where(eq(identityBinding.userId, 'alice'));
-  await db.delete(userAccount).where(like(userAccount.displayName, 'authit-%'));
-  await db.delete(userAccount).where(eq(userAccount.id, 'alice'));
+  // 前缀清理（禁全表 delete——纪律）；顺序满足 FK：audit_log → user（session/account 级联）
+  await db.delete(auditLog).where(like(auditLog.targetId, `${PREFIX}%`));
+  await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
+  await db.delete(auditLog).where(eq(auditLog.actorId, 'alice'));
+  await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
+  await db.delete(user).where(like(user.id, `${PREFIX}%`));
+  await db.delete(auditLog).where(eq(auditLog.actorId, 'alice'));
+  await db.delete(user).where(eq(user.id, 'alice'));
   await db.$client.end();
 });
 
-describe('auth full flow (local, real PG)', () => {
+describe('auth full flow (official endpoints + directory plugin, real PG)', () => {
   it('healthz returns ok', async () => {
     const res = await makeApp().request('/healthz');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: 'ok' });
   });
 
-  it('register → me → logout → me 401', async () => {
+  it('自助注册 → me → sign-out → me 401（官方端点 + 官方 cookie）', async () => {
     const app = makeApp();
-    const sid = await registerAndGetCookie(app, 'authit-flow');
-    const cookie = `aih_session=${sid}`;
+    const email = `${PREFIX}signup-${randomUUID()}@test.local`;
+    const res = await app.request('/api/auth/sign-up/email', {
+      method: 'POST',
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ email, password: TEST_PASSWORD, name: `${PREFIX}signup` }),
+    });
+    expect(res.status).toBe(200);
+    const cookie = sessionCookieOf(res);
 
     const me = await app.request('/api/auth/me', { headers: { cookie } });
     expect(me.status).toBe(200);
-    const meBody = (await me.json()) as { user: { id: string; displayName: string } };
-    expect(meBody.user.id.startsWith('usr_')).toBe(true);
-    expect(meBody.user.displayName).toBe('authit-flow');
+    const meBody = (await me.json()) as { user: { id: string; displayName: string }; role: number };
+    expect(meBody.user.displayName).toBe(`${PREFIX}signup`);
+    expect(meBody.role).toBe(1); // 默认档（user）
 
-    const logout = await app.request('/api/auth/logout', {
-      method: 'POST',
-      headers: { cookie, origin: 'http://localhost:3000', host: 'localhost:3000' },
-    });
-    expect(logout.status).toBe(204);
+    const logout = await app.request('/api/auth/sign-out', { method: 'POST', headers: { cookie } });
+    expect(logout.status).toBe(200);
 
     const meAfter = await app.request('/api/auth/me', { headers: { cookie } });
     expect(meAfter.status).toBe(401);
     expect(await meAfter.json()).toMatchObject({ code: 'auth.session_expired' });
   });
 
-  it('login with correct password succeeds (case-insensitive)', async () => {
+  it('登录（自绘端点）：正确口令放行 + 大写登录名归一', async () => {
     const app = makeApp();
-    await registerAndGetCookie(app, 'authit-login');
-    const res = await app.request('/api/auth/login', {
+    const id = await createTestUser(db, { id: `${PREFIX}login`, displayName: `${PREFIX}login` });
+    const res = await app.request('/api/auth/sign-in/aih', {
       method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'AUTHIT-LOGIN', password: 'password-123' }),
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ username: id.toUpperCase(), password: TEST_PASSWORD }),
     });
     expect(res.status).toBe(200);
-    expect(res.headers.get('set-cookie')).toContain('aih_session=');
+    const body = (await res.json()) as {
+      user: { id: string; displayName: string };
+      session: unknown;
+    };
+    expect(body.user.id).toBe(id);
+    expect(sessionCookieOf(res)).toContain('better-auth.session_token=');
   });
 
-  it('login with wrong password returns 401 invalid_credentials', async () => {
+  it('登录：错误口令 → 401 auth.invalid_credentials', async () => {
     const app = makeApp();
-    await registerAndGetCookie(app, 'authit-wrong');
-    const res = await app.request('/api/auth/login', {
+    const id = await createTestUser(db, { id: `${PREFIX}wrong`, displayName: `${PREFIX}wrong` });
+    const res = await app.request('/api/auth/sign-in/aih', {
       method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'authit-wrong', password: 'not-the-password' }),
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ username: id, password: 'not-the-password' }),
     });
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({ code: 'auth.invalid_credentials' });
   });
 
-  it('register rejects duplicate username (409)', async () => {
-    const app = makeApp();
-    await registerAndGetCookie(app, 'authit-dup');
-    const res = await app.request('/api/auth/register', {
-      method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'authit-dup', password: 'password-123' }),
+  it('会话落库：换进程（新 app 实例）后同一 cookie 仍可用', async () => {
+    const first = makeApp();
+    const id = await createTestUser(db, {
+      id: `${PREFIX}persist`,
+      displayName: `${PREFIX}persist`,
     });
-    expect(res.status).toBe(409);
-    expect(await res.json()).toMatchObject({ code: 'auth.username_taken' });
+    const signIn = await first.request('/api/auth/sign-in/aih', {
+      method: 'POST',
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+    });
+    const cookie = sessionCookieOf(signIn);
+
+    // 新 app 实例 = 新官方实例（内存态清零；会话只在 DB ⇒ 重启不死）
+    const restarted = makeApp({ auth: createAuth({ ldap: null }) });
+    const me = await restarted.request('/api/auth/me', { headers: { cookie } });
+    expect(me.status).toBe(200);
+    expect(((await me.json()) as { user: { id: string } }).user.id).toBe(id);
   });
 
-  it('csrf blocks non-GET without Origin', async () => {
-    const res = await makeApp().request('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ username: 'authit-csrf', password: 'password-123' }),
+  it('origin 校验交官方：跨源/无 Origin 写请求 403（官方错误码）', async () => {
+    // 官方在 `NODE_ENV=test` 下**默认跳过** Origin 校验（源码 create-context.mjs:211）⇒
+    // 断言三态须显式打开；生产/开发环境默认即开启。
+    const app = makeApp({
+      auth: createAuth({ ldap: null, advanced: { disableOriginCheck: false } }),
     });
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ code: 'auth.csrf_failed' });
+    const crossOrigin = await app.request('/api/auth/sign-in/aih', {
+      method: 'POST',
+      headers: {
+        origin: 'http://evil.test',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ username: `${PREFIX}nobody`, password: TEST_PASSWORD }),
+    });
+    expect(crossOrigin.status).toBe(403);
+    expect(await crossOrigin.json()).toMatchObject({ code: 'INVALID_ORIGIN' });
+
+    // 白名单命中（同源）→ 放行进入业务逻辑（此处账号不存在 ⇒ 401 invalid_credentials）
+    const sameOrigin = await app.request('/api/auth/sign-in/aih', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ username: `${PREFIX}nobody`, password: TEST_PASSWORD }),
+    });
+    expect(sameOrigin.status).toBe(401);
+    expect(await sameOrigin.json()).toMatchObject({ code: 'auth.invalid_credentials' });
+
+    // 第三态（**dev 侧 A1 阻塞的同款机制**）：带会话 cookie 但无 Origin/Referer 的写请求 → 403
+    const id = await createTestUser(db, {
+      id: `${PREFIX}origin`,
+      displayName: `${PREFIX}origin`,
+    });
+    const signIn = await app.request('/api/auth/sign-in/aih', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000',
+        host: 'localhost:3000',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+    });
+    const cookie = sessionCookieOf(signIn);
+    const noOrigin = await app.request('/api/auth/sign-out', {
+      method: 'POST',
+      headers: { cookie, host: 'localhost:3000' },
+    });
+    expect(noOrigin.status).toBe(403);
+    expect(await noOrigin.json()).toMatchObject({ code: 'MISSING_OR_NULL_ORIGIN' });
   });
 
   it('rate limits repeated failed logins (429)', async () => {
-    const app = makeApp({
-      rateLimiter: new InMemoryRateLimiter(60_000, 3),
+    const app = makeApp({ rateLimiter: new InMemoryRateLimiter(60_000, 3) });
+    const id = await createTestUser(db, {
+      id: `${PREFIX}ratelimit`,
+      displayName: `${PREFIX}ratelimit`,
     });
-    await registerAndGetCookie(app, 'authit-ratelimit');
     let last = 200;
-    for (let i = 0; i < 5; i += 1) {
-      const res = await app.request('/api/auth/login', {
+    for (let i = 0; i < 6; i += 1) {
+      const res = await app.request('/api/auth/sign-in/aih', {
         method: 'POST',
-        headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-        body: JSON.stringify({ username: 'authit-ratelimit', password: 'wrong-pass' }),
+        headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+        body: JSON.stringify({ username: id, password: 'wrong-pass' }),
       });
       last = res.status;
       if (last === 429) break;
@@ -189,37 +228,141 @@ describe('auth full flow (local, real PG)', () => {
     expect(last).toBe(429);
   });
 
-  it('audits register / login success / login failure into audit_log', async () => {
+  it('审计：注册 / 登出 / 登录成败入 audit_log，且不含明文口令', async () => {
+    const since = new Date(Date.now() - 1000);
     const app = makeApp();
-    await registerAndGetCookie(app, 'authit-audit');
-    await app.request('/api/auth/login', {
+    const signup = await app.request('/api/auth/sign-up/email', {
       method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'authit-audit', password: 'wrong' }),
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: `${PREFIX}audit-${randomUUID()}@test.local`,
+        password: TEST_PASSWORD,
+        name: `${PREFIX}audit`,
+      }),
     });
-    await app.request('/api/auth/login', {
+    const cookie = sessionCookieOf(signup);
+    await app.request('/api/auth/sign-out', { method: 'POST', headers: { cookie } });
+
+    const id = await createTestUser(db, { id: `${PREFIX}audit2`, displayName: `${PREFIX}audit2` });
+    await app.request('/api/auth/sign-in/aih', {
       method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'authit-audit', password: 'password-123' }),
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ username: id, password: 'wrong' }),
     });
-    const rows = await db
-      .select({ action: auditLog.action })
-      .from(auditLog)
-      .where(like(auditLog.action, 'auth.%'));
-    const actions = rows.map((r) => r.action);
+    await app.request('/api/auth/sign-in/aih', {
+      method: 'POST',
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+    });
+
+    // 只取本用例时间窗内产生的行（并发文件也会写 audit_log——AGENTS.md「只依赖自己造的数据」）
+    const actions = (
+      await db
+        .select({ action: auditLog.action })
+        .from(auditLog)
+        .where(gte(auditLog.createdAt, since))
+    ).map((row) => row.action);
     expect(actions).toContain('auth.register');
+    expect(actions).toContain('auth.logout');
     expect(actions).toContain('auth.login.success');
     expect(actions).toContain('auth.login.failed');
-    // 无明文密码泄露：detail 不含真实密码（用户名可含任意串，断言用真实密码值）
-    const details = await db.select({ detail: auditLog.detail }).from(auditLog);
+
+    const details = await db
+      .select({ detail: auditLog.detail })
+      .from(auditLog)
+      .where(gte(auditLog.createdAt, since));
     const serialized = JSON.stringify(details);
-    expect(serialized).not.toContain('password-123');
+    expect(serialized).not.toContain(TEST_PASSWORD);
     expect(serialized).not.toContain('not-the-password');
+    // 注：不可断言 `not.toContain('wrong')`——用例里的用户名含 `authit-wrong`；口令明文面由上面两条覆盖
   });
 });
 
 describe('LDAP channel via HTTP (fake server, real network)', () => {
+  const LDAP_BASE = 'ou=people,dc=example,dc=com';
+  interface FakeUser {
+    sam: string;
+    password: string;
+    displayName: string;
+    email?: string;
+  }
+  // carol 无 mail ⇒ 覆盖「目录邮箱缺失即拒」（design R15）
+  const FAKE_USERS: FakeUser[] = [
+    {
+      sam: 'alice',
+      password: 'ldap-pass-1',
+      displayName: 'Alice Wu',
+      email: 'Alice.Wu@corp-test.local',
+    },
+    {
+      sam: 'bob',
+      password: 'ldap-pass-2',
+      displayName: 'Bob Li',
+      email: 'bob.collide@corp-test.local',
+    },
+    { sam: 'carol', password: 'ldap-pass-3', displayName: 'Carol Chen' },
+  ];
   let ldapFake: { server: ldap.Server; port: number } | undefined;
+
+  function resolve(dn: string): FakeUser | undefined {
+    const lower = dn.toLowerCase();
+    return FAKE_USERS.find(
+      (u) => lower === u.sam.toLowerCase() || lower.includes(`cn=${u.sam.toLowerCase()}`),
+    );
+  }
+
+  function startLdapServer(): Promise<{ server: ldap.Server; port: number }> {
+    return new Promise((resolveListen) => {
+      const server = ldap.createServer();
+      server.bind(LDAP_BASE, (req: any, res: any) => {
+        const entry = resolve(req.dn.toString());
+        if (!entry || req.credentials !== entry.password) {
+          res.send(49);
+          return;
+        }
+        res.end();
+      });
+      // base scope 读自身属性（含 `mail`——目录邮箱是建号必填项）
+      server.search(LDAP_BASE, (req: any, res: any) => {
+        const entry = resolve(req.dn.toString());
+        if (!entry) {
+          res.end();
+          return;
+        }
+        res.send({
+          dn: req.dn.toString(),
+          attributes: {
+            sAMAccountName: entry.sam,
+            displayName: entry.displayName,
+            ...(entry.email ? { mail: entry.email } : {}),
+          },
+        });
+        res.end();
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const address = (server as unknown as { address: () => { port: number } }).address();
+        resolveListen({ server, port: address.port });
+      });
+    });
+  }
+
+  function channel(): LdapChannel {
+    return new LdapChannel({
+      urls: [`ldap://127.0.0.1:${ldapFake!.port}`],
+      bindMode: 'auto',
+      userBase: LDAP_BASE,
+      userIdAttr: 'sAMAccountName',
+      displayNameAttr: 'displayName',
+      timeoutMs: 2000,
+    });
+  }
+
+  const signIn = (app: Hono, username: string, password: string) =>
+    app.request('/api/auth/sign-in/aih', {
+      method: 'POST',
+      headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
 
   beforeAll(async () => {
     ldapFake = await startLdapServer();
@@ -229,72 +372,77 @@ describe('LDAP channel via HTTP (fake server, real network)', () => {
     ldapFake?.server.close(() => undefined);
   });
 
-  it('provisions a user on first LDAP login and binds identity', async () => {
-    const channel = new LdapChannel({
-      urls: [`ldap://127.0.0.1:${ldapFake!.port}`],
-      bindMode: 'auto',
-      userBase: LDAP_BASE,
-      userIdAttr: 'sAMAccountName',
-      displayNameAttr: 'displayName',
-      timeoutMs: 2000,
-    });
-    const app = makeApp({ ldap: channel });
-    const res = await app.request('/api/auth/login', {
-      method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'alice', password: 'ldap-pass-1' }),
-    });
+  it('目录首登建号：user（工号主键 + 目录邮箱/显示名）+ account(provider_id=ldap)', async () => {
+    const app = makeApp({ ldap: channel() });
+    const res = await signIn(app, 'alice', 'ldap-pass-1');
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { user: { id: string } };
-    // 无本地凭据 → LDAP 建号：userId = CN 兜底（fake 不返回属性）
-    expect(body.user.id).toBe('alice');
+    const body = (await res.json()) as { user: { id: string; displayName: string } };
+    expect(body.user.id).toBe('alice'); // userIdAttr 映射值（D3 语义保留）
+    // ldapjs v3 fake server 的 `displayName` 属性**未回传**（仓内既有记录：属性序列化不稳定）⇒
+    // 走 CN 兜底；属性增强路径（displayName/mail 真值）由真实 DC 覆盖（T26 人工项）。
+    expect(body.user.displayName).toBe('CN=alice,ou=people,dc=example,dc=com');
 
-    const binding = await db
-      .select({ provider: identityBinding.provider, subject: identityBinding.providerSubject })
-      .from(identityBinding)
-      .where(eq(identityBinding.userId, 'alice'));
-    expect(binding).toHaveLength(1);
-    expect(binding[0]?.provider).toBe('ldap');
+    const [row] = await db
+      .select({
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        username: user.username,
+      })
+      .from(user)
+      .where(eq(user.id, 'alice'));
+    expect(row?.email).toBe('alice.wu@corp-test.local'); // 官方写入路径小写化（X1）
+    expect(row?.role).toBe('user'); // 默认档
+    expect(row?.status).toBe('ACTIVE');
+    expect(row?.username).toBe('alice');
+
+    const accounts = await db
+      .select({ providerId: account.providerId, accountId: account.accountId })
+      .from(account)
+      .where(eq(account.userId, 'alice'));
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0]).toEqual({ providerId: 'ldap', accountId: 'alice' });
   });
 
-  it('returns 403 ldap_denied when directory rejects (no local fallback)', async () => {
-    const channel = new LdapChannel({
-      urls: [`ldap://127.0.0.1:${ldapFake!.port}`],
-      bindMode: 'auto',
-      userBase: LDAP_BASE,
-      userIdAttr: 'sAMAccountName',
-      displayNameAttr: 'displayName',
-      timeoutMs: 2000,
-    });
-    const app = makeApp({ ldap: channel });
-    const res = await app.request('/api/auth/login', {
-      method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'alice', password: 'wrong-directory-password' }),
-    });
+  it('目录拒绝（错口令）→ 403 ldap_denied，不回退本地', async () => {
+    const app = makeApp({ ldap: channel() });
+    const res = await signIn(app, 'alice', 'wrong-directory-password');
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ code: 'auth.ldap_denied' });
   });
 
-  it('local credentials bypass LDAP (escape hatch)', async () => {
-    const channel = new LdapChannel({
-      urls: [`ldap://127.0.0.1:${ldapFake!.port}`],
-      bindMode: 'auto',
-      userBase: LDAP_BASE,
-      userIdAttr: 'sAMAccountName',
-      displayNameAttr: 'displayName',
-      timeoutMs: 2000,
+  it('目录邮箱缺失 → 400 auth.email_missing（绝不合成）', async () => {
+    const app = makeApp({ ldap: channel() });
+    const res = await signIn(app, 'carol', 'ldap-pass-3');
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: 'auth.email_missing' });
+  });
+
+  it('目录邮箱与既有账号冲突 → 409 auth.email_conflict', async () => {
+    const app = makeApp({ ldap: channel() });
+    // 占位：同邮箱的既有账号（非目录身份）
+    await createTestUser(db, {
+      id: `${PREFIX}collide`,
+      displayName: `${PREFIX}collide`,
+      username: `${PREFIX}collide`,
     });
-    const app = makeApp({ ldap: channel });
-    // authit-escape 本地注册（目录无此用户）→ 本地凭据逃生通道成功
-    const sid = await registerAndGetCookie(app, 'authit-escape');
-    void sid;
-    // 用本地密码登录（即使 LDAP enabled 也不会去目录 bind）
-    const res = await app.request('/api/auth/login', {
-      method: 'POST',
-      headers: { origin: 'http://localhost:3000', host: 'localhost:3000' },
-      body: JSON.stringify({ username: 'authit-escape', password: 'password-123' }),
+    await db
+      .update(user)
+      .set({ email: 'bob.collide@corp-test.local' })
+      .where(eq(user.id, `${PREFIX}collide`));
+    const res = await signIn(app, 'bob', 'ldap-pass-2');
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'auth.email_conflict' });
+  });
+
+  it('本地凭据优先（逃生通道）：目录在场也不去 bind', async () => {
+    const app = makeApp({ ldap: channel() });
+    const id = await createTestUser(db, {
+      id: `${PREFIX}escape`,
+      displayName: `${PREFIX}escape`,
+      username: `${PREFIX}escape`,
     });
+    const res = await signIn(app, id, TEST_PASSWORD);
     expect(res.status).toBe(200);
   });
 });

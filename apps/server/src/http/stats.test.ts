@@ -3,13 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
+import { createTestUser, setUserRole, signInCookie } from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { getPublicStats, type PublicStats } from '../assets/stats.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, userAccount } from '../db/schema/index.js';
+import { asset, user } from '../db/schema/index.js';
 import { createStatsRoutes } from './stats.js';
 
 const PREFIX = 'stt-';
@@ -18,9 +19,7 @@ let baseline: PublicStats;
 let ownerId: string;
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName: `${PREFIX}${tag}` });
 }
 async function insertAsset(
   slug: string,
@@ -57,9 +56,13 @@ beforeAll(async () => {
   // v0.17：用户数口径（status = 'ACTIVE'）——baseline 之后建 2 个 ACTIVE + 1 个 DISABLED（后者不计入）
   await makeUser('u1');
   await makeUser('u2');
-  await db
-    .insert(userAccount)
-    .values({ id: `usr_${randomUUID()}`, displayName: `${PREFIX}disabled`, status: 'DISABLED' });
+  const disabledId = `usr_${randomUUID()}`;
+  await db.insert(user).values({
+    id: disabledId,
+    name: `${PREFIX}disabled`,
+    email: `${disabledId}@test.local`.toLowerCase(),
+    status: 'DISABLED',
+  });
 });
 
 afterAll(async () => {
@@ -69,8 +72,8 @@ afterAll(async () => {
     .where(like(asset.slug, `${PREFIX}%`))
     .catch(() => {});
   await db
-    .delete(userAccount)
-    .where(like(userAccount.displayName, `${PREFIX}%`))
+    .delete(user)
+    .where(like(user.name, `${PREFIX}%`))
     .catch(() => {});
   await db.$client.end();
 });

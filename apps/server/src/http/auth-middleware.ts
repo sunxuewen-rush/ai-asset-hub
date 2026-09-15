@@ -1,8 +1,9 @@
 import type { Context, Next } from 'hono';
+import type { AihAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import type { RbacService } from '../auth/rbac.js';
+import type { AccountRole } from '../auth/roles.js';
 import type { TokenScopeCode } from '../auth/token-scopes.js';
-import type { AccountRole } from '../db/schema/index.js';
 
 /**
  * 鉴权与授权中间件（M4-pre design §2.2 判定链在 HTTP 层的组合）：
@@ -18,10 +19,59 @@ declare module 'hono' {
   }
 }
 
+/**
+ * 会话主体（middleware 注入 `c.set('principal')`）。
+ * M4b-pre T3：原 `auth/session.ts` 的 `Principal` 随自研会话存储一并迁到 HTTP 层
+ * （官方 `getSession` 是唯一来源；`auth/session.ts` 已删）。
+ */
+export interface Principal {
+  userId: string;
+  displayName: string;
+}
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    principal?: Principal;
+    /** 官方会话行 id（审计/登出关联；Bearer 通道为 undefined） */
+    sessionId?: string;
+  }
+}
+
 /** 装配层注入 rbac（app.ts use('*')） */
 export function rbacContext(rbac: RbacService) {
   return async (c: Context, next: Next) => {
     c.set('rbac', rbac);
+    await next();
+  };
+}
+
+/**
+ * 官方会话中间件（design R17：取代自研 `sessionMiddleware` + `InMemorySessionStore`）：
+ * `auth.api.getSession({ headers })` → 官方 `session` 表校验 cookie 并回读用户；
+ * 有效且账号 `status === 'ACTIVE'` → 注入 principal（否则保持匿名，401 由路由/requireAuth 判定）。
+ *
+ * 分层说明（防双门互斥）：**明确非 ACTIVE 一律不注入**（DISABLED/PENDING 等同未登录）；
+ * official 若未回传 `status`（字段面变化）则此处不判、由 `requireAuth` 的 DB 状态门兜底——
+ * 两层同向从严，不会出现「漏放」。
+ */
+export function officialSessionMiddleware(auth: AihAuth) {
+  return async (c: Context, next: Next) => {
+    // T17：Bearer 显式通道在场 → cookie 会话不参与（含无效 Bearer 不降级，防凭证混淆）
+    if (c.get('authVia') === 'bearer') {
+      await next();
+      return;
+    }
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    if (session) {
+      const status = (session.user as unknown as { status?: string | null }).status;
+      if (status === undefined || status === 'ACTIVE') {
+        c.set('principal', {
+          userId: session.user.id,
+          displayName: session.user.name,
+        });
+        c.set('sessionId', session.session.id);
+      }
+    }
     await next();
   };
 }

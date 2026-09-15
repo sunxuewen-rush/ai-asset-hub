@@ -7,6 +7,10 @@ export const AUDIT_ACTIONS = {
   loginSuccess: 'auth.login.success',
   loginFailed: 'auth.login.failed',
   logout: 'auth.logout',
+  /** 目录首登建号（M4b-pre T3；与 `loginSuccess` 分开记——建号是独立事实） */
+  provisionLdap: 'ldap.provisioned',
+  /** OIDC 首登建号（原 `http/oidc-routes.ts` 内联字面量，随 M4b-pre T3 收敛到常量表） */
+  provisionOidc: 'oidc.provisioned',
 } as const;
 
 export interface AuditEntry {
@@ -38,3 +42,18 @@ export function createAuditWriter(db: Db) {
 }
 
 export type AuditWriter = ReturnType<typeof createAuditWriter>;
+
+/**
+ * 请求头 → 审计网络字段（`clientIp` / `userAgent`）。
+ * 装配点：官方端点 hooks（`databaseHooks` / `hooks.after`）与自绘目录插件共用一套解析口径。
+ * 无 headers（服务端直呼）→ 两字段均省略（`AuditEntry` 允许 undefined）。
+ */
+export function auditMetaFromHeaders(headers: Headers | undefined | null): {
+  clientIp?: string;
+  userAgent?: string;
+} {
+  if (!headers) return {};
+  const forwarded = headers.get('x-forwarded-for');
+  const clientIp = forwarded?.split(',')[0]?.trim() || headers.get('x-real-ip') || undefined;
+  return { clientIp, userAgent: headers.get('user-agent') ?? undefined };
+}

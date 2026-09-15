@@ -11,7 +11,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { userAccount } from './users.js';
+import { user } from './auth.js';
 
 /**
  * 资产域（08 §5）：asset / asset_version / asset_file。
@@ -48,13 +48,13 @@ export const asset = pgTable(
     /** 主要维护人（05 §6.5 → M4-pre：owner 本人 ∨ `role >= ADMIN` 可管，无空间角色） */
     ownerId: varchar('owner_id', { length: 128 })
       .notNull()
-      .references(() => userAccount.id),
+      .references(() => user.id),
     /** 冗余指针免 join（08 §5.1；应用层事务内回填——approve 指向/yank 重算，不设 DB FK） */
     latestVersionId: bigint('latest_version_id', { mode: 'number' }),
     status: text('status').$type<AssetStatus>().notNull().default('ACTIVE'),
     downloadCount: bigint('download_count', { mode: 'number' }).notNull().default(0),
-    createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),
-    updatedBy: varchar('updated_by', { length: 128 }).references(() => userAccount.id),
+    createdBy: varchar('created_by', { length: 128 }).references(() => user.id),
+    updatedBy: varchar('updated_by', { length: 128 }).references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -85,12 +85,12 @@ export const assetVersion = pgTable(
     publishedAt: timestamp('published_at', { withTimezone: true }),
     /** yank 留痕（M3 §4.1——skillhub SkillVersion 同构：撤回留痕，reason 必填由调用方校验） */
     yankedAt: timestamp('yanked_at', { withTimezone: true }),
-    yankedBy: varchar('yanked_by', { length: 128 }).references(() => userAccount.id),
+    yankedBy: varchar('yanked_by', { length: 128 }).references(() => user.id),
     yankReason: text('yank_reason'),
     /** bundle 副本（M3 §7.1——上传原 zip 顺存；zip 整体 sha256 供双通道校验，08 §5.3） */
     bundleStorageKey: varchar('bundle_storage_key', { length: 512 }),
     bundleSha256: varchar('bundle_sha256', { length: 64 }),
-    createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),
+    createdBy: varchar('created_by', { length: 128 }).references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

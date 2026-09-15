@@ -6,17 +6,16 @@ import { join } from 'node:path';
 import { eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createAuditWriter } from '../audit/audit.js';
+import { ACCOUNT_ROLE, type AccountRole } from '../auth/roles.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  ACCOUNT_ROLE,
-  type AccountRole,
-  asset,
-  assetFile,
-  assetVersion,
-  auditLog,
-  userAccount,
-} from '../db/schema/index.js';
+import { asset, assetFile, assetVersion, auditLog, user } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { AssetError, assetErrorCodes, UploadValidationError } from './errors.js';
 import { createVersion } from './versions.js';
@@ -34,15 +33,11 @@ let owner: string;
 let assetId: number;
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db
-    .insert(userAccount)
-    .values({ id, displayName: `${PREFIX}${tag}-${randomUUID().slice(0, 8)}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName: `${PREFIX}${tag}` });
 }
 
 async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+  await setUserRole(db, userId, role);
 }
 
 async function insertAsset(slug: string): Promise<number> {
@@ -95,14 +90,14 @@ afterAll(async () => {
   }
   await db.delete(asset).where(eq(asset.id, assetId));
   const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, `${PREFIX}%`));
+    .select({ id: user.id })
+    .from(user)
+    .where(like(user.name, `${PREFIX}%`));
   const userIds = users.map((u) => u.id);
   if (userIds.length > 0) {
     await db.delete(auditLog).where(inArray(auditLog.actorId, userIds));
   }
-  await db.delete(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
+  await cleanupCreatedUsers(db);
   await rm(storageDir, { recursive: true, force: true });
   await db.$client.end();
 });

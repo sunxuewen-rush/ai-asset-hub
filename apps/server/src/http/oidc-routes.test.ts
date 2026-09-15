@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { Hono } from 'hono';
 import { Configuration } from 'openid-client';
+import type { AihAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { resetOidcClientCache } from '../auth/oidc.js';
-import type { SessionManager } from '../auth/session.js';
 import { resetEnvCache } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
@@ -26,8 +26,7 @@ function makeApp(deps?: { provider?: () => Promise<Configuration | null> }): Hon
     // authorize/disabled/state 分支不触 db/sessions——测试 stub（callback 成功路径
     // 依赖 code exchange 真实网络，由 T28 fake issuer 冒烟覆盖）
     db: {} as unknown as Db,
-    sessions: {} as unknown as SessionManager,
-    sessionTtlHours: 8,
+    auth: {} as unknown as AihAuth,
   });
   // 镜像 app.ts 统一错误出口（AuthError → 结构化响应）
   app.onError((err, c) => {

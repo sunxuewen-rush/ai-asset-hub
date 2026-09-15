@@ -10,7 +10,7 @@
  */
 import { count, eq, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { asset, userAccount } from '../db/schema/index.js';
+import { asset, user } from '../db/schema/index.js';
 
 export interface PublicStats {
   totalAssets: number;
@@ -32,7 +32,7 @@ export async function getPublicStats(db: Db): Promise<PublicStats> {
       .from(asset)
       .where(eq(asset.status, 'ACTIVE'))
       .groupBy(asset.type),
-    db.select({ count: count() }).from(userAccount).where(eq(userAccount.status, 'ACTIVE')),
+    db.select({ count: count() }).from(user).where(eq(user.status, 'ACTIVE')),
   ]);
 
   const typeCounts: Record<string, number> = {};

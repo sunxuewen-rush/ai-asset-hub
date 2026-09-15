@@ -9,13 +9,11 @@ import {
   randomPKCECodeVerifier,
   randomState,
 } from 'openid-client';
-import type { AuditWriter } from '../audit/audit.js';
-import { AuthError } from '../auth/errors.js';
+import { AUDIT_ACTIONS, type AuditWriter } from '../audit/audit.js';
+import type { AihAuth } from '../auth/better-auth.js';
+import { AuthError, type AuthErrorCode } from '../auth/errors.js';
 import type { OidcClient } from '../auth/oidc.js';
 import { getOidcClient } from '../auth/oidc.js';
-import { provisionExternalUser } from '../auth/provision.js';
-import type { SessionManager } from '../auth/session.js';
-import { attachSessionCookie } from '../auth/session-middleware.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 
@@ -62,12 +60,31 @@ export interface OidcRoutesDeps {
   oidcProvider?: () => Promise<OidcClient | null>;
   cookieSecure: boolean;
   db: Db;
-  sessions: SessionManager;
-  sessionTtlHours: number;
+  /**
+   * 官方实例（M4b-pre T3：会话签发走官方插件端点 `sign-in/aih-oidc`，编排仍留在本文件——R11）。
+   */
+  auth: AihAuth;
   /** 回调成功 302 落地（缺省 getEnv().PUBLIC_BASE_URL） */
   publicBaseUrl?: string;
   /** 审计写入器（T17：oidc.provisioned——首登建号动作；避免与 login 双记） */
   audit?: AuditWriter;
+}
+
+/**
+ * 官方插件端点 `POST /api/auth/sign-in/aih-oidc` 的**局部窄化面**（design §2.3 类型注记）：
+ * `AihAuth = Auth` 时插件端点不在 `api` 面上，故在调用点声明所需形状——
+ * 该端点**仅服务端可达**（插件内以「带 request/headers 即拒」判定，对齐官方 api-key 插件口径）。
+ */
+interface OidcSignInApi {
+  signInAihOidc: (input: {
+    body: { subject: string; displayName: string; email: string | null };
+    asResponse: true;
+  }) => Promise<Response>;
+}
+
+interface OidcSignInPayload {
+  created: boolean;
+  user: { id: string; displayName: string; email: string | null; role: number | null };
 }
 
 export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
@@ -143,35 +160,48 @@ export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
     // 建号字段（T26/T27）：id 生成 usr_oidc_<uuid>（不与任何 provider 的 sub 冲突）；
     // displayName 回退链 name → email 前缀 → sub；email 仅 email_verified 才同步（防未验证冒用）
     const displayName = name || email?.split('@')[0] || sub;
-    const provisioned = await provisionExternalUser(deps.db, {
-      provider: 'oidc',
-      providerSubject: sub,
-      userId: `usr_oidc_${randomUUID()}`,
-      displayName,
-      email: emailVerified ? (email ?? null) : undefined,
+    // 建号 + 会话签发走官方插件端点（服务端直呼：不传 headers ⇒ 官方按服务端调用处理）
+    const api = deps.auth.api as unknown as OidcSignInApi;
+    const signIn = await api.signInAihOidc({
+      body: {
+        subject: sub,
+        displayName,
+        email: emailVerified ? (email ?? null) : null,
+      },
+      asResponse: true,
     });
+    if (!signIn.ok) {
+      const failure = (await signIn.json().catch(() => null)) as { code?: string } | null;
+      const known: AuthErrorCode[] = [
+        'auth.email_missing',
+        'auth.email_conflict',
+        'auth.user_disabled',
+        'auth.user_pending',
+      ];
+      const code = known.find((candidate) => candidate === failure?.code);
+      throw new AuthError(code ?? 'auth.oidc_denied');
+    }
+    const payload = (await signIn.json()) as OidcSignInPayload;
 
-    // 审计（T17：oidc.provisioned——仅首登建号/重建时记；既有账号复用不双记）
-    if (provisioned.created) {
+    // 审计（T17：oidc.provisioned——仅首登建号时记；既有账号复用不双记）
+    if (payload.created) {
       await deps.audit?.({
-        actorId: provisioned.id,
-        action: 'oidc.provisioned',
+        actorId: payload.user.id,
+        action: AUDIT_ACTIONS.provisionOidc,
         targetType: 'user',
-        targetId: provisioned.id,
+        targetId: payload.user.id,
         detail: { provider: 'oidc' },
       });
     }
-    // 自动登录：签发 session（与本地登录同通道）
-    const sessionId = await deps.sessions.createSession(provisioned.id, provisioned.displayName);
-    attachSessionCookie(c, sessionId, {
-      secure: deps.cookieSecure,
-      sameSite: 'lax',
-      maxAgeSec: deps.sessionTtlHours * 3600,
-    });
     // 302 落地 = PUBLIC_BASE_URL（T25 冒烟实证：不接线则回退硬编码 3000 错位）
     const base =
       deps.publicBaseUrl?.replace(/\/$/, '') ?? getEnv().PUBLIC_BASE_URL.replace(/\/$/, '');
-    return c.redirect(`${base}/?oidc=success`, 302);
+    const redirect = c.redirect(`${base}/?oidc=success`, 302);
+    // 官方签发的会话 cookie 透传（官方 cookie 名/签名/TTL 全由官方决定）
+    for (const cookie of signIn.headers.getSetCookie()) {
+      redirect.headers.append('set-cookie', cookie);
+    }
+    return redirect;
   });
 
   return app;

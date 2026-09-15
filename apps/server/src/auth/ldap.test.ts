@@ -127,8 +127,8 @@ describe('LdapChannel.authenticate', () => {
     expect(result.status).toBe('ok');
     if (result.status === 'ok') {
       // fake server 不返回属性 → CN 兜底（真实 DC 返回 sAMAccountName/displayName 增强）
-      expect(result.userId).toBe('alice');
-      expect(result.displayName).toBe('alice');
+      expect(result.identity.userId).toBe('alice');
+      expect(result.identity.displayName).toBe('alice');
     }
   });
 
@@ -136,7 +136,7 @@ describe('LdapChannel.authenticate', () => {
     const result = await makeChannel([channelUrl]).authenticate('carol@example.com', 'pw-789');
     expect(result.status).toBe('ok');
     if (result.status === 'ok') {
-      expect(result.userId).toBe('carol');
+      expect(result.identity.userId).toBe('carol');
     }
   });
 

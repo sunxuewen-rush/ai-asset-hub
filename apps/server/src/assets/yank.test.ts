@@ -4,7 +4,13 @@ import { and, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetVersion, auditLog, userAccount } from '../db/schema/index.js';
+import { asset, assetVersion, auditLog, user } from '../db/schema/index.js';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 import { type AssetError, assetErrorCodes } from './errors.js';
 import { canYank, yankVersion } from './yank.js';
 
@@ -18,9 +24,10 @@ let audit!: ReturnType<typeof createAuditWriter>;
 let ownerId: string;
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `${PREFIX}${tag}_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, {
+    id: `${PREFIX}${tag}_${randomUUID()}`,
+    displayName: `${PREFIX}${tag}`,
+  });
 }
 
 /** 建资产 + 指定版本（returning full row）——yank 服务测试直插 PUBLISHED */
@@ -61,8 +68,7 @@ afterAll(async () => {
   // 链序：version → asset → audit → user
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
-  await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
-  await db.delete(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 

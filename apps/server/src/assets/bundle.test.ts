@@ -5,13 +5,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { eq, inArray } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { cleanupCreatedUsers } from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetFile, assetVersion, auditLog, userAccount } from '../db/schema/index.js';
+import { asset, assetFile, assetVersion, auditLog, user } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildSkillZip } from '../test-utils/zip-builder.js';
 import type { AssetError } from './errors.js';
@@ -37,7 +38,12 @@ beforeAll(async () => {
   storageDir = await mkdtemp(join(tmpdir(), 'bun-storage-'));
   storage = createLocalStorage(storageDir);
   userId = `${PREFIX}u_${randomUUID()}`;
-  await db.insert(userAccount).values({ id: userId, displayName: `${PREFIX}u`, status: 'ACTIVE' });
+  await db.insert(user).values({
+    id: userId,
+    name: `${PREFIX}u`,
+    email: `${userId}@test.local`.toLowerCase(),
+    status: 'ACTIVE',
+  });
   const [a] = await db
     .insert(asset)
     .values({
@@ -61,8 +67,7 @@ afterAll(async () => {
   }
   await db.delete(assetVersion).where(eq(assetVersion.assetId, assetId));
   await db.delete(asset).where(eq(asset.id, assetId));
-  await db.delete(auditLog).where(eq(auditLog.actorId, userId));
-  await db.delete(userAccount).where(eq(userAccount.id, userId));
+  await cleanupCreatedUsers(db);
   await rm(storageDir, { recursive: true, force: true });
   await db.$client.end();
 });

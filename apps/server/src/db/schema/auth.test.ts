@@ -96,17 +96,26 @@ describe('认证域表结构（官方 6 表）', () => {
   });
 });
 
-describe('过渡期共存（design §5.1 时序原则）', () => {
-  it('旧 4 表仍在，且既有 13 条外键未受影响', async () => {
+describe('用户域收口（design §5.1 时序原则：搬迁与切流同批）', () => {
+  it('旧用户域 3 表已删；令牌表 api_token 保留（随 T4 切流）', async () => {
     const names = await tableNames();
-    for (const t of ['user_account', 'identity_binding', 'local_credential', 'api_token']) {
-      expect(names).toContain(t);
+    for (const t of ['user_account', 'identity_binding', 'local_credential']) {
+      expect(names).not.toContain(t);
     }
-    const res = await db.execute<{ count: string }>(
+    expect(names).toContain('api_token');
+  });
+
+  it('13 条外键全部指向官方 user 表（11 重指向 + account/session 各 1）', async () => {
+    const toUser = await db.execute<{ count: string }>(
       sql`select count(*)::text as count from pg_constraint
-          where contype = 'f' and confrelid = 'public.user_account'::regclass`,
+          where contype = 'f' and confrelid = 'public."user"'::regclass`,
     );
-    expect(Number(res.rows[0]?.count ?? '0')).toBe(13);
+    expect(Number(toUser.rows[0]?.count ?? '0')).toBe(13);
+    const stale = await db.execute<{ count: string }>(
+      sql`select count(*)::text as count from pg_constraint
+          where contype = 'f' and confrelid::regclass::text like '%user_account%'`,
+    );
+    expect(Number(stale.rows[0]?.count ?? '0')).toBe(0);
   });
 });
 

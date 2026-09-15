@@ -2,12 +2,18 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
 import { like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import { asset, userAccount } from '../db/schema/index.js';
+import { asset, auditLog, user } from '../db/schema/index.js';
 import { AssetError, type AssetErrorCode, assetErrorCodes } from './errors.js';
 import { createAsset, getAsset, listAssets } from './service.js';
 
@@ -18,9 +24,7 @@ const PREFIX = 'ast-';
 let ownerA: string;
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName: `${PREFIX}${tag}` });
 }
 
 /** 捕获 AssetError 并断言 code（非 AssetError 原样抛出） */
@@ -47,7 +51,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // 按前缀清理（M1 纪律：禁全表 delete；FK 序：asset → user）
   await db.delete(asset).where(like(asset.slug, `${PREFIX}%`));
-  await db.delete(userAccount).where(like(userAccount.displayName, `${PREFIX}%`));
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 

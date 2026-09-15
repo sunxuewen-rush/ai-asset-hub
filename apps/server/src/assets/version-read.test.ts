@@ -3,7 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetVersion, userAccount, type VersionStatus } from '../db/schema/index.js';
+import { asset, assetVersion, auditLog, user, type VersionStatus } from '../db/schema/index.js';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 import type { VersionViewer } from './version-read.js';
 import { getVersion, listVersions } from './version-read.js';
 
@@ -21,9 +27,10 @@ let strangerId: string; // 外人
 let assetId: number;
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `${PREFIX}${tag}_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, {
+    id: `${PREFIX}${tag}_${randomUUID()}`,
+    displayName: `${PREFIX}${tag}`,
+  });
 }
 
 function viewerFor(uid: string | null, extra?: Partial<VersionViewer>): VersionViewer {
@@ -76,7 +83,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(assetVersion).where(eq(assetVersion.assetId, assetId));
   await db.delete(asset).where(eq(asset.id, assetId));
-  await db.delete(userAccount).where(like(userAccount.id, `${PREFIX}%`));
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 

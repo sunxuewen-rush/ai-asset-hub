@@ -3,36 +3,38 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createAuditWriter } from '../audit/audit.js';
-import { csrfProtection } from '../auth/csrf.js';
+import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE, RbacService } from '../auth/rbac.js';
-import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { sessionMiddleware } from '../auth/session-middleware.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import { type AccountRole, apiToken, auditLog, userAccount } from '../db/schema/index.js';
+import { apiToken, auditLog, user } from '../db/schema/index.js';
 import { createAuditRoutes } from './audit.js';
-import { rbacContext } from './auth-middleware.js';
+import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
 
 let db: Db;
-let sessions: SessionManager;
+let auth: AihAuth;
 let rbac: RbacService;
 
 async function makeUser(displayName: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName });
 }
 
 /** 直写账号角色（M4-pre：`user_account.role` 单列 4 档） */
-async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+async function setRole(userId: string, role: number): Promise<void> {
+  await setUserRole(db, userId, role);
 }
 
 async function mintToken(userId: string): Promise<string> {
@@ -45,8 +47,7 @@ function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
   app.use('*', tokenAuthMiddleware(db));
-  app.use('*', sessionMiddleware(sessions));
-  app.use('*', csrfProtection({}));
+  app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
       return c.json(
@@ -69,7 +70,7 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
-  sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  auth = createAuth({ ldap: null });
 
   // 路由权限角色
   auditor = await makeUser('au-auditor');
@@ -109,20 +110,16 @@ afterAll(async () => {
   for (const l of logs) {
     await db.delete(auditLog).where(eq(auditLog.id, l.id));
   }
-  const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, 'au-%'));
+  const users = await db.select({ id: user.id }).from(user).where(like(user.name, 'au-%'));
   for (const u of users) {
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+    await cleanupCreatedUsers(db);
   }
   await db.$client.end();
 });
 
 async function cookieFor(userId: string): Promise<string> {
-  const sid = await sessions.createSession(userId, 'audit-test');
-  return `aih_session=${sid}`;
+  return signInCookie(auth, userId);
 }
 
 describe('GET /api/audit（T20 浏览 + T21 权限面闭环）', () => {

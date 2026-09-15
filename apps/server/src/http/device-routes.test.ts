@@ -3,20 +3,24 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
-import { csrfProtection } from '../auth/csrf.js';
+import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { DevicePendingStore } from '../auth/device-store.js';
 import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { RbacService } from '../auth/rbac.js';
-import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
-import { apiToken, userAccount } from '../db/schema/index.js';
-import { rbacContext } from './auth-middleware.js';
+import { apiToken, auditLog, user } from '../db/schema/index.js';
+import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import {
   APPROVE_LIMIT,
   createDeviceRoutes,
@@ -33,14 +37,12 @@ import { createTokenRoutes } from './tokens.js';
  */
 
 let db: Db;
-let sessions: SessionManager;
+let auth: AihAuth;
 let rbac: RbacService;
 let u1: string;
 
 async function makeUser(displayName: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName });
 }
 
 function buildApp(store?: DevicePendingStore): Hono {
@@ -48,9 +50,8 @@ function buildApp(store?: DevicePendingStore): Hono {
   app.use('*', requestContextMiddleware());
   app.use('*', rbacContext(rbac));
   app.use('*', tokenAuthMiddleware(db));
-  app.use('*', sessionMiddleware(sessions));
+  app.use('*', officialSessionMiddleware(auth));
   // 镜像 app.ts：匿名 device 端点豁免；approve 保护
-  app.use('*', csrfProtection({ exemptPaths: ['/api/auth/device', '/api/auth/device/token'] }));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
       return c.json(
@@ -79,25 +80,21 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
-  sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  auth = createAuth({ ldap: null });
   u1 = await makeUser('dev-u1');
 });
 
 afterAll(async () => {
-  const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, 'dev-%'));
+  const users = await db.select({ id: user.id }).from(user).where(like(user.name, 'dev-%'));
   for (const u of users) {
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+    await cleanupCreatedUsers(db);
   }
   await db.$client.end();
 });
 
 async function cookieFor(userId: string): Promise<string> {
-  const sid = await sessions.createSession(userId, 'device-test');
-  return `aih_session=${sid}`;
+  return signInCookie(auth, userId);
 }
 
 describe('POST /api/auth/device（T30 授权请求）', () => {
@@ -178,7 +175,7 @@ describe('POST /api/auth/device/approve（T31 用户确认）', () => {
     expect(res.status).toBe(401);
   });
 
-  it('错码 → 404 auth.device_code_invalid；无 Origin（cookie 通道）→ 403 csrf', async () => {
+  it('错码 → 404 auth.device_code_invalid；无 Origin 写请求按业务语义判（CSRF 交官方后）', async () => {
     const app = buildApp();
     const cookie = await cookieFor(u1);
     const badCode = await app.request('/api/auth/device/approve', {
@@ -194,13 +191,15 @@ describe('POST /api/auth/device/approve（T31 用户确认）', () => {
     expect(badCode.status).toBe(404);
     const body = (await badCode.json()) as { code: string };
     expect(body.code).toBe('auth.device_code_invalid');
-    // approve 不在豁免列表：无 Origin POST → 403（cookie 通道 CSRF 面生效）
+    // M4b-pre T3：自研 csrfProtection 删除（design §4.1），Origin 校验交官方（仅覆盖官方端点）；
+    // 业务/自留端点写请求的真值保护 = 官方会话 cookie 的 `SameSite=Lax`（跨站不带 cookie）
+    // ⇒ 无 Origin 的 cookie 写请求不再被拦，仍按业务语义判（错码 → 404）。
     const noOrigin = await app.request('/api/auth/device/approve', {
       method: 'POST',
       headers: { cookie, 'content-type': 'application/json' },
       body: JSON.stringify({ userCode: 'ZZZZZZZZ' }),
     });
-    expect(noOrigin.status).toBe(403);
+    expect(noOrigin.status).toBe(404);
   });
 
   it('T33：同 user_code 错码连续 5 次（第 6 次）→ 429 auth.rate_limited', async () => {

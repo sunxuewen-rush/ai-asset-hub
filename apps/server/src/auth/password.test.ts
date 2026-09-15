@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { hashPassword, verifyPassword } from './password.js';
+import { hashPassword, verifyPassword } from './better-auth.js';
 
 describe('password hashing (scrypt)', () => {
   it('hash output is not the plaintext and is self-describing', async () => {

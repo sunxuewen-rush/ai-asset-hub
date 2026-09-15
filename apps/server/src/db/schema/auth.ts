@@ -8,6 +8,7 @@ import {
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 
 /**
  * 认证域表定义（M4b-pre design §5.1）：6 张官方 better-auth 模型表。
@@ -33,6 +34,13 @@ import {
  * 注：官方产物对 `apikey.key` 建的是**普通索引**（非唯一约束）——key 存
  * `base64url(sha256(明文))`，唯一性由生成算法保证；不额外加约束，避免偏离官方形态。
  */
+
+/**
+ * `user.status`（05 §4.1 账号状态机）——M4b-pre T3：原 `db/schema/users.ts` 的
+ * `userStatusSchema` 随用户域表定义一并迁入（08 §2：枚举列 = `text` + 应用层 zod 枚举，不建 PG enum）。
+ */
+export const userStatusSchema = z.enum(['PENDING', 'ACTIVE', 'DISABLED']);
+export type UserStatus = z.infer<typeof userStatusSchema>;
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(),

@@ -11,7 +11,7 @@ import {
   assetLabel,
   assetVersion,
   labelDefinition,
-  userAccount,
+  user,
 } from '../db/schema/index.js';
 import { AssetError, assetErrorCodes } from './errors.js';
 
@@ -66,9 +66,9 @@ export async function loadAssetItemMeta(
   const ownerIds = [...new Set(assets.map((a) => a.ownerId))];
   if (ownerIds.length > 0) {
     const users = await db
-      .select({ id: userAccount.id, displayName: userAccount.displayName })
-      .from(userAccount)
-      .where(inArray(userAccount.id, ownerIds));
+      .select({ id: user.id, displayName: user.name })
+      .from(user)
+      .where(inArray(user.id, ownerIds));
     const byId = new Map(users.map((u) => [u.id, u.displayName]));
     for (const a of assets) {
       const meta = map.get(a.id);

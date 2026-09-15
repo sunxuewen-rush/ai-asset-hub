@@ -3,6 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -12,31 +18,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AssetError } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
-import { csrfProtection } from '../auth/csrf.js';
+import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
-import { RbacService } from '../auth/rbac.js';
-import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { sessionMiddleware } from '../auth/session-middleware.js';
+import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  ACCOUNT_ROLE,
-  type AccountRole,
-  asset,
-  auditLog,
-  labelDefinition,
-  userAccount,
-} from '../db/schema/index.js';
+import { asset, auditLog, labelDefinition, user } from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
-import { rbacContext } from './auth-middleware.js';
+import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { createLabelRoutes } from './labels.js';
 
 const PREFIX = 'lat-';
 let db: Db;
-let sessions: SessionManager;
+let auth: AihAuth;
 let rbac: RbacService;
 let superAdmin: string;
 let ownerId: string; // 资产 owner
@@ -49,22 +46,21 @@ let storage!: ReturnType<typeof createLocalStorage>;
 let uploadRateLimiter!: InMemoryRateLimiter;
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `${PREFIX}${tag}_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, {
+    id: `${PREFIX}${tag}_${randomUUID()}`,
+    displayName: `${PREFIX}${tag}`,
+  });
 }
 async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+  await setUserRole(db, userId, role);
 }
 async function cookieFor(userId: string): Promise<string> {
-  const sid = await sessions.createSession(userId, 'lat-http');
-  return `aih_session=${sid}`;
+  return signInCookie(auth, userId);
 }
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
-  app.use('*', sessionMiddleware(sessions));
-  app.use('*', csrfProtection({}));
+  app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError)
       return c.json({ code: err.code, message: err.message }, err.status as 400 | 401 | 403);
@@ -103,7 +99,7 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
-  sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  auth = createAuth({ ldap: null });
   audit = createAuditWriter(db);
   storageDir = await mkdtemp(join(tmpdir(), 'lat-storage-'));
   storage = createLocalStorage(storageDir);
@@ -121,14 +117,14 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.id, `${PREFIX}%`));
+    .select({ id: user.id })
+    .from(user)
+    .where(like(user.id, `${PREFIX}%`));
   await db.delete(asset).where(eq(asset.ownerId, ownerId));
   await db.delete(labelDefinition).where(like(labelDefinition.createdBy, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   for (const u of users) {
-    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+    await cleanupCreatedUsers(db);
   }
   await rm(storageDir, { recursive: true, force: true });
   await db.$client.end();

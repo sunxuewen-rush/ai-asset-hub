@@ -13,6 +13,10 @@ export const authErrorCodes = {
   userPending: 'auth.user_pending',
   userLocked: 'auth.user_locked',
   ldapDenied: 'auth.ldap_denied',
+  /** 目录身份缺邮箱（05 §3.1：邮箱只能取自目录，**绝不合成**） */
+  emailMissing: 'auth.email_missing',
+  /** 目录邮箱与既有账号冲突（同邮箱两身份 → 拒绝，人工处置） */
+  emailConflict: 'auth.email_conflict',
   rateLimited: 'auth.rate_limited',
   csrfFailed: 'auth.csrf_failed',
   sessionExpired: 'auth.session_expired',
@@ -27,8 +31,11 @@ export const authErrorCodes = {
 
 export type AuthErrorCode = (typeof authErrorCodes)[keyof typeof authErrorCodes];
 
+/** 认证域用到的最小状态码集合（窄并集：调用方无需断言即可直接传给官方 `ctx.error`） */
+export type AuthErrorStatus = 400 | 401 | 403 | 404 | 409 | 429;
+
 /** HTTP 状态映射（07 §4：code 结构化，状态码语义精确；登录类统一 401 防枚举泄露） */
-export function httpStatusFor(code: AuthErrorCode): number {
+export function httpStatusFor(code: AuthErrorCode): AuthErrorStatus {
   switch (code) {
     case 'auth.invalid_credentials':
     case 'auth.user_disabled':
@@ -40,10 +47,12 @@ export function httpStatusFor(code: AuthErrorCode): number {
     case 'auth.username_invalid':
     case 'auth.password_too_weak':
     case 'auth.authorization_pending':
+    case 'auth.email_missing':
       return 400;
     case 'auth.device_code_invalid':
       return 404;
     case 'auth.username_taken':
+    case 'auth.email_conflict':
       return 409;
     case 'auth.registration_disabled':
     case 'auth.ldap_denied':

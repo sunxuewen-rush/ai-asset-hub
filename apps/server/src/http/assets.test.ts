@@ -2,6 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -14,31 +20,27 @@ import { AssetError } from '../assets/errors.js';
 import { assertSafeReadPath } from '../assets/version-content.js';
 import { createVersion } from '../assets/versions.js';
 import { createAuditWriter } from '../audit/audit.js';
-import { csrfProtection } from '../auth/csrf.js';
+import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
-import { RbacService } from '../auth/rbac.js';
-import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { sessionMiddleware } from '../auth/session-middleware.js';
+import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
 import {
-  ACCOUNT_ROLE,
-  type AccountRole,
   type AssetType,
   asset,
   assetFile,
   assetVersion,
   auditLog,
-  userAccount,
+  user,
 } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { createAssetRoutes } from './assets.js';
-import { rbacContext } from './auth-middleware.js';
+import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 
 const PREFIX = 'ast-';
 let db: Db;
-let sessions: SessionManager;
+let auth: AihAuth;
 let rbac: RbacService;
 let member: string; // 普通用户（资产 owner / 上传者）
 let owner2: string; // 另一普通用户（非 owner 上传者视角）
@@ -53,16 +55,13 @@ let draftSeedKey = ''; // DELETE 存储清理断言用（seed 记录的 key）
 let vreadAssetIdRef = 0; // T14/T15 版本读面/删除专用资产 id（describe beforeAll 赋值）
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName: `${PREFIX}${tag}` });
 }
 async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+  await setUserRole(db, userId, role);
 }
 async function cookieFor(userId: string): Promise<string> {
-  const sid = await sessions.createSession(userId, 'ast-http');
-  return `aih_session=${sid}`;
+  return signInCookie(auth, userId);
 }
 /** 直插资产（可见性矩阵 seed；走服务层注册会重复测——此处为读面预置数据） */
 async function insertAsset(
@@ -86,8 +85,7 @@ async function insertAssetReturning(
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
-  app.use('*', sessionMiddleware(sessions));
-  app.use('*', csrfProtection({}));
+  app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
       return c.json(
@@ -127,7 +125,7 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
-  sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  auth = createAuth({ ldap: null });
   audit = createAuditWriter(db);
   storageDir = await mkdtemp(join(tmpdir(), 'ast-storage-'));
   storage = createLocalStorage(storageDir);
@@ -197,8 +195,7 @@ afterAll(async () => {
     }
     await db.delete(asset).where(inArray(asset.id, ownedAssetIds));
   }
-  await db.delete(auditLog).where(inArray(auditLog.actorId, ownerIds));
-  await db.delete(userAccount).where(inArray(userAccount.id, ownerIds));
+  await cleanupCreatedUsers(db);
   await rm(storageDir, { recursive: true, force: true });
   await db.$client.end();
 });

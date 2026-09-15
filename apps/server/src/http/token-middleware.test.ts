@@ -3,38 +3,40 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
-import { csrfProtection } from '../auth/csrf.js';
+import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
-import { RbacService } from '../auth/rbac.js';
-import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { sessionMiddleware } from '../auth/session-middleware.js';
+import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import { ACCOUNT_ROLE, type AccountRole, apiToken, userAccount } from '../db/schema/index.js';
+import { apiToken, auditLog, user } from '../db/schema/index.js';
 import { createAuditRoutes } from './audit.js';
-import { rbacContext } from './auth-middleware.js';
+import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 
 let db: Db;
-let sessions: SessionManager;
+let auth: AihAuth;
 let rbac: RbacService;
 
 async function makeUser(
   displayName: string,
   status: 'ACTIVE' | 'DISABLED' = 'ACTIVE',
 ): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName, status });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName, status });
 }
 
 async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+  await setUserRole(db, userId, role);
 }
 
 async function mintToken(
@@ -59,8 +61,7 @@ function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
   app.use('*', tokenAuthMiddleware(db));
-  app.use('*', sessionMiddleware(sessions));
-  app.use('*', csrfProtection({}));
+  app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
       return c.json(
@@ -79,17 +80,14 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
-  sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  auth = createAuth({ ldap: null });
 });
 
 afterAll(async () => {
-  const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, 'bearer-%'));
+  const users = await db.select({ id: user.id }).from(user).where(like(user.name, 'bearer-%'));
   for (const u of users) {
     await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+    await cleanupCreatedUsers(db);
   }
   await db.$client.end();
 });
@@ -151,8 +149,8 @@ describe('Bearer token 认证中间件（T17）', () => {
     const b = await makeUser('bearer-priority-b');
     const { plain } = await mintToken(a);
     await mintToken(b); // B 的 token（不应出现在 A 视角列表）
-    const sid = await sessions.createSession(b, 'bearer-test');
-    const res = await getWithAuth(plain, `aih_session=${sid}`);
+    const cookie = await signInCookie(auth, b);
+    const res = await getWithAuth(plain, cookie);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { items: Array<{ id: number }> };
     const aRows = await db.select().from(apiToken).where(eq(apiToken.userId, a));
@@ -165,8 +163,8 @@ describe('Bearer token 认证中间件（T17）', () => {
 
   it('无效 Bearer + 有效 cookie → 401（显式凭证不降级回 cookie）', async () => {
     const b = await makeUser('bearer-nodowngrade');
-    const sid = await sessions.createSession(b, 'bearer-test');
-    const res = await getWithAuth('aih_invalid-token-for-downgrade-check', `aih_session=${sid}`);
+    const cookie = await signInCookie(auth, b);
+    const res = await getWithAuth('aih_invalid-token-for-downgrade-check', cookie);
     expect(res.status).toBe(401);
   });
 

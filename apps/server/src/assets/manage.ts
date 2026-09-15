@@ -5,7 +5,7 @@
  * 纯函数——调用方传入已解析的角色档位（`requireAuth` 保证账号 ACTIVE）。
  * M4-pre 变更：删除空间角色轴（原「空间 OWNER/ADMIN 完整管理权」语义消失）。
  */
-import { ACCOUNT_ROLE, type AccountRole } from '../db/schema/index.js';
+import { ACCOUNT_ROLE, type AccountRole } from '../auth/roles.js';
 
 export interface CanManageInput {
   /** asset.owner_id（主要维护人） */

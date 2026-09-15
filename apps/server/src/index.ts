@@ -4,17 +4,14 @@ import { createApp } from './app.js';
 import { createAuditWriter } from './audit/audit.js';
 import { LdapChannel } from './auth/ldap.js';
 import { InMemoryRateLimiter } from './auth/rate-limit.js';
-import { InMemorySessionStore, SessionManager } from './auth/session.js';
 import { getEnv } from './config/env.js';
 import { getDb } from './db/client.js';
 import { createStorage } from './storage/index.js';
 
 const env = getEnv();
 const db = getDb();
-const sessions = new SessionManager(
-  new InMemorySessionStore(env.SESSION_TTL_HOURS * 60 * 60 * 1000),
-);
 const audit = createAuditWriter(db);
+// 登录限流（M4b-pre T3：装配进官方实例的目录凭证插件；sweep 定时器见下）
 const rateLimiter = new InMemoryRateLimiter(15 * 60 * 1000, 20);
 const storage = createStorage({ driver: env.STORAGE_DRIVER, dir: env.STORAGE_DIR });
 // LDAP 通道默认关闭（05 §3.1：LDAP_ENABLED=false 独立部署不受影响）
@@ -37,13 +34,10 @@ sweepTimer.unref();
 
 const app = createApp({
   db,
-  sessions,
   audit,
   rateLimiter,
   storage,
   ldap,
-  registrationEnabled: env.REGISTRATION_ENABLED,
-  sessionTtlHours: env.SESSION_TTL_HOURS,
   cookieSecure: env.NODE_ENV === 'production',
   publicBaseUrl: env.PUBLIC_BASE_URL,
 });

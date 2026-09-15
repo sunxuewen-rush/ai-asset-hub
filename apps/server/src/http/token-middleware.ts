@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm';
 import type { Context, Next } from 'hono';
-import type { Principal } from '../auth/session.js';
 import { hashToken } from '../auth/tokens.js';
 import type { Db } from '../db/client.js';
-import { apiToken, userAccount } from '../db/schema/index.js';
+import { apiToken, user } from '../db/schema/index.js';
+import type { Principal } from './auth-middleware.js';
 
 /**
  * scope 解析（M3 design §8 R14——交集模型；'' 与 'cli' 维持全量——M1 零破坏）：
@@ -67,16 +67,17 @@ export function tokenAuthMiddleware(db: Db) {
       await next();
       return;
     }
-    const [user] = await db
-      .select({ displayName: userAccount.displayName, status: userAccount.status })
-      .from(userAccount)
-      .where(eq(userAccount.id, token.userId));
+    // M4b-pre T3：账号面切到官方 `user` 表（令牌**存储**仍在 `api_token`，归 T4 切换）
+    const [owner] = await db
+      .select({ displayName: user.name, status: user.status })
+      .from(user)
+      .where(eq(user.id, token.userId));
     // 账号不存在/非 ACTIVE（DISABLED/PENDING）→ 匿名拒
-    if (user?.status !== 'ACTIVE') {
+    if (owner?.status !== 'ACTIVE') {
       await next();
       return;
     }
-    const principal: Principal = { userId: token.userId, displayName: user.displayName };
+    const principal: Principal = { userId: token.userId, displayName: owner.displayName };
     c.set('principal', principal);
     c.set('tokenId', token.id);
     c.set('tokenScopes', parseTokenScope(token.scope));

@@ -15,7 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { asset, assetVersion } from './assets.js';
-import { userAccount } from './users.js';
+import { user } from './auth.js';
 
 /**
  * 治理域（08 §6 v1.1）：review_task / label_definition / label_translation /
@@ -44,8 +44,8 @@ export const reviewTask = pgTable(
     version: integer('version').notNull().default(1),
     submittedBy: varchar('submitted_by', { length: 128 })
       .notNull()
-      .references(() => userAccount.id),
-    reviewedBy: varchar('reviewed_by', { length: 128 }).references(() => userAccount.id),
+      .references(() => user.id),
+    reviewedBy: varchar('reviewed_by', { length: 128 }).references(() => user.id),
     reviewComment: text('review_comment'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
@@ -74,7 +74,7 @@ export const labelDefinition = pgTable(
      *  （非 bigserial：serial 隐含 NOT NULL + 自增——一级 label 无法表达，M1 bug 修复）；
      *  索引 idx_label_definition_parent_id 对齐 skillhub V45（D6） */
     parentId: bigint('parent_id', { mode: 'number' }).references((): any => labelDefinition.id),
-    createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),
+    createdBy: varchar('created_by', { length: 128 }).references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -110,7 +110,7 @@ export const assetLabel = pgTable(
     labelId: bigserial('label_id', { mode: 'number' })
       .notNull()
       .references(() => labelDefinition.id, { onDelete: 'cascade' }),
-    createdBy: varchar('created_by', { length: 128 }).references(() => userAccount.id),
+    createdBy: varchar('created_by', { length: 128 }).references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -124,7 +124,7 @@ export const auditLog = pgTable(
   {
     id: bigserial('id', { mode: 'number' }).primaryKey(),
     /** 可空 = 匿名（登录失败等无身份动作） */
-    actorId: varchar('actor_id', { length: 128 }).references(() => userAccount.id),
+    actorId: varchar('actor_id', { length: 128 }).references(() => user.id),
     action: varchar('action', { length: 64 }).notNull(),
     targetType: varchar('target_type', { length: 64 }),
     /** VARCHAR 兼容两类主键（user id 字符串 / 资产 id 字符串化） */

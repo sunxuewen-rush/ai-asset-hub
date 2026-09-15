@@ -8,8 +8,20 @@ import ldap from 'ldapjs';
  * - bind 成功后 search 自身属性（LDAP_USER_ID_ATTR / displayName）供自动建号
  */
 
+/**
+ * 目录身份（bind 成功后自读属性所得；M4b-pre design §5.2：工号 = `userId`，
+ * 邮箱**只能取自目录**——取不到即 null，调用方拒绝建号，绝不合成，R15）。
+ */
+export interface LdapDirectoryIdentity {
+  /** `LDAP_USER_ID_ATTR`（默认 sAMAccountName）——建号主键与 `account_id` 来源 */
+  userId: string;
+  displayName: string;
+  /** `mail` 属性（目录缺该属性 → null） */
+  email: string | null;
+}
+
 export type LdapAuthResult =
-  | { status: 'ok'; userId: string; displayName: string }
+  | { status: 'ok'; identity: LdapDirectoryIdentity }
   | { status: 'denied' }
   | { status: 'unreachable' };
 
@@ -55,12 +67,10 @@ export class LdapChannel {
     });
   }
 
-  private searchSelf(
-    client: ldap.Client,
-    dn: string,
-  ): Promise<{ userId: string; displayName: string }> {
+  private searchSelf(client: ldap.Client, dn: string): Promise<LdapDirectoryIdentity> {
     return new Promise((resolve) => {
-      const attrs = [this.config.userIdAttr, this.config.displayNameAttr, 'cn'];
+      // T3：属性集 +1（`mail`）——目录邮箱是建号必填项（缺失即拒，不合成）
+      const attrs = [this.config.userIdAttr, this.config.displayNameAttr, 'cn', 'mail'];
       client.search(
         dn,
         { scope: 'base', filter: '(objectClass=*)', attributes: attrs },
@@ -68,7 +78,7 @@ export class LdapChannel {
           // search 失败 → 从 DN 提取 CN 兜底（保证建号可用）
           const fallback = (): void => {
             const cn = extractCn(dn);
-            resolve({ userId: cn ?? dn, displayName: cn ?? dn });
+            resolve({ userId: cn ?? dn, displayName: cn ?? dn, email: null });
           };
           if (err) {
             fallback();
@@ -81,7 +91,11 @@ export class LdapChannel {
             const userId = firstValue(entry, this.config.userIdAttr);
             const displayName =
               firstValue(entry, this.config.displayNameAttr) ?? firstValue(entry, 'cn') ?? userId;
-            resolve({ userId: userId ?? extractCn(dn) ?? dn, displayName: displayName ?? dn });
+            resolve({
+              userId: userId ?? extractCn(dn) ?? dn,
+              displayName: displayName ?? dn,
+              email: firstValue(entry, 'mail') ?? null,
+            });
           });
           res.on('error', fallback);
           res.on('end', () => {
@@ -123,8 +137,8 @@ export class LdapChannel {
         for (const dn of dns) {
           const attempt = await this.bindCandidate(client, dn, password);
           if (attempt.ok) {
-            const self = await this.searchSelf(client, dn);
-            return { status: 'ok', userId: self.userId, displayName: self.displayName };
+            const identity = await this.searchSelf(client, dn);
+            return { status: 'ok', identity };
           }
           if (attempt.ldapCode === null) {
             // 传输层错误（连接失败/超时）→ 切下一 DC（故障转移）

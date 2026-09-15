@@ -1,21 +1,32 @@
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { apiKey } from '@better-auth/api-key';
 import { type Auth, type BetterAuthOptions, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin, bearer, deviceAuthorization, username } from 'better-auth/plugins';
+import {
+  AUDIT_ACTIONS,
+  type AuditWriter,
+  auditMetaFromHeaders,
+  createAuditWriter,
+} from '../audit/audit.js';
 import { getEnv } from '../config/env.js';
 import { getDb } from '../db/client.js';
-import { hashPassword, verifyPassword } from './password.js';
+import type { LdapChannel } from './ldap.js';
+import { directoryCredentials } from './plugins/ldap-credentials.js';
+import { InMemoryRateLimiter, type RateLimiter } from './rate-limit.js';
 import { ac, ROLES } from './roles.js';
 
 /**
  * better-auth 实例装配（design §4.1「新增」表 · §2.2 目标架构）。
  *
- * 定位：**官方整车 + 薄适配层**——本文件只做「配置化接线」，不实现任何认证算法：
+ * 定位：**官方整车 + 薄适配层**——本文件只做「配置化接线」，不自研认证算法：
  * - 会话签发/校验/cookie/Origin 校验 → 官方内建（`better-auth.session_token`，`session` 表落库）
  * - 角色与权限码 → 官方 admin 插件 + 本项目 `roles.ts` 声明（R4）
- * - 密码哈希 → 官方配置化注入点（`emailAndPassword.password`），算法沿用本项目既有 scrypt（R10，存量零重置）
+ * - 密码哈希 → 官方配置化注入点（`emailAndPassword.password`），算法沿用本项目既有 scrypt（R10 存量零重置）
+ *   ——该算法函数体按 design §4.1 由原 `auth/password.ts` **迁入本文件**（文件已删）
  * - 令牌 → 官方 api-key 插件（R7；**显式关闭官方默认限流**，否则会改掉既有令牌语义）
  * - 设备流 → 官方 device authorization 插件（R8）；设备 token 走 Bearer ⇒ 必须挂 `bearer` 插件
+ * - 企业目录登录 / OIDC 会话接缝 → 本批唯一自绘插件 `plugins/ldap-credentials.ts`（官方扩展点）
  *
  * 已实测坑（design §2.3 P1-P8）在本文件相关项：
  * - `drizzleAdapter` 的 drizzle 实例**必须带 schema**，否则运行期 `BetterAuthError(SCHEMA_MISMATCH)`
@@ -26,20 +37,41 @@ import { ac, ROLES } from './roles.js';
  * - 选项/实例的**推断类型不可命名**——直接用 `ReturnType<typeof authOptions>` 之类会让编译器把
  *   zod / better-call 内部类型写进 `.d.ts`（TS2742）且超长（TS7056）；把选项注解成官方
  *   `BetterAuthOptions` 也修不掉（`Auth<BetterAuthOptions>` 与实例的 `$context` 是逆变的，赋值不成立）。
- * - 结论：**实例类型以官方导出的 `Auth` 命名**（`AihAuth = Auth`）；把 `authOptions()` 注解为官方
+ * - 结论：**实例类型以官方导出的 `Auth` 命名**（`AihAuth = Auth`）；`authOptions()` 注解为官方
  *   `BetterAuthOptions` 后，`betterAuth()` 的返回值可直接赋给 `Auth`（**无需断言**，实测赋值成立）。
  *   代价 = 插件端点（api-key 的 `createApiKey` / `verifyApiKey` 等）不在 `Auth` 的 `api` 面上 ⇒
  *   需要在调用点做**局部窄化**（T5 落地，见 design §2.3 P6/P7：令牌签发本就要求服务端直呼）；
  *   核心端点 `getSession` 正常有类型。
  */
 
+/** 装配期可注入的运行时依赖（测试注入 fake LDAP / 自定义审计与限流；生产走缺省） */
+export interface AuthRuntimeDeps {
+  /**
+   * 官方 `advanced` 选项透传（**测试专用钩子**）。主要用途：断言 Origin 三态时必须显式
+   * `{ disableOriginCheck: false }` —— 官方在 `NODE_ENV=test` 下默认跳过 Origin 校验
+   * （源码 `context/create-context.mjs:211`：`skipOriginCheck = isTest() ? true : false`），
+   * 生产/开发环境默认即开启（无需设置）。
+   */
+  advanced?: BetterAuthOptions['advanced'];
+  /** LDAP 通道（缺省 = null ⇒ 纯本地模式；生产由 `index.ts` 按 `LDAP_ENABLED` 构造后传入） */
+  ldap?: LdapChannel | null;
+  audit?: AuditWriter;
+  rateLimiter?: RateLimiter;
+}
+
+/** 登录限流缺省档（与旧 `index.ts` 装配同参：15 分钟窗口 / 20 次） */
+const LOGIN_RATE_LIMIT = { windowMs: 15 * 60 * 1000, max: 20 } as const;
+
 /** 实例选项（仅在构建实例时求值；env 惰性读取，导入期不解析） */
-export function authOptions(): BetterAuthOptions {
+export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
   const env = getEnv();
+  const db = getDb();
+  const audit = deps.audit ?? createAuditWriter(db);
   return {
+    ...(deps.advanced ? { advanced: deps.advanced } : {}),
     baseURL: env.PUBLIC_BASE_URL,
     secret: env.SESSION_SECRET,
-    database: drizzleAdapter(getDb(), { provider: 'pg' }),
+    database: drizzleAdapter(db, { provider: 'pg' }),
 
     emailAndPassword: {
       enabled: true,
@@ -72,6 +104,29 @@ export function authOptions(): BetterAuthOptions {
       },
     },
 
+    /**
+     * 审计挂钩（官方 hooks 扩展点；design §2.2「审查/审计动作留痕」）：
+     * - `databaseHooks.user.create.after`：官方自助注册（`sign-up/email`）落 `auth.register`
+     * - 登出审计（`auth.logout`）**不在本文件**：官方 `hooks.after` 在 sign-out 路径取不到会话
+     *   （会话行已被删除，实测）⇒ 由 `app.ts` 的官方 handler 包装层「先读会话 → 处理后补审计」承担
+     * 目录/本地登录的成败审计在 `plugins/ldap-credentials.ts` 内（该处才有分派上下文）。
+     */
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (createdUser, ctx) => {
+            await audit({
+              ...auditMetaFromHeaders(ctx?.headers),
+              actorId: createdUser.id,
+              action: AUDIT_ACTIONS.register,
+              targetType: 'user',
+              targetId: createdUser.id,
+            });
+          },
+        },
+      },
+    },
+
     plugins: [
       /** 登录名（工号/本地登录名）唯一列 + 展示名（05 §2 身份标识） */
       username(),
@@ -83,6 +138,15 @@ export function authOptions(): BetterAuthOptions {
       bearer(),
       /** API 令牌（R7：官方默认 10 次/24h 限流会改掉既有语义 ⇒ 显式关闭；限流仍在下载/上传面） */
       apiKey({ rateLimit: { enabled: false } }),
+      /** 企业目录凭证（本批唯一自绘件；官方零支持槽位，官方扩展点内实现） */
+      directoryCredentials({
+        db,
+        ldap: deps.ldap ?? null,
+        audit,
+        rateLimiter:
+          deps.rateLimiter ??
+          new InMemoryRateLimiter(LOGIN_RATE_LIMIT.windowMs, LOGIN_RATE_LIMIT.max),
+      }),
     ],
   };
 }
@@ -98,15 +162,97 @@ export function parseTrustedOrigins(raw: string): string[] {
     .filter((origin) => origin.length > 0);
 }
 
+/** 构建实例（app.ts / seed / 测试各自可注入依赖与 LDAP 通道；实例间互不共享状态） */
+export function createAuth(deps: AuthRuntimeDeps = {}): AihAuth {
+  return betterAuth(authOptions(deps));
+}
+
 let cached: AihAuth | undefined;
 
 /** 惰性单例（与 `getEnv`/`getDb` 同风格：导入期不解析 env，测试可重置） */
 export function getAuth(): AihAuth {
-  cached ??= betterAuth(authOptions());
+  cached ??= createAuth();
   return cached;
 }
 
 /** 测试用：清除缓存重建实例 */
 export function resetAuthCache(): void {
   cached = undefined;
+}
+
+/* ────────────────────────── 口令哈希（原 `auth/password.ts` 迁入，design §4.1） ────────────────────────── */
+/**
+ * 密码哈希（R3）：node:crypto scrypt，零 native 依赖。
+ * 存储格式：`$scrypt$N$r$p$<salt b64>$<hash b64>`（参数自描述，支持未来升级）。
+ * 迁移语义（design R10）：存量 `local_credential.password_hash` 原样写入 `account.password`，
+ * 本函数只在**新写入**时使用；校验永远按存储串自描述参数执行。
+ */
+
+// OWASP 推荐参数：N=2^17, r=8, p=1
+const SCRYPT_N = 131072;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const SCRYPT_KEYLEN = 32;
+const SALT_LEN = 16;
+// maxmem 必传：128·N·r ≈ 128 MiB > Node 默认 maxmem 32 MiB（不设会运行时报错）；2 倍裕量
+const SCRYPT_MAXMEM = 256 * 1024 * 1024;
+
+function scrypt(
+  password: string,
+  salt: Buffer,
+  keylen: number,
+  n: number,
+  r: number,
+  p: number,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scryptCallback(
+      password,
+      salt,
+      keylen,
+      { N: n, r, p, maxmem: SCRYPT_MAXMEM },
+      (err, derivedKey) => {
+        if (err) reject(err);
+        else resolve(derivedKey);
+      },
+    );
+  });
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(SALT_LEN);
+  const key = await scrypt(password, salt, SCRYPT_KEYLEN, SCRYPT_N, SCRYPT_R, SCRYPT_P);
+  return `$scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64')}$${key.toString('base64')}`;
+}
+
+/** 校验：格式解析失败返回 false（不抛），参数取自存储串（自描述） */
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  const parts = stored.split('$');
+  // ['', 'scrypt', N, r, p, salt, hash] = 7 段
+  if (parts.length !== 7 || parts[0] !== '' || parts[1] !== 'scrypt') return false;
+
+  const n = Number(parts[2]);
+  const r = Number(parts[3]);
+  const p = Number(parts[4]);
+  // N 必须为 >1 的 2 的幂（node:crypto 参数约束）
+  if (!Number.isInteger(n) || n <= 1 || (n & (n - 1)) !== 0) return false;
+  if (!Number.isInteger(r) || r < 1 || !Number.isInteger(p) || p < 1) return false;
+
+  let salt: Buffer;
+  let expected: Buffer;
+  try {
+    salt = Buffer.from(parts[5] ?? '', 'base64');
+    expected = Buffer.from(parts[6] ?? '', 'base64');
+  } catch {
+    return false;
+  }
+  if (salt.length === 0 || expected.length === 0) return false;
+
+  let actual: Buffer;
+  try {
+    actual = await scrypt(password, salt, expected.length, n, r, p);
+  } catch {
+    return false;
+  }
+  return timingSafeEqual(actual, expected);
 }

@@ -4,15 +4,15 @@ import { and, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { AssetError, assetErrorCodes } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
+import { ACCOUNT_ROLE, type AccountRole } from '../auth/roles.js';
 import { createClient, type Db } from '../db/client.js';
+import { asset, assetVersion, auditLog, reviewTask, user } from '../db/schema/index.js';
 import {
-  ACCOUNT_ROLE,
-  asset,
-  assetVersion,
-  auditLog,
-  reviewTask,
-  userAccount,
-} from '../db/schema/index.js';
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
 import {
   approveReview,
@@ -35,9 +35,7 @@ let contributorId: string; // 非 owner 上传者（普通用户——无管理�
 let strangerId: string; // 外人
 
 async function makeUser(tag: string): Promise<string> {
-  const id = `rvw_${tag}_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName: `${PREFIX}${tag}`, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `rvw_${tag}_${randomUUID()}`, displayName: `${PREFIX}${tag}` });
 }
 
 async function insertAsset(slug: string): Promise<number> {
@@ -93,8 +91,7 @@ afterAll(async () => {
   await db.delete(reviewTask).where(like(reviewTask.submittedBy, 'rvw_%'));
   await db.delete(assetVersion).where(like(assetVersion.createdBy, 'rvw_%'));
   await db.delete(asset).where(like(asset.ownerId, 'rvw_%'));
-  await db.delete(auditLog).where(like(auditLog.actorId, 'rvw_%'));
-  await db.delete(userAccount).where(like(userAccount.id, 'rvw_%'));
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 

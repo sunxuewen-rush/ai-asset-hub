@@ -26,6 +26,28 @@ export type RoleName = keyof typeof ROLE_LEVEL;
 export const GUEST_LEVEL = 0;
 
 /**
+ * 数值档位常量（M4-pre 既有调用面：`ACCOUNT_ROLE.ADMIN` 等 32 处/10 文件，M4b-pre 零改动）。
+ * 值与 `ROLE_LEVEL` 同源（防两套数字漂移）；`GUEST` 为未登录占位（不入库）。
+ */
+export const ACCOUNT_ROLE = {
+  GUEST: GUEST_LEVEL,
+  USER: ROLE_LEVEL.user,
+  ADMIN: ROLE_LEVEL.admin,
+  SUPER_ADMIN: ROLE_LEVEL.superadmin,
+} as const;
+
+export type AccountRole = (typeof ACCOUNT_ROLE)[keyof typeof ACCOUNT_ROLE];
+
+/**
+ * 库中档名文本 → 数值档位（M4b-pre `RbacService.roleOf` 的映射实现）。
+ * 未知/空/NULL → `null`（= 无角色，与未登录同权）；**不做 GUEST 降级**——
+ * 降级会让「档名写坏」静默变成「普通用户」，与 05 §4.1「非 ACTIVE 无角色」同向从严。
+ */
+export function accountRoleOf(role: unknown): AccountRole | null {
+  return isRoleName(role) ? ROLE_LEVEL[role] : null;
+}
+
+/**
  * 权限码 statement（官方 access control 形态：资源 → 动作数组）。
  * 动作集覆盖既有 token scope 码 + 官方 admin 插件在本项目需要的最小动作面。
  * M4c（账号与权限治理）若接线官方 `set-password` / `delete` / `impersonate` 端点，在此处扩展。

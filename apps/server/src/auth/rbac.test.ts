@@ -2,12 +2,19 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  roleNameOf,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import { type AccountRole, userAccount } from '../db/schema/index.js';
+import { auditLog, user } from '../db/schema/index.js';
 import { ACCOUNT_ROLE, isSelfReview, RbacService } from './rbac.js';
 
 /**
@@ -22,13 +29,14 @@ let db: Db;
 let rbac: RbacService;
 
 async function makeUser(displayName: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName });
 }
 
-async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+async function setRole(userId: string, role: number): Promise<void> {
+  await db
+    .update(user)
+    .set({ role: roleNameOf(role) })
+    .where(eq(user.id, userId));
 }
 
 beforeAll(async () => {
@@ -39,7 +47,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // 精确清理（displayName like 前缀——与其他测试文件并行互不踩）
-  await db.delete(userAccount).where(like(userAccount.displayName, 'rbac-%'));
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 
@@ -72,7 +80,7 @@ describe('RbacService.roleOf / hasRole —— 4 档层级（M4-pre §2.2）', ()
   it('DISABLED 用户 → roleOf=null，hasRole 全假（即使 role=超管）', async () => {
     const uid = await makeUser('rbac-disabled');
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
-    await db.update(userAccount).set({ status: 'DISABLED' }).where(eq(userAccount.id, uid));
+    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
     await expect(rbac.roleOf(uid)).resolves.toBeNull();
     await expect(rbac.hasRole(uid, ACCOUNT_ROLE.USER)).resolves.toBe(false);
     await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
@@ -108,7 +116,7 @@ describe('hasRole —— 管理档判定（原 can() 平台侧语义收敛）', 
   it('DISABLED 用户 / 不存在用户 → 全假', async () => {
     const uid = await makeUser('rbac-can-disabled');
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
-    await db.update(userAccount).set({ status: 'DISABLED' }).where(eq(userAccount.id, uid));
+    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
     await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
     await expect(rbac.hasRole('usr_no-such-user', ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
   });

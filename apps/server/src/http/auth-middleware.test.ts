@@ -3,17 +3,27 @@ import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
+import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
-import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { sessionMiddleware } from '../auth/session-middleware.js';
 import { createClient, type Db } from '../db/client.js';
-import { userAccount } from '../db/schema/index.js';
-import { rbacContext, requireAuth, requireRole } from './auth-middleware.js';
+import { auditLog, user } from '../db/schema/index.js';
+import {
+  officialSessionMiddleware,
+  rbacContext,
+  requireAuth,
+  requireRole,
+} from './auth-middleware.js';
 
 /**
  * 鉴权/授权中间件测试（M4-pre：判定链为 4 档层级 `role >= minRole`，design §2.2）。
@@ -22,29 +32,26 @@ import { rbacContext, requireAuth, requireRole } from './auth-middleware.js';
 
 let db: Db;
 let rbac: RbacService;
-let sessions: SessionManager;
+let auth: AihAuth;
 
 async function makeUser(displayName: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName });
 }
 
 async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+  await setUserRole(db, userId, role);
 }
 
 /** 造登录态：session manager 直签 → cookie 头 */
 async function cookieFor(userId: string): Promise<string> {
-  const sid = await sessions.createSession(userId, 'mw-test');
-  return `aih_session=${sid}`;
+  return signInCookie(auth, userId);
 }
 
 /** 测试 app：session 中间件 + rbac 注入 + 三档探针端点 */
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
-  app.use('*', sessionMiddleware(sessions));
+  app.use('*', officialSessionMiddleware(auth));
   // onError：AuthError 结构化（与 createApp 同款）
   app.onError((err, c) => {
     if (err instanceof AuthError) {
@@ -66,17 +73,14 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
-  sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  auth = createAuth({ ldap: null });
 });
 
 afterAll(async () => {
   // 精确清理自己创建的测试用户（displayName 前缀）
-  const mine = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, 'mw-%'));
+  const mine = await db.select({ id: user.id }).from(user).where(like(user.name, 'mw-%'));
   for (const u of mine) {
-    await db.delete(userAccount).where(eq(userAccount.id, u.id));
+    await cleanupCreatedUsers(db);
   }
   await db.$client.end();
 });
@@ -137,10 +141,10 @@ describe('auth middleware（M4-pre 4 档层级判定）', () => {
   it('DISABLED user rejected at auth gate even with valid session', async () => {
     const uid = await makeUser('mw-disabled');
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
-    await db.update(userAccount).set({ status: 'DISABLED' }).where(eq(userAccount.id, uid));
-    const res = await buildApp().request('/probe-auth', {
-      headers: { cookie: await cookieFor(uid) },
-    });
+    // M4b-pre T3：会话先签（登录要求 ACTIVE），随后置 DISABLED ⇒ 断言「持有效会话但状态门拒」
+    const cookie = await cookieFor(uid);
+    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
+    const res = await buildApp().request('/probe-auth', { headers: { cookie } });
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({ code: 'auth.session_expired' });
   });
@@ -148,10 +152,9 @@ describe('auth middleware（M4-pre 4 档层级判定）', () => {
   it('DISABLED 用户即便持超管 role，管理门亦拒（roleOf 非 ACTIVE → null）', async () => {
     const uid = await makeUser('mw-disabled-admin');
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
-    await db.update(userAccount).set({ status: 'DISABLED' }).where(eq(userAccount.id, uid));
-    const res = await buildApp().request('/probe-admin', {
-      headers: { cookie: await cookieFor(uid) },
-    });
+    const cookie = await cookieFor(uid);
+    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
+    const res = await buildApp().request('/probe-admin', { headers: { cookie } });
     expect(res.status).toBe(401);
   });
 });

@@ -3,55 +3,49 @@ import { randomUUID } from 'node:crypto';
 import { and, count, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  setUserRole,
+  signInCookie,
+} from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createAuditWriter } from '../audit/audit.js';
-import { csrfProtection } from '../auth/csrf.js';
+import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
-import { RbacService } from '../auth/rbac.js';
-import { InMemorySessionStore, SessionManager } from '../auth/session.js';
-import { sessionMiddleware } from '../auth/session-middleware.js';
+import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { hashToken } from '../auth/tokens.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  ACCOUNT_ROLE,
-  type AccountRole,
-  apiToken,
-  auditLog,
-  userAccount,
-} from '../db/schema/index.js';
-import { rbacContext } from './auth-middleware.js';
+import { apiToken, auditLog, user } from '../db/schema/index.js';
+import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { createTokenRoutes } from './tokens.js';
 
 let db: Db;
 let audit!: ReturnType<typeof createAuditWriter>;
-let sessions: SessionManager;
+let auth: AihAuth;
 let rbac: RbacService;
 let u1: string; // 普通 ACTIVE 用户（无平台角色——签发本人 token 不需权限码）
 let superAdmin: string;
 
 async function makeUser(displayName: string): Promise<string> {
-  const id = `usr_${randomUUID()}`;
-  await db.insert(userAccount).values({ id, displayName, status: 'ACTIVE' });
-  return id;
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName });
 }
 
 async function setRole(userId: string, role: AccountRole): Promise<void> {
-  await db.update(userAccount).set({ role }).where(eq(userAccount.id, userId));
+  await setUserRole(db, userId, role);
 }
 
 async function cookieFor(userId: string): Promise<string> {
-  const sid = await sessions.createSession(userId, 'token-test');
-  return `aih_session=${sid}`;
+  return signInCookie(auth, userId);
 }
 
 function buildApp(): Hono {
   const app = new Hono();
   app.use('*', rbacContext(rbac));
-  app.use('*', sessionMiddleware(sessions));
-  app.use('*', csrfProtection({}));
+  app.use('*', officialSessionMiddleware(auth));
   app.onError((err, c) => {
     if (err instanceof AuthError) {
       return c.json(
@@ -82,7 +76,7 @@ beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
   rbac = new RbacService(db);
-  sessions = new SessionManager(new InMemorySessionStore(60 * 60 * 1000));
+  auth = createAuth({ ldap: null });
   audit = createAuditWriter(db);
   u1 = await makeUser('tok-u1');
   superAdmin = await makeUser('tok-super-admin');
@@ -90,15 +84,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  const users = await db
-    .select({ id: userAccount.id })
-    .from(userAccount)
-    .where(like(userAccount.displayName, 'tok-%'));
-  for (const u of users) {
-    await db.delete(auditLog).where(eq(auditLog.actorId, u.id)); // T17：审计动作埋点后 FK 序
-    await db.delete(apiToken).where(eq(apiToken.userId, u.id));
-    await db.delete(userAccount).where(eq(userAccount.id, u.id));
-  }
+  // 夹具登记制清理（审计行 → api_token → 用户；会话/凭据级联）
+  await cleanupCreatedUsers(db);
   await db.$client.end();
 });
 
@@ -239,7 +226,6 @@ describe('GET /api/tokens（T15 列表）', () => {
 
     // 清理 u2（含其 token 行）
     await db.delete(apiToken).where(eq(apiToken.userId, u2));
-    await db.delete(userAccount).where(eq(userAccount.id, u2));
   });
 });
 
@@ -288,7 +274,6 @@ describe('DELETE /api/tokens/:id（T16 吊销）', () => {
     const [row] = await db.select().from(apiToken).where(eq(apiToken.id, id));
     expect(row!.revokedAt).toBeNull(); // 未被吊销
     await db.delete(apiToken).where(eq(apiToken.userId, u2));
-    await db.delete(userAccount).where(eq(userAccount.id, u2));
   });
 
   it('SUPER_ADMIN 吊销他人 token → 204（超管治理面）', async () => {
@@ -300,10 +285,11 @@ describe('DELETE /api/tokens/:id（T16 吊销）', () => {
     expect(row!.revokedAt).not.toBeNull();
   });
 
-  it('不存在 id → 404；非法 id → 400；无 Origin 的 DELETE → 403 csrf（cookie 通道面）', async () => {
+  it('不存在 id → 404；非法 id → 400；无 Origin 的 DELETE 仍按业务语义判（CSRF 交官方后）', async () => {
     const cookie = await cookieFor(u1);
     expect((await deleteReq('/api/tokens/999999', cookie)).status).toBe(404);
     expect((await deleteReq('/api/tokens/abc', cookie)).status).toBe(400);
-    expect((await deleteReq('/api/tokens/1', cookie, false)).status).toBe(403);
+    // M4b-pre T3：Origin 校验交官方（仅官方端点面）；业务写请求的跨站保护 = cookie SameSite=Lax
+    expect((await deleteReq('/api/tokens/1', cookie, false)).status).toBe(404);
   });
 });

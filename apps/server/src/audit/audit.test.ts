@@ -50,12 +50,15 @@ describe('audit writer（08 §6 v1.1：D5 网络字段落库）', () => {
 
   it('persists anonymous entries with null actor', async () => {
     const write = createAuditWriter(db);
+    // 并发文件同样写 auth.login.failed（共享同库）⇒ 用自有 requestId 收敛断言目标
+    const requestId = `anon-${Date.now()}`;
     await write({
       action: 'auth.login.failed',
+      requestId,
       detail: { username: 'ghost' },
     });
-    const rows = await db.select().from(auditLog).where(eq(auditLog.action, 'auth.login.failed'));
-    const latest = rows[rows.length - 1]!;
+    const rows = await db.select().from(auditLog).where(eq(auditLog.requestId, requestId));
+    const latest = rows[0]!;
     expect(latest.actorId).toBeNull();
     expect(latest.detail).toEqual({ username: 'ghost' });
   });
