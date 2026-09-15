@@ -32,7 +32,7 @@ async function makeUser(displayName: string): Promise<string> {
   return createTestUser(db, { id: `usr_${randomUUID()}`, displayName });
 }
 
-/** 直写账号角色（M4-pre：`user_account.role` 单列 4 档） */
+/** 直写账号角色（官方 `user.role` 文本档名；数值档位由 `ROLE_LEVEL` 映射） */
 async function setRole(userId: string, role: number): Promise<void> {
   await setUserRole(db, userId, role);
 }

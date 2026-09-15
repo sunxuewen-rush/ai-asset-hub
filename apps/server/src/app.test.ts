@@ -63,7 +63,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // 夹具登记制清理（含 `api_token` → `user` 的 FK 顺序；本文件有签发令牌的用例——
+  // 夹具登记制清理（含官方 `apikey`/`session` 随用户登记下线；本文件有签发令牌的用例——
   // 少了它 user 删除会被 `api_token_user_id_user_id_fk` 拦下，残留行会让下次运行撞 `user_pkey`）
   await cleanupCreatedUsers(db);
   // 前缀清理（禁全表 delete——纪律）；顺序满足 FK：audit_log → user（session/account 级联）

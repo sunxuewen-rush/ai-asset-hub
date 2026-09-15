@@ -121,7 +121,7 @@ function assetItem(row: AssetRow, meta?: AssetItemMeta | null) {
     latestVersion: meta?.latestVersion ?? null,
     latestName: meta?.latestName ?? null,
     latestDescription: meta?.latestDescription ?? null,
-    /** R6：owner 显示名（user_account.displayName——LDAP 建号同步 05 §3.1） */
+    /** R6：owner 显示名（官方 `user.name`——LDAP 建号同步 05 §3.1） */
     ownerDisplayName: meta?.ownerDisplayName ?? null,
     downloadCount: row.downloadCount,
     createdAt: row.createdAt.toISOString(),

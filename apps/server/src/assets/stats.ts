@@ -4,7 +4,7 @@
  * 聚合语义与匿名列表同面（M4-pre S3：**可见性已删**，仅 `status = ACTIVE` + 无空间维度）——防泄露：
  * HIDDEN/ARCHIVED 一律不计入。
  *
- * v0.17 `totalUsers` 口径 = **`user_account.status = 'ACTIVE'`**（排除 PENDING / DISABLED）——
+ * v0.17 `totalUsers` 口径 = **官方 `user.status = 'ACTIVE'`**（排除 PENDING / DISABLED）——
  * 由实现侧选定（1 行谓词可切换为全量 `count(*)`）。⚠ 注意与资产侧「防泄露」**不同层**：用户规模是
  * 注册量而非「公开内容派生量」，属**主动披露项**（2026-09-11 用户拍板在首页展示「用户数量」）。
  */

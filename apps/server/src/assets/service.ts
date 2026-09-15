@@ -47,7 +47,7 @@ export interface AssetItemMeta {
 
 /**
  * 批加载资产展示元数据（R5/R6）：latest 版本投影（parsed_metadata_json
- * name/description——01 §3.2）+ owner 显示名（user_account.displayName）。
+ * name/description——01 §3.2）+ owner 显示名（官方 `user.name`）。
  * 两条 inArray 查询防 N+1；缺失（无版本/owner 已删）→ null 字段。
  */
 export async function loadAssetItemMeta(

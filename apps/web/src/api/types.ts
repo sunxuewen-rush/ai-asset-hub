@@ -55,7 +55,7 @@ export interface StatsResponse {
   totalAssets: number;
   totalDownloads: number;
   typeCounts: Record<AssetType, number>;
-  /** 注册用户数（v0.17 新增；口径 `user_account.status = 'ACTIVE'`） */
+  /** 注册用户数（v0.17 新增；口径 官方 `user.status = 'ACTIVE'`） */
   totalUsers: number;
 }
 

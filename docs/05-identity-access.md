@@ -1,8 +1,8 @@
 # 用户与权限设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-08（v1.7：M3 实现同步——审核管线落地注 + withdraw 权限例外 + token scope 交集 + 运营注记 + 隐藏行残留收敛修正；v1.6：M2 实现同步——§6.4 asset:manage 补 DRAFT 上传者删除例外（Q2）、asset:publish 行加 M2 语义注（Q4）；v1.5：M0/M1 复验——§6.2 MEMBER 行措辞收紧，与 §6.4 review:submit 判定区分；v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
-> Status: 定稿（M1 已实现：本地账号/Session/RBAC 判定链/LDAP 企业通道/OIDC 授权码流/Device Flow/API Token，docs/05 §3.1 流程；M2 已按 v1.6 同步 §6.4 DRAFT 上传者删除例外 + asset:publish M2 语义；M3 已按 v1.7 同步审核管线/withdraw/scope 交集/运营注记）
+> Updated: 2026-09-15（v1.9：**M4b-pre 认证整车迁移同步**——§3 五层图的身份映射层改官方 `account` 表 + 落地实现注（better-auth 1.7.5 实例）· §3.1 安全边界去「行级失败锁定」（随 `local_credential` 删除，防爆破由登录限流承担）· §4.1 状态机补落库口径（官方 `user.status`）· §5 会话与凭证**按 M4b-pre 实测重写**（会话落库 8h 绝对过期 / 设备流官方两段式 / 令牌 = 官方 api-key 插件 + scope 码 / 起源校验）· §6/§6.3 落库表名 `user_account.role` → 官方 `user.role`（文本档名 + `ROLE_LEVEL` 数值映射）；v1.8：**M4-pre 扁平化重构同步**· §6 双轴改单轴 4 档线性 · §6.1/§6.2/§6.3/§6.4/§6.5 重写（迁移 0005/0006/0007）；v1.7：M3 实现同步——审核管线落地注 + withdraw 权限例外 + token scope 交集 + 运营注记 + 隐藏行残留收敛修正；v1.6：M2 实现同步——§6.4 asset:manage 补 DRAFT 上传者删除例外（Q2）、asset:publish 行加 M2 语义注（Q4）；v1.5：M0/M1 复验——§6.2 MEMBER 行措辞收紧，与 §6.4 review:submit 判定区分；v1.4：M1 阶段二实现同步——OIDC 授权码流/Device Flow/API Token 落地；v1.3 实现状态同步——M1 认证按本文档落地；v1.2 §6.4 防自审/namespace:manage）
+> Status: 定稿（M1 已实现：本地账号/Session/RBAC 判定链/LDAP 企业通道/OIDC 授权码流/Device Flow/API Token，docs/05 §3.1 流程；M2 已按 v1.6 同步 §6.4 DRAFT 上传者删除例外 + asset:publish M2 语义；M3 已按 v1.7 同步审核管线/withdraw/scope 交集/运营注记；**M4b-pre 已按 v1.9 同步认证整车迁移后的实测形态**——认证内核/会话/令牌/设备流/起源校验均走官方件，自留面仅企业目录凭证插件与业务读面中间件）
 > Scope: AI Asset Hub 的身份、准入、会话凭证与 RBAC 授权体系
 > 设计来源：企业实战验证的注册中心认证方案（设计决策继承，命名与实现中立化/资产化）
 
@@ -39,7 +39,7 @@
               │ 准入通过
               ▼
 ┌────────────────────────────┐
-│ Layer 3: Identity Mapping  │  外部身份 → 平台用户（identity_binding）
+│ Layer 3: Identity Mapping  │  外部身份 → 平台用户（官方 account 表）
 └─────────────┬──────────────┘
               │ PlatformPrincipal
               ▼
@@ -54,6 +54,11 @@
 
 - 本地账号模式（无 IdP 的独立部署/开发）：账号密码直接走 Layer 2 准入（注册开关配置）
 - OIDC 模式：标准授权码流，Provider 可扩展（GitHub/企业 IdP 等），准入与 Provider 无关
+
+**落地实现（M4b-pre，2026-09-15）**：Layer 1/3/4 由**官方认证内核** `better-auth@1.7.5` 承担
+（实例 + 薄适配层；表结构照官方默认：`user`/`session`/`account`/`verification`/`device_code`/`apikey`）；
+企业目录通道以**自定义凭证插件**接入（本层唯一自绘件，理由见批 design §1.4）；
+Layer 5 判定链与业务读面中间件仍为本仓实现（判定数据源改为官方 `user.role`/`user.status`）。
 
 ### 3.1 LDAP/AD 认证（可选企业通道）
 
@@ -80,7 +85,8 @@
 安全边界：
 
 - 密码只在验证路径内存中流转：不落盘、不进日志、不进响应体
-- 登录限流（匿名低频窗口，防爆破）
+- 登录限流（匿名低频窗口，防爆破）；**M4b-pre**：原「行级失败锁定」列（`failed_attempts`/
+  `locked_until`）随 `local_credential` 表删除 ⇒ 爆破防护**统一由限流承担**（官方内核限流 + 本仓登录限流）
 - LDAP 建号后账号状态直接 `ACTIVE`（目录身份可信）；默认档位 = `用户`（1）——与本地注册账号同档
   （M4-pre：原「默认无平台角色，权限仅来自命名空间成员关系」随空间域删除；档位提升由 `超管` 配置）
 - 平台不存目录密码，纯绑定验证（无密码双写，目录是唯一密码权威）
@@ -98,6 +104,9 @@
 
 准入结果：`ALLOW`（继续）/ `DENY`（拒绝，不建 Session）/ `PENDING_APPROVAL`（等管理员审批）。
 
+- **实现状态（M4b-pre 止）**：仅 `OPEN` 已实现（独立部署默认；`ACCESS_POLICY` 取其它值**启动即拒**），
+  其余三种策略与其审批流归 **M4c「账号与权限治理」**（追踪表 `00` §5）；本表为规范目标形态
+
 ### 4.1 账号状态机
 
 | 状态 | 语义 | Session |
@@ -106,18 +115,40 @@
 | `ACTIVE` | 正常 | 有 |
 | `DISABLED` | 封禁/停用 | 无（拒绝所有操作） |
 
+- **落库**：状态三态为**单列**（官方 `user.status`，additionalFields；M4b-pre 起不用官方 `ban` 列），
+  默认 `ACTIVE`；判定在会话解析处统一执行（非 `ACTIVE` ⇒ 会话失效 → 401）
+- **无 `LOCKED` 态**：原实现的行级失败锁定（`local_credential.locked_until`）随表删除，
+  防爆破由**登录限流**承担（§3.1）；`auth.user_locked` 错误码随之删除（M4b-pre T7）
+
 ## 5. 会话与凭证
 
-| 通道 | 机制 | 说明 |
-|------|------|------|
-| Web | 服务端 Session（过期可配，默认 8h） | 登录态经 HttpOnly Cookie |
-| CLI | OAuth Device Flow → 平台签发 CLI 凭证 | 桌面/CLI 客户端标准做法 |
-| API Token | 平台通用凭证（可设 scope/到期） | 自动化与兼容层用；密钥只展示一次（可吊销） |
+| 通道 | 机制（M4b-pre 实测形态） | 说明 |
+|------|--------------------------|------|
+| Web | **服务端会话落库**（官方 `session` 表；绝对过期 `SESSION_TTL_HOURS` 默认 **8h**，**不滑动续期**） | 登录态经 `HttpOnly` Cookie（`better-auth.session_token`，`SameSite=Lax`）；会话在服务重启后**存活**（旧实现在内存，重启即全员登出） |
+| CLI | **OAuth 2.0 Device Flow（官方两段式）**：`POST /api/auth/device/code`（带 `client_id`）→ 用户在 **`${PUBLIC_BASE_URL}/device`** 认领（`GET /api/auth/device?user_code=`）并确认（`POST /api/auth/device/approve` / 拒绝 `…/deny`）→ `POST /api/auth/device/token` 取令牌 | 换取的是**平台会话令牌**（Bearer；官方 `bearer` 插件将其还原为会话）⇒ 与 Web 会话同一有效期语义。设备码 30 分钟 · 轮询下限 5s（过快 → `slow_down`）· 未批准 → `authorization_pending` · 过期/拒绝/错码各有 OAuth 标准错误体 |
+| API Token | **官方 api-key 插件**（`apikey` 表；明文**只展示一次**；可设 scope 与到期；吊销 = `enabled=false`） | 自动化与兼容层用；库中只存 `base64url(sha256(明文))`（服务端不可反推）；过期令牌在校验时由官方清理 |
+
+**起源校验（CSRF）**：官方平面（`/api/auth/*`）由官方按 `AUTH_TRUSTED_ORIGINS` 白名单校验；
+业务面（其余 `/api/*`）由本仓**同源守卫**以官方**同构语义**校验（带会话 cookie 且非安全方法才校验），
+拒绝出口沿用 `auth.csrf_failed`。Bearer 显式通道不做起源校验（非浏览器通道）——且**不降级**回 cookie 会话。
+
+**API Token scope 码**（`resource:action`；与官方 `permissions` **1:1** 映射；空 scope = 全量）：
+
+| 码 | 覆盖操作 | 判定落点 |
+|----|---------|---------|
+| `asset:publish` | 资产注册 · 草稿版本上传 | `POST /api/assets` · `POST /api/assets/:slug/versions` |
+| `asset:manage` | 资产管理（状态迁移 / 删除 / yank / 版本操作） | `PATCH`·`DELETE`·`POST …/yank`·版本面 |
+| `review:submit` | 提交版本进审核 / 撤回自己的提交 | `POST …/submit` · `POST …/withdraw` |
+| `review:approve` | 审核裁决（通过 / 拒绝） | `POST /api/reviews/:id/approve` · `POST /api/reviews/:id/reject` |
+| `audit:read` | 审计浏览 | `GET /api/audit` 面 |
+
+- 令牌 scope 非空时与**操作码求交集**（未含该码 → 403）；空 scope/全量令牌恒过（M1 兼容语义保留）
 
 ## 6. RBAC 授权
 
 权限判定 = **平台角色（单值层级）** × **资源归属**（owner 本人）——M4-pre 扁平化重构后无命名空间维度：
-原「平台角色权限 ∪ 命名空间角色」双轴合并为单轴，落库于 `user_account.role` 四档线性值。
+原「平台角色权限 ∪ 命名空间角色」双轴合并为单轴，落库于**官方 `user.role`**（文本档名：
+`user`/`admin`/`superadmin`；数值档位由 `auth/roles.ts` 的 `ROLE_LEVEL` 单点映射 ⇒ 调用面零改动）。
 
 ### 6.1 平台角色（4 档）
 
@@ -144,7 +175,8 @@
 ### 6.3 判定链
 
 1. 取当前用户（匿名 → 档位 0）→ 2. 检查账号状态（非 `ACTIVE` → 按 0 档处理）→ 3. 读
-   `user_account.role` → 4. 层级比较 `role >= minRole` → 5. 资源级：命中 owner 本人时按 owner 语义放行
+   **官方 `user.role`**（文本档名 → `ROLE_LEVEL` 数值）→ 4. 层级比较 `role >= minRole`
+   → 5. 资源级：命中 owner 本人时按 owner 语义放行
 
 ### 6.4 操作 × 角色矩阵
 
@@ -194,4 +226,5 @@
 | v1.5 | 2026-09-08 | sunxuewen-rush | M0/M1 复验：§6.2 MEMBER 行措辞收紧——「发布新资产（走审核）」独立表达，提交已有版本进审核（review:submit）判定明确指向 §6.4，消除「提交资产」与 §6.4 判定列的阅读张力 |
 | v1.6 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§6.4 asset:manage 补「DRAFT 版本删除可由上传者本人执行（未进审核撤回，Q2）」例外；asset:publish 行加注 M2 语义（含资产注册与草稿上传，Q4） |
 | v1.7 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§6.4 注记——review:submit/approve 码面落地审核管线（submit/approve/reject/withdraw HTTP API + 队列读面）；withdraw 权限（提交人本人/owner/空间 ADMIN/OWNER——业务例外非权限码）；token scope 交集（R14——''/cli 全量兼容）；运营注记：互审团队空间至少 2 个 ADMIN 级成员（单人自托管 SUPER_ADMIN 自审例外闭环——Q1 决议）；converge 修正：§6.4「隐藏/恢复资产仅 SUPER_ADMIN」残留行改 canManageAsset 面（owner/空间 ADMIN/OWNER/超管——M2 v1.4 判定修正后的规范-实现张力闭环，design §4.3） |
+| v1.9 | 2026-09-15 | sunxuewen-rush | **M4b-pre 认证整车迁移同步（规范层原地改写）**：① §3 五层图 Layer 3 身份映射改**官方 `account` 表**（`identity_binding` 已删）+ 新增「落地实现」注（Layer 1/3/4 = 官方 `better-auth@1.7.5` 实例；自留面仅企业目录凭证插件 + Layer 5 判定）② §3.1 安全边界：原「行级失败锁定」列随 `local_credential` 删除 ⇒ 防爆破**统一由登录限流承担**；`auth.user_locked` 码删除 ③ §4.1 补**落库口径**（官方 `user.status` 单列三态；无 `LOCKED` 态）④ **§5 会话与凭证按实测重写**——Web = 会话**落库** + 8h 绝对过期（不滑动；顺带修「重启即全员登出」）· CLI = 官方两段式 Device Flow（换取**会话令牌**，设备码 30 分钟/轮询 5s/标准 OAuth 错误体）· API Token = 官方 api-key 插件（明文一次 · 库中仅 `base64url(sha256)` · 吊销 = `enabled=false` · 过期校验时清行）；新增**起源校验（CSRF）**段与 **scope 码表**（5 码 ↔ 官方 `permissions` 1:1 + 判定落点）⑤ §6/§6.3 落库表名 `user_account.role` → **官方 `user.role`**（文本档名 + `ROLE_LEVEL` 数值映射）；迁移见批 plan `M4b-pre-auth-migration.md`，选型与契约见批 design `2026-09-15-m4b-pre-auth-migration-design.md` |
 | v1.8 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§6 由「平台角色 ∪ 命名空间角色」双轴改为**单轴 4 档线性**（`user_account.role` 0/1/10/100，判定 `role >= N`）；§6.1 角色表重写为 4 档；§6.2 内容替换为「资源归属与 owner 语义」（原命名空间角色 + 空间状态域删除）；§6.3 判定链去空间角色/空间状态步；§6.4 矩阵重写为「操作 × 角色」（含非 ACTIVE 读面**仅超管**）；§6.5 主轴改「平台角色是唯一权限主轴」（小节编号保持不变以免打断历史引用）——迁移 0005/0006/0007，design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |
