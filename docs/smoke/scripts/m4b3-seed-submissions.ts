@@ -150,17 +150,18 @@ async function ensureTask(
 //    本脚本只负责把它们的「旧数据形态」复位，供列表兜底渲染断言使用：
 //      · `m4b3-seed-stale`  → `last_request` 置 120 天前 ⇒ 验「最后使用」超 3 个月的 `warning` 色
 //      · `m4b3-seed-legacy` → `start` / `metadata` 置 null ⇒ 验旧令牌 Key 列「—」兜底（迁移前形态）
+//    **只命中 `enabled` 行**（已吊销行不必再改；删过重建会产生多条同名行 —— 实测 T8 后 3 条，只有 1 条可见）
 async function probeTokens(): Promise<string[]> {
   const notes: string[] = [];
   const stale = await db.$client.query(
     `update apikey set last_request = now() - interval '120 days'
-      where reference_id = $1 and name = 'm4b3-seed-stale'`,
+      where reference_id = $1 and name = 'm4b3-seed-stale' and enabled`,
     [ownerId],
   );
   notes.push(`  stale 探针：命中 ${stale.rowCount ?? 0} 行（>0 ⇒ 已置 120 天前）`);
   const legacy = await db.$client.query(
     `update apikey set start = null, metadata = null
-      where reference_id = $1 and name = 'm4b3-seed-legacy'`,
+      where reference_id = $1 and name = 'm4b3-seed-legacy' and enabled`,
     [ownerId],
   );
   notes.push(`  legacy 探针：命中 ${legacy.rowCount ?? 0} 行（>0 ⇒ 已置 start/metadata 为 null）`);
