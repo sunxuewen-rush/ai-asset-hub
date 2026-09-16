@@ -77,6 +77,7 @@ export const zh = {
   },
   dashboard: {
     title: '个人工作台',
+    welcome: '欢迎回来，{name}',
     myAssets: '我的资产',
     submissions: '我的提交',
     tokens: '访问令牌',

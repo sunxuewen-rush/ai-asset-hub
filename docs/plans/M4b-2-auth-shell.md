@@ -1,8 +1,8 @@
 # M4b-2 认证与壳批（登录 · 会话 · 角色感知壳）实现计划
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v0.10：T7 落地回写**——T7 ✅（2026-09-16）新建 `apps/web/src/pages/Device.tsx`（**303 行**）· 新建跨页件 `components/console/AuthLayout.tsx`（与 `/login` 共用独立版式）· `main.tsx` `/device` 占位 → **真页**（删 `DEV_BATCH['/device']`）· `api/auth.ts` 加 device 三封装 + OAuth 错误映射 · `api/client.ts` 的 `ApiError` 补 **`body`**（原始错误体，OAuth 适配所需）· `auth/next.ts` 加 **`devicePath`**（站内路由构造单点）· i18n `device` 组 **13 键**；断言实测（**未登录保码回跳闭环** · **四态全绿** · **首帧门** · **刷新态 = `status:approved`** · **他人已认领双路** · **错误体适配**（不落 `http_400`）· 门禁四连 · 生产产物零 `M4b-` · 门户零回归 **36/36**）；**执行期修正 6 处**（见落地记录）；**v0.9：T6 落地回写**——T6 ✅（2026-09-16）新建 `apps/web/src/pages/Login.tsx`（**205 行**）· `main.tsx` `/login` 占位 → **真页**（删 `DEV_BATCH['/login']`）· i18n `login` 组 **+8 键** + `errors` **+9 码**；断言实测（**独立版式**（无侧栏/无顶栏）· **两 tab**（**CDP 真指针**切换实测 `href=/api/auth/oidc/authorize` + `rel=noreferrer`；Radix 合成 click 无效）· **首帧骨架**（`/me` 延迟 1.6s 采样：**150-1500ms 恒 `skeleton=4 / form=false`**，1650ms 才落表单 ⇒ design Y3 实证）· **失败态全 inline**（错口令 Alert + **URL 不变**）· **成功链**（→ `/dashboard` + `/me` 200）· **反向守卫**（无 next → `/dashboard` · **保码回跳** `/device?user_code=ABCD-1234` · 非法 next 回落）· 无注册入口 · 门禁四连 · **生产产物零 `M4b-`** · 门户零回归 **36/36**）；**执行期细化 1 处 + 连带修正 1 处**（`login.title` 与 `navigation.login` 并存——后者仍由 `UserMenu` 消费 2 处 · **种子脚本改 upsert（A2，用户拍板）**）；**v0.8：T5 落地回写**——T5 ✅（2026-09-16）**减法批**：`TopBar.tsx` 43 → 41 行（删「登录」占位 `<span>` + 图标/i18n 两个 import）· `SideNav.tsx` 删 `APP_VERSION` 与 Footer 三项（**Footer 仅余 `UserMenu`**，children = 1）· i18n `navigation` **−4 键**；断言实测（TopBar 仅余 **4 件**（品牌 + `Separator` + `SidebarTrigger` + `LanguageSwitcher`）· `grep` 三零（login 占位 / 图标 import / `APP_VERSION` / 4 键）· 顶栏 **58px** 实测 · 语言切换零变更（EN ↔ 中文 徽章往返）· 门禁四连 · 门户零回归 **36/36**）；**v0.7：T4 落地回写**——T4 ✅（2026-09-16）新建 `ui/UserMenu.tsx` · `SideNav.tsx` 加三组（门户组 JSX 逐字保留）+ Footer 接用户区 · i18n `navigation` +6 / `admin` +1；断言实测（**四档显隐全绿** （未登录/1/10/100）· **UserMenu 四态**含 loading 采样序列（404ms skeleton → 3406ms authed，**无 ANON 闪现**）· 占位条目 `BUTTON` + toast · **F3 计算值**（组间距 4px · 组内 padding 8px · 标签高 32px）· 门禁四连 · 门户零回归 **36/36**）；**执行期修正 5 处**（plan 断言③ 超管组 **4 → 3 条**（主 design §4 唯一源）· `admin.phase2Notice` **不存在 ⇒ 复用 `common.comingSoon`** · 徽章键 3 个落定 · **补 2 处遗漏键**（`navigation.logout`/`admin.settings`）⇒ 净增 34 → **39** · **修 T1 缺陷**（`apiPost` 写请求 content-type + `logout` 传 `{}` ⇒ sign-out 实测 415/400 两坑全通））；**F4 登记**（图标态部分 `group-data-[collapsible=icon]` 变体未生效，待深挖）；**v0.6：T3 落地回写**——T3 ✅（2026-09-16）新建 `console/ComingSoon.tsx` + **种子脚本提前落地**（`docs/smoke/scripts/m4b2-seed-roles.ts`）· `RoleGuard.tsx` 重写（43 → 44 行）· `main.tsx` 48 → **196 行**（11 条路由 + 两段守卫 + `DEV_BATCH` 常量表）· i18n `common` +2 / `dashboard.submissions` +1；断言实测（路由 **11 条** · `/admin` 守卫内重定向 · `bootstrapAuth` 模块级 · `ROLE` 残留 **0** · **生产产物零 `M4b-` 字面量**（build + grep 实测）· **真浏览器 4/4 + role=1 实测** （`/admin*` → 落 `/dashboard`）· 门禁四连 exit 0 · 门户零回归 **36/36**）；**执行期细化 4 处**（/login `/device` T3 形态 = 占位 ⇒ T6/T7 补 `Modify main.tsx` · 占位页文案键 `common.comingSoon` · notice 键 `common.noPermission` · **种子脚本提前落地并跑通**）；**连带发现**（dogfood 401 口径 → 单列）；**v0.5：T2 落地回写**——T2 ✅（2026-09-16）新建件 9 `auth/next.ts` + `client.ts` 扩至 187 行；断言实测（**纯函数探针 27/27** · **门户零回归 dogfood 36/36 + NO JS ERRORS** · 门禁三连 exit 0）；**执行期细化 3 处**（`sanitizeNext` 单参 · `PROTECTED_PREFIXES` 落 `auth/next.ts` · `invalidateCache` 语言无关 path 前缀）；连带修复 biome 控制字符正则规则；**v0.4：T1 落地回写**——T1 ✅（2026-09-16）新建 3 件 + `client.ts` 扩至 119 行；断言实测（`hasRole` 探针 **14/14** · 门禁三连 exit 0 · 零服务端改动）；**执行期修正 2 处**（`apiPost` 前移 T1 解循环依赖 · 401 登记口落 `api/client.ts` 防 ESM 循环）· **登记 1 项归 T4**（角色徽章键与组标题键语义不符）；**v0.3：grilling 第 3 轮（Q14-Q19）断言同步**——T2 断言③ **判定域 = 当前路由**（Q14：实测全仓 `apiGet` 均为 `/api/...`，与原「按 path 匹配」不同域）+ 断言⑤ 补 **`/\evil.com` / `/%5Cevil.com` → `null`**（Q16）· T3 断言⑦ **守卫包裹与 `minRole` 映射**（Q15）· T7 断言⑧ **device 错误体 OAuth 风格适配**（Q18①）+ 断言⑨ **「他人已认领」态实测**（Q18②）· T8 断言⑤ **`location.state.notice` 消费**（Q17）· T9 断言⑥ **`claimedByOther` 键去留**（Q18②）· T10 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）；**顺带修正 T4/T7 断言编号重复（⑦ 各出现两次，自产缺陷同轮修）**；**v0.2：深度档评审同步**——§1.4 两缺口全部闭合（批 design v1.2：`auth/next.ts` 件 9 + Q8 边界订正）· T4 补 F3/图标态断言 · T7 补 F1 刷新态 · T9 补净增 32 键对照 · T10 补 F2 提示 + 登记表改「复核」；**v0.1 初稿**：M4b-2 Task 清单 **T1-T10**（认证地基 → API 客户端扩展 → 路由骨架 → 侧栏三组 → TopBar 减法 → `/login` → `/device` → `/dashboard` → i18n 对齐 → 门禁/dogfood/收口），每 Task 含 **Files / Assert（可现场跑）/ Commit**；依据批 design `2026-09-16-m4b2-auth-shell-design.md` **v1.1**（定稿 · 8 维 9.44）与上游主 design **v1.21** §2.3 拆批表；§1.4 登记**两处待补设计缺口**（① `sanitizeNext` 落点未在件清单列明 ② Q8「反向守卫」Task 边界措辞）；10 项行数声明与 i18n 键数**全部实测一致** · file:line 引用**全部回读**）
-> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ · T6 ✅ · T7 ✅ 2026-09-16** · T8-T10 ⬜ 待执行；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
+> Updated: 2026-09-16（**v0.11：T8 落地回写**——T8 ✅（2026-09-16）新建 `apps/web/src/pages/Dashboard.tsx`（**78 行**：`ComingSoon` 内容槽形态 + 按档位裁剪入口 + `state.notice` 消费）· `main.tsx` `/dashboard` 占位 → **真页**（删 `DEV_BATCH['/dashboard']`）· i18n `dashboard` **+1 键**（`welcome`）；断言实测（**档 0 未登录 → `/login?next=%2Fdashboard`** · **三档入口裁剪**（role 1 → 2 项 / 10 与 100 → 3 项）· **零业务请求**（排除壳层 M4a 既有 `/api/stats` 与会话 `/api/auth/me` 后 = **0**）· **`notice` toast + 刷新不重弹** · 门禁四连 · 生产产物零 `M4b-` · 门户零回归 **36/36**）；**执行期修正 1 处**（断言③ 口径补壳层例外，见落地记录）；**v0.10：T7 落地回写**——T7 ✅（2026-09-16）新建 `apps/web/src/pages/Device.tsx`（**303 行**）· 新建跨页件 `components/console/AuthLayout.tsx`（与 `/login` 共用独立版式）· `main.tsx` `/device` 占位 → **真页**（删 `DEV_BATCH['/device']`）· `api/auth.ts` 加 device 三封装 + OAuth 错误映射 · `api/client.ts` 的 `ApiError` 补 **`body`**（原始错误体，OAuth 适配所需）· `auth/next.ts` 加 **`devicePath`**（站内路由构造单点）· i18n `device` 组 **13 键**；断言实测（**未登录保码回跳闭环** · **四态全绿** · **首帧门** · **刷新态 = `status:approved`** · **他人已认领双路** · **错误体适配**（不落 `http_400`）· 门禁四连 · 生产产物零 `M4b-` · 门户零回归 **36/36**）；**执行期修正 6 处**（见落地记录）；**v0.9：T6 落地回写**——T6 ✅（2026-09-16）新建 `apps/web/src/pages/Login.tsx`（**205 行**）· `main.tsx` `/login` 占位 → **真页**（删 `DEV_BATCH['/login']`）· i18n `login` 组 **+8 键** + `errors` **+9 码**；断言实测（**独立版式**（无侧栏/无顶栏）· **两 tab**（**CDP 真指针**切换实测 `href=/api/auth/oidc/authorize` + `rel=noreferrer`；Radix 合成 click 无效）· **首帧骨架**（`/me` 延迟 1.6s 采样：**150-1500ms 恒 `skeleton=4 / form=false`**，1650ms 才落表单 ⇒ design Y3 实证）· **失败态全 inline**（错口令 Alert + **URL 不变**）· **成功链**（→ `/dashboard` + `/me` 200）· **反向守卫**（无 next → `/dashboard` · **保码回跳** `/device?user_code=ABCD-1234` · 非法 next 回落）· 无注册入口 · 门禁四连 · **生产产物零 `M4b-`** · 门户零回归 **36/36**）；**执行期细化 1 处 + 连带修正 1 处**（`login.title` 与 `navigation.login` 并存——后者仍由 `UserMenu` 消费 2 处 · **种子脚本改 upsert（A2，用户拍板）**）；**v0.8：T5 落地回写**——T5 ✅（2026-09-16）**减法批**：`TopBar.tsx` 43 → 41 行（删「登录」占位 `<span>` + 图标/i18n 两个 import）· `SideNav.tsx` 删 `APP_VERSION` 与 Footer 三项（**Footer 仅余 `UserMenu`**，children = 1）· i18n `navigation` **−4 键**；断言实测（TopBar 仅余 **4 件**（品牌 + `Separator` + `SidebarTrigger` + `LanguageSwitcher`）· `grep` 三零（login 占位 / 图标 import / `APP_VERSION` / 4 键）· 顶栏 **58px** 实测 · 语言切换零变更（EN ↔ 中文 徽章往返）· 门禁四连 · 门户零回归 **36/36**）；**v0.7：T4 落地回写**——T4 ✅（2026-09-16）新建 `ui/UserMenu.tsx` · `SideNav.tsx` 加三组（门户组 JSX 逐字保留）+ Footer 接用户区 · i18n `navigation` +6 / `admin` +1；断言实测（**四档显隐全绿** （未登录/1/10/100）· **UserMenu 四态**含 loading 采样序列（404ms skeleton → 3406ms authed，**无 ANON 闪现**）· 占位条目 `BUTTON` + toast · **F3 计算值**（组间距 4px · 组内 padding 8px · 标签高 32px）· 门禁四连 · 门户零回归 **36/36**）；**执行期修正 5 处**（plan 断言③ 超管组 **4 → 3 条**（主 design §4 唯一源）· `admin.phase2Notice` **不存在 ⇒ 复用 `common.comingSoon`** · 徽章键 3 个落定 · **补 2 处遗漏键**（`navigation.logout`/`admin.settings`）⇒ 净增 34 → **39** · **修 T1 缺陷**（`apiPost` 写请求 content-type + `logout` 传 `{}` ⇒ sign-out 实测 415/400 两坑全通））；**F4 登记**（图标态部分 `group-data-[collapsible=icon]` 变体未生效，待深挖）；**v0.6：T3 落地回写**——T3 ✅（2026-09-16）新建 `console/ComingSoon.tsx` + **种子脚本提前落地**（`docs/smoke/scripts/m4b2-seed-roles.ts`）· `RoleGuard.tsx` 重写（43 → 44 行）· `main.tsx` 48 → **196 行**（11 条路由 + 两段守卫 + `DEV_BATCH` 常量表）· i18n `common` +2 / `dashboard.submissions` +1；断言实测（路由 **11 条** · `/admin` 守卫内重定向 · `bootstrapAuth` 模块级 · `ROLE` 残留 **0** · **生产产物零 `M4b-` 字面量**（build + grep 实测）· **真浏览器 4/4 + role=1 实测** （`/admin*` → 落 `/dashboard`）· 门禁四连 exit 0 · 门户零回归 **36/36**）；**执行期细化 4 处**（/login `/device` T3 形态 = 占位 ⇒ T6/T7 补 `Modify main.tsx` · 占位页文案键 `common.comingSoon` · notice 键 `common.noPermission` · **种子脚本提前落地并跑通**）；**连带发现**（dogfood 401 口径 → 单列）；**v0.5：T2 落地回写**——T2 ✅（2026-09-16）新建件 9 `auth/next.ts` + `client.ts` 扩至 187 行；断言实测（**纯函数探针 27/27** · **门户零回归 dogfood 36/36 + NO JS ERRORS** · 门禁三连 exit 0）；**执行期细化 3 处**（`sanitizeNext` 单参 · `PROTECTED_PREFIXES` 落 `auth/next.ts` · `invalidateCache` 语言无关 path 前缀）；连带修复 biome 控制字符正则规则；**v0.4：T1 落地回写**——T1 ✅（2026-09-16）新建 3 件 + `client.ts` 扩至 119 行；断言实测（`hasRole` 探针 **14/14** · 门禁三连 exit 0 · 零服务端改动）；**执行期修正 2 处**（`apiPost` 前移 T1 解循环依赖 · 401 登记口落 `api/client.ts` 防 ESM 循环）· **登记 1 项归 T4**（角色徽章键与组标题键语义不符）；**v0.3：grilling 第 3 轮（Q14-Q19）断言同步**——T2 断言③ **判定域 = 当前路由**（Q14：实测全仓 `apiGet` 均为 `/api/...`，与原「按 path 匹配」不同域）+ 断言⑤ 补 **`/\evil.com` / `/%5Cevil.com` → `null`**（Q16）· T3 断言⑦ **守卫包裹与 `minRole` 映射**（Q15）· T7 断言⑧ **device 错误体 OAuth 风格适配**（Q18①）+ 断言⑨ **「他人已认领」态实测**（Q18②）· T8 断言⑤ **`location.state.notice` 消费**（Q17）· T9 断言⑥ **`claimedByOther` 键去留**（Q18②）· T10 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）；**顺带修正 T4/T7 断言编号重复（⑦ 各出现两次，自产缺陷同轮修）**；**v0.2：深度档评审同步**——§1.4 两缺口全部闭合（批 design v1.2：`auth/next.ts` 件 9 + Q8 边界订正）· T4 补 F3/图标态断言 · T7 补 F1 刷新态 · T9 补净增 32 键对照 · T10 补 F2 提示 + 登记表改「复核」；**v0.1 初稿**：M4b-2 Task 清单 **T1-T10**（认证地基 → API 客户端扩展 → 路由骨架 → 侧栏三组 → TopBar 减法 → `/login` → `/device` → `/dashboard` → i18n 对齐 → 门禁/dogfood/收口），每 Task 含 **Files / Assert（可现场跑）/ Commit**；依据批 design `2026-09-16-m4b2-auth-shell-design.md` **v1.1**（定稿 · 8 维 9.44）与上游主 design **v1.21** §2.3 拆批表；§1.4 登记**两处待补设计缺口**（① `sanitizeNext` 落点未在件清单列明 ② Q8「反向守卫」Task 边界措辞）；10 项行数声明与 i18n 键数**全部实测一致** · file:line 引用**全部回读**）
+> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ · T6 ✅ · T7 ✅ · T8 ✅ 2026-09-16** · T9-T10 ⬜ 待执行；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
 > 引用链：本文档 → 批 design `docs/designs/2026-09-16-m4b2-auth-shell-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层）`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**版本以其版本头为准**）→ 规范 `00` §5/§7 · `05` §3/§5/§6 · `07` §3/§4 → M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -218,7 +218,7 @@
   ⑩ 门禁（web 侧四连）
 - **Commit**: `feat(web): add device authorization page`
 
-### T8 工作台临时落地页 `/dashboard` ⬜
+### T8 工作台临时落地页 `/dashboard` ✅（2026-09-16 落地；执行期修正 1 处见「落地记录」）
 - **设计**：批 design §5.3（role 裁剪）· §5.4（`ComingSoon` 内容槽形态）
 - **Files**: Create `apps/web/src/pages/Dashboard.tsx` · `i18n/{zh,en}.ts`（`dashboard` **+1 键**：
   `welcome`——`submissions` 已随 **T3 前移**落仓，故本 Task 只余 1 键；
@@ -549,6 +549,39 @@
   的 dev 双源口径（`PUBLIC_BASE_URL` 保持 API 源语义）；dev 以 web 源直达 + 手输/复制码为准
 - **截图**：`docs/smoke/m4b2-t7*.png`（3 轮）**不入库**
 
+**T8 工作台临时落地页 `/dashboard` ✅（2026-09-16 落地）**
+
+- **落地**：新建 `apps/web/src/pages/Dashboard.tsx`（**78 行**：`ComingSoon` **内容槽形态**
+  （`EmptyContent`）= 欢迎语（`dashboard.welcome` 插值 `displayName`）+ 入口按钮组；`useEffect` 消费
+  `location.state.notice`）· 改 `main.tsx`（`/dashboard` 由 `ComingSoon` 占位 → `<Dashboard />`；
+  删 `DEV_BATCH['/dashboard']` 项）· 改 `i18n/{zh,en}.ts`（`dashboard` **+1 键**：`welcome`）
+- **断言实测**（真浏览器 CDP，三档账号逐档登录）：
+  ① **内容槽形态**：`[data-slot="empty-title"]` = 「个人工作台」· `[data-slot="empty-content"]` 内
+  欢迎语 = 「欢迎回来，m4b2_user」（**含 `displayName` 插值**）+ 按钮组 ✓
+  ② **四档裁剪**：**档 0 未登录** → `RoleGuard` 拦到 **`/login?next=%2Fdashboard`**（保码）；
+  **role=1**（`m4b2_user`）→ 入口 **2 项**「我的资产 / 访问令牌」；**role=10**（`m4b2_mgr`）→ **3 项**
+  （+「审核管理」）；**role=100**（`m4b2_super`）→ **3 项**（与 10 档同集合，符合 design 只定义
+  `>=1` / `>=10` 两档阈值）✓
+  ③ **零业务请求**：稳定后清探针 + `location.reload()` 采集 ⇒ 真实 API 仅 **2 条**：
+  `200 /api/auth/me`（会话探测，壳必需）+ `200 /api/stats`（**M4a 既有侧栏计数徽章**，见下修正）
+  ⇒ 排除二者后 = **0** ✓｜**另**：首轮探针把 Vite dev 的**源码模块请求**（`/src/api/*.ts?t=…`）误判为
+  API ⇒ 复测已按「含 `/api/` 且不含 `/src/`」精确过滤
+  ④ 文件头注释写明「**M4b-4 三卡之前的过渡件**」+ 零业务请求口径 ✓
+  ⑤ **`state.notice` 消费（Q17）**：role=1 访 `/admin/labels` → 落 `/dashboard` + `sonner` toast
+  「当前账号无权访问该页面」；**刷新后 `toasts: []`（不重弹）** ✓
+  ⑥ 门禁四连（`typecheck` 0 · `lint` 0（97 文件）· `format:check` ✓（241）· `build` ✓）·
+  **生产产物零 `M4b-`** · **门户零回归** `m4a-dogfood` **36/36 PASS + NO JS ERRORS** · **服务端与协议
+  零改动** ✓
+- **执行期修正 1（断言③ 口径 · 补壳层例外）**：plan 原写「网络探针记录 `/api/*` 请求数 = 0」。
+  **实测**：`/dashboard` 稳定重载后仍有 1 条业务请求 `200 /api/stats`。**根因（代码级铁证）**：
+  `SideNav.tsx:16` 消费 `fetchStats`（门户组条目的**计数徽章**，M4a 既有行为），而本页渲染于
+  `AppShell` 内 ⇒ 该请求由**壳层**发出；全仓 `fetchStats` 消费点共 3 处（`Home` / `CenterPage` /
+  `SideNav`），`/dashboard` 不渲染前二者 ⇒ 唯一来源即 `SideNav`。⇒ **这是 M4a 既有行为、非本页引入**
+  （消除它需改门户壳 ⇒ 违反「门户零回归」硬约束，**不做**）。⇒ 口径订正为「**页面自身零业务请求**
+  （壳层会话探测 `/api/auth/me` 与 M4a 既有 `/api/stats` 除外）」，与 design §5.3 原意
+  （「不调 `/api/reviews`、`/api/audit`」）一致 ✓
+- **截图**：`docs/smoke/m4b2-t8*.png`（**零**——本 Task 未产截图，断言全走 CDP 文本采样）
+
 ## 3. 整体审计（收尾 · 待 T10）
 
 > 口径来源：**十一维**扫描（`docs/00` §7 ② · M4b-1 plan §3 先例）。
@@ -574,6 +607,13 @@
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.11 | 2026-09-16 | sunxuewen-rush | **T8 落地回写**：① T8 标题 → **✅** ② 新增「落地记录 · T8」段
+（`pages/Dashboard.tsx` **78 行**（`ComingSoon` 内容槽 + 档位裁剪入口 + `notice` 消费）· `main.tsx`
+`/dashboard` 换真页 · i18n `dashboard` **+1 键**；**六条断言实测**：档 0 跳登录保码 · **三档入口裁剪**
+（1 → 2 项 / 10 与 100 → 3 项）· **零业务请求**（排除 `me`+`stats` 后 = 0）· 过渡件注释 · **`notice`
+toast + 刷新不重弹** · 门禁四连 + 门户零回归 **36/36**）③ **执行期修正 1 处**：断言③ 口径补**壳层例外**
+——`/api/stats` 来自 `SideNav.tsx:16`（M4a 既有侧栏计数徽章），非本页引入；消除它需改门户壳 ⇒ 违反
+「门户零回归」⇒ 口径订正为「页面自身零业务请求」 ④ 状态 → T1-T8 ✅ · T9-T10 ⬜ |
 | v0.10 | 2026-09-16 | sunxuewen-rush | **T7 落地回写**：① T7 标题 → **✅** ② 新增「落地记录 · T7」段
 （`pages/Device.tsx` **303 行** · 新建跨页件 `AuthLayout.tsx` · `main.tsx` `/device` 换真页 · `api/auth.ts`
 device 三封装 + OAuth 错误映射 · `ApiError.body` · `auth/next.ts` 的 `devicePath` · i18n `device` **13 键**；

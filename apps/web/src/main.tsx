@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
 import { AssetDetail } from '@/pages/AssetDetail';
 import { Center, type CenterType } from '@/pages/Center';
+import { Dashboard } from '@/pages/Dashboard';
 import { Device } from '@/pages/Device';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
@@ -42,11 +43,11 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
  * （断言：`grep -c 'M4b-' dist/assets/*.js` = 0）。**不要**改成把批号塞进模块级数组/对象的字面量字段，
  * 那会绕过折叠（属性值不可消除）。
  *
- * 独立版式两页（`/login` 随 **T6**、`/device` 随 **T7**）均已换真页 ⇒ 表内**不再有**这两条。
+ * 独立版式两页（`/login` **T6** · `/device` **T7**）与 `/dashboard`（**T8**）均已换真页
+ * ⇒ 表内**不再有**这三条；余下条目对应的仍是占位页。
  */
 const DEV_BATCH: Record<string, string> = import.meta.env.DEV
   ? {
-      '/dashboard': 'M4b-4',
       '/dashboard/assets': 'M4b-4',
       '/dashboard/submissions': 'M4b-3',
       '/dashboard/tokens': 'M4b-3',
@@ -62,10 +63,11 @@ const DEV_BATCH: Record<string, string> = import.meta.env.DEV
  *
  * - **独立版式两页均为真页**：`/login`（`pages/Login.tsx`，T6）· `/device`（`pages/Device.tsx`，T7）
  *   —— 二者共用跨页件 `components/console/AuthLayout.tsx`
+ * - **`/dashboard` 已是真页**（`pages/Dashboard.tsx`，T8；M4b-4 换三卡前的过渡形态）
  * - **门户 5 条无守卫**（公开读面，M4a 零回归）
  * - **守卫包裹（Q15）**：`/dashboard` + `/dashboard/*` 与非 `/admin` 的 `/reviews/:id` = `ROLE.USER`（布局路由一条包 4 条）；
  *   `/admin` + `/admin/*` = `ROLE.ADMIN`；**`/admin` 的 `<Navigate>` 放在守卫内**（未达档先被弹回 `/dashboard`，不白跳一层）
- * - **`/device` 不入 `RoleGuard`**：未登录时由 `claimDevice` 的 401（§4.2 ② 分类）跳登录并**保码回跳**
+ * - **`/device` 不入 `RoleGuard`**：未登录由页内三态门处理（跳登录并**保码**回跳，T7 实测修正）
  * - **不加 `*` 兜底**（与 M4a 现态一致：未知路径落空白，本批不引入新行为）
  * - 文案经 `useI18n()` 在组件内解析（响应语言切换）；`ComingSoon` 均**零业务请求**
  */
@@ -91,16 +93,8 @@ function AppRoutes() {
 
             {/* ── 个人段（USER = 1）── */}
             <Route element={<RoleGuard minRole={ROLE.USER} />}>
-              <Route
-                path="/dashboard"
-                element={
-                  <ComingSoon
-                    title={t('dashboard', 'title')}
-                    description={t('common', 'comingSoon')}
-                    batch={DEV_BATCH['/dashboard']}
-                  />
-                }
-              />
+              {/* 工作台：真页（T8；M4b-4 换三卡） */}
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route
                 path="/dashboard/assets"
                 element={

@@ -81,6 +81,7 @@ export const en: Dict = {
   },
   dashboard: {
     title: 'Dashboard',
+    welcome: 'Welcome back, {name}',
     myAssets: 'My assets',
     submissions: 'My submissions',
     tokens: 'Access tokens',

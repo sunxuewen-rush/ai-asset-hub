@@ -1,7 +1,10 @@
 # M4b-2 认证与壳批设计（登录 · 会话 · 角色感知壳）
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v1.10：T7 落地回写 + 4 处契约订正**——① **§5.2 未登录判定机制重写**：官方
+> Updated: 2026-09-16（**v1.11：T8 落地回写**——§5.3 补落地注（内容槽形态 · **三档入口裁剪实测**
+（role 1 → 2 项 / 10 与 100 → 3 项）· `notice` toast + 刷新不重弹 · **零业务请求口径补壳层例外**）+
+**「零请求」行口径订正**（实测 `/api/stats` 由 `SideNav.tsx:16` 发出 = M4a 既有侧栏计数徽章，
+非本页引入 ⇒ 订正为「**页面自身**零业务请求」）；**v1.10：T7 落地回写 + 4 处契约订正**——① **§5.2 未登录判定机制重写**：官方
 `GET /device?user_code=` **未登录也返回 200**（实测）⇒ plan 原「401 ② 分类」**不成立**，且会误报
 「他人已认领」⇒ 改为**读会话三态设门**（`loading` 骨架 / `anon` 跳登录**保码** / `authed` 四态）
 ② **§5.2 四态表订正**：② 行去「有效期」（详情接口**不返** `expires_in`）· ① 行码形态改**实测 8 位无横线** ·
@@ -323,8 +326,17 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 - **消费 `location.state.notice`（Q17）**：挂载时读 `state.notice` → `sonner` `toast.warning(...)` →
   立即 `navigate(pathname, { replace: true, state: null })` 清 state（**防刷新重复弹**）——
   **不因此发任何网络请求**（仍属下述「零请求」）
-- **纯静态、零请求**（不调 `/api/reviews`、`/api/audit`——那些归 M4b-4 三卡）
+- **纯静态、页面自身零业务请求**（不调 `/api/reviews`、`/api/audit`——那些归 M4b-4 三卡）。
+  ⚠️ **T8 实测口径补正**：`/dashboard` 渲染于 `AppShell` 内 ⇒ 壳层必然发出 ① `/api/auth/me`（会话探测）
+  ② **`/api/stats`**（`SideNav.tsx:16` 的门户组计数徽章，**M4a 既有行为**——消除它需改门户壳，违反
+  「门户零回归」⇒ 不做）⇒ 「零请求」的准确含义 = **页面自身**不发（实测除上述两条外 = **0**）
 - M4b-4 用三卡替换本页（本页即为「不白屏」的过渡形态）
+- **落地（v1.11 · T8）**：件 `pages/Dashboard.tsx`（**78 行**）已落仓；`main.tsx` 的 `/dashboard` 占位改真页
+  （`DEV_BATCH['/dashboard']` 项**删除**）；`i18n` 的 `dashboard` 组 **+1 键**（`welcome` = 欢迎语，
+  插值 `displayName`）。**六条断言全实测通过**：**档 0 未登录 → `RoleGuard` 拦到 `/login?next=%2Fdashboard`** ·
+  **三档入口裁剪**（role=1 → 2 项「我的资产/访问令牌」；role=10 与 100 → 3 项，+「审核管理」）·
+  **零业务请求**（排除壳层 `me`+`stats` 后 = 0）· 过渡件注释 · **`notice` toast 且刷新不重弹** ·
+  门禁四连 + 门户零回归 **36/36**
 
 ### 5.4 占位页 `ComingSoon`（Q6/Q7）
 
@@ -534,6 +546,17 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.11** | 2026-09-16 | sunxuewen-rush | **T8 落地回写 + 1 处口径订正**——① **§5.3 补落地注**：件已落仓 ·
+`main.tsx` `/dashboard` 换真页 · `dashboard` 组 **+1 键**（`welcome`）· 六条断言实测（档 0 跳登录保码 ·
+**三档入口裁剪**（role=1 → 2 项；10/100 → 3 项）· `notice` toast + 刷新不重弹 · 零业务请求 · 门禁四连 ·
+门户零回归 **36/36**）② **「零请求」行口径订正（★ 实测发现）**：`/dashboard` 稳定重载后仍有 1 条业务请求
+`200 /api/stats` ⇒ **根因（代码级）**：`SideNav.tsx:16` 消费 `fetchStats`（门户组**计数徽章**，M4a 既有
+行为）；全仓 `fetchStats` 消费点仅 3 处（`Home` / `CenterPage` / `SideNav`），本页不渲染前二者 ⇒
+来源即**壳层**。**非本页引入**，且消除它需改门户壳 ⇒ 违反「门户零回归」硬约束（**不采纳**）⇒ 口径订正为
+「**页面自身**零业务请求（壳层 `/api/auth/me` 会话探测 + M4a 既有 `/api/stats` 除外）」，与本行原意
+（不调 `/api/reviews`、`/api/audit`）一致 ③ 依据 = 批 plan **v0.11** T8 落地记录（含**探测口径修正**：
+首轮把 Vite dev 源码模块请求 `/src/api/*.ts?t=…` 误判为 API ⇒ 复测按「含 `/api/` 且不含 `/src/`」过滤 +
+「稳定后 reload」消除在途竞态）|
 | **v1.10** | 2026-09-16 | sunxuewen-rush | **T7 落地回写 + 4 处契约订正（用户 2026-09-16 拍板「按推荐来」）**——
 ① **§5.2 未登录判定机制重写**（★设计缺口）：官方 `GET /device?user_code=` **未登录也返回 200**
 （dev 真机实测：`{user_code, status:'pending'}`，仅缺 `client_id`/`scope`）⇒ plan 原「未登录 → 401 ② 分类
