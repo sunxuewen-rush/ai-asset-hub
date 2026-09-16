@@ -29,12 +29,22 @@ interface ApiKeyEndpoints {
     body: {
       userId: string;
       expiresIn?: number | null;
+      /** M4b-3 T2：名称（官方 `minimumNameLength` 默认 1 ⇒ **空串必须省略该字段**，否则 400） */
+      name?: string;
       permissions?: Record<string, string[]>;
       rateLimitEnabled?: boolean;
     };
   }) => Promise<{ id: string; key: string; expiresAt: Date | string | null }>;
   updateApiKey: (input: {
-    body: { keyId: string; userId: string; enabled?: boolean };
+    body: {
+      keyId: string;
+      userId: string;
+      enabled?: boolean;
+      /** M4b-3 T2/T3：改名 / 改权限 / 追加掩码片段（官方 update body 同收三字段，实测 `:1341,1345,1346`） */
+      name?: string;
+      permissions?: Record<string, string[]> | null;
+      metadata?: Record<string, unknown>;
+    };
   }) => Promise<unknown>;
   verifyApiKey: (input: { body: { key: string } }) => Promise<{
     valid: boolean;
@@ -65,20 +75,37 @@ export interface IssuedApiKey {
  */
 export async function issueApiKey(
   auth: AihAuth,
-  opts: { userId: string; expiresAt?: Date | null; scope?: readonly string[] | null },
+  opts: {
+    userId: string;
+    expiresAt?: Date | null;
+    scope?: readonly string[] | null;
+    /** M4b-3 T2：名称（`trim()` 后为空 ⇒ **省略字段**——官方 `minimumNameLength` 默认 1） */
+    name?: string | null;
+  },
 ): Promise<IssuedApiKey> {
   const expiresAt = opts.expiresAt ?? null;
   const expiresIn =
     expiresAt === null ? null : Math.max(1, Math.round((expiresAt.getTime() - Date.now()) / 1000));
   const permissions = scopesToPermissions(opts.scope ?? null);
+  const name = opts.name?.trim();
   const created = await endpoints(auth).createApiKey({
     body: {
       userId: opts.userId,
       expiresIn,
+      ...(name ? { name } : {}),
       ...(permissions ? { permissions } : {}),
       /** R7：全局关限流（官方默认 10 次/24h 会改掉既有语义）——行级同口径写 false */
       rateLimitEnabled: false,
     },
+  });
+  /**
+   * M4b-3 T2 · 掩码后 4 位：明文只在签发响应与本函数内可取（**禁止**写入日志/审计 detail）。
+   * ⚠️ **需两次官方调用**：明文由官方 `createApiKey` 内部 keyGenerator 生成（`dist/index.mjs:802-808`），
+   * create 的 body 里**无法预知** `metadata.tail` ⇒ 拿到明文后补一次 `updateApiKey`
+   * （官方 update body 收 `metadata`，且**仅当 `enableMetadata: true` 才生效**——见 `better-auth.ts` 注记）。
+   */
+  await endpoints(auth).updateApiKey({
+    body: { keyId: created.id, userId: opts.userId, metadata: { tail: created.key.slice(-4) } },
   });
   return {
     id: created.id,
@@ -128,13 +155,22 @@ export async function verifyApiKey(auth: AihAuth, plain: string): Promise<Verifi
 export interface ApiKeyRow {
   id: string;
   scope: string;
+  /** M4b-3 T2：名称（未命名 ⇒ null） */
+  name: string | null;
+  /** M4b-3 T2：官方 `start` = 明文前 12 位（含 `aih_` 前缀）；迁移前旧行 ⇒ null */
+  start: string | null;
+  /** M4b-3 T2：明文后 4 位（自 `metadata.tail` 解出）；旧行 ⇒ null */
+  tail: string | null;
   expiresAt: Date | null;
   revokedAt: Date | null;
   createdAt: Date;
+  /** M4b-3 T2：最后使用时间（官方 verify 路径写入）；从未使用 ⇒ null */
+  lastRequest: Date | null;
 }
 
 /**
- * 本人令牌列表（旧契约形状：`{id, scope, expiresAt, revokedAt, createdAt}`，createdAt desc）。
+ * 本人令牌列表（`{id, scope, name, start, tail, expiresAt, revokedAt, createdAt, lastRequest}`，
+ * createdAt desc；M4b-3 T2 加性 +4 字段）。
  *
  * 实现说明（执行期偏离登记）：plan 原写「内部官方 create/list/delete」，**list 改直读官方表**——
  * 官方 `GET /api-key/list` 走 `sessionMiddleware`（需会话 cookie），而 `/api/tokens` 的 GET 允许
@@ -145,9 +181,13 @@ export async function listApiKeys(db: Db, userId: string): Promise<ApiKeyRow[]> 
   const rows = await db
     .select({
       id: apikey.id,
+      name: apikey.name,
+      start: apikey.start,
+      metadata: apikey.metadata,
       permissions: apikey.permissions,
       expiresAt: apikey.expiresAt,
       enabled: apikey.enabled,
+      lastRequest: apikey.lastRequest,
       updatedAt: apikey.updatedAt,
       createdAt: apikey.createdAt,
     })
@@ -157,10 +197,14 @@ export async function listApiKeys(db: Db, userId: string): Promise<ApiKeyRow[]> 
   return rows.map((row) => ({
     id: row.id,
     scope: permissionsToScopeString(parsePermissions(row.permissions)),
+    name: row.name,
+    start: row.start,
+    tail: parseTail(row.metadata),
     expiresAt: row.expiresAt,
     /** 旧契约：吊销时间可见 ⇒ 由 `enabled=false` 时的 `updated_at` 表达 */
     revokedAt: row.enabled === false ? row.updatedAt : null,
     createdAt: row.createdAt,
+    lastRequest: row.lastRequest,
   }));
 }
 
@@ -176,14 +220,32 @@ export async function findApiKey(
   return row ?? null;
 }
 
-/** 官方 `permissions` 列为 JSON 文本（源码 `JSON.stringify(permissions)`）——解析失败按「无限制」处理 */
-function parsePermissions(raw: string | null): Record<string, string[]> | null {
+/** JSON 文本容错解析（失败 ⇒ null；permissions 与 metadata 两处复用） */
+function parseJsonText(raw: string | null): unknown {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return parsed as Record<string, string[]>;
+    return JSON.parse(raw) as unknown;
   } catch {
     return null;
   }
+}
+
+/** 官方 `permissions` 列为 JSON 文本（源码 `JSON.stringify(permissions)`）——解析失败按「无限制」处理 */
+function parsePermissions(raw: string | null): Record<string, string[]> | null {
+  const parsed = parseJsonText(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  return parsed as Record<string, string[]>;
+}
+
+/**
+ * `metadata.tail`（M4b-3 T2：明文后 4 位）——官方该列为 JSON 文本；旧版本曾**双串化**，
+ * 故按官方 `parseDoubleStringifiedMetadata`（`@better-auth/api-key` `dist/index.mjs:25-29`）同款容错：
+ * 解析一次，若结果仍是字符串再解析一次。缺失/畸形 ⇒ null（前端兜底「—」）。
+ */
+function parseTail(raw: string | null): string | null {
+  const first = parseJsonText(raw);
+  const value = typeof first === 'string' ? parseJsonText(first) : first;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const tail = (value as { tail?: unknown }).tail;
+  return typeof tail === 'string' && tail.length > 0 ? tail : null;
 }

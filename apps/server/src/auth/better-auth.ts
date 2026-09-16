@@ -160,6 +160,23 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
          */
         keyExpiration: { maxExpiresIn: 3650, minExpiresIn: 1 / 24 },
         customKeyGenerator: () => generateTokenSecret(),
+        /**
+         * M4b-3 T2 · Key 掩码片段（官方 `apikey.start`，明文**前 N 位**，含 `aih_` 前缀）：
+         * `charactersLength: 12` ⇒ `aih_` + 8 位随机（官方默认 6 只留 2 位随机，辨识度不足）。
+         * 官方源码：`start = key.substring(0, charactersLength)`（`dist/index.mjs:808`，含前缀）。
+         */
+        startingCharactersConfig: { charactersLength: 12 },
+        /**
+         * M4b-3 T2 · 明文**后 4 位**片段存 `metadata.tail`（掩码用）：
+         * 官方 `metadata` **默认关闭**（`enableMetadata` 默认 false）——签发时传 metadata 会抛
+         * `METADATA_DISABLED`（`dist/index.mjs:767-770`），更新时则**静默忽略**（`:1511`）⇒ 必须显式开启。
+         */
+        enableMetadata: true,
+        /**
+         * 名称上限钉定官方默认 **32**（M4b-3 T2；`dist/index.mjs:2328`）——同文件先例：官方默认值显式钉定，
+         * 防上游默认漂移改变对外契约（对齐 `deviceAuthorization` 的钉定注记）。
+         */
+        maximumNameLength: 32,
       }),
       /** 企业目录凭证（本批唯一自绘件；官方零支持槽位，官方扩展点内实现） */
       directoryCredentials({

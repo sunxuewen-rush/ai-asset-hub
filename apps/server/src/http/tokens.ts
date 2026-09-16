@@ -33,10 +33,13 @@ const KEY_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** POST body（T14：省略 expiresInDays = 永不过期 expiresAt null；1-3650 天，超限 400；
  *  T15：可选 scope = **scope 码**白名单（交集收窄——R14；省略 = 空 scope 全量；
- *  码表单源 `auth/token-scopes.ts`——M4-pre D2：scope 与角色正交，非权限码） */
+ *  码表单源 `auth/token-scopes.ts`——M4-pre D2：scope 与角色正交，非权限码）；
+ *  M4b-3 T2：可选 `name`（**上限 32 = 官方 `maximumNameLength` 默认口径**，钉定于 `better-auth.ts`；
+ *  `trim()` 后为空 ⇒ 省略字段不传——官方 `minimumNameLength` 默认 1，传空串会被官方拒） */
 const issueBodySchema = z.object({
   expiresInDays: z.number().int().min(1).max(3650).optional(),
   scope: z.array(z.enum(ALL_TOKEN_SCOPES)).max(10).optional(),
+  name: z.string().trim().max(32).optional(),
 });
 
 export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
@@ -69,6 +72,8 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
       expiresAt,
       // scope 缺省 = 全量（`permissions` 不写）；显式 scope = 交集收窄（T15 R14）
       scope: parsed.data.scope ?? null,
+      // M4b-3 T2：名称（issueApiKey 内 trim；空/纯空白 ⇒ 省略官方字段）
+      name: parsed.data.name ?? null,
     });
     // 审计（T17：token.issue——detail 零明文（明文只在签发响应；库中仅官方哈希））
     await deps.audit?.({

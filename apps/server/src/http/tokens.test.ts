@@ -392,3 +392,86 @@ describe('DELETE /api/tokens/:id（T16 吊销）', () => {
     expect((await deleteReq('/api/tokens/1', cookie, false)).status).toBe(404);
   });
 });
+
+describe('读面加性 + 掩码配置（M4b-3 T2 · design §4.2 / §5）', () => {
+  interface TokenRow {
+    id: string;
+    scope: string;
+    name: string | null;
+    start: string | null;
+    tail: string | null;
+    expiresAt: string | null;
+    revokedAt: string | null;
+    createdAt: string;
+    lastRequest: string | null;
+  }
+
+  async function listRows(cookie: string): Promise<TokenRow[]> {
+    const res = await buildApp().request('/api/tokens', { headers: { cookie } });
+    expect(res.status).toBe(200);
+    return ((await res.json()) as { items: TokenRow[] }).items;
+  }
+
+  it('命名：带 name 签发 ⇒ 列表回显；不带 ⇒ null', async () => {
+    const cookie = await cookieFor(u1);
+    const named = await postJson('/api/tokens', { name: 'CI 发布用' }, cookie);
+    expect(named.status).toBe(201);
+    const namedId = ((await named.json()) as { id: string }).id;
+    const unnamed = await postJson('/api/tokens', {}, cookie);
+    expect(unnamed.status).toBe(201);
+    const unnamedId = ((await unnamed.json()) as { id: string }).id;
+
+    const rows = await listRows(cookie);
+    expect(rows.find((t) => t.id === namedId)!.name).toBe('CI 发布用');
+    expect(rows.find((t) => t.id === unnamedId)!.name).toBeNull();
+  });
+
+  it('空 / 纯空白名称 ⇒ 201 且 name 为 null（规避官方 minimumNameLength=1）', async () => {
+    const cookie = await cookieFor(u1);
+    for (const name of ['', '   ']) {
+      const res = await postJson('/api/tokens', { name }, cookie);
+      expect(res.status).toBe(201);
+      const id = ((await res.json()) as { id: string }).id;
+      expect((await listRows(cookie)).find((t) => t.id === id)!.name).toBeNull();
+    }
+  });
+
+  it('名称上限 32（官方 maximumNameLength 钉定）：32 字受理 / 33 字 ⇒ 400', async () => {
+    const cookie = await cookieFor(u1);
+    expect((await postJson('/api/tokens', { name: 'x'.repeat(32) }, cookie)).status).toBe(201);
+    expect((await postJson('/api/tokens', { name: 'x'.repeat(33) }, cookie)).status).toBe(400);
+  });
+
+  it('Key 掩码：start = 明文前 12 位（含 aih_ 前缀）· tail = 明文后 4 位', async () => {
+    const cookie = await cookieFor(u1);
+    const res = await postJson('/api/tokens', { name: 'mask' }, cookie);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string; token: string };
+    const row = (await listRows(cookie)).find((t) => t.id === body.id)!;
+    expect(row.start).toHaveLength(12);
+    expect(row.start!.startsWith('aih_')).toBe(true);
+    expect(body.token.startsWith(row.start!)).toBe(true);
+    expect(row.tail).toHaveLength(4);
+    expect(body.token.endsWith(row.tail!)).toBe(true);
+    // 明文整体不得出现在列表项中（既有「库/读面仅片段」纪律保持）
+    expect(JSON.stringify(row)).not.toContain(body.token);
+  });
+
+  it('metadata 列实读含 tail（JSON 容错解析）· lastRequest 字段存在（未使用 ⇒ null）', async () => {
+    const cookie = await cookieFor(u1);
+    const res = await postJson('/api/tokens', {}, cookie);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: string; token: string };
+    const [dbRow] = await db.select().from(apikey).where(eq(apikey.id, body.id));
+    const raw = dbRow!.metadata!;
+    expect(typeof raw).toBe('string');
+    // 落库形态 = **单层 JSON 文本**（`{"tail":"…"}`）；`parseTail` 另留双串化历史形态容错
+    const value = JSON.parse(raw) as { tail?: string };
+    expect(typeof value).toBe('object');
+    expect(value.tail).toBe(body.token.slice(-4));
+
+    const row = (await listRows(cookie)).find((t) => t.id === body.id)!;
+    expect('lastRequest' in row).toBe(true);
+    expect(row.lastRequest).toBeNull();
+  });
+});

@@ -1,6 +1,7 @@
 # M4b-3 个人面 A：我的提交与我的令牌 —— 批计划
 
-> Updated: 2026-09-16（v0.2：**补自检打分段（8 维 9.61）**）；v0.1：**立项**——依据批 design `2026-09-16-m4b3-submissions-and-tokens-design.md` **定稿**
+> Updated: 2026-09-16（v0.3：**T2 实现期官方源码复核订正**（用户 2026-09-16 拍板）—— ① T2 步骤 4 由「1 行配置」改为 **3 行**（`charactersLength: 12` + `enableMetadata: true` + 钉定 `maximumNameLength: 32`）② T2 步骤 3 补「名称 `trim` 后为空 ⇒ 省略字段」（官方 `minimumNameLength` 默认 1）
+> ③ T2 步骤 5（新）「签发写 `metadata.tail` = create 后补 `updateApiKey`」，**两次官方调用**（明文由官方内部生成，无法预知）④ T2 断言补「空 / 纯空白名称 ⇒ 201 且 name null」「落库形态 = 单层 JSON 文本」⑤ T3 步骤补「名称 `trim ≤32`；清空 ⇒ 不发 `name`（保持原名）」+ 断言补空名回归；v0.2：**补自检打分段（8 维 9.61）**）；v0.1：**立项**——依据批 design `2026-09-16-m4b3-submissions-and-tokens-design.md` **定稿**
 > （8 维自检 **9.81** ≥9 · 用户 2026-09-16 批准）与主 design `2026-09-10-m4b-admin-console-and-auth-design.md` **v1.33**；本批 = M4b 拆批第 3 批「个人面 A」）
 > Status: **待执行**（T1-T10 ⬜ · 批 design 已定稿 · 出口五件见 §4 · **自检 8 维 9.61** 见 §9）
 > 上游：批 design（定稿，版本以其版本头为准）· 主 design §2.3 拆批表与批件登记表 · `docs/00` §5
@@ -70,14 +71,19 @@
 
 ### T2 · 服务端：令牌读面加性 + 掩码配置
 
-**Files**：`apps/server/src/auth/api-keys.ts` · `apps/server/src/http/tokens.ts` · `apps/server/src/auth/better-auth.ts`
+**Files**：`apps/server/src/auth/api-keys.ts` · `apps/server/src/http/tokens.ts` · `apps/server/src/auth/better-auth.ts` · `apps/server/src/http/tokens.test.ts`（新增断言；v0.3 补登记）
 
 **步骤**：
 1. `ApiKeyRow` 加 `name: string|null` · `start: string|null` · `tail: string|null` · `lastRequest: Date|null`
 2. `listApiKeys` 的 `SELECT` 补 `name` / `start` / `metadata` / `lastRequest`；回填时把 `metadata.tail` 解出为 `tail`
-3. `createApiKey` 窄化声明加 `name?` / `metadata?`；`issueApiKey` 透传 `name`，并写
-   `metadata: { tail: 明文.slice(-4) }`（⚠️ 明文**只在本函数内可取**；**禁止**写入日志/审计 detail）
-4. `better-auth.ts` 的 `apiKey({...})` 加 `startingCharactersConfig: { charactersLength: 12 }`（1 行）
+3. `createApiKey` 窄化声明加 `name?` / `metadata?`；`issueApiKey` 透传 `name`（**`trim()` 后为空 ⇒ 省略字段**——
+   官方 `minimumNameLength` 默认 1，传空串会 400）
+4. ★ **签发写 `metadata.tail` = create 后补一次 `updateApiKey`**（`metadata: { tail: 明文.slice(-4) }`）——
+   明文由官方 `createApiKey` 内部 keyGenerator 生成（`dist/index.mjs:802-808`）⇒ **create body 无法预知 tail**
+   ⇒ **两次官方调用**；官方 update body 确收 `metadata`（⚠️ 明文**只在本函数内可取**；**禁止**写入日志/审计 detail）
+5. `better-auth.ts` 的 `apiKey({...})` 加 **3 行配置**：
+   `startingCharactersConfig: { charactersLength: 12 }` · **`enableMetadata: true`**（★ 官方默认关闭——不开则签发传
+   metadata 抛 `METADATA_DISABLED`，`dist/index.mjs:767-770`）· **`maximumNameLength: 32`**（钉定官方默认，防上游漂移）
 
 **验收断言**：
 ```
@@ -87,6 +93,9 @@
 ④ 列表项 `tail` === 明文后 4 位（断言仅用 `明文.endsWith(tail)`，**不回显明文**）
 ⑤ `lastRequest` 字段存在（值为 `Date|null`；未使用过为 `null`）
 ⑥ 既有测试零修改且全绿（无严格字段集断言）
+⑦ 空 / 纯空白名称签发 ⇒ 201 且 `name === null`（官方 `minimumNameLength` 默认 1 ⇒ 必须省略字段；v1.10 加）
+⑧ 名称上限 32：32 字受理 / 33 字 ⇒ 400（官方 `maximumNameLength` 钉定生效；v1.10 加）
+⑨ `metadata` 列**实读**形态 = 单层 JSON 文本 `{"tail":"…"}` 且 `tail === 明文.slice(-4)`（v1.10 加）
 ```
 
 ⚠️ **注意**：`start` 是官方**自动写**（`shouldStore` 默认 true）；旧令牌（M4b-pre 迁移前）两者皆 `null`
@@ -99,8 +108,10 @@
 **Files**：`apps/server/src/http/tokens.ts` · `apps/server/src/auth/api-keys.ts`
 
 **步骤**：
-1. `ApiKeyEndpoints.updateApiKey` 窄化声明加 `name?: string` / `permissions?: Record<string,string[]>`
-2. 新增 `PATCH /api/tokens/:id`：body `{ name?, scope? }`（zod；`name` trim ≤64 可选；`scope` 5 码子集可选）
+1. `ApiKeyEndpoints.updateApiKey` 窄化声明加 `name?: string` / `permissions?: Record<string,string[]> | null` /
+   `metadata?`（T2 已用同一字段写 `tail`）
+2. 新增 `PATCH /api/tokens/:id`：body `{ name?, scope? }`（zod；**`name` `trim` ≤32 可选**——官方 `maximumNameLength`
+   默认口径；**清空 / 纯空白 ⇒ 不发 `name` 字段 = 保持原名**（官方无置空语义）；`scope` 5 码子集可选）
    - 授权：**本人**（`referenceId === principal.userId`）；他人 token ⇒ **404**（防枚举，同 DELETE 口径）
    - `scope` 空数组 ⇒ 按**全量**处理（对齐签发语义）；`permissions` 透传官方 `updateApiKey`
    - 审计：`token.update`（detail 零明文）
@@ -114,6 +125,8 @@
 ④ 越权：他人 token ⇒ **404**（非 403，防枚举）
 ⑤ 不存在的 id ⇒ 404
 ⑥ 审计写入 `token.update`，且 detail 无明文
+⑦ 名称**清空 / 纯空白** ⇒ 200 且原名保留（不传 `name` 字段——官方无置空语义；v1.10 加）
+⑧ 名称 **33 字 ⇒ 400**（官方 `maximumNameLength` 32 上限；v1.10 加）
 ```
 
 ---
@@ -325,6 +338,13 @@ _（待执行）_
 
 综合：**9.61 / 10** ✅ 达门（≥9）
 
+> **v0.3 复评（2026-09-16，T2 实现期订正后）**：8 维 **9.69** —— 完整性 **9.7**（T2 补 3 条断言 + Files 补测试件）·
+> 一致性 **10**（与批 design v1.10 逐项对照 18/18：上限 32 · `enableMetadata` · 两次调用 · 空名省略 · 单层 JSON）·
+> 清晰度 **9.6** · 可实施性 **9.7** · 设计纯粹性 **9.5** · 边界覆盖 **9.6**（+空名 / 上限 / 失败语义）·
+> 实施精度 **9.7**（官方源码行号 + 失败语义写明）；跨平台 N/A（分母 7）
+> 换靶角度 = **官方包源码逐条复核**（`METADATA_DISABLED` / `maximumNameLength` / `minimumNameLength` 三条约束）
+> + **断言可跑性**（每条含完整命令）。
+
 **自检实测证据**（本段数字均为真跑所得）：
 
 ```
@@ -342,5 +362,6 @@ _（待执行）_
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.3 | 2026-09-16 | sunxuewen-rush | **T2 实现期官方源码复核订正**（用户 2026-09-16 拍板：名称上限「官方默认 32，我们就改成 32」；文档订正与 T2 代码同批）① **T2 步骤 4（原）→ 3/4/5 三条**：`issueApiKey` 透传 name（空 ⇒ 省略）· **签发写 `metadata.tail` = create 后补 `updateApiKey`（两次官方调用）** · `better-auth.ts` **3 行配置**（`charactersLength: 12` + **`enableMetadata: true`** + 钉定 `maximumNameLength: 32`）② **T2 Files 补测试件**（`http/tokens.test.ts`）③ **T2 断言 +3**（⑦ 空名 ⇒ 201 且 name null · ⑧ 上限 32（33 字 ⇒ 400）· ⑨ metadata 落库形态 = 单层 JSON 文本）④ **T3 步骤 + 断言**：名称 `trim ≤32`；**清空 ⇒ 不发 `name`（保持原名）**；断言补⑦⑧两条回归 ⑤ 与批 design **v1.10** 同源（官方源码实证：`METADATA_DISABLED` `:767-770` · 更新静默忽略 `:1511` · `maximumNameLength` 默认 32 `:2328`）| 
 | v0.2 | 2026-09-16 | sunxuewen-rush | **补「自检打分」段**（用户追问「这个 plan 检查打分了？」）—— 查项目惯例：M4b-1 plan:42 / M4b-2 plan 初稿修订行均要求「**plan 初稿也做 8 维自检**」⇒ 本 plan v0.1 **漏做该项**（自检疏漏，如实登记）；本轮补齐并**实测**：8 维 **9.61**（一致性满分 10 —— 与 design 逐项 15/15 一致）；新增 §9 自检打分段（含 5 条实测证据 + 换靶角度说明） | 
 | v0.1 | 2026-09-16 | sunxuewen-rush | **立项**——依据批 design（**定稿** · 8 维 **9.81**）与主 design **v1.33**；T1-T10 + 每 Task 可跑验收断言；出口五件见 §4 与批 design §9 |

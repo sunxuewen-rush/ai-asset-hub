@@ -1,10 +1,14 @@
 # M4b-3 个人面 A：我的提交与我的令牌 —— 批设计（定稿）
 
-> Updated: 2026-09-16（**v1.9：提交前打分订正（8 项）**）—— 按 `self-review-scoring`（8 维）实测复评 **8.57 < 9 未达门** ⇒ **当场撤回 v1.8 的 9.81**（口径过窄：只扫 §4/§6/§9，漏扫 §3 件表）；订正 = **§3 件表同步 v1.5-v1.7**（3 处**直接矛盾**：`StatusPill` REJECTED=destructive vs 蓝紫渐变 · `FilterBar` vs 官方 Select · i18n 24/28 键 vs 实测 25/41）+ 5 项缺漏（`updateToken` · `assetType` · `start`/`tail` · `PATCH` · 术语「删除」）⇒ 复评 **9.57**；**v1.8：转定稿**）—— 用户 2026-09-16 批准（「1原型删除 2批准」）：① 8 维自检 **9.81** ≥9 ✅
+> Updated: 2026-09-16（**v1.10：T2 实现期官方源码复核订正（用户 2026-09-16 拍板「官方默认 32，我们就改成 32」）**）—— ① 名称上限 **≤64 → ≤32**（对齐官方默认 `maximumNameLength: 32`，落点 7 处：D6 / Q11 / §3.2#6 / §4.2 创建流 / §4.2 编辑流 / §5.1 / §7 接口表）
+> ② **官方 `metadata` 默认关闭** ⇒ `better-auth.ts` 必须显式 `enableMetadata: true`（官方源码：签发时传 metadata 且未开启 ⇒ 抛 `METADATA_DISABLED`（`@better-auth/api-key` `dist/index.mjs:767-770`）；更新时**静默忽略**（`:1511`））—— 该文件配置 **1 行 → 3 行**（+ `enableMetadata` + 钉定 `maximumNameLength`）
+> ③ **签发写 `metadata.tail` 需两次官方调用**（明文由官方 `createApiKey` 内部 keyGenerator 生成 ⇒ create body 无法预知 tail，改为 create 后补一次 `updateApiKey`；官方 update body 确收 `metadata`）
+> ④ 空/纯空白名称 ⇒ **省略 name 字段**（官方 `minimumNameLength` 默认 1，传空串会 400）；T3 编辑流同理（清空 ⇒ 不发 name = 保持原名，官方无置空语义）
+> ⑤ 落库形态**实测** = 单层 JSON 文本 `{"tail":"…"}`（`parseTail` 另留官方 `parseDoubleStringifiedMetadata` 同款双串化容错）；v1.9：提交前打分订正（8 项））—— 按 `self-review-scoring`（8 维）实测复评 **8.57 < 9 未达门** ⇒ **当场撤回 v1.8 的 9.81**（口径过窄：只扫 §4/§6/§9，漏扫 §3 件表）；订正 = **§3 件表同步 v1.5-v1.7**（3 处**直接矛盾**：`StatusPill` REJECTED=destructive vs 蓝紫渐变 · `FilterBar` vs 官方 Select · i18n 24/28 键 vs 实测 25/41）+ 5 项缺漏（`updateToken` · `assetType` · `start`/`tail` · `PATCH` · 术语「删除」）⇒ 复评 **9.57**；**v1.8：转定稿**）—— 用户 2026-09-16 批准（「1原型删除 2批准」）：① 8 维自检 **9.81** ≥9 ✅
 > ② 原型物料**已删除**（`pages/__proto/M4b3Preview.tsx` + `main.tsx` 的 dev-only 路由 ⇒ 工作区零残留）
 > ③ 详情页边界入档（用户定 **A**：归 **M4b-5**，本批只做入口）④ 主 design §2.3 双表 + §7.1 契约表 + §5.1 职责矩阵 + `docs/00` §5 同步回写；
 > **v1.7：我的提交新增「类型」列**（列序 = 资产 → 类型 → 状态…））—— 用户 2026-09-16 定：「列再加 类型」；数据面**已在手边**（`asset` 表本就在 `baseQuery` 的 join 里 ⇒ 服务端**只 +1 行 SELECT**）；呈现 = `TypeIcon`（M4a 既有件，Clean Room 自绘）+ 短文案；新增 4 个 i18n 键（`col.type` / `type.*`）；**v1.6：行点击 → 操作列「查看」图标**）—— 用户 2026-09-16 定：「加一个查看」⇒ **推翻** U7 的「整行可点」（与令牌页操作列形态统一为**图标化**；**共享件零改动**，不需要 `DataTable.onRowClick`）；「**令牌 UI 已确认 OK**」；**v1.5：令牌页原型评审结论全部落地**）—— 经**可点原型**（`/dashboard/__proto/m4b3`，真仓真件 + 假数据 + 状态开关）多轮迭代，用户**逐条看效果拍板**；令牌页成型为「**6 列**（名称·Key·权限范围·创建时间·最后使用·操作）· **只显有效令牌** · Key = `aih_9fK2mQ4p*****3ba3` 掩码（前 12 + 后 4） · 图标化操作（编辑/删除**同色**，不用红）· 编辑 = 改名 + 改权限 · 删除确认**去红** · Last Used 超 3 个月标 warning」；「已驳回」徽章 = **实色蓝→紫渐变 + 白字**（对标 21-skillhub 品牌渐变，与「已通过」同构）；**范围 = 只做本批两页 + 全站去红登记 M4b-7**；新增 §2.1d 原型评审记录 · 清理 §2.1 重复编号 · 服务端改动面扩至 4 文件（含新增 `PATCH /api/tokens/:id`）；**v1.4：UI 逐条评审（①-⑤）落地 —— frontier 已空**）——按 `ui-design-review-walkthrough` （清单公式 = 页面×壳×跨面）逐条汇报并逐条拍板：① 我的提交 ② 我的令牌 ③ 创建 Dialog 两态 ④ 跨面交互约定 ⑤ 壳与导航。本轮处置 **23 条 findings**（含 4 处自产缺陷订正：`pagination.prev/next` 多余键 · 两组 `title` 键语义重复 · `client.ts` 无 DELETE 封装 · 主 design §7.1 契约表字段待同步）。**关键落值**：删 3 键 + 补 6 个 `review.*` 码 · URL 状态化约定 · 明文态四路径统一防护 + 隐藏 ✕ · 复制标记走页内 `onClickCapture` · `apiDelete` 新增 · 标题键复用 `dashboard.*`；**v1.3：补强 §4.4「UI 结构与组件树」**——新增组件树（两页）×线框差异声明×表格密度 40 落点×交互态×状态徽章与空值约定；过程中**新发现 3 处设计点**：① `StatusPill` 需**加性扩展 `kind="task"`**（原只支持 asset/version，无 review task 状态）② **不用 `FilterBar`**（该件强制带搜索框，本批只需状态维度 ⇒ 直用官方 `Select`）③ 令牌状态**用官方 `Badge`** 不扩 StatusPill（凭证状态与三族不同轴）；改造件 6 → **7**（+`StatusPill.tsx`）；**v1.2：grilling 轮 2 落地（Q9-Q14）**——令牌**名称可选**/不要求唯一/不限字符集（trim 判空，≤64）· 名称与 id **合并为一列**（列表 8 → 7 列）· scope 选项**两行排版**（码名 + 中文说明）· **不做**预设快捷；新增 §2.1b grilling 两轮决策记录段；**v1.1：grilling 轮 1 落地**——订正 2 处事实错误（`apikey.name` / `lastRequest` **列存在**，只是读面未取）+ 落 Q1-Q8 决策（**令牌命名全链支持** / 露最后使用时间 / `ToggleGroup` 多选 / 资产列链接 / `retryTick` 刷新 / `error.load` 保留 / 有效期前后端同限 / 隐藏已吊销不做）；v1.0：初稿——现状核对（真码实测）+ 10 项设计决策按推荐定案）
-> Status: **定稿**（8 维自检 **9.81** ≥9 ✅ · 用户 **2026-09-16 批准**）—— 批 plan 见 `docs/plans/M4b-3-personal-submissions-and-tokens.md`；本批出口五件见 §9 与 `docs/00` §5
+> Status: **定稿**（8 维自检 ≥9 ✅ —— 定稿轮 **9.81** · v1.9 订正复评 **9.57** · v1.10 实现期订正复评 **9.79**；用户 **2026-09-16 批准**）—— 批 plan 见 `docs/plans/M4b-3-personal-submissions-and-tokens.md`；本批出口五件见 §9 与 `docs/00` §5
 > Scope: M4b-3（`docs/00` §5 子行 / 主 design §2.3 拆批表）——个人面 A：**我的提交**（`/dashboard/submissions`）
 > + **我的令牌**（`/dashboard/tokens`）+ 服务端 **R6-c**（`reviewComment` 加性）
 > 引用链：本文档 → 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（§2.3 拆批 · §2.4 U7 ·
@@ -75,7 +79,7 @@ M4b 拆 7 批（主 design §2.3）：**顺序 1 → 2 → 3 → 4 → 5 → 6 �
 | D3 | **详情入口（v1.6 改）** | **不做整行可点**，改为操作列加 **[👁 查看] 图标**（`aria-label="查看"`）⇒ 与令牌页操作列**形态统一**（皆图标化）；**共享件零改动**（不需要 `DataTable.onRowClick`）· a11y 天然正确（图标按钮 + `aria-label`）<br>⚠️ 原 U7 的「整行可点 + 撤回 `stopPropagation`」**已推翻**（用户 2026-09-16） |
 | D4 | 撤回成功后 | 列表**局部刷新** + toast「已撤回」；失败（并发已被裁决等）→ toast 显示服务端 message + 刷新列表 |
 | D5 | 我的令牌**列集合**（Q12 合并后 **7 列**） | ① **令牌**（名称/id **合并一列**：主行 = 有 `name` 显 `name`、否则显 id 首 8 位 + `…`；副行 = 另一者，mono 小字）② 权限范围（`scope`：空 = 「全量」，否则码徽章）③ 创建时间 ④ **最后使用**（`lastRequest`，`null` = 「从未使用」）⑤ 有效期（`expiresAt`：`null` = 「永不过期」）⑥ 状态（`revokedAt`：`null` = 有效 / 非 null = 「已吊销」+ 时间副行）⑦ 操作（有效行 = 吊销；已吊销行 = 「—」）|
-| D6 | 创建表单字段 | ① **名称**（Q9 **可选** —— 留空**允许提交**，列表自动显 id；Q11 **不限字符集**——允许中文/空格/符号，`trim()` 后判空，长度 **≤64**；Q10 **不要求唯一**——同一用户可重名，前端**不做**重复校验）② 有效期天数（留空 = 永不过期；服务端 1..3650，**前端同限**、越界禁用提交）③ scope 多选 —— 控件 = **官方 `ToggleGroup type="multiple"`**（已落仓；官方 `checkbox` **未落仓**，不为此新增件）；**每项两行排版**（Q13：第一行码名 mono `asset:publish` + 第二行中文说明小字，取 `05` §5 码表「覆盖操作」列）；全不勾 = 全量 |
+| D6 | 创建表单字段 | ① **名称**（Q9 **可选** —— 留空**允许提交**，列表自动显 id；Q11 **不限字符集**——允许中文/空格/符号，`trim()` 后判空，长度 **≤32**（官方 `maximumNameLength` 默认上限，**v1.10 订正**：原 ≤64 会被官方拒）；Q10 **不要求唯一**——同一用户可重名，前端**不做**重复校验）② 有效期天数（留空 = 永不过期；服务端 1..3650，**前端同限**、越界禁用提交）③ scope 多选 —— 控件 = **官方 `ToggleGroup type="multiple"`**（已落仓；官方 `checkbox` **未落仓**，不为此新增件）；**每项两行排版**（Q13：第一行码名 mono `asset:publish` + 第二行中文说明小字，取 `05` §5 码表「覆盖操作」列）；全不勾 = 全量 |
 | D7b | 表格与控件落点（v1.3） | **密度 40 沿用官方默认**（表头 `h-10` + 单元格 `p-2`，零覆盖）· 操作列用 `DataTable.rowActions`（自动右对齐）· **筛选不用 `FilterBar`**（该件强制带搜索框）⇒ 直用官方 `Select` |
 | D7c | 状态徽章归属（v1.3） | 我的提交 4 态 = **`StatusPill` 加性扩展 `kind="task"`**（M4b-5 共享）· 令牌状态 = **官方 `Badge` 直映**（凭证状态与 asset/version/task 三族不同轴，不扩第四族） |
 | D8 | **URL 状态化（v1.4）** | 两页筛选 + 分页**写进 URL**（`?status=&limit=&offset=`，经 `useSearchParams`）——与门户列表先例（`useMarketQuery`）一致；**本约定立此供 M4b-4/5/6 遵循** |
@@ -107,7 +111,7 @@ M4b 拆 7 批（主 design §2.3）：**顺序 1 → 2 → 3 → 4 → 5 → 6 �
 | 1 | Q8 | **不做**「隐藏已吊销」过滤 |
 | 2 | Q9 | 名称**可选**（留空不阻塞提交，列表显 id） |
 | 2 | Q10 | 名称**不要求唯一**（官方无唯一约束；前端不校验重复） |
-| 2 | Q11 | 名称**不限字符集**（允许中文/空格/符号），`trim()` 判空，长度 ≤64 |
+| 2 | Q11 | 名称**不限字符集**（允许中文/空格/符号），`trim()` 判空，长度 ≤32（官方默认上限；**v1.10 订正**） |
 | 2 | Q12 | **名称与 id 合并为一列**（列表 8 → **7 列**，消除高度重复的一行文本） |
 | 2 | Q13 | scope 选项**两行排版**（码名 mono + 中文说明小字） |
 | 2 | Q14 | **不做** scope 预设快捷 |
@@ -211,10 +215,10 @@ M4b 拆 7 批（主 design §2.3）：**顺序 1 → 2 → 3 → 4 → 5 → 6 �
 | 3 | `apps/web/src/i18n/en.ts` | 同上（英文对译，键集合**逐一对应**） |
 | 4 | `apps/server/src/review/query.ts` | `ReviewListItem` + `reviewComment: string \| null` **与 `assetType: AssetType`**；`LIST_SELECT` + `reviewComment: reviewTask.reviewComment` **与 `assetType: asset.type`**（⚠️ `asset` 表**已在 `baseQuery` 的 join 里**（`apps/server/src/review/query.ts:82`）⇒ **无需加 join**） |
 | 5 | `apps/server/src/http/reviews.test.ts`（或 `review/service.test.ts`） | **新增**断言：`/mine` 与队列列表响应含 `reviewComment`（驳回后非空、未驳回为 `null`）**与 `assetType`（值 ∈ skill/mcp/agent，与所提交资产一致）**——**不修改既有断言** |
-| 6 | `apps/server/src/auth/api-keys.ts` + `apps/server/src/http/tokens.ts` | **① 命名全链**：`ApiKeyEndpoints` 窄化接口补 `name?: string` · `issueApiKey` 透传 · `issueBodySchema` 补 `name: z.string().trim().max(64).optional()` **② 读面加性**：`listApiKeys` 的 SELECT 补 `name` / **`start`** / **`metadata`** / **`lastRequest`**，回填 `name` / `start` / **`tail`（解 `metadata.tail`）** / `lastRequest` **③ 掩码配置**：`better-auth.ts` 加 `startingCharactersConfig: { charactersLength: 12 }` **④ 签发写 `metadata.tail`** = 明文后 4 位（明文只在本函数内可取；审计 detail 零明文）**⑤ 新增 `PATCH /api/tokens/:id`**（`{name?, scope?}`；本人 ∨ 他人 404 防枚举；透传官方 `updateApiKey`；审计 `token.update`）—— **零迁移 · 零 schema** |
+| 6 | `apps/server/src/auth/api-keys.ts` + `apps/server/src/http/tokens.ts` | **① 命名全链**：`ApiKeyEndpoints` 窄化接口补 `name?: string` · `issueApiKey` 透传（**`trim()` 后为空 ⇒ 省略字段**——官方 `minimumNameLength` 默认 1） · `issueBodySchema` 补 `name: z.string().trim().max(32).optional()` **② 读面加性**：`listApiKeys` 的 SELECT 补 `name` / **`start`** / **`metadata`** / **`lastRequest`**，回填 `name` / `start` / **`tail`（解 `metadata.tail`，双串化容错）** / `lastRequest` **③ 掩码配置**：`better-auth.ts` 加 `startingCharactersConfig: { charactersLength: 12 }` + **`enableMetadata: true`**（★ 官方默认关闭，不开则写 metadata 必失败：签发抛 `METADATA_DISABLED` / 更新静默忽略） + **`maximumNameLength: 32`**（钉定官方默认） **④ 签发写 `metadata.tail`** = 明文后 4 位（★ **两次官方调用**：明文由官方 `createApiKey` 内部生成 ⇒ create body 无法预知 tail，改为 create 后补一次 `updateApiKey`；明文只在本函数内可取；审计 detail 零明文）**⑤ 新增 `PATCH /api/tokens/:id`**（`{name?, scope?}`；本人 ∨ 他人 404 防枚举；透传官方 `updateApiKey`；审计 `token.update`）—— **零迁移 · 零 schema** |
 | 7 | `apps/web/src/components/console/StatusPill.tsx` | **加性扩展**：`kind` 增 `'task'` + `TASK_STATUS_VARIANT`（PENDING=warning / APPROVED=success / **REJECTED=实色蓝→紫渐变 + 白字**（`#6A6DFF → #B85EFF`，对标 21-skillhub 品牌渐变，**去红**，与「已通过」实底白字同构）/ WITHDRAWN=secondary）—— 既有 asset/version 两 kind **零改动**（`M4b-5` 审核面同样消费）；渐变须落 **token/variant**（禁 className 覆盖外观） |
 | 8 | `apps/web/src/api/client.ts` | **加性**：新增 `apiDelete<T>(path, opts)`（与 `apiPost` 同形，复用 `doFetch`）—— 原仅 `apiGet`/`apiPost`，而吊销令牌需要 `DELETE` |
-| 9 | `apps/server/src/auth/better-auth.ts` | 官方 `apiKey()` 配置 + `startingCharactersConfig: { charactersLength: 12 }`（Key 掩码前缀 6 → 12；官方默认 6 只留 2 位随机，辨识度不足）—— **1 行配置** |
+| 9 | `apps/server/src/auth/better-auth.ts` | 官方 `apiKey()` 配置 + **3 行**：① `startingCharactersConfig: { charactersLength: 12 }`（Key 掩码前缀 6 → 12；官方默认 6 只留 2 位随机，辨识度不足）② **`enableMetadata: true`**（★ 官方**默认关闭** `dist/index.mjs:2328-2330`；不开则签发传 metadata 抛 `METADATA_DISABLED`（`:767-770`）、更新**静默忽略**（`:1511`）——本批 `metadata.tail` 写入的前提）③ **`maximumNameLength: 32`**（钉定官方默认，防上游漂移；同文件先例 = 设备流参数显式钉定） |
 
 ### 3.3 路由（本批形态）
 
@@ -294,8 +298,10 @@ M4b 拆 7 批（主 design §2.3）：**顺序 1 → 2 → 3 → 4 → 5 → 6 �
 **创建流**（D13/D11）：
 ```text
 「创建令牌」→ Dialog（**表单态，仅 2 字段**）：
-   名称        [text，可选；≤64 字符；不限字符集（中文可用）；占位「例如：CI 发布用」
-                —— 留空允许提交（列表显「—」）；不校验重名]
+   名称        [text，可选；**≤32 字符**（官方 `maximumNameLength` 默认上限 —— **v1.10 订正**：原 ≤64 超出官方上限会被拒）；
+                不限字符集（中文可用）；占位「例如：CI 发布用」
+                —— 留空允许提交（列表显「—」）；不校验重名；**`trim` 后为空 ⇒ 服务端不传 `name` 字段**
+                （官方 `minimumNameLength` 默认 1 会拒空串）]
    权限范围    [ToggleGroup type="multiple" × 5 项；**每项两行**：码名（mono）+ 中文说明小字；
                 选中显 ✓、未选显空方框；全不勾 = 全量]
    ⚠️ **无「有效期」字段** —— 一律永不过期（不传 `expiresInDays`）
@@ -325,7 +331,8 @@ M4b 拆 7 批（主 design §2.3）：**顺序 1 → 2 → 3 → 4 → 5 → 6 �
 **编辑流**（D11，**本批新增**）：
 ```text
 [✎ 编辑] → Dialog：
-   名称        [text，初值 = 当前 name；≤64；可与创建同规则]
+   名称        [text，初值 = 当前 name；**≤32**；可与创建同规则；
+                ⚠️ **清空 / 纯空白 ⇒ 不发 `name` 字段 = 保持原名**（官方无「置空」语义，v1.10）]
    权限范围    [ToggleGroup multiple × 5 项（同创建那套）；全不勾 = 全量]
   → 保存 → PATCH /api/tokens/:id { name?, scope? } → 200 → 关闭 + 刷新 + toast「已保存」
   ⇒ 服务端透传官方 `updateApiKey`（**官方原生支持 name + permissions**，见 §5.1）
@@ -466,13 +473,13 @@ Tokens (page)
 
 ### 5.1 改动点（v1.5：4 个文件）
 
-| 文件 | 改动 | 行数量级 |
+| 文件 | 改动 | 行数量级（**T1/T2 落地后实测回填**） |
 |------|------|---------|
-| `apps/server/src/review/query.ts` | ① `ReviewListItem` + `reviewComment: string \| null` ② `LIST_SELECT` + `reviewComment` ③ `ReviewListItem` + `assetType` ④ `LIST_SELECT` + `assetType: asset.type`（**asset 表已在 `baseQuery` 的 join 里**，见 `query.ts:82`） | **约 5 行** |
-| `apps/server/src/auth/api-keys.ts` | ③ `createApiKey` 窄化接口 + `name?` / `metadata?` ④ `issueApiKey` 透传 `name` + **写入 `metadata: { tail: 明文后 4 位 }`** ⑤ `listApiKeys` SELECT 补 `name` / `start` / `metadata` / `lastRequest`（+ `ApiKeyRow` 回填，含 `tail` 解析）⑥ `updateApiKey` 窄化接口 + `name?` / `permissions?` | **约 20 行** |
-| `apps/server/src/http/tokens.ts` | ⑦ `issueBodySchema` + `name`（可选 ≤64）⑧ **新增 `PATCH /api/tokens/:id`**（body `{ name?, scope? }`；校验 + 透传 `updateApiKey` + 审计 `token.update`） | **约 20 行** |
-| `apps/server/src/auth/better-auth.ts` | ⑨ `startingCharactersConfig: { charactersLength: 12 }`（1 行配置） | **1 行** |
-| **合计** | | **约 44 行**（+ 测试） |
+| `apps/server/src/review/query.ts` | ① `ReviewListItem` + `reviewComment: string \| null` ② `LIST_SELECT` + `reviewComment` ③ `ReviewListItem` + `assetType` ④ `LIST_SELECT` + `assetType: asset.type`（**asset 表已在 `baseQuery` 的 join 里**） | **+8**（代码 5 + 注释 3） |
+| `apps/server/src/auth/api-keys.ts` | ③ `createApiKey` 窄化接口 + `name?` / `metadata?` ④ `issueApiKey` 透传 `name`（空 ⇒ 省略）+ **写入 `metadata.tail`**（★ create 后补 `updateApiKey`，两次官方调用）⑤ `listApiKeys` SELECT 补 `name` / `start` / `metadata` / `lastRequest`（+ `ApiKeyRow` 回填，含 `tail` 解析）⑥ `updateApiKey` 窄化接口 + `name?` / `permissions?` / `metadata?` ⑦ `parseJsonText`/`parseTail` 容错解析 | **+70 / −8** |
+| `apps/server/src/http/tokens.ts` | ⑦ `issueBodySchema` + `name`（可选 ≤32，空 ⇒ 省略）⑧ **新增 `PATCH /api/tokens/:id`**（body `{ name?, scope? }`；校验 + 透传 `updateApiKey` + 审计 `token.update`） | **+6 / −1**（PATCH 待 T3） |
+| `apps/server/src/auth/better-auth.ts` | ⑨ **3 行配置**：`startingCharactersConfig: { charactersLength: 12 }` + **`enableMetadata: true`** + **`maximumNameLength: 32`**（v1.10） | **+17**（含源码实证注释） |
+| **合计**（产品代码 4 件） | | **+101 / −9**（其中注释 **42 行** 实测）· 测试件另 **+176**（`reviews.test.ts +93` · `tokens.test.ts +83`） |
 
 **为什么这么小**：`review_comment` 列自**迁移 0000** 起存在（`db/schema/governance.ts:49`），
 写入路径 M3 已实现（`review/service.ts:183,238`）⇒ 本批**只把已有列读出到列表读面**。
@@ -490,6 +497,20 @@ Tokens (page)
 - **`startingCharactersConfig` 的影响面**：只影响**新创建**令牌的 `start` 长度（掩码可辨识度）
   ⇒ 对既有令牌/校验/明文**零影响**；官方默认 `shouldStore: true` 未被我们覆盖
 - **`metadata.tail` 的影响面**：新增写入（创建时）⇒ 库里多 4 位明文片段；**不参与校验**（校验仍走哈希）✓
+- ★ **官方侧 3 条实证约束（v1.10：T2 实现期逐行复核官方源码）**：
+  ① `metadata` **默认关闭**（`enableMetadata` 默认 false，`@better-auth/api-key` `dist/index.mjs:2330`）⇒ 必须显式开启；
+     否则签发传 metadata **抛** `METADATA_DISABLED`（`:767-770`）、更新则**静默忽略**（`:1511`）
+  ② 名称上限官方**默认 32**（`maximumNameLength`，`:2328`）⇒ 本批上限由 ≤64 **订正为 ≤32** 并显式钉定（防上游漂移）
+  ③ 名称下限官方默认 1（`minimumNameLength`，`:2329`）⇒ **空 / 纯空白名称必须省略字段**（T2 签发与 T3 编辑同口径；
+     T3「清空名称」= 不发 `name` ⇒ 保持原名，官方无「置空」语义）
+  ④ ★ **作用面（v1.10 补登记）**：`issueApiKey` 亦被**设备流**复用（`apps/server/src/http/device-routes.ts:93`）⇒
+     设备令牌同样会获得 `tail` 并各自多一次 `updateApiKey` 调用（**行为零变化**：明文/校验/过期语义不变，成本可忽略；
+     设备令牌本就在 `/api/tokens` 列表中可见 ⇒ 掩码一致反而是加分）
+- ★ **`metadata.tail` 的写入 = 两次官方调用**（create 拿明文 → 补 `updateApiKey` 写 tail）：明文由官方内部
+  keyGenerator 生成（`:802-808`）⇒ create 的 body **无法预知** tail。**失败语义**：追加写失败 ⇒ 请求 500，
+  该 token 行已存在但无 tail（前端兜底「—」）；同库同链路 ⇒ 概率极低，**接受并登记**
+- ★ **读面容错**：`metadata` 为 JSON 文本 ⇒ `parseTail` 按官方 `parseDoubleStringifiedMetadata`（`:25-29`）
+  同款「单层 → 双串」容错；**落库形态实测 = 单层 JSON** `{"tail":"…"}`（T2 测试断言，兼作契约哨兵）
 - **无迁移 / 无 schema 改动 / 无新依赖**：`git diff --stat -- apps/server/drizzle packages/` 应为空
   （`05 §5` 需补一句「库中可存明文**首尾片段**用于掩码展示」——属规范层同步，非 schema 改动）
 
@@ -504,6 +525,9 @@ Tokens (page)
      ⚠️ 测试内**不得回显明文**（只断言长度与 `明文.endsWith(tail)`）
   ③ `PATCH /api/tokens/:id` 改名 ⇒ 列表回显新名；改 `scope` ⇒ 回显新码串；他人 token ⇒ **404**
   ④ `GET /api/tokens` 含 `lastRequest` 字段（值可为 `null`）
+  ⑤ 空 / 纯空白名称签发 ⇒ 201 且 `name === null`（官方 `minimumNameLength` 默认 1 ⇒ 必须省略字段；v1.10 加）
+  ⑥ 名称上限 32：32 字受理 / 33 字 ⇒ 400（官方 `maximumNameLength` 钉定生效；v1.10 加）
+  ⑦ `metadata` 列**实读**形态 = 单层 JSON 文本 `{"tail":"…"}` 且 `tail === 明文.slice(-4)`（v1.10 加，兼作契约哨兵）
 - **既有断言零修改**：实测无严格字段集断言（§1.2 #8）⇒ 加字段不破测试
 
 ---
@@ -616,7 +640,7 @@ Tokens (page)
 | `/api/reviews`（队列） | GET | **加性**：同上（共用 `LIST_SELECT`） | 本批（R6-c 连带） |
 | `/api/reviews/:id`（详情） | GET | **加性**：同上（`ReviewDetailItem extends ReviewListItem`） | 本批（R6-c 连带） |
 | `/api/reviews/:id/withdraw` | POST | 无变更（消费既有） | M3 已交付 |
-| `/api/tokens` | POST | **加性**：body 增可选 `name`（`max(64)`）；响应形状不变（`{ id, token, expiresAt }`） | 本批 |
+| `/api/tokens` | POST | **加性**：body 增可选 `name`（`max(32)`，**空 ⇒ 省略**；响应形状不变（`{ id, token, expiresAt }`） | 本批 |
 | `/api/tokens` · `/api/tokens/:id` | GET / DELETE | **加性**（GET）：列表 item 增 `name` / `start` / `tail` / `lastRequest`；DELETE 无变更 | 本批（GET）/ M1（DELETE） |
 | `/api/tokens/:id` | **PATCH**（新增） | body `{ name?, scope? }` ⇒ 200 单条 `ApiKeyRow`；本人 token；他人视同 404；审计 `token.update` | **本批（新增）** |
 
@@ -717,6 +741,15 @@ G3/G4/G6 需要可重放的数据构造：「有 PENDING 提交」「有 REJECTE
 | 深度 4 维护性 | **9.5** | 引用不复制（主 design / 规范 / §4.4 全走指针）· i18n 键表可直接落码 · 修订记录 + 自检段齐 · 服务端改动面可被 `git diff --stat` 验证 |
 
 **v1.5 重评 = (9.9 + 9.9 + 9.8 + 9.9 + 10 + 9.6 + 9.7 + 9.7) / 8 = 9.81** ✅
+
+**v1.10 复评（2026-09-16，T2 实现期官方源码复核订正后）= 9.79** ✅ —— 完整性 **9.7** · 准确性 **9.8**
+（3 处前版误述由本轮订正并留痕：配置行数 1 → **3 行** · 名称上限 64 → **32** · `metadata.tail` 单次写入 → **两次调用**）·
+一致性 **9.7**（与批 plan v0.3 逐项 18/18）· 可用性 **9.8** · 追溯性 **10**（新增声明全部带官方源码 `file:line`）·
+反证 **9.7**（+「为何必须两次调用」+「为何钉定官方默认」+ 失败语义）· 边界 **9.8**（+空名 400 / 上限 400 / 追加写失败）·
+维护性 **9.8**（官方行号可复查 ⇒ 上游升级可再验）。
+⚠️ 表内分值为 v1.2 / v1.5 两轮留档（定稿时为 9.81，v1.9 曾因口径过窄撤回并复评为 9.57）——**最新以本段与修订记录为准**。
+换靶角度（本轮新增）：**官方包源码逐条复核**（`METADATA_DISABLED` / `maximumNameLength` / `minimumNameLength`）·
+**落库形态实测**（单层 JSON）· **跨文档契约对照**（design ↔ plan 18/18）。
 （v1.5：**原型驱动**定案 —— 令牌页全部 UI 决策经**可点原型多轮迭代 + 用户逐条看效果拍板**，落地零歧义；
 完整性 +原型评审记录（§2.1d）· 一致性 +语义色 token 归属明确 · 边界 +「旧令牌 Key 兜底」「明文片段安全权衡」显式登记）（v1.4：UI 五条逐条评审 + findings 23 条全处置 ⇒ 完整性/准确性/一致性/可用性/反证/边界/维护 全面提升；**反证 9.0→9.5**：新增 4 处自产缺陷订正留痕）
 
@@ -726,6 +759,7 @@ G3/G4/G6 需要可重放的数据构造：「有 PENDING 提交」「有 REJECTE
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.10** | 2026-09-16 | sunxuewen-rush | **T2 实现期官方源码复核订正**（用户 2026-09-16 拍板：「官方默认 32，我们就改成 32」；文档与 T2 代码同批提交）—— ① **名称上限 ≤64 → ≤32**（7 处落点：D6 · Q11 · §3.2#6 · §4.2 创建流/编辑流 · §5.1 · §7），依据 = 官方 `maximumNameLength` **默认 32**（`@better-auth/api-key` `dist/index.mjs:2328`）——原 ≤64 会被官方 400 拒 ② **`enableMetadata: true` 新增**（★ 官方 `enableMetadata` **默认 false**（`:2330`）⇒ 不开启则签发传 metadata **抛** `METADATA_DISABLED`（`:767-770`）、更新**静默忽略**（`:1511`）；`better-auth.ts` 配置 **1 行 → 3 行**，第 3 行为显式钉定 `maximumNameLength: 32` 防上游漂移）③ **`metadata.tail` 写入 = 两次官方调用**（明文由官方内部 keyGenerator 生成（`:802-808`）⇒ create body 无法预知 tail，改为 create 后补 `updateApiKey`；失败语义登记 = 500 + 行无 tail，前端兜底「—」）④ **空 / 纯空白名称 ⇒ 省略 `name` 字段**（官方 `minimumNameLength` 默认 1 会拒空串；T3 编辑流同口径 = 保持原名，官方无置空语义）⑤ **`parseTail` 双串化容错**（对齐官方 `parseDoubleStringifiedMetadata` `:25-29`）+ **落库形态实测 = 单层 JSON** `{"tail":"…"}`（T2 测试断言兼作契约哨兵）⑥ §5.1 行数**实测回填**（产品代码 4 件 +101/−9，注释 42 行；测试件 +176）⑦ §5.2 新增「官方侧 3 条实证约束」段 · §5.3 测试面 +3 断言 · §11 复评 **9.79**（9.57 → +0.22）；同步批 plan **v0.3**（T2 步骤 3/4/5 + 断言 ⑦⑧⑨ · T3 步骤与断言补空名口径） |
 | **v1.9** | 2026-09-16 | sunxuewen-rush | **提交前打分订正（8 项）**——`self-review-scoring` 8 维实测复评 **8.57 < 9 未达门** ⇒ **撤回 v1.8 的 9.81**（自检口径过窄，漏扫 §3）① 修 **3 处直接矛盾**：§3.2#7 `StatusPill` `REJECTED` destructive → **实色蓝紫渐变 + 白字** · §3.1#3 `FilterBar` → **官方 Select** · §3.2#2 i18n 24/28 → **25/41** ② 修 5 项缺漏：§3.1#2 补 `updateToken`+去 `expiresInDays` · §3.1#4 术语「吊销」→「删除」+补 6 列/编辑/只显有效 · §3.2#4/#5 补 `assetType` · §3.2#6 补 `start`/`metadata.tail`/`PATCH` · §3.1#1 命名与 plan 统一 · §3.2#7 渐变须走 token（禁 className） ⇒ 复评 **9.57 ≥9** | 
 | **v1.8（定稿）** | 2026-09-16 | sunxuewen-rush | **转定稿**：用户 2026-09-16 批准（「1原型删除 2批准」）① 原型物料**已删除**（`pages/__proto/M4b3Preview.tsx` + `main.tsx` 的 dev-only 路由 ⇒ 工作区零残留）② 8 维自检 **9.81** ≥9 ✅ ③ 详情页边界入档（用户定 **A**：归 M4b-5，本批只做入口）④ 主 design §2.3 登记表 + §7.1 契约表 + §5.1 职责矩阵 + `docs/00` §5 同步回写 | 
 | **v1.7** | 2026-09-16 | sunxuewen-rush | **我的提交新增「类型」列**（用户：「列再加 类型」）① 列集合 5 → **6**（类型列插在「资产」之后 —— 用户定「类型和名称位置换一下」）② 数据面：`LIST_SELECT` + `assetType: asset.type`（**asset 表本就在 join 里** ⇒ 服务端只 +1 行，零 join/迁移改动）；`ReviewListItem` 同步 +1 字段 ③ i18n `submissions` 组 21 → **25 键**（`col.type` + `type.skill`/`type.mcp`/`type.agent`），净增 68 → **72** ④ 呈现 = M4a 既有件 `TypeIcon`（Clean Room 自绘）+ 短文案 ⑤ dogfood +G15；原型实测：表头 `["资产","类型","状态","提交时间","拒绝原因","操作"]` · 类型列（第 2 列）`["技能","技能","技能","MCP"]` + 4 个 SVG ✓ | 
