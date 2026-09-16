@@ -2,7 +2,7 @@
 
 > Date: 2026-09-16
 > Updated: 2026-09-16（**v1.1：自检订正轮（U1-U5，第七轮换轴体检）**——轴 = **官方件 API 核对 + 上游引用一致性 + 件清单复算**：改造件 **5 → 6 处**（补 `RoleGuard.tsx`）· §4.5 写实 `RoleGuard` 改造三点（删本地 `ROLE` 常量 / **删 `role` prop** / 接三态）· §5.4 按官方件族落位（`EmptyHeader`/`EmptyMedia`/`EmptyTitle`/`EmptyDescription`/**`EmptyContent`**）· 补 `SidebarGroupContent` 与 `SidebarMenuSkeleton` · §9.1 措辞「逐字不变」→「行为语义不变 + 类型面加性扩展」；自检 **9.17 → 9.44**）；**v1.0 初稿**：M4b-2 对齐定稿——**grilling 13 项决策**（2026-09-16 两轮 + 1 补问，全部按推荐拍板）+ 上游主 design **v1.20** 契约承接；入口现状 8 项真码实证）
-> Status: **定稿**（8 维自检 **9.44** ≥9——**实测值**；三轮口径：首轮 9.00（3 处契约错同轮修）→ 9.44 → **第七轮换轴实测 9.17 → 订正 U1-U5 后 9.44**；上游主 design `docs/designs/2026-09-10-m4b-admin-console-design.md` §2.3 的子批之一；主 design 版本随其自身演进，**以其版本头为准**）
+> Status: **定稿**（8 维自检 **9.44** ≥9——**实测值**；三轮口径：首轮 9.00（3 处契约错同轮修）→ 9.44 → **第七轮换轴实测 9.17 → 订正 U1-U5 后 9.44**；上游主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md` §2.3 的子批之一；主 design 版本随其自身演进，**以其版本头为准**）
 > Scope: **仅 M4b-2（认证与壳批）**——登录页 `/login` · 设备授权页 `/device` · `AuthProvider` 会话上下文 · 401 三分类分流 · 角色判定单点 · 登出 · 侧栏三组 + 用户区 · 路由骨架（11 条）· 占位页；**零服务端改动、零新增依赖**
 > 引用链：本文档 → 上游主 design（§2.4 决策登记 U1-U3 · §3.1-§3.4 认证与会话 · §4 入口分层与显隐 · §5.1/§5.2 页面与路由 · §6.2 组件树 · §7.1 device 三行 · §11 i18n）→ 规范 `00` §5/§7 · `05` §3/§5/§6 · `07` §3/§4 → M4a design **§4.4**（全站视觉真值 SSOT，引用不复制）
 
@@ -353,7 +353,7 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 ## 11. 引用文件清单
 
 **上游与规范**
-- 主 design：`docs/designs/2026-09-10-m4b-admin-console-design.md`（§2.4 / §3.1-§3.4 / §4 / §5.1-§5.2 / §6.2 / §7.1 / §7.2 G6 / §11 · §12 线框）
+- 主 design：`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（§2.4 / §3.1-§3.4 / §4 / §5.1-§5.2 / §6.2 / §7.1 / §7.2 G6 / §11 · §12 线框）
 - 规范：`docs/00-product-direction.md` §5/§7 · `docs/05-identity-access.md` §3/§5/§6 · `docs/07-i18n-conventions.md` §3/§4
 - 视觉：`docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（SSOT）
 

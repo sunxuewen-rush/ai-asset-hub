@@ -35,7 +35,7 @@ TypeScript 全栈（前端 React 19 + Vite，后端 Hono + Drizzle + PostgreSQL�
 
 M0 ✅ · M1 ✅ 平台底座 · M2 ✅ 资产域 · M3 ✅ 治理管线 · M4a ✅ 市场门户 ·
 M4-pre ✅ 扁平化重构（4 档角色 / 全局唯一裸 slug / 无空间域 / 无可见性，2026-09-10）。
-下一步：M4b 管理后台。里程碑追踪见 [`docs/00`](docs/00-product-direction.md) §5；
+下一步：M4b 管理后台与认证（M4b-2 认证与壳批进行中）。里程碑追踪见 [`docs/00`](docs/00-product-direction.md) §5；
 文档体系说明见 [`docs/README.md`](docs/README.md)。
 
 ## License

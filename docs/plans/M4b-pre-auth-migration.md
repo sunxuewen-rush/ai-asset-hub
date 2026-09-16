@@ -152,7 +152,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
   Modify `apps/server/src/db/schema/auth.test.ts`（**旧表断言翻转**：「旧 4 表仍在 + 13 条 FK」→「旧 4 表不存在 + FK 指向新 `user` 表」）·
  `apps/server/src/auth/errors.ts`（错误码映射表改写）· `docs/05-identity-access.md`（§3 · §3.1 · §4.1 · §5 · §6.1）·
   `docs/08-data-model.md`（§3 用户域 · §8 约束汇总 · Status 表数）· `docs/00-product-direction.md`（§5 M4b-pre 行回写 + M4c/M5 注记）·
-  主 design `2026-09-10-m4b-admin-console-design.md`（§2.3 批件登记表）
+  主 design `2026-09-10-m4b-admin-console-and-auth-design.md`（§2.3 批件登记表）
 - **Assert**:
   ① 运行库表数 = **14**（实测 `psql`）；旧 4 表（`user_account`/`identity_binding`/`local_credential`/`api_token`）
      全部不存在；指向官方 `user` 的 FK = **12 条**（11 重指向 + account/session 各 1——T4 删 `api_token` 后其 1 条 FK 一并消失）；
@@ -408,7 +408,7 @@ S4 设备流与 CLI 契约 = **T5** · S5 清理与规范同步 = **T6/T7** · S
     （官方六表列面 + 搬迁规则四条）· §5/§6 的 FK 指向改 `→ user` · §8 约束表补官方 6 行 · **表数 12 → 14**
   · `docs/00-product-direction.md` → **v1.32**：§5 M4b-pre 行 ⬜ → **🔵 执行中**（七提交 + CI #41-#47 + 501 例）·
     M4c 行补实证（会话落库 ⇒ 强制登出可交官方 admin 插件）· M5 行补设备流契约定稿指针
-  · 主 design `2026-09-10-m4b-admin-console-design.md` → **v1.13**：§2.3 批件登记表 M4b-pre 行回填实际版本
+  · 主 design `2026-09-10-m4b-admin-console-and-auth-design.md` → **v1.13**：§2.3 批件登记表 M4b-pre 行回填实际版本
     （design v2.1 / plan v0.11）与五件进度
   · `docs/README.md`：05/08 索引行口径更新（RBAC 单轴 4 档 · 全表 14 = 官方 6 + 业务 8）
 - **注释腐化修复 7 处**（全仓扫描命中，非只改本包）：`http/assets.ts` · `assets/{stats,service}.ts` ·

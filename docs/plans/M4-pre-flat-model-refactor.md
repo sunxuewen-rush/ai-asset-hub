@@ -298,7 +298,7 @@ PATCH visibility 4→1）；断言静态对比 HEAD 仅 `service.test.ts` +1 / `
 
 #### T13 converge 与 M4b 重写（design §7 S4 · 00 §7 ②）
 - **Files**: 无代码；跑文档-代码对齐回查 + 8 维重评；重写
-  `docs/designs/2026-09-10-m4b-admin-console-design.md`（角色/空间/可见性章节按新模型，
+  `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（角色/空间/可见性章节按新模型，
   v0.3 → v1.0）
 - **Assert**: converge 回查通过（版本头/修订记录/引用/状态同步）；8 维重评 ≥9；
   00 §5 M4-pre ✅ + M4b 行更新；M4b design 引用新模型无残留旧概念
