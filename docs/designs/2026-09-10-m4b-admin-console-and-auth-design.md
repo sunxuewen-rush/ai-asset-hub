@@ -1,7 +1,7 @@
 # M4b 管理后台与认证设计
 
 > Date: 2026-09-10
-> Updated: 2026-09-16（**v1.32：M4b-2 出口五件全绿**——§2.3 登记表 M4b-2 行出口件 ④ 由「观感七项待用户
+> Updated: 2026-09-16（**v1.33：M4b-3 批 design 定稿 + 登记回写**——§2.3 拆批表与批件登记表 M4b-3 行回填（批 design **定稿** · 8 维 **9.81** · 批 plan **v0.1**）· §7.1 契约表补 `reviewComment`/`assetType`/`name`/`start`/`tail`/`lastRequest` 与**新增 `PATCH /api/tokens/:id` 行** · §5.1 令牌行补编辑 ② 上游 `docs/00` 升 **v1.54**；**v1.32：M4b-2 出口五件全绿**——§2.3 登记表 M4b-2 行出口件 ④ 由「观感七项待用户
 实机确认」→ **CDP 自动断言 14 PASS / 0 FAIL + NO JS ERRORS**（用户授权代跑 + 认可；口径变更登记于批
 design **v1.14** §9.4）⇒ **M4b-2 批次正式完成（五件全绿）**；上游 `docs/00` 升 **v1.53**）；
 **v1.31：新增 M4b-7「控制台视觉打磨批」（用户拍板 A）**——§2.3 拆批表 + backlog 表 + 
@@ -138,7 +138,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 |----|------|---------|-----------|------|
 | **M4b-1** | **地基批：组件归位 + 控制台组件面域** | 手搓展示件 → 官方件 14 处 · 官方件**新落仓 11 件（表列 13 项）** · `components/console/` 6 件 · 跨面 4 件 · 合规清理 4 项 · i18n 骨架 | **零** | — |
 | **M4b-2** | 认证与壳批 | 登录页（官方 `Card`+`Field` 装配 + 常规/OAuth 两 tab；`login-03` demo **不落仓**）· 设备授权页 `/device` · `AuthProvider`（loading/anon/authed）· 401 三分类分流 + 反向守卫 + `sanitizeNext` · 角色判定单点 `auth/roles.ts` · 登出 · `next` 白名单 · SideNav **三组** + 条目级门槛 · 路由骨架（11 条 + `ComingSoon` 占位；`/dashboard` 先落**临时落地页**——与 `ComingSoon` **同一件**、内容由 props 决定，M4b-4 替换为三卡）· 直访守卫 · **用户区（侧栏底部）**· 「系统设置」/「用户管理」占位条目 | **零** | M4b-1 |
-| **M4b-3** | 个人面 A | 我的提交（task 状态列 + 仅 PENDING 可撤回 + 二次确认）· 我的令牌（明文一次性 + 吊销） | **加性**：`ReviewListItem.reviewComment`（§8 R6-c） | M4b-1/2 |
+| **M4b-3** | 个人面 A | 我的提交（**类型列 + 资产 + task 状态 + 提交时间 + 拒绝原因**；操作列 **[👁 查看][↩ 撤回]** 图标化，撤回仅 PENDING + 二次确认 · 类型与状态筛选 · 分页）· 我的令牌（**6 列**：名称/Key 掩码/权限范围/创建时间/最后使用/操作（**[✎ 编辑][🗑 删除]** 同色图标）· 创建（明文一次性 + 误关防护）/ 编辑（改名 + 改权限）/ 删除（去红）；只显有效令牌） | **加性**：`ReviewListItem` + **`reviewComment` / `assetType`**（§8 R6-c + v1.7）· **`ApiKeyRow` + `name` / `start` / `tail` / `lastRequest`** · **新增 `PATCH /api/tokens/:id`** · `better-auth` 配 `charactersLength: 12` · 签发写 `metadata.tail`（**零迁移**） | M4b-1/2 |
 | **M4b-4** | 个人面 B（**唯一含读面改动**） | `GET /api/me/assets`（R6）+ R6-b 授权集扩展 + 测试更新 · 我的资产列表 · 资产管理抽屉（状态治理/标签挂载/版本管理/危险区）· 工作台 landing（角色感知三卡） | **2 处**（§8 R6/R6-b） | M4b-1/2 |
 | **M4b-5** | 审核批 | `/admin/reviews` 队列 · `/reviews/:id` 共享详情（分型 manifest 卡 + 文件树 + 预览 + 通过/拒绝/撤回 + 防自审交互） | **零** | M4b-1/2 |
 | **M4b-6** | 治理批 | 标签管理（两级树 CRUD + zh-CN/en 翻译 + 行内上/下移 + 上限提示）· 审计浏览（八维过滤 + `action` 分组下拉 + 日期区间用官方 `Calendar`） | **零** | M4b-1/2 |
@@ -166,7 +166,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 | 批 | 预期 design | 预期 plan | 对齐要点（立项时逐条过） |
 |----|------------|----------|------------------------|
 | M4b-2 | `YYYY-MM-DD-m4b2-auth-shell-design.md` | `M4b-2-auth-shell.md` | 登录页两 tab（官方 `Tabs` + `field`）· **设备授权页 `/device`** · `AuthProvider` 三态与首帧不闪 · 401 三分类分流 + 反向守卫 · 角色判定单点 · SideNav **三组** + 组标题 + 条目门槛 · 路由骨架 + `ComingSoon` · 直访守卫与轻提示 · **用户区（侧栏底部）** · 占位条目交互 · **`/login` / `/device` 线框补图** |
-| M4b-3 | `YYYY-MM-DD-m4b3-personal-a-design.md` | `M4b-3-personal-submissions-tokens.md` | 我的提交列集合与 **task 状态**文案 · 撤回仅 PENDING + `AlertDialog` · `reviewComment` **加性字段**（服务端 + 用例）· 令牌签发（明文一次性）/ 吊销 · 表格三态 |
+| M4b-3 | `2026-09-16-m4b3-submissions-and-tokens-design.md`（**定稿** · 8 维 **9.81**） | `M4b-3-personal-submissions-and-tokens.md`（**v0.1** · T1-Tn） | 我的提交列集合（**含类型列**）与 **task 状态**文案 · **操作列 [👁 查看][↩ 撤回] 图标化**（v1.6 推翻「整行可点」）· 撤回仅 PENDING + `AlertDialog`（去红）· `reviewComment` + **`assetType`** **加性字段**（服务端 + 用例）· 令牌 **6 列**（含 Key 掩码 `aih_xxx*****xxxx`）/ 创建（明文一次性 + 误关防护）/ 编辑（改名 + 改权限 ⇒ **新增 `PATCH /api/tokens/:id`**）/ 删除（去红）· 表格三态 · 键数净增 **72** |
 | M4b-4 | `YYYY-MM-DD-m4b4-personal-b-design.md` | `M4b-4-me-assets-and-console.md` | **R6 端点契约**与分页 · **R6-b 授权集**与测试更新 · 工作台三卡与角色裁剪 · 我的资产六列（显式 `status=ALL`）· 抽屉四段与守卫禁用（yank 需原因 / owner 不可 yank / 版本删除按状态）· 标签选择器（`Popover`+`Command`）· 版本列表懒加载 · dogfood 多角色数据准备 |
 | M4b-5 | `YYYY-MM-DD-m4b5-review-workbench-design.md` | `M4b-5-review-workbench.md` | 队列列集合与状态过滤 · 共享详情路由与权限面 · **分型 manifest 卡（三族）** · 文件树 + 预览（官方 `Dialog`）· 三动作 + 防自审交互 · 拒绝必填原因 · 端点权限与 token scope 交叉验证 |
 | M4b-6 | `YYYY-MM-DD-m4b6-governance-design.md` | `M4b-6-labels-and-audit.md` | 标签两级树 CRUD + 固定 zh-CN/en 翻译 + 行内上/下移（`PUT /order`）+ 上限 100 提示 · 审计八维过滤 + `action` 分组下拉（27 个动作）+ 日期区间（官方 `Calendar`）· 分页 |
@@ -179,7 +179,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 | **M4b-pre** | `2026-09-15-m4b-pre-auth-migration-design.md` | `M4b-pre-auth-migration.md` | design **v2.4**（批次收口后） · plan **v0.14** | ✅ **完成（2026-09-15）**——spike **✅ X1-X8 全通过** · design 定稿并整体批准（8 维 **9.44**；T2-T8 落地回写至 **v2.3**）· 九个提交 `fd58de0`/`a7ce23e`/`fb7b4a7`/`7b8ea11`/`b76e978`/`a6c2c5a`/`50b0c52`/`52f8156` + T8，**CI #41-#49 全绿**；全量测试 **501 例 0 fail**；批内自绘面 = 企业目录凭证插件 + 业务面同源守卫 + api-key 适配层 + `/me` 薄层（理由见 design §1.4/§2.3 P14/P6-P7） | ✅ **五件全绿** ① design 8 维 ≥9（converge **9.5**）② T1-T8 全绿 ③ 五门禁逐项 exit 0 ⑤ 整体审计十一维无未决项（修 8 / 口径登记 6）· **④ dogfood/观感 = 本批不适用（移交 M4b-2）**——零 UI 改动且登录面未交付（`TopBar` 占位件 + 无 `/login` 路由），登记为 M4b-2 出口件 |
 | **M4b-1** | `2026-09-14-m4b1-console-foundation-design.md` | `M4b-1-console-foundation.md` | design **v1.6** · plan **v0.14** | ✅ 批完成 2026-09-14 | ✅ 五件全绿 —— ① design 8 维 ≥9（定稿 9.63 / 审计轮 9.81）② T1-T8 全绿 ③ 五门禁逐项 exit 0 ④ dogfood 36/36 + NO JS ERRORS + 观感复核通过 ⑤ 整体审计 F1-F8（无未决） |
 | **M4b-2** | `2026-09-16-m4b2-auth-shell-design.md` | `M4b-2-auth-shell.md` | design / plan **版本以其版本头为准** | ✅ **完成（2026-09-16）**——**批内进度：T1-T10 ✅**（**批次完成**）·**前置已满足（M4b-pre ✅ 2026-09-15）**；grilling **13 项决策**（Q1-Q13 逐条按推荐拍板）· 入口现状 **8 项真码实证** · 件规格（新建 **9** / 改造 **6** / 不改 4 类）· 路由 **11 条**（3 真页 + 1 重定向 + 7 占位）· 认证机制（`doFetch` 单点 401 四分类 · `sanitizeNext` 保码 · `hasRole` 单点）· 出口件④ **七项** · dogfood **六组** · i18n **键数以其 §10 口径为准**（+9 码）。**立项对齐必核现状项（M4b-pre 移交）**：`TopBar.tsx:33-39` 的「登录」是**占位 `<span>`（无 `onClick`/`href`）**、路由表**无 `/login`** ⇒ 本批入口改造 = 占位件 → 真认证入口 + `/login` 页 + `AuthProvider`；**出口件 ④（dogfood/观感）自 M4b-pre 移交本批** | ✅ **五件已执行**：① design 8 维 ≥9（定稿 9.44 / converge **9.50**）② T1-T10 全绿 ③ 五门禁 exit 0（含 `test` **500 pass · 1 skip · 0 fail**）④ dogfood **36/36 + 24/24 + NO JS ERRORS** ✅ / **出口件 ④ 七项 = CDP 自动断言 14/14 + 用户认可** ✅ ⑤ 整体审计无未决项（F4 关闭 · 旧指针关闭 · 行数订正）——证据 `docs/smoke/2026-09-16-m4b2-auth-shell.md` |
-| M4b-3…M4b-6 | ⬜ 待落地回填 | ⬜ 待落地回填 | — | ⬜ 待对齐 | ⬜ |
+| M4b-4…M4b-6 | ⬜ 待落地回填 | ⬜ 待落地回填 | — | ⬜ 待对齐 | ⬜ |
 
 > **说明**：① 上表「各批预期产出物」= 立项时的**计划名**，主题词可在落地时按实际范围微调；
 > **实际名以本表为准**——本表即「主 ↔ 批」的双向查询点（查「这批的 design/plan 到底叫什么、几点几版、什么状态」）。
@@ -352,7 +352,7 @@ SideNav 在**既有门户组**（首页 `/` · 技能中心 `/skills` · MCP `/m
 | `/dashboard` | 工作台 landing | 任何登录用户 | 三项计数卡 → 跳对应列表（`role < 10` 只发「我的资产」1 个请求） | `GET /api/reviews?status=PENDING&limit=1` · `GET /api/me/assets?status=ALL&limit=1` · `GET /api/audit?limit=5` |
 | `/dashboard/assets` | 我的资产（我可管理的集合） | 任何登录用户 | 状态筛选 · 恢复/隐藏/归档 · 标签挂载 · 版本删除/yank · 删资产（全在抽屉内） | `GET /api/me/assets`（R6 新增）· `PATCH /:slug/status` · `PUT`/`DELETE /:slug/labels/:labelSlug` · `DELETE /:slug/versions/:version` · `POST /:slug/versions/:version/yank` · `DELETE /:slug` |
 | `/dashboard/submissions` | 我的提交 | 任何登录用户 | 看自己的提审 · **撤回**（仅本人/owner/管理档） | `GET /api/reviews/mine` · `POST /api/reviews/:id/withdraw` |
-| `/dashboard/tokens` | 我的令牌 | 任何登录用户 | 签发（明文仅一次）· 吊销 | `GET`/`POST /api/tokens` · `DELETE /api/tokens/:id` |
+| `/dashboard/tokens` | 我的令牌 | 任何登录用户 | 创建（明文仅一次）· **编辑（改名 + 改权限）** · 删除 | `GET`/`POST /api/tokens` · **`PATCH`**/`DELETE /api/tokens/:id` |
 | `/reviews/:id` | 审核详情（**共享路由**） | 管理档 ∨ 提交人本人 | manifest 分型卡 + 文件树 + 预览 · 通过/拒绝/撤回 | `GET /api/reviews/:id` · `GET /api/assets/:slug/versions/:version/files/*` · `POST /api/reviews/:id/approve`／`reject`／`withdraw` |
 | `/admin` | 重定向 | 管理档 | → `/admin/reviews`（治理面无 landing） | — |
 | `/admin/reviews` | 审核队列（全站单队列） | `role >= 10` | 状态过滤 · 分页 · 进详情 | `GET /api/reviews?status=` |
@@ -498,7 +498,7 @@ src/
 | 功能 | 端点 | 权限 | 关键响应形状 | 源码依据 |
 |------|------|------|-------------|---------|
 | 审核队列 | `GET /api/reviews?status=&limit=&offset=` | 管理档 `role >= ADMIN`（**全站单队列**，无空间过滤参数；不足 → 403 `review.access_denied`） | `{items:[{taskId,status,reviewVersion,submittedBy,submittedAt,assetSlug,assetVersion,versionStatus,versionId}],total,limit,offset}` | `http/reviews.ts:46-66` · `review/query.ts:24-44` |
-| 我的提交 | `GET /api/reviews/mine?status=&limit=&offset=` | 登录（身份面） | 同上 items 形状 | `http/reviews.ts:69-86` |
+| 我的提交 | `GET /api/reviews/mine?status=&limit=&offset=` | 登录（身份面） | 同上 items 形状 + **`reviewComment` / `assetType`**（M4b-3 加性） | `http/reviews.ts:69-86` |
 | 审核详情 | `GET /api/reviews/:id` | 管理档 ∨ 提交人本人（否则 403 `review.access_denied`；不存在 404 `review.not_found`） | `ReviewListItem + {manifestJson, files:[{filePath,fileSize,sha256}]}` | `http/reviews.ts:89-98` · `review/query.ts:46-50` |
 | 通过/拒绝 | `POST /api/reviews/:id/approve`（`{comment?}`）· `POST /:id/reject`（`{comment}` 必填） | 管理档 `role >= ADMIN` + 防自审（05 §6.4，超管例外）；token scope `review:approve`（`auth/token-scopes.ts:17`） | 200 `{taskId,status,version}` | `http/reviews.ts:101-143` · `auth/rbac.ts:70` |
 | 撤回提审 | `POST /api/reviews/:id/withdraw` | 提交人本人 / asset owner / 管理档（服务内判定） | 204 | `http/reviews.ts:146-160` |
@@ -507,8 +507,9 @@ src/
 | 标签 CRUD | `POST /api/labels` · `PATCH /api/labels/:slug` · `DELETE /api/labels/:slug` | `role >= SUPER_ADMIN` | 同上单条；slug 冲突 → 409 `label.slug_taken`；**定义总数上限 100** → `label.definition_limit_exceeded`；删除带子级 → `label.parent.has_children`（三码见 `labels/errors.ts:9,11,19`） | `http/labels.ts:77-121` |
 | 标签排序 | `PUT /api/labels/order` | `role >= SUPER_ADMIN` | 204 | `http/labels.ts:123-131` |
 | 标签挂载 | `PUT`/`DELETE /api/assets/:slug/labels/:labelSlug` | RECOMMENDED = `canManageAsset`（owner 本人 ∨ `role >= ADMIN`）；PRIVILEGED = 超管 | 幂等（重复挂 204 / 移除不存在 204）；≤10 → `label.limit_exceeded` | `http/assets.ts:709-763` · `assets/manage.ts:19-22` |
-| 令牌列表 | `GET /api/tokens` | 登录（仅本人） | `{items:[{id,scope,expiresAt,revokedAt,createdAt}]}`（库中仅 sha256，无掩码字段） | `http/tokens.ts:87-102` |
-| 令牌签发 | `POST /api/tokens`（`{scope?:string[], expiresInDays?}`） | 登录 | 201 `{id,token,expiresAt}`——**明文仅此一次** | `http/tokens.ts:41-82` |
+| 令牌列表 | `GET /api/tokens` | 登录（仅本人） | `{items:[{id,scope,expiresAt,revokedAt,createdAt,`**`name`**`,`**`start`**`,`**`tail`**`,`**`lastRequest`**`}]}`（M4b-3 加性；库中仍仅 sha256，**`start` = 明文前 12 位**（官方写入）· **`tail`** 自 `metadata.tail` = 明文后 4 位（签发时记） ⇒ 仅够掩码展示） | `http/tokens.ts:87-102` |
+| 令牌签发 | `POST /api/tokens`（`{scope?:string[], expiresInDays?, `**`name?`**`}`） | 登录 | 201 `{id,token,expiresAt}`——**明文仅此一次** | `http/tokens.ts:41-82` |
+| **令牌编辑（M4b-3 新增）** | **`PATCH /api/tokens/:id`**（`{name?, scope?}`） | 本人（他人视同 404 防枚举，同 DELETE 口径） | 200 单条 `ApiKeyRow`；透传官方 `updateApiKey`（原生支持 `name` + `permissions`）；审计 **`token.update`** | 本批新增 |
 | 令牌吊销 | `DELETE /api/tokens/:id` | 本人 ∨ `role >= SUPER_ADMIN`；幂等 204；他人 token 视同 404 防枚举 | 204 | `http/tokens.ts:105-141` |
 | 审计 | `GET /api/audit?action=&targetType=&targetId=&actorId=&requestId=&clientIp=&from=&to=&limit=&offset=` | 管理档 `role >= ADMIN`（token scope `audit:read` 交集） | `{items:[audit_log 全列],total,limit,offset}`，createdAt desc + id desc 稳定分页 | `http/audit.ts:45-55` |
 | 公开统计 | `GET /api/stats` | 匿名 | 公开聚合（活跃资产计数等） | `http/stats.ts:11-14` |
@@ -966,6 +967,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.33** | 2026-09-16 | sunxuewen-rush | **M4b-3 批 design 定稿 + 登记回写**（用户 2026-09-16「1原型删除 2批准」）① §2.3 拆批表 M4b-3 行范围更新（**类型列** · 操作列 **[👁 查看][↩ 撤回]** 图标化 · 令牌 **6 列** · 编辑/删除 · **`PATCH /api/tokens/:id`** · `assetType`）② §2.3 批件登记表 M4b-3 行回填实际件名（批 design `2026-09-16-m4b3-submissions-and-tokens-design.md` **定稿** · 批 plan `M4b-3-personal-submissions-and-tokens.md` **v0.1**）③ §7.1 契约表：我的提交 + `assetType`；令牌三行 + `name`/`start`/`tail`/`lastRequest`；**新增 `PATCH /api/tokens/:id` 行**；§5.1 令牌行补**编辑**操作 ④ 上游 `docs/00` 升 **v1.54**（§5 M4b-3 行 → 🔵 计划已立）⑤ 原型物料已删除（工作区零残留）⑥ 本版不含实现改动 | 
 | **v1.32** | 2026-09-16 | sunxuewen-rush | **M4b-2 出口五件全绿（批次正式完成）**：§2.3 登记表 M4b-2 行
 「出口五件」⑤ 列由「④ dogfood ✅ / **观感七项待用户实机确认** 🔶」→ **全部 ✅**（④ = **CDP 自动断言
 14 PASS / 0 FAIL + NO JS ERRORS**）。**口径变更**（登记于批 design **v1.14**）：出口件 ④ 的执行方式由
