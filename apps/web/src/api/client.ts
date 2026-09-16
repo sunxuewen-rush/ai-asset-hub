@@ -5,6 +5,7 @@
  *   label displayName 等数据随 Accept-Language 变化，缓存键必须含语言）
  * - Accept-Language 头跟随当前 UI 语言（lang.ts 镜像，切换即生效）
  */
+import { isProtectedRoute } from '../auth/next.js';
 import { getCurrentLang } from '../i18n/lang.js';
 
 export interface ApiErrorBody {
@@ -43,6 +44,24 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): () 
   return () => {
     if (unauthorizedHandler === handler) unauthorizedHandler = null;
   };
+}
+
+/**
+ * 失效响应缓存（design §4.2「新增按前缀失效能力」）：
+ * - **无参** ⇒ 清全量（登录成功 / 登出 / `AuthProvider.refresh`，design §4.4）
+ * - **带前缀** ⇒ 按**语言无关的 path 前缀**失效 —— 内部键为 `${lang} ${path}`（语言感知缓存，
+ *   见文件头），故**不能**直接 `key.startsWith(prefix)`（执行期细化，见批 plan T2 落地记录）
+ */
+export function invalidateCache(prefix?: string): void {
+  if (prefix === undefined) {
+    responseCache.clear();
+    return;
+  }
+  for (const key of [...responseCache.keys()]) {
+    const sep = key.indexOf(' ');
+    const path = sep === -1 ? '' : key.slice(sep + 1);
+    if (path === prefix || path.startsWith(prefix)) responseCache.delete(key);
+  }
 }
 
 export interface ApiGetOptions {
@@ -136,7 +155,33 @@ async function doFetch<T>(path: string, init: DoFetchInit = {}): Promise<T> {
     } catch {
       // 非 JSON 错误体——保留 http_{status} 归一码
     }
+    if (res.status === 401) handleUnauthorized(path, init.skipAuthRedirect === true);
     throw new ApiError(code, res.status, message ?? res.statusText);
   }
   return (await res.json()) as T;
+}
+
+/** 会话探测端点（design §4.2 ①：`/me` 的 401 是「未登录」正常态，交 `AuthProvider` 消费，**不跳转**） */
+const ME_PATH = '/api/auth/me';
+
+/**
+ * 401 四分类（design §4.2；**判定域 = 当前路由**，Q14）。
+ *
+ * | 类 | 条件 | 行为 |
+ * |----|------|------|
+ * | ④ | `skipAuthRedirect === true` | **完全跳过**（交调用方 inline 展示；本批唯一消费点 = 登录表单） |
+ * | ① | `path === '/api/auth/me'` | 交 `AuthProvider` 自身消费（置 anon，不跳转） |
+ * | ② | 当前路由 ∈ `PROTECTED_PREFIXES` | 回调 `unauthorizedHandler`（置 anon + 跳 `/login?next=`） |
+ * | ③ | 其余（公开段） | **静默当 anon**（不跳转；页面自行展示 `ErrorState`） |
+ *
+ * 顺序敏感：**④ 先于 ①②③**（登录表单失败不得触发全局跳转）；**① 先于 ②**（`me()` 的 401 是正常态）。
+ * 判定用 `window.location.pathname`（**非** API 路径——两者不同域，见 `auth/next.ts` 文件头）。
+ */
+function handleUnauthorized(path: string, skip: boolean): void {
+  if (skip) return; // ④
+  if (path === ME_PATH) return; // ①
+  if (typeof window === 'undefined') return; // 非浏览器环境（SSR 冒烟）不做路由判定
+  const { pathname, search } = window.location;
+  if (!isProtectedRoute(pathname)) return; // ③ 公开段静默
+  unauthorizedHandler?.(pathname, search); // ② 受保护路由
 }

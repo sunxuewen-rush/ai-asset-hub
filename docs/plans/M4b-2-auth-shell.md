@@ -1,8 +1,8 @@
 # M4b-2 认证与壳批（登录 · 会话 · 角色感知壳）实现计划
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v0.4：T1 落地回写**——T1 ✅（2026-09-16）新建 3 件 + `client.ts` 扩至 119 行；断言实测（`hasRole` 探针 **14/14** · 门禁三连 exit 0 · 零服务端改动）；**执行期修正 2 处**（`apiPost` 前移 T1 解循环依赖 · 401 登记口落 `api/client.ts` 防 ESM 循环）· **登记 1 项归 T4**（角色徽章键与组标题键语义不符）；**v0.3：grilling 第 3 轮（Q14-Q19）断言同步**——T2 断言③ **判定域 = 当前路由**（Q14：实测全仓 `apiGet` 均为 `/api/...`，与原「按 path 匹配」不同域）+ 断言⑤ 补 **`/\evil.com` / `/%5Cevil.com` → `null`**（Q16）· T3 断言⑦ **守卫包裹与 `minRole` 映射**（Q15）· T7 断言⑧ **device 错误体 OAuth 风格适配**（Q18①）+ 断言⑨ **「他人已认领」态实测**（Q18②）· T8 断言⑤ **`location.state.notice` 消费**（Q17）· T9 断言⑥ **`claimedByOther` 键去留**（Q18②）· T10 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）；**顺带修正 T4/T7 断言编号重复（⑦ 各出现两次，自产缺陷同轮修）**；**v0.2：深度档评审同步**——§1.4 两缺口全部闭合（批 design v1.2：`auth/next.ts` 件 9 + Q8 边界订正）· T4 补 F3/图标态断言 · T7 补 F1 刷新态 · T9 补净增 32 键对照 · T10 补 F2 提示 + 登记表改「复核」；**v0.1 初稿**：M4b-2 Task 清单 **T1-T10**（认证地基 → API 客户端扩展 → 路由骨架 → 侧栏三组 → TopBar 减法 → `/login` → `/device` → `/dashboard` → i18n 对齐 → 门禁/dogfood/收口），每 Task 含 **Files / Assert（可现场跑）/ Commit**；依据批 design `2026-09-16-m4b2-auth-shell-design.md` **v1.1**（定稿 · 8 维 9.44）与上游主 design **v1.21** §2.3 拆批表；§1.4 登记**两处待补设计缺口**（① `sanitizeNext` 落点未在件清单列明 ② Q8「反向守卫」Task 边界措辞）；10 项行数声明与 i18n 键数**全部实测一致** · file:line 引用**全部回读**）
-> Status: **执行中**（**T1 ✅ 2026-09-16** · T2-T10 ⬜ 待执行；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
+> Updated: 2026-09-16（**v0.5：T2 落地回写**——T2 ✅（2026-09-16）新建件 9 `auth/next.ts` + `client.ts` 扩至 187 行；断言实测（**纯函数探针 27/27** · **门户零回归 dogfood 36/36 + NO JS ERRORS** · 门禁三连 exit 0）；**执行期细化 3 处**（`sanitizeNext` 单参 · `PROTECTED_PREFIXES` 落 `auth/next.ts` · `invalidateCache` 语言无关 path 前缀）；连带修复 biome 控制字符正则规则；**v0.4：T1 落地回写**——T1 ✅（2026-09-16）新建 3 件 + `client.ts` 扩至 119 行；断言实测（`hasRole` 探针 **14/14** · 门禁三连 exit 0 · 零服务端改动）；**执行期修正 2 处**（`apiPost` 前移 T1 解循环依赖 · 401 登记口落 `api/client.ts` 防 ESM 循环）· **登记 1 项归 T4**（角色徽章键与组标题键语义不符）；**v0.3：grilling 第 3 轮（Q14-Q19）断言同步**——T2 断言③ **判定域 = 当前路由**（Q14：实测全仓 `apiGet` 均为 `/api/...`，与原「按 path 匹配」不同域）+ 断言⑤ 补 **`/\evil.com` / `/%5Cevil.com` → `null`**（Q16）· T3 断言⑦ **守卫包裹与 `minRole` 映射**（Q15）· T7 断言⑧ **device 错误体 OAuth 风格适配**（Q18①）+ 断言⑨ **「他人已认领」态实测**（Q18②）· T8 断言⑤ **`location.state.notice` 消费**（Q17）· T9 断言⑥ **`claimedByOther` 键去留**（Q18②）· T10 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）；**顺带修正 T4/T7 断言编号重复（⑦ 各出现两次，自产缺陷同轮修）**；**v0.2：深度档评审同步**——§1.4 两缺口全部闭合（批 design v1.2：`auth/next.ts` 件 9 + Q8 边界订正）· T4 补 F3/图标态断言 · T7 补 F1 刷新态 · T9 补净增 32 键对照 · T10 补 F2 提示 + 登记表改「复核」；**v0.1 初稿**：M4b-2 Task 清单 **T1-T10**（认证地基 → API 客户端扩展 → 路由骨架 → 侧栏三组 → TopBar 减法 → `/login` → `/device` → `/dashboard` → i18n 对齐 → 门禁/dogfood/收口），每 Task 含 **Files / Assert（可现场跑）/ Commit**；依据批 design `2026-09-16-m4b2-auth-shell-design.md` **v1.1**（定稿 · 8 维 9.44）与上游主 design **v1.21** §2.3 拆批表；§1.4 登记**两处待补设计缺口**（① `sanitizeNext` 落点未在件清单列明 ② Q8「反向守卫」Task 边界措辞）；10 项行数声明与 i18n 键数**全部实测一致** · file:line 引用**全部回读**）
+> Status: **执行中**（**T1 ✅ · T2 ✅ 2026-09-16** · T3-T10 ⬜ 待执行；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
 > 引用链：本文档 → 批 design `docs/designs/2026-09-16-m4b2-auth-shell-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层）`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**版本以其版本头为准**）→ 规范 `00` §5/§7 · `05` §3/§5/§6 · `07` §3/§4 → M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -78,7 +78,7 @@
   ⑤ 门禁（web 侧）：`typecheck` ✅ · `lint` ✅
 - **Commit**: `feat(web): add auth context, role helpers and auth api`
 
-### T2 `api/client.ts` 扩展（401 单点分流 + `apiPost` + `invalidateCache` + `sanitizeNext`）⬜
+### T2 `api/client.ts` 扩展（401 单点分流 + `apiPost` + `invalidateCache` + `sanitizeNext`）✅（2026-09-16 落地；执行期细化 3 处见「落地记录」）
 - **设计**：批 design §3.2（件 4）· §4.2（四分类）· §4.3（反向守卫 + `sanitizeNext`）· §9.1（门户零回归）
 - **Task 边界**：Q8 原把「反向守卫」列入本 Task ⇒ 实现期落点为 **T6 `/login` 组件内**
   （本 Task 只提供 `sanitizeNext` 判定函数与 401 侧的 `next` 生成点）——批 design v1.2 §2.1 Q8 已同步订正，见 §1.4 缺口⑵
@@ -305,6 +305,35 @@
   超级管理员」）⇒ T4 落地时定：**补 3 徽章键（净增 32 → 35）** 或 **徽章只显色不显字**（零新增键）。
   本 Task **未擅自加键**（草稿里的 `roleBadgeKey` 已撤回）。
 
+**T2 `api/client.ts` 扩展 ✅（2026-09-16 落地）**
+
+- **落地**：新建 `apps/web/src/auth/next.ts`（**件 9** · 83 行 · 路由安全单点：`sanitizeNext` +
+  `PROTECTED_PREFIXES` + `isProtectedRoute`）；改 `apps/web/src/api/client.ts`（119 → **187 行**：
+  401 四分类 `handleUnauthorized` + `invalidateCache`）
+- **断言实测**：① `ApiGetOptions.skipAuthRedirect` 加性扩展（T1 已落，本 Task 复核）✓
+  ② `apiPost` 复用 `doFetch`（T1 已落，复核）✓ ③ **401 四分类**（`doFetch` 的 `!res.ok` 分支）：
+  ④ `skipAuthRedirect` → **完全跳过** · ① `/api/auth/me` → 不跳转 · ② 当前路由 ∈ 4 前缀 →
+  `unauthorizedHandler(pathname, search)` · ③ 公开段**静默**；**判定域 = 当前路由**（Q14）——
+  **端到端验证点 = T3 断言⑥**（本 Task 不接线，无真 401 路径可触发；纯函数部分已探针实证）
+  ④ `invalidateCache` 导出（无参 = 清全量 · 带前缀 = 按 **path** 前缀失效）✓
+  ⑤ **纯函数探针 27/27 PASS**——`sanitizeNext`：`//evil.com` · `https://x.com/a` · `/\evil.com` ·
+  `/%5Cevil.com` · `/%5cevil.com` · `javascript:alert(1)` · `/pa%0Ath` · 字面控制字符 · 空串 ·
+  `null` · `undefined` → **全 `null`**；`/device?user_code=ABCD-1234`（**保码**）· `/dashboard` · `/` ·
+  `/admin/reviews?status=PENDING` → **原样**。`isProtectedRoute`：4 前缀命中（含段内路径）·
+  `/` `/skills` `/login` → false · **段边界**（`/administrator` · `/dashboardx` → false）
+  ⑥ **门户零回归硬证据**：`docs/smoke/scripts/m4a-dogfood.ts` **36/36 PASS + NO JS ERRORS**
+  （`SMOKE_SHOT_PREFIX=m4b2-t2-`） ⑦ 门禁：`typecheck` exit 0 · `lint` exit 0（91 文件 0 诊断）·
+  `format:check` ✓（234 文件）
+- **执行期细化 3 处（已同步批 design v1.5）**：① `sanitizeNext` **单参**（design §4.3 原签名
+  `(raw, origin)` 的 `origin` 冗余——「仅站内相对路径」规则已排除一切跨源形态）
+  ② `PROTECTED_PREFIXES` 落 **`auth/next.ts`**（与 `sanitizeNext` 同域 = 路由安全；该件**零 import**
+  ⇒ `api/client` 单向引用**不成环**）③ `invalidateCache(prefix)` 按**语言无关的 path 前缀**失效
+  （内部键为 `${lang} ${path}`，**不能**直接 `key.startsWith(prefix)`——那是 design §4.2 原文
+  「按键前缀」的字面读法，会永不命中）
+- **连带修复（同轮）**：biome `lint/suspicious/noControlCharactersInRegex` 命中控制字符正则 ⇒
+  改为**逐字符码点判定**（`hasControlChar`）；编码形态 `%00`–`%1f` 仍用正则（无控制字符字面量）
+- **截图**：`docs/smoke/m4b2-t2-*.png`（11 张）**不入库**——本 Task 零 UI 变更，36/36 断言文本即证据
+
 ## 3. 整体审计（收尾 · 待 T10）
 
 > 口径来源：**十一维**扫描（`docs/00` §7 ② · M4b-1 plan §3 先例）。
@@ -330,6 +359,7 @@
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.5 | 2026-09-16 | sunxuewen-rush | **T2 落地回写**：① T2 标题 → ✅ ② 新增「落地记录 · T2」段（件 9 `auth/next.ts` 83 行 + `client.ts` 187 行 · 七条断言实测 · 门户零回归 **36/36** 硬证据）③ **执行期细化 3 处**：`sanitizeNext` **单参**（`origin` 冗余）· `PROTECTED_PREFIXES` 落 `auth/next.ts`（零 import ⇒ 单向引用不成环）· `invalidateCache(prefix)` 按**语言无关 path 前缀**失效（原文「按键前缀」字面读法会永不命中）④ **连带修复**：biome `noControlCharactersInRegex` ⇒ 控制字符检测改码点判定⑤ 401 四分类的**端到端验证点后移 T3 断言⑥**（本 Task 不接线，无真 401 路径）⑥ 截图 11 张**不入库**（零 UI 变更）⑦ 状态 → T1 ✅ · **T2 ✅** · T3-T10 ⬜ |
 | v0.4 | 2026-09-16 | sunxuewen-rush | **T1 落地回写（首个实现 Task 完成）**：① T1 标题 → ✅（2026-09-16）② 新增「落地记录 · T1」段（落地件与行数 · 五条断言实测证据 · 门禁三连 exit 0）③ **执行期修正 1**：`apiPost` 从 T2 前移 T1（**T1 ↔ T2 循环依赖**：T1 的 login 需 POST、T2 的 401 分流需 T1 的 AuthProvider 钩子）⇒ T2 收窄为「401 四分类 + `invalidateCache` + `sanitizeNext`」（T2 Files 已同步）④ **执行期修正 2**：401 登记口落 **`api/client.ts` 的 `setUnauthorizedHandler`**（防 `client → AuthProvider` 反向 import 形成 ESM 循环；§3.1 件 1 语义不变）⑤ **登记归 T4**：角色徽章键与组标题键语义不符（design §6.2 ↔ §10）⑥ 状态 → **执行中**（T1 ✅ / T2-T10 ⬜） |
 | v0.3 | 2026-09-16 | sunxuewen-rush | **grilling 第 3 轮（Q14-Q19）断言同步 + 自产编号缺陷修正**：① **T2 断言③** 判定域写实 = **当前路由**（Q14——`window.location.pathname` 匹配 4 个**路由**前缀；**实测**全仓 `apiGet` 均为 `/api/...`，与原「按请求 path 匹配」**不同域 ⇒ 永不命中**）② **T2 断言⑤** 补 **`/\evil.com`** 与 **`/%5Cevil.com`** → `null`（Q16 协议相对 URL = 开放重定向防护）③ **T3 断言⑦** 新增**守卫包裹与 `minRole` 映射**（Q15：门户 5 条无守卫 · `/dashboard`+`/reviews` = `USER(1)` · `/admin` = `ADMIN(10)`；`/admin` 的 `Navigate` 在守卫内）④ **T7 断言⑧** device **错误体 OAuth 风格 `{error}`** 的适配点（Q18①——页面不直读 `code`）· **断言⑨** 「他人已认领」态**存在性实测**（Q18②——仓内无据，无则删）⑤ **T8 断言⑤** **`location.state.notice` 消费**（Q17——toast + 清 state 防重弹）⑥ **T9 断言⑥** **`claimedByOther` 键去留**（Q18②，键数口径 32 → 31）⑦ **T10** 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）⑧ **自产缺陷修正（同轮）**：**T4 断言编号 ⑦ 重复**（混排 F3 与门禁同号）→ 门禁改 **⑨**；**T7 断言编号 ⑦ 重复**（不消费 CLI 与门禁同号）→ 门禁改 **⑩**⑨ 依据：**grilling 第 3 轮**（frontier 重算后剩 7 项，全部按推荐拍板）；批 design 同步升 **v1.3** |
 | v0.2 | 2026-09-16 | sunxuewen-rush | **深度档评审同步（plan 侧）**：① **§1.4 两处缺口全部闭合**——批 design 升 **v1.2**：缺口 ⑴ 采纳 **A 案**（新建件 **9** `src/auth/next.ts`）· 缺口 ⑵ Q8 边界已订正 ② **T2** Files 落点转定案（`auth/next.ts` = 件 9）· **T4** 补断言 ⑦（**F3 混排结构视觉**：计算值记录 + 用户确认）与 ⑧（图标态组标题官方实测值）· **T7** 补断言 ⑥（**F1 刷新态**）· **T9** 断言 ② 补**净增 32 键**总量对照 ③ **T10** 断言 ⑦ 改「批件登记表**复核**」（M4b-2 行已于立项时回填主 design **v1.22**）+ 补 ⑧ **F2 提示**（`.env` 的 `AUTH_TRUSTED_ORIGINS` 含 `5173`）④ 依据：**深度档评审**（四轮审查法）findings + 主 design v1.22/D1-D2 |
