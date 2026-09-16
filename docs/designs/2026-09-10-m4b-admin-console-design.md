@@ -1,7 +1,7 @@
 # M4b 管理后台设计
 
 > Date: 2026-09-10
-> Updated: 2026-09-15（**v1.15：M4b-pre 批次完成（出口五件全绿）**——§2.3 批件登记表 M4b-pre 行 → **✅ 完成**（design **v2.4** · plan **v0.14** · 五件全绿；**出口件 ④ = 本批不适用（移交 M4b-2）**：零 UI 改动且登录面未交付）；**M4b-2 行登记「前置已满足 ⇒ 可开工对齐」+ 立项必核现状项**（`TopBar` 占位件 → 真认证入口 + `/login` + `AuthProvider`；出口件 ④ 承接）；上游 `docs/00` 升 **v1.34**；**v1.14：M4b-pre 代码完成回写（T8）**——§2.3 批件登记表 M4b-pre 行回填**收尾版本**（design **v2.3** · plan **v0.13**）与**出口五件终态**（① converge 8 维 **9.5** ② T1-T8 全绿 ③ 五门禁逐项 exit 0 ⑤ 整体审计十一维无未决项 修 8/口径登记 6；**④ dogfood/观感 ⏳ 待用户** H1/H2）；九提交与 CI #41-#48 入表；上游 `docs/00` 升 **v1.33**（M4b-pre 行 → 🔵 代码完成 + 硬证据 `docs/smoke/2026-09-15-m4b-pre.md`）；**v1.13：M4b-pre 执行期登记（T1-T6 落地 + 规范层同步）**——§2.3 批件登记表 M4b-pre 行回填**实际版本**（design **v2.1** · plan **v0.11**）与**五件进度**（① design 8 维 ≥9 ✅ ② T1-T6 ✅ / T7-T8 ⬜ ③ 五门禁 ✅ ④ dogfood/观感 ⬜（T8）⑤ 整体审计 ⬜（T8）），七个提交与 CI 号段入表；上游 `docs/00` 升 **v1.32**（含规范层 `05` v1.9 / `08` v1.6 改写登记 + M4c/M5 实证注记）；**v1.12：M4b-pre 立项登记（设计定稿批准 + 计划立项）**——§2.3 批件登记表 M4b-pre 行回填实际件名：批 design `2026-09-15-m4b-pre-auth-migration-design.md`（定稿 · 8 维 **9.44** · 已批准）· 批 plan `M4b-pre-auth-migration.md`（**v0.2** 立项 · T1-T9）· 状态 ⬜ **计划已立**（spike ✅ X1-X8 全通过）；上游 `docs/00` 升 **v1.30**；**v1.11：认证整车迁移前置 + M4b 暂停（用户 2026-09-15 拍板 A）**——§2.3 批件登记表：**M4b-2** 由「对齐中」→ **⏸ 暂停**（认证底座以 **M4b-pre** 结论为前置；M4b 整体顺延；本批未动工零代码），并新增 **M4b-pre** 行（状态 ⬜ 评估中；**spike 裁定前不立 design/plan**，定案后回填实际件名）。上游 `docs/00` 升 **v1.29**。**文档落点（拍板 A）**：规范层 `05`/`08` 原地改写 · 认证面实现（服务端/CLI/设备授权页）· **M1 及其两 plan 为历史执行档案不回改**（**唯一例外**：M1 design 仅加「后继变更指针」两行、不改任何结论 ⇒ 升 **v1.3**） · 本次「技术选型」另立 design + plan；**实证依据**（细节不入库）：企业目录通道可取**真实邮箱** ⇒ 官方 `user.email` 必填可满足 · 权限码 `resource:action` 与官方 api-key 权限模型 **1:1** · 官方 Hono 接缝与既有会话中间件 **同构** · **会话为进程内内存**（重启即全员登出）⇒ 采纳顺带修缺陷；**v1.10：文档形态旧口径订正 + 「批件登记表」落档（用户 2026-09-14 拍板「按你的建议来」）**——① **旧口径订正 2 处**：§1「流程定位」与 §7.2 尾的单数「M4b plan」→「**批 plan（逐批立）**」（查证：M4b 单块 plan **从未创建**——全历史 `docs/plans/` 无该文件、`--diff-filter=D` 零删除记录、落档提交 c91a21a 自注 *m4b shelved*；拆批时以「逐批 design + 逐批 plan」取代其意图，故属**旧意图残留**而非漏删文件）② §2.3 增 **「批件登记表」**：登记各批**实际** design/plan 文件名 + 版本 + 状态 + 批间门五件（M4b-1 已回填，M4b-2 标「对齐中」，M4b-3…6 待回填）——兼作「主 ↔ 批」双向查询点与批间门执行台账（计划名见 backlog 表，**实际名以本表为准**）；**v1.9：批间门升为「出口五件」（整体审计入环）+ M4b-1 审计结果回写**——① §2.3 批间门由 **出口四件** → **出口五件**：`批 design 8 维 ≥9 定稿` + `批 plan Task 全绿` + `五门禁` + `dogfood/观感` + **`整体审计`（收尾全仓覆盖式扫描：findings 逐条登记 + 处置）**；同节「出口口径」行同步（承 M4a T17-T26 惯例，流程定案见 `docs/00` §5/§7 ②）② M4b-1 批审计闭合：findings **8 项**（修 1 / 订正 1 / 回填 1 / 口径登记 5，无未决项）⇒ 批 design **v1.6** · 批 plan **v0.13**（登记表见批 plan §3；含 §6.4 `--radius-2xl` 候选剔除订正 —— 本文件 §12 同步项表内该类行的口径随批 plan 走）；**v1.7：版本八态映射闭合（用户拍板）**——§10.1 八态映射补齐 `UPLOADED` = warning
+> Updated: 2026-09-16（**v1.20：第五轮体检 D 组（3 项）+ grilling 13 项决策回写**——i18n 组口径按真码统一为「**既有 7 组 + 新增 2 组**」（四处）· `errors` 补码 **10 → 9**（`auth.rate_limited` M4a 已落）· §7.1 补 `label.slug_taken`/`label.definition_limit_exceeded` · U3 反向守卫 = **`next` 优先** · **G6 已决 = B+ 新标签页直跳** · 门户组**不加组标题**；**v1.19：B 组订正（K3/K4/N2，用户拍板「按推荐来」）**——新增 **§3.4 设备授权页基址与 dev 口径**（`PUBLIC_BASE_URL` 保持 API 源语义；dev 双源以 web 源直达 + 手输码为准；两项不采纳留痕）· §2.4 U3 补 **`PROTECTED_PREFIXES` 4 前缀**（`/dashboard` `/admin` `/reviews` `/device`）+ 锁 **401 接线点 = `apiGet` 层单点**（`useApi` 零改动）+ `sanitizeNext` 支持带 query；**v1.18：第三/四轮体检订正 A 组（K1/K2/K5/N1/N4/N5/N8/N10）**——口径升级为**契约级（design vs 真码）+ 深度档四轮审查**：§7.1 补设备授权三行契约 + 错误族 + §7.2 G5/G6；`REGISTRATION_ENABLED` 真码默认 `true` 订正；§7.1 补 `review:approve` scope；§4 补门户组（表/线框/真码三向一致）+ 显隐组合；§6.3「零改动」清单误列 `TopBar`/`SideNav` 订正为改造件；OIDC 实测路径入 §3.1（未配置 404 JSON · 成功 302 `/?oidc=success` 不经 `next`）；**v1.17：M4b-2 立项前第二轮体检订正（G1-G17）**——跨节口径统一（路由 **11 条** / i18n **五组** / audit **27** / 线框 **10 张**）；组件树补 4 件（`auth/roles.ts` · `UserMenu.tsx` · `ComingSoon.tsx` · `pages/Device.tsx`）；`app.ts:101-119` 引用修正；401 分流口径统一（§9 ↔ §2.4 U3）；「待拍板」残留清除（已落值 40/560）；**v1.16：M4b-2 立项对齐（P1-P12）+ 主 design 契约订正（F1-F14）**——认证契约订正（登录 → `POST /api/auth/sign-in/aih` · 登出 → `POST /api/auth/sign-out`；死引用 `auth/routes.ts`/`db/schema/users.ts` 清除；audit 动作 **25 → 27** 实测）；§3.0 增「认证栈实现载体」行；**设备授权页 `/device` 归 M4b-2**；侧栏两组 → **三组**；**用户区落侧栏底部**（顶栏只剩品牌+触发钮+语言）；i18n 三组 → **五组**；组件树删 `RequireAuth`、增 `UserMenu`/`ComingSoon`；§12 线框 **10 张 / 11 视图**）；**v1.15：M4b-pre 批次完成（出口五件全绿）**——§2.3 批件登记表 M4b-pre 行 → **✅ 完成**（design **v2.4** · plan **v0.14** · 五件全绿；**出口件 ④ = 本批不适用（移交 M4b-2）**：零 UI 改动且登录面未交付）；**M4b-2 行登记「前置已满足 ⇒ 可开工对齐」+ 立项必核现状项**（`TopBar` 占位件 → 真认证入口 + `/login` + `AuthProvider`；出口件 ④ 承接）；上游 `docs/00` 升 **v1.34**；**v1.14：M4b-pre 代码完成回写（T8）**——§2.3 批件登记表 M4b-pre 行回填**收尾版本**（design **v2.3** · plan **v0.13**）与**出口五件终态**（① converge 8 维 **9.5** ② T1-T8 全绿 ③ 五门禁逐项 exit 0 ⑤ 整体审计十一维无未决项 修 8/口径登记 6；**④ dogfood/观感 ⏳ 待用户** H1/H2）；九提交与 CI #41-#49 入表；上游 `docs/00` 升 **v1.33**（M4b-pre 行 → 🔵 代码完成 + 硬证据 `docs/smoke/2026-09-15-m4b-pre.md`）；**v1.13：M4b-pre 执行期登记（T1-T6 落地 + 规范层同步）**——§2.3 批件登记表 M4b-pre 行回填**实际版本**（design **v2.1** · plan **v0.11**）与**五件进度**（① design 8 维 ≥9 ✅ ② T1-T6 ✅ / T7-T8 ⬜ ③ 五门禁 ✅ ④ dogfood/观感 ⬜（T8）⑤ 整体审计 ⬜（T8）），七个提交与 CI 号段入表；上游 `docs/00` 升 **v1.32**（含规范层 `05` v1.9 / `08` v1.6 改写登记 + M4c/M5 实证注记）；**v1.12：M4b-pre 立项登记（设计定稿批准 + 计划立项）**——§2.3 批件登记表 M4b-pre 行回填实际件名：批 design `2026-09-15-m4b-pre-auth-migration-design.md`（定稿 · 8 维 **9.44** · 已批准）· 批 plan `M4b-pre-auth-migration.md`（**v0.2** 立项 · T1-T9）· 状态 ⬜ **计划已立**（spike ✅ X1-X8 全通过）；上游 `docs/00` 升 **v1.30**；**v1.11：认证整车迁移前置 + M4b 暂停（用户 2026-09-15 拍板 A）**——§2.3 批件登记表：**M4b-2** 由「对齐中」→ **⏸ 暂停**（认证底座以 **M4b-pre** 结论为前置；M4b 整体顺延；本批未动工零代码），并新增 **M4b-pre** 行（状态 ⬜ 评估中；**spike 裁定前不立 design/plan**，定案后回填实际件名）。上游 `docs/00` 升 **v1.29**。**文档落点（拍板 A）**：规范层 `05`/`08` 原地改写 · 认证面实现（服务端/CLI/设备授权页）· **M1 及其两 plan 为历史执行档案不回改**（**唯一例外**：M1 design 仅加「后继变更指针」两行、不改任何结论 ⇒ 升 **v1.3**） · 本次「技术选型」另立 design + plan；**实证依据**（细节不入库）：企业目录通道可取**真实邮箱** ⇒ 官方 `user.email` 必填可满足 · 权限码 `resource:action` 与官方 api-key 权限模型 **1:1** · 官方 Hono 接缝与既有会话中间件 **同构** · **会话为进程内内存**（重启即全员登出）⇒ 采纳顺带修缺陷；**v1.10：文档形态旧口径订正 + 「批件登记表」落档（用户 2026-09-14 拍板「按你的建议来」）**——① **旧口径订正 2 处**：§1「流程定位」与 §7.2 尾的单数「M4b plan」→「**批 plan（逐批立）**」（查证：M4b 单块 plan **从未创建**——全历史 `docs/plans/` 无该文件、`--diff-filter=D` 零删除记录、落档提交 c91a21a 自注 *m4b shelved*；拆批时以「逐批 design + 逐批 plan」取代其意图，故属**旧意图残留**而非漏删文件）② §2.3 增 **「批件登记表」**：登记各批**实际** design/plan 文件名 + 版本 + 状态 + 批间门五件（M4b-1 已回填，M4b-2 标「对齐中」，M4b-3…6 待回填）——兼作「主 ↔ 批」双向查询点与批间门执行台账（计划名见 backlog 表，**实际名以本表为准**）；**v1.9：批间门升为「出口五件」（整体审计入环）+ M4b-1 审计结果回写**——① §2.3 批间门由 **出口四件** → **出口五件**：`批 design 8 维 ≥9 定稿` + `批 plan Task 全绿` + `五门禁` + `dogfood/观感` + **`整体审计`（收尾全仓覆盖式扫描：findings 逐条登记 + 处置）**；同节「出口口径」行同步（承 M4a T17-T26 惯例，流程定案见 `docs/00` §5/§7 ②）② M4b-1 批审计闭合：findings **8 项**（修 1 / 订正 1 / 回填 1 / 口径登记 5，无未决项）⇒ 批 design **v1.6** · 批 plan **v0.13**（登记表见批 plan §3；含 §6.4 `--radius-2xl` 候选剔除订正 —— 本文件 §12 同步项表内该类行的口径随批 plan 走）；**v1.7：版本八态映射闭合（用户拍板）**——§10.1 八态映射补齐 `UPLOADED` = warning
 > （原只列 7 态、该态无据可从）+ `YANKED` destructive → **secondary**（对标 21-skillhub：`SkillVersionStatus`
 > 八态同源 · 列表页 `UPLOADED` 归 review 档 · 详情页 `YANKED` 归灰档）⇒ `StatusPill` 映射与批 plan T6
 > 断言同步，M4a design 门户侧口径订正 `destructive` → `neutral`；**v1.6：口径统一 + 版本引用去硬值 + 状态回写**——① 官方件口径统一为「**新落仓 11 件（表列 13 项）**」（原写「补装 13 件」= 表列编号数，与实测 11 件混用）② 依赖口径统一为「**4 个包 / 3 组**」（原「3 项」按组计数、实测为 4 个包）③ 批 design / 批 plan 内对本文件的 5 处硬版本引用去值（改「版本随主 design 演进，以其版本头为准」）；本文件内 `M4a design v0.20` 硬值与旧「待拍板」口径同步去除 ④ 头部 3 条 `> Updated:` 合并为 1 条累积式（对齐 `docs/00` 写法）+ **Status 去重写**（删 v1.4/v1.2 变更摘要与「定稿条件」双写；修正过期项「待拍板 40/48 · 384/560」与「M4b 尚不进入实现」）⑤ 状态回写：M4b-1 = 批 design **v1.2** · 批 plan **v0.2** · **T1 ✅ / T2-T8 待执行** ⑥ §2.3「出口口径」与「批间门」去重（前者指向后者）；**v1.5：拆批文档模型落定**——① **主 design（跨批不变层）↔ 批 design** 术语与模型确立（本文件 = 主 design；批内决策另立批 design，批内内容随批迁出、本文件留指针）② §2.3 增 **批间门**（上一批出口四件全绿才启下一批）+ **各批预期产出物与对齐要点**（粗粒度 backlog，不预建空文件）③ §5.1/§5.2/§7.3/§8/§10.2/§12/§14 增**批归属标记** ④ Status 重写为「主 design 定稿条件：① ✅ ② ⬜（随 M4b-5）③ ✅」⑤ 修跨文档版本引用漂移（`M4a design v0.20` → 去硬版本号；**v1.4：子里程碑拆批 + M4b-1 地基批落档（用户 2026-09-14 拍板）**——① M4b 拆为 **M4b-1…M4b-6** 六批（§2.3 拆批表：地基 → 认证壳 → 个人面 A → 个人面 B（唯一含服务端改动）→ 审核面 → 治理面）② **M4b-1 设计块另立** `docs/designs/2026-09-14-m4b1-console-foundation-design.md` v1.0（组件归位 14 处 / 官方件新落仓 11 件（表列 13 项） / 控制台面域 6 件 / 跨面 4 件 / 合规清理 4 项）+ 其 plan `docs/plans/M4b-1-console-foundation.md` v0.1（T1-T8）③ 新增 §2.4 **对齐决策登记**（U1-U7 壳/登录/会话/工作台/资产/抽屉/提交 + P1-P5 + 官方件硬规则）④ 修 §12 尾部两处缺陷（重复行 + 「8 个页面」口径 → **8 张线框 / 9 视图**，`/login` 线框随 M4b-2 补）⑤ 控制台特有值落值（表格密度 **40** / 抽屉宽 **560**）⑥ §8 登记加性变更 `reviewComment`（→ M4b-3）；**v1.3：视觉体系切换对齐（用户 2026-09-11 拍板）**——全站统一 **shadcn 蓝科技**，**视觉真值 SSOT 移交 M4a design §4.4**（本文件 §10.1 改为引用 + 只记控制台特有值）；§6.1 依赖/§6.2 组件树（shadcn 原语落位）/§3.1/§10.2/§13/§14/§15 同步；**顺序翻转**：原「先控制台面」→ 现「先门户换皮 → 再 M4b」（M4b 依赖 M4a 视觉体系切换先行，故本文件本期只做**对齐**、不动实现）；控制台特有值 2 项（表格密度 / 抽屉宽）**待拍板**，本版不落值；**v1.2：范围调整（用户 2026-09-10 拍板 A）**——§2.1 **R3 翻转**（用户管理移出 → M4c「账号与权限治理」）· §2.2 In/Out 与 §3.0 阶段对照 · §14 同步项与漂移登记 · §15 记录；v1.1：入口分层修正（恢复已拍板两层架构）+ 环节 0 收口 + 8 维自检 9.4**——`/dashboard/*` 个人面 + `/admin/*` 治理面 · 共享详情 `/reviews/:id` · 组件面域 `console/` · 新增 §5.1 页面职责矩阵 + §12 第 8 张线框；**详细变更见 §15**。v1.0：按 M4-pre 扁平化模型整体重写；v0.3/v0.2/v0.1：见 §15）
@@ -25,7 +25,7 @@ M4a 消费者视角公开门户（已交付）→ **M4b 管理后台**（本文�
 - 服务端治理端点已由 M3 全量铺完（审核/标签/生命周期/令牌/审计——§7.1 逐端点实测表），
   M4b 以**消费既有端点为主体**，仅补 2 处缺口（§7.2）
 - **角色感知契约已由 M4-pre 交付**：`GET /api/auth/me` 现返 `{ user: { id, displayName }, role }`
-  （`auth/routes.ts:115-122`）——前端显隐直接按 `role >= N`，**M4b 零服务端改动**（R5，§3.3）
+  （`http/auth-routes.ts:17-28`）——前端显隐直接按 `role >= N`，**M4b 零服务端改动**（R5，§3.3）
 - `apps/web` 已有五路由公开门户 + `components/ui/` 跨面原子层（AppShell/TopBar/SideNav/
   FileTree/FilePreviewDialog/MarkdownRenderer/AssetAvatar/Badge/Pagination/EmptyState/
   ErrorState）——M4a 收官时按「M4b 直接复用层」设计（M4a design §4.2）
@@ -56,15 +56,15 @@ M4a 消费者视角公开门户（已交付）→ **M4b 管理后台**（本文�
 |---|------|---------|
 | R1 | 范围档位 | **档 B**：治理闭环（审核/标签/生命周期/审计）+ 运营面（令牌/我的资产与提交），另加认证地基 |
 | R2 | 发布/上传流 | **不入首期**（后端端点已齐 `POST /api/assets` + `POST /:slug/versions`；前端 multipart/进度/校验映射基建会稀释治理闭环收敛，单列后置） |
-| R3′ | 用户管理 | **不入 M4b —— 已移出至 M4c「账号与权限治理」**（2026-09-10 用户拍板 A 翻转原 R3）：服务端用户管理 HTTP 面为零（`UserService` 仅 register/localLogin，`auth/users.ts:45-164`），且改角色/启停/建号需与「准入策略 `ACCESS_POLICY`（现仅实现 `open`，`config/env.ts:95-96`）/ 重置密码 / 强制登出（Session 按用户吊销）」一并设计——同属**新机制**，打包 M4c（`docs/00` §5 已加行；**范围档位候选见该行**，M4c 立项时定档）。数据侧无需迁移（`user_account.status/role` 与索引已就绪，`db/schema/users.ts:49-68`）。**M4b 内不建用户管理页**；M4c 落地前角色分配仍靠 `SEED_ADMIN_*` + 手工 SQL（M4-pre P3） |
+| R3′ | 用户管理 | **不入 M4b —— 已移出至 M4c「账号与权限治理」**（2026-09-10 用户拍板 A 翻转原 R3）：服务端用户管理 HTTP 面为零（M1 期实现：`UserService` 仅 register/localLogin——**该文件已随 M4b-pre T3 迁移删除**），且改角色/启停/建号需与「准入策略 `ACCESS_POLICY`（现仅实现 `open`，`config/env.ts:36,104-105`）/ 重置密码 / 强制登出（Session 按用户吊销）」一并设计——同属**新机制**，打包 M4c（`docs/00` §5 已加行；**范围档位候选见该行**，M4c 立项时定档）。数据侧无需迁移（`user_account.status/role` 与索引已就绪，`db/schema/auth.ts`（官方 6 表）+ 08 §3）。**M4b 内不建用户管理页**；M4c 落地前角色分配仍靠 `SEED_ADMIN_*` + 手工 SQL（M4-pre P3） |
 | R4 | 登录方式 | 本地账号密码（LDAP 复用同一密码通道，05 §3.1）+ 登出；OIDC 仅保留入口跳转（服务端授权码流已就绪） |
 | R5 | 角色感知 | **沿用 M4-pre 已交付契约**：`GET /api/auth/me` → `{ user: { id, displayName }, role: number }`（`role ∈ 0/1/10/100`）；前端按 `role >= N` 显隐。**本项零服务端改动**（重构前拟的「平台角色数组」方案已废弃，§15） |
 | R6 | 非 ACTIVE 资产的发现与恢复 | **新增「我可管理的资产」读面**（§7.2 R6）——公开面 `GET /api/assets` 与写面端点**零改动** |
 | R6-a | 非 ACTIVE 可见范围 | **owner 本人 / 管理档（`role >= ADMIN`）/ 超管** 可见自己管理域内的 HIDDEN/ARCHIVED 资产（判定同 `canManageAsset`：`owner 本人 ∨ role >= ADMIN`，05 §6.2/§6.4） |
 | R6-b | 详情面 | **同步放宽**（R6-a 授权集）：HIDDEN/ARCHIVED 资产详情对该授权集可读；授权集之外仍 404 不泄露存在性（§7.2 R6-b）。**注**：本项修改 05 §6.4 现行的「非 ACTIVE 读面仅超管」行，列入 §14 规范同步项 |
-| R7 | 壳与入口 | **两层（2026-09-10 用户拍板 A）**：`/dashboard/*` 个人面（所有登录用户）+ `/admin/*` 治理面（`role >= ADMIN`；标签超管）——均复用 AppShell；SideNav 新增「个人」（已登录）与「管理」（`role >= 10`）两组，组级显隐 + 条目级 role 门槛——**明细以 §4 为唯一源** |
+| R7 | 壳与入口 | **两层（2026-09-10 用户拍板 A）**：`/dashboard/*` 个人面（所有登录用户）+ `/admin/*` 治理面（`role >= ADMIN`；标签超管）——均复用 AppShell；SideNav 新增「个人」（已登录）、「管理」（`role >= 10`）、「超级管理」（`role >= 100`）**三组**（2026-09-16 修订），组级显隐 + 条目级 role 门槛——**明细以 §4 为唯一源** |
 | R8 | 品牌显示名 | **沿用 M4a 现状「AI X Hub」**（TopBar/Hero 已用；00 §3 D2 正式定名仍待决议，不阻塞 M4b） |
-| R9 | 视觉与验证 | **视觉体系 = M4a design §4.4 全站 SSOT（引用不复制）**；控制台面只定特有形态（数据表格密度/抽屉宽/状态映射，**特有值 2 项待拍板见 §10.1**）；产出 = **全页可点原型**（9 视图 + 评审控件；**2026-09-11 用户扩大产出范围**——原「1 版风格板 + 2 交互 demo」）；不做三变体 sketch；技术落法 = 真上 shadcn/ui（Tailwind v4 + CLI，base=radix，2026-09-11 拍板） |
+| R9 | 视觉与验证 | **视觉体系 = M4a design §4.4 全站 SSOT（引用不复制）**；控制台面只定特有形态（数据表格密度/抽屉宽/状态映射，**特有值 2 项已落值见 §10.1**）；产出 = **全页可点原型**（11 视图 + 评审控件；**2026-09-11 用户扩大产出范围**——原「1 版风格板 + 2 交互 demo」）；不做三变体 sketch；技术落法 = 真上 shadcn/ui（Tailwind v4 + CLI，base=radix，2026-09-11 拍板） |
 
 **本轮对齐补充锁定（2026-09-10，随 R7 分层修正一并定案）**：
 
@@ -89,17 +89,19 @@ M4a 消费者视角公开门户（已交付）→ **M4b 管理后台**（本文�
   资产删除 + 标签挂载
 - 令牌管理：签发（scope/有效期，明文一次展示）/ 列表 / 吊销
 - 审计浏览：日志列表 + 八维过滤
-- i18n：新增 `dashboard` / `admin` / `review` 资源组（07 §3；`dashboard` 组随两层分层引入，登记 §14）
+- i18n：**既有 7 组**（`navigation` / `market` / `common` / `errors` + **M4b-1 已落骨架的** `dashboard` / `admin` / `review`）之上，M4b-2 新增 `login` / `device` **两组**（07 §3；2026-09-16 按真码 `i18n/zh.ts` 实测订正——原「新增五组」口径作废，登记 §14）
 - 服务端最小支撑：R6（`GET /api/me/assets` 新增）+ R6-b（读面授权集扩）
 
-**Out（后置，不混入）**：自助注册入口（服务端 `POST /api/auth/register` 存在，但
-`REGISTRATION_ENABLED` 开关**无公开端点暴露**→ 前端无法感知注册是否开启；企业自托管默认
-关闭注册、由管理员建号（seed / 用户管理面）；若需开放自助注册，须一并新增开关暴露端点，
+**Out（后置，不混入）**：自助注册入口（M4b-pre 后注册端点为官方 `sign-up/email`，由
+`REGISTRATION_ENABLED` 控制——`better-auth.ts:79-80` `disableSignUp: !REGISTRATION_ENABLED`；
+**该开关无公开端点暴露** ⇒ 前端无法感知注册是否开启；**真码默认 `true`（开启）**——`env.ts:35`
+与 `.env.example:19` 均为 `true`（2026-09-16 实测；原「默认关闭」表述订正），企业自托管按惯例置
+`false`、由管理员建号（seed / 用户管理面）；若需开放自助注册，须一并新增开关暴露端点，
 属后置议题）· 资产发布/上传流（R2）· **用户管理面（R3 → 已移出至 M4c「账号与权限治理」**：列表/改角色/启停/建号 + 准入策略 `ACCESS_POLICY` + 重置密码 + 强制登出；`docs/00` §5 M4c 行）· 提升申请
 （`promotion` 权限码与端点均未建，`promotion_request` 表 08 §9 蓝图随对应服务引入）·
 排序切换/社交面（M4a 已 out）· 安全扫描面（AIH 版本态 SCANNING 为扫描扩展点，
 clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable/beta（M3 明确后置）·
-空间管理（M4-pre 已整体删除，无回归议题）· **Device Flow 确认网页**（user_code 输入页——`M1-phase2` plan 原记「M4 web」，2026-09-10 决策改为 **M4c 或随 M5 CLI**；漂移已登记 §14）
+空间管理（M4-pre 已整体删除，无回归议题）· ~~Device Flow 确认网页~~ —— **已改判归 M4b-2**（2026-09-16 用户拍板；原「M4c 或随 M5 CLI」口径作废，见 §3.0/§5.1/§5.2）
 
 ### 2.3 子里程碑拆批（2026-09-14 用户拍板：M4b 拆为六批，一个一个对齐与实现）
 
@@ -109,7 +111,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 | 批 | 主题 | 范围要点 | 服务端改动 | 前置 |
 |----|------|---------|-----------|------|
 | **M4b-1** | **地基批：组件归位 + 控制台组件面域** | 手搓展示件 → 官方件 14 处 · 官方件**新落仓 11 件（表列 13 项）** · `components/console/` 6 件 · 跨面 4 件 · 合规清理 4 项 · i18n 骨架 | **零** | — |
-| **M4b-2** | 认证与壳批 | 登录页（`login-03` 基座 + 常规/OAuth 两 tab）· `AuthProvider`（loading/anon/authed）· 401 分流 · 角色判定单点 `auth/roles.ts` · 登出 · `next` 白名单 · SideNav 两组 + 条目级门槛 · 直访守卫 · 顶栏用户菜单 · 「系统设置」占位条目 | **零** | M4b-1 |
+| **M4b-2** | 认证与壳批 | 登录页（官方 `Card`+`Field` 装配 + 常规/OAuth 两 tab；`login-03` demo **不落仓**）· 设备授权页 `/device` · `AuthProvider`（loading/anon/authed）· 401 三分类分流 + 反向守卫 + `sanitizeNext` · 角色判定单点 `auth/roles.ts` · 登出 · `next` 白名单 · SideNav **三组** + 条目级门槛 · 路由骨架（11 条 + `ComingSoon` 占位；`/dashboard` 先落**临时落地页**——与 `ComingSoon` **同一件**、内容由 props 决定，M4b-4 替换为三卡）· 直访守卫 · **用户区（侧栏底部）**· 「系统设置」/「用户管理」占位条目 | **零** | M4b-1 |
 | **M4b-3** | 个人面 A | 我的提交（task 状态列 + 仅 PENDING 可撤回 + 二次确认）· 我的令牌（明文一次性 + 吊销） | **加性**：`ReviewListItem.reviewComment`（§8 R6-c） | M4b-1/2 |
 | **M4b-4** | 个人面 B（**唯一含读面改动**） | `GET /api/me/assets`（R6）+ R6-b 授权集扩展 + 测试更新 · 我的资产列表 · 资产管理抽屉（状态治理/标签挂载/版本管理/危险区）· 工作台 landing（角色感知三卡） | **2 处**（§8 R6/R6-b） | M4b-1/2 |
 | **M4b-5** | 审核批 | `/admin/reviews` 队列 · `/reviews/:id` 共享详情（分型 manifest 卡 + 文件树 + 预览 + 通过/拒绝/撤回 + 防自审交互） | **零** | M4b-1/2 |
@@ -129,19 +131,19 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 
 | 批 | 预期 design | 预期 plan | 对齐要点（立项时逐条过） |
 |----|------------|----------|------------------------|
-| M4b-2 | `YYYY-MM-DD-m4b2-auth-shell-design.md` | `M4b-2-auth-shell.md` | 登录页两 tab（官方 `Tabs` + `field`）· `AuthProvider` 三态与首帧不闪 · 401 三分类分流 · 角色判定单点 · SideNav 两组 + 组标题 + 条目门槛 · 直访守卫与轻提示 · 顶栏用户菜单 · 「系统设置」占位交互 · **`/login` 线框补图** |
+| M4b-2 | `YYYY-MM-DD-m4b2-auth-shell-design.md` | `M4b-2-auth-shell.md` | 登录页两 tab（官方 `Tabs` + `field`）· **设备授权页 `/device`** · `AuthProvider` 三态与首帧不闪 · 401 三分类分流 + 反向守卫 · 角色判定单点 · SideNav **三组** + 组标题 + 条目门槛 · 路由骨架 + `ComingSoon` · 直访守卫与轻提示 · **用户区（侧栏底部）** · 占位条目交互 · **`/login` / `/device` 线框补图** |
 | M4b-3 | `YYYY-MM-DD-m4b3-personal-a-design.md` | `M4b-3-personal-submissions-tokens.md` | 我的提交列集合与 **task 状态**文案 · 撤回仅 PENDING + `AlertDialog` · `reviewComment` **加性字段**（服务端 + 用例）· 令牌签发（明文一次性）/ 吊销 · 表格三态 |
 | M4b-4 | `YYYY-MM-DD-m4b4-personal-b-design.md` | `M4b-4-me-assets-and-console.md` | **R6 端点契约**与分页 · **R6-b 授权集**与测试更新 · 工作台三卡与角色裁剪 · 我的资产六列（显式 `status=ALL`）· 抽屉四段与守卫禁用（yank 需原因 / owner 不可 yank / 版本删除按状态）· 标签选择器（`Popover`+`Command`）· 版本列表懒加载 · dogfood 多角色数据准备 |
 | M4b-5 | `YYYY-MM-DD-m4b5-review-workbench-design.md` | `M4b-5-review-workbench.md` | 队列列集合与状态过滤 · 共享详情路由与权限面 · **分型 manifest 卡（三族）** · 文件树 + 预览（官方 `Dialog`）· 三动作 + 防自审交互 · 拒绝必填原因 · 端点权限与 token scope 交叉验证 |
-| M4b-6 | `YYYY-MM-DD-m4b6-governance-design.md` | `M4b-6-labels-and-audit.md` | 标签两级树 CRUD + 固定 zh-CN/en 翻译 + 行内上/下移（`PUT /order`）+ 上限 100 提示 · 审计八维过滤 + `action` 分组下拉（25 个动作）+ 日期区间（官方 `Calendar`）· 分页 |
+| M4b-6 | `YYYY-MM-DD-m4b6-governance-design.md` | `M4b-6-labels-and-audit.md` | 标签两级树 CRUD + 固定 zh-CN/en 翻译 + 行内上/下移（`PUT /order`）+ 上限 100 提示 · 审计八维过滤 + `action` 分组下拉（27 个动作）+ 日期区间（官方 `Calendar`）· 分页 |
 
 **批件登记表（实际落地件与状态——每批落地后回填）**
 
 | 批 | 批 design（实际文件名） | 批 plan（实际文件名） | 版本 | 状态 | 批间门（五件） |
 |----|------------------------|----------------------|------|------|----------------|
-| **M4b-pre** | `2026-09-15-m4b-pre-auth-migration-design.md` | `M4b-pre-auth-migration.md` | design **v2.4**（批次收口后） · plan **v0.14** | ✅ **完成（2026-09-15）**——spike **✅ X1-X8 全通过** · design 定稿并整体批准（8 维 **9.44**；T2-T8 落地回写至 **v2.3**）· 九个提交 `fd58de0`/`a7ce23e`/`fb7b4a7`/`7b8ea11`/`b76e978`/`a6c2c5a`/`50b0c52`/`52f8156` + T8，**CI #41-#48 全绿**；全量测试 **501 例 0 fail**；批内自绘面 = 企业目录凭证插件 + 业务面同源守卫 + api-key 适配层 + `/me` 薄层（理由见 design §1.4/§2.3 P14/P6-P7） | ✅ **五件全绿** ① design 8 维 ≥9（converge **9.5**）② T1-T8 全绿 ③ 五门禁逐项 exit 0 ⑤ 整体审计十一维无未决项（修 8 / 口径登记 6）· **④ dogfood/观感 = 本批不适用（移交 M4b-2）**——零 UI 改动且登录面未交付（`TopBar` 占位件 + 无 `/login` 路由），登记为 M4b-2 出口件 |
+| **M4b-pre** | `2026-09-15-m4b-pre-auth-migration-design.md` | `M4b-pre-auth-migration.md` | design **v2.4**（批次收口后） · plan **v0.14** | ✅ **完成（2026-09-15）**——spike **✅ X1-X8 全通过** · design 定稿并整体批准（8 维 **9.44**；T2-T8 落地回写至 **v2.3**）· 九个提交 `fd58de0`/`a7ce23e`/`fb7b4a7`/`7b8ea11`/`b76e978`/`a6c2c5a`/`50b0c52`/`52f8156` + T8，**CI #41-#49 全绿**；全量测试 **501 例 0 fail**；批内自绘面 = 企业目录凭证插件 + 业务面同源守卫 + api-key 适配层 + `/me` 薄层（理由见 design §1.4/§2.3 P14/P6-P7） | ✅ **五件全绿** ① design 8 维 ≥9（converge **9.5**）② T1-T8 全绿 ③ 五门禁逐项 exit 0 ⑤ 整体审计十一维无未决项（修 8 / 口径登记 6）· **④ dogfood/观感 = 本批不适用（移交 M4b-2）**——零 UI 改动且登录面未交付（`TopBar` 占位件 + 无 `/login` 路由），登记为 M4b-2 出口件 |
 | **M4b-1** | `2026-09-14-m4b1-console-foundation-design.md` | `M4b-1-console-foundation.md` | design **v1.6** · plan **v0.14** | ✅ 批完成 2026-09-14 | ✅ 五件全绿 —— ① design 8 维 ≥9（定稿 9.63 / 审计轮 9.81）② T1-T8 全绿 ③ 五门禁逐项 exit 0 ④ dogfood 36/36 + NO JS ERRORS + 观感复核通过 ⑤ 整体审计 F1-F8（无未决） |
-| **M4b-2** | ⬜ 待落地回填 | ⬜ 待落地回填 | — | ⏸ **暂停 2026-09-15（用户拍板）**——认证底座以 **M4b-pre** 结论为前置，M4b 整体顺延；本批**未动工零代码**。**前置已满足（M4b-pre ✅ 完成 2026-09-15）⇒ 可开工对齐**；**立项对齐必核现状项（M4b-pre 移交）**：`TopBar.tsx:33-39` 的「登录」是**占位 `<span>`（无 `onClick`/`href`）**、路由表**无 `/login`** ⇒ 本批入口改造 = 占位件 → 真认证入口 + `/login` 页 + `AuthProvider`；**出口件 ④（dogfood/观感）自 M4b-pre 移交本批** | ⬜ |
+| **M4b-2** | ⬜ 待落地回填 | ⬜ 待落地回填 | — | 🔵 **对齐完成 2026-09-16（P1-P12 十二项拍板落定，待批准立项）**——主 design 同步订正 **F1-F14**（认证契约 / 三组 / 用户区 / i18n 五组 / 设备授权页）。**（原状态：⏸ 暂停 2026-09-15 用户拍板 —— 认证底座以 M4b-pre 为前置，M4b 整体顺延；本批未动工零代码）****前置已满足（M4b-pre ✅ 完成 2026-09-15）⇒ 可开工对齐**；**立项对齐必核现状项（M4b-pre 移交）**：`TopBar.tsx:33-39` 的「登录」是**占位 `<span>`（无 `onClick`/`href`）**、路由表**无 `/login`** ⇒ 本批入口改造 = 占位件 → 真认证入口 + `/login` 页 + `AuthProvider`；**出口件 ④（dogfood/观感）自 M4b-pre 移交本批** | ⬜ |
 | M4b-3…M4b-6 | ⬜ 待落地回填 | ⬜ 待落地回填 | — | ⬜ 待对齐 | ⬜ |
 
 > **说明**：① 上表「各批预期产出物」= 立项时的**计划名**，主题词可在落地时按实际范围微调；
@@ -153,12 +155,14 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 
 > 本表登记**跨批的壳/交互决策**（逐条经用户拍板）；各批 design 只引用、不复制。
 
-**U1 壳与导航**（→ M4b-2）：`SidebarGroup` + `SidebarGroupLabel` 两组（「个人」/「管理」）·
-未登录「个人」组整组不渲染 · 图标态隐藏组标题 · `Toaster` 与 `AuthProvider` 为本批最先落地两件基建 ·
-管理员(10) 可见 **审核管理 + 审计浏览**；**标签管理 = 超管(100)**（2026-09-14 修正回超管，
-服务端 `labels.ts:56-62 assertSuperAdmin` 为硬门）· 超管另见 **「用户管理」（→ M4c）**与
-**「系统设置」（占位条目：仅显示 + 点击弹 Phase 2 提示，不建页面）** ·
-`me` 未返回前两组不渲染（防首帧闪烁）
+**U1 壳与导航**（→ M4b-2；**2026-09-16 修订：两组 → 三组 + 用户区落侧栏底部**）：`SidebarGroup` + `SidebarGroupLabel` **三组**（「个人」/「管理」/「超级管理」）·
+未登录「个人」组整组不渲染 · 图标态隐藏组标题 · `AuthProvider` 为本批最先落地的基建（`Toaster` 已于 M4b-1 落仓并挂根——`main.tsx:45`）·
+「管理」组 `role >= 10`（**审核队列 + 审计浏览**）· 「超级管理」组 `role >= 100`（**标签管理 + 系统设置 + 用户管理**）——
+**标签管理 = 超管（2026-09-14 修正回超管，服务端 `labels.ts:56-62 assertSuperAdmin` 为硬门）**；「系统设置」为占位条目：
+仅显示 + 点击弹 Phase 2 提示，不建页面；「用户管理」→ M4c ·
+`me` 未返回前三组均不渲染（防首帧闪烁）· **用户区（未登录「登录」入口 / 已登录用户菜单）落侧栏底部 `SidebarFooter`**
+（2026-09-16 用户拍板）——顶栏只留品牌 + 侧栏触发钮 + 语言切换器；侧栏底部同时**移除**产品元信息三项
+（Star on GitHub / 文档·反馈 / 版本号行）
 
 **U2 登录页**（→ M4b-2）：`/login` 独立版式居中卡 · **两个 tab：常规登录 / OAuth 登录**（OIDC 恒显示）·
 语言切换器保留 · 失败 = 表单内 inline 错误条 · Enter 提交 + 提交中 `disabled` + `Spinner` ·
@@ -166,8 +170,8 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 
 **U3 会话与 401**（→ M4b-2）：`AuthProvider` 状态机 `loading | anon | authed` ·
 **401 按路由分流**（公开路由静默当 anon；仅受保护路由 `→ /login?next=`）· `/me` 禁缓存 +
-登录/登出清缓存 · 新增「按前缀失效缓存」能力 · **不做静默续期** · 角色判定单点 `auth/roles.ts`
-（禁页面散写 `role >= N`）· 过期跳转丢输入为**已知代价**（不补草稿机制）
+登录/登出清缓存 · 新增「按前缀失效缓存」能力 · **不做静默续期** · **受保护前缀清单**（`PROTECTED_PREFIXES`，与 §5.2 路由清单同源）= `/dashboard` · `/admin` · `/reviews` · `/device`（**4 个**；其余（M4a 五路由 + `/login`）为公开段，401 静默当 anon）· **401 接线点（2026-09-16 拍板）**：分流**单点落在 `api/client.ts` 的 `apiGet` 层**——拦截 401 后调由 `AuthProvider` 注册的 `onUnauthorized` 钩子；`useApi` **保持通用薄 hook、零改动**（`useApi.ts:17-47` 现状仅三态 + abort，不掺认证逻辑）· `sanitizeNext` **支持带 query 的站内相对路径**（`/device?user_code=…` 回跳不丢码）· 角色判定单点 `auth/roles.ts`
+（禁页面散写 `role >= N`）· **反向守卫**（已登录访问 `/login` → **优先回合法 `next`**——保住 `/device?user_code=` 等深链，无 `next` 才回 `/dashboard`；2026-09-16 grilling 拍板）· **`sanitizeNext`**（仅站内相对路径，非法回落 `/dashboard`）· **首帧预热**（`main.tsx` 模块级 `bootstrapAuth()` 不 `await`）· 过期跳转丢输入为**已知代价**（不补草稿机制）
 
 **U4 工作台**（→ M4b-4）：三卡（待审核 / 我的资产 / 最近审计）；`role < 10` 只发 1 个请求、只渲染「我的资产」卡 ·
 省略「含 N 隐藏」副文案（不动后端）· 整卡为链接（内层 CTA 非嵌套 `<a>`）· 审计卡 5 行不可点 + 「查看全部」·
@@ -204,30 +208,31 @@ CLI-only 纪律）——沉淀副本见技能 `shadcn-ui-v4-adoption/references/
 
 | 能力 | 阶段 | 状态 |
 |------|------|------|
-| 认证栈地基：本地账号 · Session · CSRF · RBAC 判定链 · LDAP 通道 | **M1 阶段一** platform-core | ✅ |
+| 认证栈地基：本地账号 · Session · CSRF · RBAC 判定链 · LDAP 通道（**实现载体见下行**） | **M1 阶段一** platform-core | ✅ |
 | OIDC 授权码流 · Device Flow（API）· API Token 签发-Bearer · 审计浏览 API | **M1 阶段二**（五板块） | ✅ |
+| **认证栈实现载体**：官方 better-auth 整车（handler 挂 `/api/auth/*`）+ 自绘目录凭证插件 + 业务面同源守卫 | **M4b-pre** | ✅ |
 | 登录页 `/login` · 会话上下文 · 登出 · 401 拦截 · 角色感知 | **M4b**（本里程碑，前端层） | ⬜ |
 | 用户管理（列表/改角色/启停/建号）· 准入策略 `ACCESS_POLICY` · 重置密码 · 强制登出 | **M4c**「账号与权限治理」 | ⬜ |
-| Device Flow 确认网页（`user_code` 输入） | **M4c 或 M5 CLI**（2026-09-10 决策） | ⬜ |
+| Device Flow 确认网页（设备授权页 `/device`，`user_code` 输入 + 认领/批准/拒绝） | **M4b-2**（2026-09-16 用户拍板；原「M4c 或 M5 CLI」口径作废） | ⬜ |
 | 自助注册入口 | 后置（须先暴露 `REGISTRATION_ENABLED` 端点） | ⬜ |
 
-依据：`docs/00` §5 M1 行（✅ 阶段一 + 阶段二五板块）· `docs/plans/M1-phase2.md:13-14`（**认证栈前置已就绪、本 plan 不改既有契约**）· 服务端 `apps/server/src/auth/routes.ts:46-122`（login/logout/me 已交付）· M4b 零服务端改动；`docs/00` §5 **M4c 行**（2026-09-10 新增）。
+依据：`docs/00` §5 M1 行（✅ 阶段一 + 阶段二五板块）· `docs/plans/M1-phase2.md:13-14`（**认证栈前置已就绪、本 plan 不改既有契约**）· 服务端认证面（M1 交付、**M4b-pre 已整体迁 better-auth**）：官方 handler 挂 `/api/auth/*` + 自绘目录凭证插件 `auth/plugins/ldap-credentials.ts`（`sign-in/aih`）+ 薄层 `http/auth-routes.ts:17-28`（`/me`）· M4b 零服务端改动；`docs/00` §5 **M4c 行**（2026-09-10 新增）。
 
 ### 3.1 登录页
 
 - 路由 `/login`，独立于 AppShell 的居中版式（shadcn `Card` + `--primary` 标题——视觉值取 M4a §4.4）
-- 通道：本地账号密码（`POST /api/auth/login`）——LDAP 企业通道经同一密码路径解析
-  （05 §3.1：保留账号短路 → LDAP bind → 回退本地），前端**无需分支**
-- OIDC：`GET /api/auth/oidc/authorize` 入口跳转（服务端授权码流已落地 M1 阶段二）
+- 通道：`POST /api/auth/sign-in/aih`（**M4b-pre 交付的自绘目录凭证插件**，三路分派：保留本地账号短路 → 目录 bind → 回退本地；05 §3.1）——本地账号与 LDAP 企业通道**共用同一入口**，前端**无需分支**
+- OIDC：`GET /api/auth/oidc/authorize` 入口跳转（服务端授权码流已落地 M1 阶段二）——**实测路径（`http/oidc-routes.ts`，2026-09-16）**：未配置（默认 `OIDC_ENABLED=false`）→ **404 JSON `oidc.not_configured`**（authorize 与 callback 同）；callback state 缺失/不匹配 → `auth.oidc_state_mismatch`；授权被拒 / exchange 校验失败 / 建号失败 → `auth.oidc_denied`（`auth.email_missing`/`auth.email_conflict`/`auth.user_disabled`/`auth.user_pending` 四码透传）——**均为服务端 JSON 错误体（统一出口），不由前端承接回跳**；**成功 → 302 回落 `${PUBLIC_BASE_URL}/?oidc=success`**（服务端定死，**不经 `next`**）⇒ `/login` 只负责发起跳转。UI 友好化（未启用时的按钮前置提示 / 错误承接页）为 **M4b-2 批内决策项**（登记 §7.2 G6）
 - 错误码本地化：`auth.*` 系列入 `errors` 资源组（07 §4）
-- CSRF：写请求携 Origin（服务端 `csrfProtection` 中间件，M1 已配）
+- CSRF：写请求携 Origin——**M4b-pre T3 起交官方 origin 校验**（`trustedOrigins` 白名单）+ **业务面同源守卫** `http/origin-guard.ts`
+  （自研 `csrfProtection` 中间件已删除）；dev 需配 `AUTH_TRUSTED_ORIGINS`（否则前端 cookie 写请求 403 `auth.csrf_failed`）
 
 ### 3.2 会话上下文
 
 - 新增 `AuthProvider`（web 层）：应用启动拉 `GET /api/auth/me` → 注入 `{ user, role }`
 - 未登录（401）→ 受保护路由重定向 `/login?next=<path>`；登录成功后回落 `next`
-- 登出：`POST /api/auth/logout` → 清上下文 + 回首页
-- 会话有效期：服务端 8h（05 §5，`SESSION_TTL_HOURS` 默认 8），过期由任意请求 401 触发重定向
+- 登出：`POST /api/auth/sign-out`（**官方端点**；M4b-pre T3 起为唯一登出端点，无旧别名）→ 清上下文 + 回首页
+- 会话有效期：服务端 8h（05 §5，`SESSION_TTL_HOURS` 默认 8）——**M4b-pre T3 起官方 `session` 表落库**（重启不再全员登出），过期由任意请求 401 触发重定向
 
 ### 3.3 权限感知（R5 契约）
 
@@ -235,13 +240,28 @@ CLI-only 纪律）——沉淀副本见技能 `shadcn-ui-v4-adoption/references/
 GET /api/auth/me     （requireAuth 语义不变——未登录仍 401 auth.session_expired）
   200 { user: { id, displayName }, role: number }
        role ∈ { 0 GUEST / 1 USER / 10 ADMIN / 100 SUPER_ADMIN }
-         ——常量单源 db/schema/users.ts:29-34（ACCOUNT_ROLE）
+         ——常量单源 `apps/server/src/auth/roles.ts` 的 `ROLE_LEVEL`（档名 ↔ 数值映射；`db/schema/users.ts` 已随 M4b-pre 删除）
        判定统一 role >= minRole（超管 100 天然覆盖全部，无短路分支）
 ```
 
-- **由 M4-pre 交付**（`auth/routes.ts:115-122`）：M4b 直接消费，**零服务端改动**
+- **由 M4-pre 交付**（`http/auth-routes.ts:17-28`）：M4b 直接消费，**零服务端改动**
 - 向后兼容：既有字段 `user` 形状不变，仅增 `role`（M4a 门户未消费 `/me`，零影响）
 - 角色分配无 UI（M4-pre P3）：靠 seed 首管理员 + 手工 SQL；M4b 不建用户管理页（**R3′ → 归 M4c**，§2.1）
+
+### 3.4 设备授权页基址与 dev 口径（`/device`）
+
+设备流页面地址由**服务端推导**，前端不自造：官方 `deviceAuthorization` 以 `env.PUBLIC_BASE_URL` 为
+`baseURL`（`better-auth.ts:73`），`verificationUri` 缺省 `/device`（`better-auth.ts:140`）⇒ CLI 拿到的
+`verification_uri` = `${PUBLIC_BASE_URL}/device`；`verification_uri_complete` 另带 `?user_code=`。
+
+- **基址口径（2026-09-16 用户拍板 A）**：`PUBLIC_BASE_URL` **保持 API 源语义不变**——它同时是官方
+  `baseURL`、OIDC 回调推导源与 `trustedOrigins` 自动项，**不为 dev 双源妥协**。
+- **同类环境（生产）**：web 与 API 经同一反代同源 ⇒ `${PUBLIC_BASE_URL}/device` 即真实页面，无需处理。
+- **dev 双源（API `:3000` / web `:5173`）**：`verification_uri` 指向 API 源下**不存在的页面** ⇒ 开发期以
+  **web 源直达 + 手输/复制码**为准（`http://localhost:5173/device?user_code=XXXX-XXXX`）。
+- **不采纳项（留痕）**：① dev 改 `PUBLIC_BASE_URL` 指向 web 源——会连带把 OIDC 回调带偏，须同时显式配
+  `OIDC_REDIRECT_URL`，副作用大于收益；② API 侧代管该页——违反本里程碑「**零服务端改动**」（§2.2 R5）。
+- 前端页面只需处理两种入参：带 `?user_code=`（直达，自动预填/预校验）或不带（手输）——见 §5.1 `/device` 行与 §12 线框。
 
 ## 4. 入口分层与显隐规则（R7）
 
@@ -252,19 +272,30 @@ GET /api/auth/me     （requireAuth 语义不变——未登录仍 401 auth.sess
 个人面收敛为「我的资产 / 我的提交 / 我的令牌」三项，无空间角色判定 → 个人面显隐只需「已登录」，
 治理面只需 `role >= 10`（M4-pre 交付的 `/me → role` 契约足够，零服务端改动）。
 
-SideNav 新增两组，组级显隐 + 条目级 role 门槛（机制同 new-api `use-sidebar-view`）：
+SideNav 在**既有门户组**（首页 `/` · 技能中心 `/skills` · MCP `/mcps` · 专家 `/agents`——M4a 交付，现状为**无组标题平铺** 4 条，`SideNav.tsx:53-58`）之上，新增**三组**
+（**2026-09-16 用户拍板：两组 → 三组**），组级显隐 + 条目级 role 门槛
+（机制同 new-api `use-sidebar-view`；Den 的「组内无可见条目 ⇒ 整组不渲染」同构）：
+> **门户组不加组标题（2026-09-16 grilling 拍板）**：保持 M4a 现状**无标题平铺** ⇒ 视觉语义 =「门户 = 一级入口、三组 = 登录后分区」；加标题会动门户面（违「零回归」硬约束）。
 
 | 组 | 组级显隐 | 条目 | 条目可见条件 |
 |----|---------|------|-------------|
+| **门户**（M4a 既有，**保留**） | **恒显示**（未登录亦显示） | 首页 `/` · 技能中心 `/skills` · MCP `/mcps` · 专家 `/agents` | 任何访客 |
 | **个人** | 已登录（未登录整组不渲染） | 工作台 `/dashboard` | 任何登录用户 |
 | | | 我的资产 `/dashboard/assets` | 任何登录用户 |
 | | | 我的提交 `/dashboard/submissions` | 任何登录用户 |
 | | | 我的令牌 `/dashboard/tokens` | 任何登录用户 |
 | **管理** | `role >= ADMIN`（10；未达整组不渲染） | 审核队列 `/admin/reviews` | `role >= ADMIN`（10） |
-| | | 标签管理 `/admin/labels` | `role >= SUPER_ADMIN`（100） |
 | | | 审计浏览 `/admin/audit` | `role >= ADMIN`（10） |
+| **超级管理** | `role >= SUPER_ADMIN`（100；未达整组不渲染） | 标签管理 `/admin/labels` | `role >= SUPER_ADMIN`（100） |
+| | | 系统设置（占位条目：点击弹提示，不建页面） | `role >= SUPER_ADMIN`（100） |
+| | | 用户管理（占位条目 → M4c） | `role >= SUPER_ADMIN`（100） |
 
-顶栏：未登录显示「登录」（沿用 M4a 占位位置）；已登录显示用户菜单（displayName + 登出）。
+> **显隐组合（表 / §12 线框 / 真码三向一致锚点）**：未登录 = 门户组 + 侧栏底部「登录」入口（三组全不渲染）；`role = 1` = 门户 + 「个人」+ 用户菜单；`role = 10` = + 「管理」；`role = 100` = + 「超级管理」。
+
+顶栏：只留品牌 + 侧栏触发钮 + 语言切换器。**用户区落侧栏底部 `SidebarFooter`**（2026-09-16 用户拍板）——
+未登录显示「登录」入口（`Link to="/login"`）；已登录显示用户菜单（官方 `Avatar` 首字 + displayName + 角色徽章 +
+我的资产/我的令牌 + 登出）；**图标态（collapsed）只留头像**（`SidebarMenuButton size="lg"` + 官方 tooltip，仅收起态显示）。
+侧栏底部**移除**产品元信息三项（Star on GitHub / 文档·反馈 / 版本号行）。
 
 > 显隐是**体验优化**而非安全边界——所有判定以服务端权限为准（服务端已全量覆盖，§7.1）。
 > 组级显隐与条目级门槛同取 `role >= N` 线性判定（M4-pre §2.2）；超管 100 天然覆盖全部，无短路分支。
@@ -282,7 +313,7 @@ SideNav 新增两组，组级显隐 + 条目级 role 门槛（机制同 new-api 
 
 | 路由 | 页面职责 | 用户 | 关键动作 | 主要接口 |
 |------|---------|------|---------|---------|
-| `/login` | 认证 | 未登录 | 本地/LDAP 登录 · OIDC 入口跳转 | `POST /api/auth/login` · `GET /api/auth/oidc/authorize` |
+| `/login` | 认证 | 未登录 | 本地/LDAP 登录 · OIDC 入口跳转 | `POST /api/auth/sign-in/aih` · `GET /api/auth/oidc/authorize` |
 | `/dashboard` | 工作台 landing | 任何登录用户 | 三项计数卡 → 跳对应列表（`role < 10` 只发「我的资产」1 个请求） | `GET /api/reviews?status=PENDING&limit=1` · `GET /api/me/assets?status=ALL&limit=1` · `GET /api/audit?limit=5` |
 | `/dashboard/assets` | 我的资产（我可管理的集合） | 任何登录用户 | 状态筛选 · 恢复/隐藏/归档 · 标签挂载 · 版本删除/yank · 删资产（全在抽屉内） | `GET /api/me/assets`（R6 新增）· `PATCH /:slug/status` · `PUT`/`DELETE /:slug/labels/:labelSlug` · `DELETE /:slug/versions/:version` · `POST /:slug/versions/:version/yank` · `DELETE /:slug` |
 | `/dashboard/submissions` | 我的提交 | 任何登录用户 | 看自己的提审 · **撤回**（仅本人/owner/管理档） | `GET /api/reviews/mine` · `POST /api/reviews/:id/withdraw` |
@@ -292,8 +323,10 @@ SideNav 新增两组，组级显隐 + 条目级 role 门槛（机制同 new-api 
 | `/admin/reviews` | 审核队列（全站单队列） | `role >= 10` | 状态过滤 · 分页 · 进详情 | `GET /api/reviews?status=` |
 | `/admin/labels` | 标签管理 | 超管（100） | 两级树 CRUD · 翻译（zh-CN/en）· 上/下移排序 | `GET /api/labels/all` · `POST`/`PATCH`/`DELETE /api/labels` · `PUT /api/labels/order` |
 | `/admin/audit` | 审计浏览 | `role >= 10` | 八维过滤 · 分页 | `GET /api/audit?action=&targetType=&targetId=&actorId=&requestId=&clientIp=&from=&to=` |
+| `/device` | 设备授权确认（CLI 设备流） | 任何登录用户 | 输入/校验 user_code → 认领 → 批准 / 拒绝 | `GET /api/auth/device?user_code=` · `POST /api/auth/device/approve`／`deny` |
 
 > **入口可见性（谁在导航上看得到）以 §4 为唯一源**；本节只定义页面职责与数据来源（防两处漂移）。
+> `/device` 的**页面基址与 dev 口径**见 §3.4（引用不复制）。
 
 ### 5.2 路由清单（除 `/login` 外均在既有 AppShell 的 `<Outlet/>` 区）
 > **归属批（2026-09-14 拆批）**：同 §5.1 逐行映射（登录 → M4b-2；submissions/tokens → M4b-3；dashboard/** → M4b-4；审核两路由 → M4b-5；labels/audit → M4b-6）
@@ -301,6 +334,7 @@ SideNav 新增两组，组级显隐 + 条目级 role 门槛（机制同 new-api 
 
 ```text
 /login                        登录（独立版式，不进 AppShell 分组）
+/device                       设备授权确认（独立版式；`?user_code=` 或手输）
 /dashboard                    个人工作台 landing（角色感知卡片——§7.3 编排）
 /dashboard/assets             我的资产：列表 + 状态筛选 + 抽屉
 /dashboard/submissions        我的提交：列表 + 撤回
@@ -350,7 +384,7 @@ M4b 在**已换皮的门户体系**上生长（M4a 视觉体系切换先行）�
 src/
 ├── auth/                      新增
 │   ├── AuthProvider.tsx       /me 上下文（user + role）+ 401 拦截 + login/logout
-│   └── RequireAuth.tsx        路由守卫（未登录 → /login?next=）
+│   └── roles.ts               角色判定单点（`ROLE` 常量 + `hasRole`；`null` → false）——禁页面散写 `role >= N`
 ├── api/                       新增 auth.ts / console.ts（ep 分组）+ 既有 client 复用
 │   ├── auth.ts                login · logout · me
 │   └── console.ts             me/assets · reviews · labels · tokens · audit
@@ -361,8 +395,9 @@ src/
 │   │                            PascalCase 原子件同目录但大小写分离**——`badge.tsx` vs `Badge.tsx`）
 │   ├── Toaster.tsx            轻提示 = shadcn `Sonner` 封装（写操作成功/失败反馈——§9；全局单例挂 App）
 │   ├── SkeletonLoader.tsx     载态骨架 = shadcn `Skeleton` 组合（表格/详情载态——优于 Spin 空屏）
-│   ├── RoleGuard.tsx          角色级守卫（RequireAuth 之上叠加 `role >= N` 判定，§4 显隐的守卫版）
+│   ├── RoleGuard.tsx          角色级守卫（`minRole=USER` 即「已登录守卫」——**不单建 RequireAuth**，2026-09-16 拍板；`role >= N` 判定，§4 显隐的守卫版）
 │   ├── CopyButton.tsx         复制（令牌明文/资产坐标/sha——明文场景关闭即清）
+│   ├── UserMenu.tsx           用户区（侧栏底部：未登录「登录」入口 / 已登录用户菜单——2026-09-16）
 │   ├── FileTree.tsx           ← 自 components/market/detail/ 迁入（§6.3；本体零改动）
 │   └── FilePreviewDialog.tsx  ← 自 components/market/detail/ 迁入（§6.3；本体零改动）
 ├── components/console/        新增面域（个人面 + 治理面共用）
@@ -376,10 +411,12 @@ src/
 │   ├── labels/                LabelTree.tsx · LabelForm.tsx · LabelTranslations.tsx
 │   ├── assets/                AssetAdminTable.tsx · AssetDrawer.tsx · AssetVersionList.tsx
 │   ├── tokens/                TokenTable.tsx · TokenIssueDialog.tsx · TokenRevealDialog.tsx
+│   ├── ComingSoon.tsx         占位页（官方 `Empty` + 中性文案；DEV 下小字标批次号）——承载 9 条占位路由 + `/dashboard` 临时落地页（**同件不同 props**）
 │   └── audit/                 AuditTable.tsx · AuditFilters.tsx · AuditActionSelect.tsx
 │                              （action 过滤用**分组下拉**而非自由输入——防拼错；值清单见 §7.3）
 └── pages/                     路由页（薄装配）
     ├── Login.tsx              /login（独立版式）
+    ├── Device.tsx             /device（设备授权确认；独立版式）
     ├── dashboard/             Dashboard.tsx（工作台 landing）· MyAssets.tsx ·
     │                          MySubmissions.tsx · MyTokens.tsx
     ├── reviews/               ReviewDetail.tsx（共享详情）
@@ -388,9 +425,13 @@ src/
 
 ### 6.3 复用与升级边界
 
-- **直接复用**（`components/ui/`，零改动）：AppShell · TopBar · SideNav（增「个人」「管理」两组）·
+- **直接复用**（`components/ui/`，零改动）：AppShell ·
   Badge · Pagination · Spinner · EmptyState · ErrorState · MarkdownRenderer · AssetAvatar ·
   LanguageSwitcher（`FileTree`/`FilePreviewDialog` **不在本列**——见下条迁移项）
+- **改造件**（复用载体 + 按 §2.4 U1 施工，**非零改动**——2026-09-16 订正：原「零改动」清单误列）：
+  `TopBar`（**删**产品元信息三项与 `TypeIcon` 残留 → 只留品牌 + 侧栏触发钮 + 语言切换器）·
+  `SideNav`（**在既有门户组之上**新增「个人」/「管理」/「超级管理」三组 + 组标题 + 侧栏底部用户区；
+  同时移除 `APP_VERSION` 死常量（`SideNav.tsx:18-19`）与产品元信息三项）
 - **升级到 ui/**（跨面复用确认）：`FileTree` 与 `FilePreviewDialog` 在 M4a 位于
   `components/market/detail/`——M4b 审核详情需同款能力，**迁移到 `components/ui/`**
   （M4a design §4.2 已预留该复用意图：FileTree「M4b 审核复用」、FilePreviewDialog「M4b 复用」）
@@ -412,23 +453,23 @@ src/
 
 ### 6.4 规模预估
 
-10 条路由条目（含 1 重定向 + 1 独立登录版式）+ ~26 新组件 + 1 provider + 3 i18n 资源组
+11 条路由条目（含 1 重定向 + 2 独立版式 `/login` / `/device`）+ ~26 新组件 + 1 provider + 2 i18n 资源组（`login`/`device`；M4b-1 已落 `dashboard`/`admin`/`review` 骨架）
 （hook 为扩展非新建），≈ 2600-3200 行（含样式），单文件 ≤200 行。
 
 ## 7. API 消费面
 
-### 7.1 复用端点实测契约表（全部经源码核对，2026-09-10）
+### 7.1 复用端点实测契约表（全部经源码核对；业务面 2026-09-10 · 认证面 2026-09-16 重核）
 
 | 功能 | 端点 | 权限 | 关键响应形状 | 源码依据 |
 |------|------|------|-------------|---------|
 | 审核队列 | `GET /api/reviews?status=&limit=&offset=` | 管理档 `role >= ADMIN`（**全站单队列**，无空间过滤参数；不足 → 403 `review.access_denied`） | `{items:[{taskId,status,reviewVersion,submittedBy,submittedAt,assetSlug,assetVersion,versionStatus,versionId}],total,limit,offset}` | `http/reviews.ts:46-66` · `review/query.ts:24-44` |
 | 我的提交 | `GET /api/reviews/mine?status=&limit=&offset=` | 登录（身份面） | 同上 items 形状 | `http/reviews.ts:69-86` |
 | 审核详情 | `GET /api/reviews/:id` | 管理档 ∨ 提交人本人（否则 403 `review.access_denied`；不存在 404 `review.not_found`） | `ReviewListItem + {manifestJson, files:[{filePath,fileSize,sha256}]}` | `http/reviews.ts:89-98` · `review/query.ts:46-50` |
-| 通过/拒绝 | `POST /api/reviews/:id/approve`（`{comment?}`）· `POST /:id/reject`（`{comment}` 必填） | 管理档 `role >= ADMIN` + 防自审（05 §6.4，超管例外） | 200 `{taskId,status,version}` | `http/reviews.ts:101-143` · `auth/rbac.ts:53-60` |
+| 通过/拒绝 | `POST /api/reviews/:id/approve`（`{comment?}`）· `POST /:id/reject`（`{comment}` 必填） | 管理档 `role >= ADMIN` + 防自审（05 §6.4，超管例外）；token scope `review:approve`（`auth/token-scopes.ts:17`） | 200 `{taskId,status,version}` | `http/reviews.ts:101-143` · `auth/rbac.ts:70` |
 | 撤回提审 | `POST /api/reviews/:id/withdraw` | 提交人本人 / asset owner / 管理档（服务内判定） | 204 | `http/reviews.ts:146-160` |
 | 标签公开列表 | `GET /api/labels` | 匿名 | `Label[]`（displayName 回退 Accept-Language→en→slug） | `http/labels.ts:65-69` |
 | 标签全量 | `GET /api/labels/all` | `role >= SUPER_ADMIN` | `ManagedLabel[]`：`{id,slug,type,visibleInFilter,sortOrder,parentId(父 slug),translations:[{locale,displayName}]}` | `http/labels.ts:72-75` |
-| 标签 CRUD | `POST /api/labels` · `PATCH /api/labels/:slug` · `DELETE /api/labels/:slug` | `role >= SUPER_ADMIN` | 同上单条；删除带子级 → `label.parent.has_children` | `http/labels.ts:77-121` |
+| 标签 CRUD | `POST /api/labels` · `PATCH /api/labels/:slug` · `DELETE /api/labels/:slug` | `role >= SUPER_ADMIN` | 同上单条；slug 冲突 → 409 `label.slug_taken`；**定义总数上限 100** → `label.definition_limit_exceeded`；删除带子级 → `label.parent.has_children`（三码见 `labels/errors.ts:9,11,19`） | `http/labels.ts:77-121` |
 | 标签排序 | `PUT /api/labels/order` | `role >= SUPER_ADMIN` | 204 | `http/labels.ts:123-131` |
 | 标签挂载 | `PUT`/`DELETE /api/assets/:slug/labels/:labelSlug` | RECOMMENDED = `canManageAsset`（owner 本人 ∨ `role >= ADMIN`）；PRIVILEGED = 超管 | 幂等（重复挂 204 / 移除不存在 204）；≤10 → `label.limit_exceeded` | `http/assets.ts:709-763` · `assets/manage.ts:19-22` |
 | 令牌列表 | `GET /api/tokens` | 登录（仅本人） | `{items:[{id,scope,expiresAt,revokedAt,createdAt}]}`（库中仅 sha256，无掩码字段） | `http/tokens.ts:87-102` |
@@ -450,9 +491,14 @@ src/
 | 提审 | `POST /api/assets/:slug/versions/:version/submit` | owner 本人 / 上传者本人 / 管理档（`canSubmitReview`）+ scope `review:submit` | 201 `{taskId,reviewVersion,status}` | `http/assets.ts:617-665` |
 | 版本撤回 | `POST /api/assets/:slug/versions/:version/yank`（`{reason}` 必填） | 管理档 `role >= ADMIN`（治理最严面）+ scope `asset:manage` | 200 `{status:'YANKED',latestVersionId}` | `http/assets.ts:671-703` |
 | 资产删除 | `DELETE /api/assets/:slug` | `canManageAsset`（owner ∨ 管理档）+ scope `asset:manage`；有 PUBLISHED → 400 `asset.has_published`；有 YANKED → 400 `asset.has_yanked` | 204 | `http/assets.ts:421-467` |
-| 登录/登出/当前用户 | `POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/auth/me` | — | me = `{user:{id,displayName}, role}`（§3.3） | `auth/routes.ts:115-122` |
+| 登录/登出/当前用户 | `POST /api/auth/sign-in/aih` · `POST /api/auth/sign-out` · `GET /api/auth/me` | — | me = `{user:{id,displayName}, role}`（§3.3） | `http/auth-routes.ts:17-28` |
+| 设备授权·认领 | `GET /api/auth/device?user_code=`（**带会话**） | 登录（会话） | 200 `{user_code,status:'pending',client_id,scope}` | `app.ts:145-185`（官方 `deviceAuthorization` 直通）· `http/device-flow.test.ts:156-165` |
+| 设备授权·批准 | `POST /api/auth/device/approve`（`{userCode}`） | 登录（会话）；**须先认领**，否则 400 `DEVICE_CODE_NOT_CLAIMED` | 200 `{success:true}` | `better-auth.ts:142` · `app.ts:148-171`（审计 `device.approve`） |
+| 设备授权·拒绝 | `POST /api/auth/device/deny`（`{userCode}`） | 登录（会话） | 200 `{success:true}` | 同上（审计 `device.deny`） |
 
-> 错误契约统一 `{code,message}`（07 §4；`app.ts:82-100` 统一出口）；前端 `errors` 资源表按
+> **设备流其余两端为 CLI 侧**（`/device` 页不消费）：`POST /api/auth/device/code`（`{client_id}` **必填**）→ `{device_code,user_code,verification_uri,verification_uri_complete,expires_in,interval}`（snake_case）；`POST /api/auth/device/token`（`{device_code}`）→ `{access_token,token_type:'Bearer',expires_in,scope}`。**轮询错误族**：`authorization_pending` / `slow_down` / `expired_token` / `access_denied` / `invalid_grant`（官方 OAuth 设备流语义；`http/device-flow.test.ts:23-30`）。
+>
+> 错误契约统一 `{code,message}`（07 §4；`app.ts:101-119` 统一出口）；前端 `errors` 资源表按
 > code 映射（未命中兜底）。**注意**：可见性删除后读面**无 403 出口**——ACTIVE 即公开、
 > 非 ACTIVE 走 404（`asset.access_denied` 已不存在）。
 
@@ -465,7 +511,9 @@ src/
 | G1 | 非 ACTIVE 资产不进任何列表（匿名/owner/管理档/超管一致——`listViewableAssets` 硬条件 `status='ACTIVE'`） | R6：新增「我可管理的资产」读面 |
 | G2 | HIDDEN/ARCHIVED 详情**仅超管**可读（owner 与 管理档 同 404） | R6-b：读面授权集分层扩展 |
 | G3 | 列表无 owner / status 过滤参数（`?ownerId`/`?owner`/`?status` 被 zod 静默忽略） | R6：新端点带 status 过滤；公开面契约不动 |
-| G4 | 前端无从感知角色档位 | **已由 M4-pre 闭环**——`/me` 现返 `role`（`auth/routes.ts:115-122`），前端直接按 `role >= N` 显隐；重构前拟的「平台角色数组」方案（R5）随之废弃 |
+| G4 | 前端无从感知角色档位 | **已由 M4-pre 闭环**——`/me` 现返 `role`（`http/auth-routes.ts:17-28`），前端直接按 `role >= N` 显隐；重构前拟的「平台角色数组」方案（R5）随之废弃 |
+| G5 | **设备授权页契约未入本表**（本页 §5.1/§11/§12 三处指向 §7.1，但原表无 device 行——2026-09-16 查出） | **已补**：§7.1 增「设备授权·认领/批准/拒绝」三行 + CLI 两端与轮询错误族注（2026-09-16） |
+| G6 | **OIDC 通道成败路径与 `/login` 前端约定的缺口**：未配置 → JSON 404 `oidc.not_configured`（非跳转）；回调失败 → JSON 错误体（`auth.oidc_state_mismatch` / `auth.oidc_denied` 等）；成功 → 服务端 302 `${PUBLIC_BASE_URL}/?oidc=success`（**不经 `next`**）——而 U2 拍板「OIDC 恒显示」+「登录成功后回落 `next`」 | ✅ **已决（2026-09-16 grilling）**：**B+ 新标签页直跳**（`<a target="_blank" rel="noreferrer">`）——未配置时 404 JSON 落在**可关闭的独立标签页**，不破坏登录页；**不做前置探测**（`GET /authorize` 有写 state cookie 副作用，本批不为此加复杂度）；显式口径：**`next` 对 OIDC 通道不适用**（服务端定死 `/?oidc=success`） |
 
 **缺口实证（2026-09-10 重核，源码实证为主）**：
 
@@ -527,14 +575,14 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 - 资产管理：列表请求 + 抽屉内动作后**局部重取**（不整页刷新）；版本列表懒加载
 - 审计页：过滤面 8 组全暴露（`action`/`targetType`/`targetId`/`actorId`/`requestId`/`clientIp`/
   `from`/`to`——对标 skillhub admin audit-log 页同款 8 过滤器）；**`action` 用分组下拉**
-  （防自由输入拼错），值清单 = 服务端现有 **25** 个（按域前缀分组）：
+  （防自由输入拼错），值清单 = 服务端现有 **27** 个（按域前缀分组；2026-09-16 实测）：
   · `asset.*`（9）：register · delete · status_update · version_upload · version_submit ·
     version_delete · version_yank · label_attach · label_detach
   · `review.*`（3）：approve · reject · withdraw
   · `label.*`（4）：create · update · delete · reorder
   · `auth.*`（4）：login.success · login.failed · logout · register
-  · `token.*`（2）：issue · revoke　· `device.*`（2）：approve · token_issued　· `oidc.*`（1）：provisioned
-  （空间域 5 个动作与资产可见性动作随 M4-pre 删除，故 31 → 25；清单源为 server 侧 `action`
+  · `device.*`（3）：approve · deny · token_issued　· `token.*`（2）：issue · revoke　· `ldap.*`（1）：provisioned　· `oidc.*`（1）：provisioned
+  （空间域 5 个动作与资产可见性动作随 M4-pre 删除 ⇒ 31 → 25；M4b-pre 增 `device.deny` 与 `ldap.provisioned`（`device.approve`/`device.token_issued`/`oidc.provisioned` 三处散落字面量收敛入常量表）⇒ **27**；清单源为 server 侧 `action`
   字面量；新增 action 需同步前端常量——集中化登记见 §14）
 - **实现期联调数据需求（dogfood）**：多角色（`SUPER_ADMIN` / `ADMIN` / 普通 `USER`）+
   各状态资产（ACTIVE / HIDDEN / ARCHIVED）+ 三族各至少一条 + 待审任务 + 两级标签树
@@ -549,7 +597,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 | R6 | 新增 | `GET /api/me/assets` | 「我可管理的资产」读面（§7.2 契约）；公开面零改动 |
 | R6-b | 修改 | `assertAssetReadable` 授权集 | 非 ACTIVE 详情/版本/文件/下载面：授权集（owner 本人 / 管理档 / 超管）放行，其余仍 404（§7.2；§14 同步 05 §6.4 + 08 §7） |
 
-> **R5 不属本表**：`/me` 的角色感知已由 M4-pre 交付（`auth/routes.ts:115-122`），
+> **R5 不属本表**：`/me` 的角色感知已由 M4-pre 交付（`http/auth-routes.ts:17-28`），
 > M4b 零服务端改动——重构前拟的「`/me` 增平台角色数组」方案随之废弃。
 
 | R6-c | 修改（**加性**） | `review/query.ts` `LIST_SELECT` 增 `reviewComment` | 「我的提交」列表露出拒绝原因（2026-09-14 用户拍板；对既有响应向后兼容） | **M4b-3** |
@@ -565,7 +613,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 - 危险操作（隐藏/归档/恢复/删除/yank/吊销）→ **ConfirmDialog 二次确认**，
   文案含对象坐标与后果（如「隐藏后该资产对所有非管理员不可见」）
 - 写操作成功 → 局部重取 + 轻提示（不整页刷新，保留筛选与滚动位置）
-- 错误：`errors` 资源组按 code 本地化；401 → 全局拦截重定向 `/login?next=`
+- 错误：`errors` 资源组按 code 本地化；401 → **按 §2.4 U3 三分类分流**（公开段静默 anon / 受保护段 `/login?next=` / 表单写操作内联）
 - 403 → 就地提示（不退化为空态，避免"看起来没数据"的误导）
 
 ## 10. UI-UX 变动总览
@@ -585,14 +633,14 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 **控制台面特有形态（个人面与治理面共用）**：
 
-- **数据表格**（`DataTable` = shadcn `Table` 封装）：两档真值备选——shadcn 档（表头 `h-10 px-2`
+- **数据表格**（`DataTable` = shadcn `Table` 封装）：两档真值对照（**已定档：shadcn 档**）——shadcn 档（表头 `h-10 px-2`
   = 40px · 单元格 `p-2`）vs skillhub 档（表头 `h-12 px-4` = 48px · 单元格 `p-4`）；
-  **取档待拍板**（差异 = 一屏行数 vs 覆盖 class 数量）。状态列右对齐 `tabular-nums`；
+  **已取 shadcn 档 = 40**（表头 `h-10 px-2` · 单元格 `p-2`——2026-09-14 拍板；备选 skillhub 档 `h-12 px-4` = 48px **不采纳**）。状态列右对齐 `tabular-nums`；
   载态用 shadcn `Skeleton` 行占位
 - **表单控件**：shadcn `Input` / `Select` / `Textarea` / `Switch`（真值见 M4a §4.4 ③）——
   **不再自写玻璃底样式**
 - **右侧抽屉**：shadcn `Sheet`（真值 `w-3/4 sm:max-w-sm` = 384px 上限；取 560px 时覆盖为
-  `sm:max-w-[560px]`）——**待拍板**；遮罩 `bg-black/50`（无 blur）
+  `sm:max-w-[560px]`）——**已取 560**（2026-09-14 拍板）；遮罩 `bg-black/50`（无 blur）
 - **危险操作**：shadcn `Dialog` 二次确认 + `--destructive`（#e7000b）+ `Button variant="destructive"`
   ——**不再引 M4a diff 的 #cf222e**（diff 内容色与 UI 语义色分工不同，见 M4a §4.4 ②）
 - **状态徽章**：`Badge variant="outline"` + `border-success/30 bg-success/10 text-success` 组合
@@ -607,7 +655,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
   ② 抽屉宽 **560**（`Drawer` = `Sheet` 封装，`sm:max-w-[560px]`）——落位见 `2026-09-14-m4b1-console-foundation-design.md` §5.1
 
 **视觉环节产出（R9 修订，2026-09-11 用户扩大范围）**：由「1 版风格板 + 2 交互 demo」改为
-**全页可点原型**（9 视图 + 评审控件：角色 4 档 / 页面三态正常·空·载·403 / ★待拍板标注 / 中|EN）
+**全页可点原型**（11 视图 + 评审控件：角色 4 档 / 页面三态正常·空·载·403 / ★待拍板标注 / 中|EN）
 ——用户要求逐页亲眼确认后再对齐。技术可行性实证：沙箱 spike（shadcn 真身，不进仓）；
 **M4a 换皮落地后以本仓代码为准**。不做三变体 sketch。
 
@@ -637,27 +685,41 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 ## 11. i18n 资源规划（07 §3）
 
-新增三组（zh 真源 / en 完整对齐，纪律同 M4a）：
+**组清单（2026-09-16 按真码 `i18n/zh.ts` / `en.ts` 实测订正）**：既有 **7 组** + M4b-2 新增 **2 组**（zh 真源 / en 完整对齐、缺键即编译错，纪律同 M4a）。
 
-- `dashboard`：个人工作台（工作台卡片 / 我的资产 / 我的提交 / 我的令牌 / 对应空态文案）
-- `admin`：治理面通用（页标题 / 表格列名 / 动作文案 / 确认对话框 / 标签与审计空态文案）
-- `review`：审核面专属（队列状态 / 动作 / 防自审提示 / 共享详情页文案）
+**M4b-2 新增（2 组）**：
 
-既有 `common`/`errors` 复用；服务端新错误码（若有）入 `errors` 组。
+- `login`：登录页（两 tab / 表单文案 / 提交中 / 失败与校验提示）
+- `device`：设备授权页（码输入与校验 / 客户端与范围展示 / 批准·拒绝 / 状态与错误文案——错误枚举取自官方端点契约，见 §7.1）
+
+**既有（7 组）**——前 4 组 M4a 落、后 3 组 **M4b-1 已落骨架**（文案随各批补足）：
+
+- `navigation`（9 键）· `market`（~50 键）· `common`（5 键）· `errors`（9 键）——M4a 落
+- `dashboard`（**4 键**：title / myAssets / tokens / empty）——个人工作台；**M4b-2 补 `submissions` 等侧栏键**
+- `admin`（6 键：title / reviews / audit / labels / users / empty）——治理面通用（+ Phase 2 占位提示）
+- `review`（5 键：title / approve / reject / reason / empty）——审核面专属
+
+本批 `errors` 补 **9 码**（**8 个** `auth.*` + `oidc.not_configured`；全量 **12 个** `auth.*` 见 `auth/errors.ts:6-21`——其中 `auth.rate_limited` **M4a 已落**，故实补 8 个；OIDC 回调 2 码见 §7.2 G6）。
+`navigation` 另补**组标题 3 键**、**删**产品元信息 4 键（`starRepo`/`footDocs`/`footFeedback`/`versionLine`——P11，真码现状 9 键已含）。
+**文案分层口径**（2026-09-16 拍板）：导航条目用短词（工作台 / 审核队列 / 审计浏览），页头用全称（个人工作台 / 审计日志）。
 
 ## 12. 线框图
-> **归属批（2026-09-14 拆批）**：逐张归属：`/dashboard` → **M4b-4** · `/dashboard/assets` → **M4b-4** · `/dashboard/submissions` → **M4b-3** · `/dashboard/tokens` → **M4b-3** · `/reviews/:id` → **M4b-5** · `/admin/reviews` → **M4b-5** · `/admin/labels` → **M4b-6** · `/admin/audit` → **M4b-6**；**`/login` 线框待 M4b-2 补**（本节现有 8 张）
+> **归属批（2026-09-14 拆批）**：逐张归属：`/dashboard` → **M4b-4** · `/dashboard/assets` → **M4b-4** · `/dashboard/submissions` → **M4b-3** · `/dashboard/tokens` → **M4b-3** · `/reviews/:id` → **M4b-5** · `/admin/reviews` → **M4b-5** · `/admin/labels` → **M4b-6** · `/admin/audit` → **M4b-6**；`/login` 与 `/device` 线框于 2026-09-16 补入（**本节 10 张 / 11 视图**）
 
 
 个人工作台 `/dashboard`（角色感知卡片；治理卡片仅 `role >= 10` 渲染）：
 
 ```text
-┌ AI X Hub                     🌐 中|EN    [👤 孙学文 ▾] ┐
+┌ AI X Hub                        🌐 中|EN              ┐  ← 顶栏：品牌 + 触发钮 + 语言
 │ ⌂首页 ✦技能中心 ⚙MCP ◈专家                            │
 │ ─ 个人 ─────────────────────────────────────────────  │
 │  ▤ 工作台  ◫ 我的资产  ⇪ 我的提交  ⛁ 我的令牌          │
 │ ─ 管理 ─（role>=10 才渲染）──────────────────────────  │
-│  ⚖ 审核队列  ⌗ 标签管理  ☰ 审计浏览                    │
+│  ⚖ 审核队列  ☰ 审计浏览                                │
+│ ─ 超级管理 ─（role>=100 才渲染）─────────────────────  │
+│  ⌗ 标签管理  ⚙ 系统设置  ☺ 用户管理                    │
+│                                                        │
+│  [👤 孙学文 ▾]  ← 用户区（侧栏底部；未登录为「登录」）  │
 ├────────────────────────────────────────────────────────┤
 │ 工作台                                                  │
 │ ┌待审核────┐┌我的资产──┐┌最近审计──────────────┐      │
@@ -762,8 +824,45 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 │ 共 3 条        [‹ 上一页]  1/1  [下一页 ›]              │
 ```
 
-> §12 覆盖**全部 8 张线框**（示意数据非设计硬值）。M4b 路由实为 **9 个视图**——未画线框的两个：
-> `/login`（**随 M4b-2 补线框**，2026-09-14 用户拍板）与 `/admin`（纯重定向，不需线框）。
+登录 `/login`（独立版式：无侧栏；两 tab + 语言切换器；失败 = 表单内 inline 错误条）：
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                    AI X Hub            🌐 中|EN        │
+│                                                        │
+│        ┌──────────────────────────────────────┐        │
+│        │  登录                                 │        │
+│        │  ┌ 常规登录 ┬ OAuth 登录 ┐            │        │
+│        │  │ [用户名            ]              │        │
+│        │  │ [密码              ]              │        │
+│        │  │ ⚠ 用户名或密码错误（inline 错误条）│        │
+│        │  │ [      登录（提交中… Spinner）   ] │        │
+│        │  └──────────────────────────────────┘ │        │
+│        └──────────────────────────────────────┘        │
+└────────────────────────────────────────────────────────┘
+```
+
+设备授权 `/device`（独立版式；`?user_code=` 或手输；未登录先登录再回跳 —— 认领机制见 §7.1；页面基址与 dev 口径见 §3.4）：
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                    AI X Hub            🌐 中|EN        │
+│        ┌──────────────────────────────────────┐        │
+│        │  设备授权确认                         │        │
+│        │  设备码  [ ABCD-1234 ]  [ 确认 ]      │        │
+│        │  ─────────────────────────────────    │        │
+│        │  客户端   aihub-cli                   │        │
+│        │  请求范围 全量（无条件 scope）         │        │
+│        │  有效期   30 分钟                      │        │
+│        │  [ 批准 ]            [ 拒绝 ]          │        │
+│        │  （无效/过期 → 码级错误文案；已处理 →  │        │
+│        │    「已批准」「已拒绝」；他人已认领 →   │        │
+│        │    「该请求已由其他账号认领」）         │        │
+│        └──────────────────────────────────────┘        │
+└────────────────────────────────────────────────────────┘
+```
+> §12 覆盖**全部 10 张线框**（示意数据非设计硬值；`/login` 与 `/device` 于 2026-09-16 补图）。M4b 路由实为
+> **11 个视图**——未画线框的只有 `/admin`（纯重定向，不需线框）。
 > 视觉环节产出（tokens 全规格 → §10.1、语义修正记录 → §8）随定稿条件 ① 回写。
 
 ## 13. 引用文件清单
@@ -775,13 +874,15 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
   `assets/manage.ts`（`canManageAsset`）· `http/reviews.ts` + `review/query.ts` ·
   `http/labels.ts` + `labels/service.ts` · `http/tokens.ts` · `http/audit.ts` +
   `audit/query.ts` · `http/stats.ts` · `http/auth-middleware.ts`（`requireRole`）·
-  `auth/routes.ts`（`/me`）· `auth/rbac.ts`（`roleOf`/`hasRole`/`isSelfReview`）·
-  `auth/token-scopes.ts`（token 凭证 scope 码）· `db/schema/users.ts`（`ACCOUNT_ROLE`）
+  `http/auth-routes.ts`（`/me` 薄层）· `auth/plugins/ldap-credentials.ts`（自绘目录凭证插件）· `auth/better-auth.ts`（官方实例装配）· `http/origin-guard.ts`（业务面同源守卫）· `auth/rbac.ts`（`roleOf`/`hasRole`/`isSelfReview`）·
+  `auth/token-scopes.ts`（token 凭证 scope 码）· `auth/roles.ts`（`ROLE_LEVEL` / `accountRoleOf`）· `db/schema/auth.ts`（官方 6 表：`user`/`session`/`account`/`verification`/`device_code`/`apikey`）
 - 前端（复用与新增）：`apps/web/src/components/ui/`（既有 AppShell/TopBar/SideNav/MarkdownRenderer/
   AssetAvatar/Badge/Pagination/Spinner/EmptyState/ErrorState ＋ 迁入 FileTree/FilePreviewDialog ＋
   新增 Toaster/SkeletonLoader/RoleGuard/CopyButton）· `components/console/`（M4b 新增面域：
   PageHeader/DataTable/Drawer/ConfirmDialog/StatusPill/FilterBar + reviews/labels/assets/tokens/audit
-  子域）· `components/market/detail/FilesTab.tsx`（迁移引用方）· `auth/`（AuthProvider/RequireAuth）·
+  子域）· `components/market/detail/FilesTab.tsx`（迁移引用方）· `auth/`（AuthProvider/roles.ts）·
+  `components/ui/UserMenu.tsx`（用户区——跨面件）· `components/console/ComingSoon.tsx`（占位页）·
+  `api/auth.ts`（login/logout/me）· `pages/Device.tsx`（`/device` 设备授权页）·
   `pages/`（Login/dashboard/*/reviews/*/admin/*）· `i18n/`（I18nProvider/lang/zh/en）·
   `hooks/useApi.ts` · `hooks/useMarketQuery.ts`（控制台面参数化扩展——**不新建 hook**）· `styles/aih-theme.css`（**T24 后为唯一样式文件**；原 `tokens.css` 已删）
 - 被更新测试：`apps/server/src/http/assets.test.ts`（`:421` 授权集断言——R6-b）
@@ -807,15 +908,17 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 | 规范 | 同步内容 | 时点 |
 |------|---------|------|
-| `05` §6.4 | **R6-b** 非 ACTIVE 读面授权集注记（owner 本人 / 管理档 / 超管可读）——修改 M4-pre 已同步的「仅超管」行 | M4b 收尾 |
-| `08` §7 | ① 版本读面注记与 R6-b 对齐（资产级非 ACTIVE 授权集）；② **ARCHIVED 语义补实**——当前与 HIDDEN 判定同构（`status !== 'ACTIVE'`），建议写明「HIDDEN = 临时下架/可恢复；ARCHIVED = 长期退役/停止维护」的运营语义分界 | M4b 收尾 |
-| `07` §3 | `dashboard`/`admin`/`review` 资源组落地注记（§3 资源组清单新增 `dashboard` 个人工作台组——两层分层引入，与 `admin` 治理面组并置） | M4b 收尾 |
+| `05` §6.4 | **R6-b** 非 ACTIVE 读面授权集注记（owner 本人 / 管理档 / 超管可读）——修改 M4-pre 已同步的「仅超管」行 | **M4b-4 落地后**（规范同步统一于 M4b 收尾执行） |
+| `08` §7 | ① 版本读面注记与 R6-b 对齐（资产级非 ACTIVE 授权集）；② **ARCHIVED 语义补实**——当前与 HIDDEN 判定同构（`status !== 'ACTIVE'`），建议写明「HIDDEN = 临时下架/可恢复；ARCHIVED = 长期退役/停止维护」的运营语义分界 | **M4b-4 落地后**（规范同步统一于 M4b 收尾执行） |
+| `07` §3 | `dashboard`/`admin`/`review` 资源组落地注记（**M4b-1 已落三层骨架**——各批补文案；§3 资源组清单**需补 `dashboard` 行**：`07` 现列 7 组含 `review`/`admin` 但**无 `dashboard`**，落后于真码 `i18n/zh.ts`） | M4b 收尾 |
 | `00` §5 | M4b 行完成注记 | M4b 收尾 |
+| `07` §3 | **资源组清单 +2**（`login` / `device`）——M4b-2 新增两组落地注记 | M4b-2 收尾 |
+| `00` §5 | **M4b-2 行状态回写**（对齐完成 → 实现中 → ✅）+「零服务端改动」口径确认（原「随 M4b-pre 结论重估」→ 重估结论：**仍成立**） | M4b-2 收尾 |
 | `05` §6.4 | 补 **列表 / 启用·禁用** 两行（管理档 `role >= 10`）；**改角色沿用既有「角色分配 = 超管」行**（05 §6.1 明文，不重复新增）+ **末位超管保护**（禁止把最后一个 ACTIVE 超管降级/禁用）与**禁止自我降级 / 自我禁用**注记 | **M4c** 立项时 |
 | `00` §5 | M4c 行（2026-09-10 已新增 ⬜）+ M4b 行范围注记（用户管理移出） | **已同步** 2026-09-10 |
-| `00` §5 · `M1-phase2` plan | **Device Flow 确认页归属漂移登记**：`M1-phase2` plan 原记「M4 web」，2026-09-10 决策改为「M4c 或随 M5 CLI」——M5 立项时二次确认；**不改写已收尾的 M1 plan**（历史完成注记不改），改在 M5 plan 内注记归属变更并引用本条 | **M4c/M5** 立项时 |
+| `00` §5 · `M1-phase2` plan | **Device Flow 确认页归属 —— 已闭合**：`M1-phase2` plan 原记「M4 web」→ 2026-09-10 改「M4c 或随 M5 CLI」→ **2026-09-16 用户拍板改判归 M4b-2**（设备授权页 `/device`）；不改写已收尾的 M1 plan（历史完成注记不改） | ✅ 2026-09-16 闭合 |
 | `2026-09-10-flat-model-refactor-design` **P3**（:120）· §2.5（:285） | **用户管理 / 角色分配旧注修订**：P3 与 §2.5 写「用户管理能力（未实现）将来落地按 `role >= ADMIN` 判定」→ M4c 立项时以 **05 §6.1/§6.4 为准**（**改角色 = 超管**；列表/启用·禁用 = 管理档），并在 M4c design 写明该修订 | **M4c** 立项时 |
-| （后置·非规范） | **审计动作常量集中化**：`audit_log.action` 现为 server 侧散落字面量（25 个），前端过滤清单靠同步维护；建议抽为共享常量（对齐 `auth/token-scopes.ts` 的常量单源模式），消除漂移 | M6 或按需 |
+| （后置·非规范） | **审计动作常量集中化**：`audit_log.action` 现为 server 侧散落字面量（27 个，2026-09-16 实测），前端过滤清单靠同步维护；建议抽为共享常量（对齐 `auth/token-scopes.ts` 的常量单源模式），消除漂移 | M6 或按需 |
 | `2026-09-09-m4a-marketplace-portal-design` **§4.4** | **全站视觉真值 SSOT 引用**：M4b 控制台面视觉基线指向该节（色彩 token / 圆角轴 / 字阶 / 组件真值 / AIH 补丁表）；本文件 §10.1 只记控制台特有值（表格密度 / 抽屉宽 / 状态映射）——**双写即漂移，改动只动 SSOT** | M4b 实现期（引用即生效） |
 | （后置·非规范） | **AIH token 补丁（`--success` / `--warning` / 类型色）无规范层归属**：`07` 实测无 token / 视觉章节（2026-09-11 核）→ 补丁表登记于 M4a §4.4 ②，规范层不新增行；若将来新增视觉规范文档，补丁表随之迁入 | 按需 |
 | `00` §5 | M4a 行「视觉体系切换进行中」+ M4b 行「依赖 M4a 视觉体系切换先行」+ M5 行 **Device Flow 确认页归属**注记 | **已同步** 2026-09-11 |
@@ -828,6 +931,11 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.20** | 2026-09-16 | sunxuewen-rush | **第五轮体检 D 组订正（3 项）+ grilling 13 项决策回写**——① **i18n 组口径按真码统一**（`i18n/zh.ts`/`en.ts` 实测 **7 组**）：§2.2 In / §6.4 / §11 / §14 四处「新增五组」→ **既有 7 组 + M4b-2 新增 2 组**（`login`/`device`）；§11 整块重写为「新增 2 组 + 既有 7 组（M4a 落 4 / **M4b-1 已落骨架 3**：`dashboard` 4 键 / `admin` 6 键 / `review` 5 键）」，并补 `dashboard` 需补 `submissions` 等键、`navigation` 组标题 3 键与**待删 4 键**（真码现状吻合 P11）② **`errors` 补码数订正 10 → 9**（真码 `errors` 组**已有 `auth.rate_limited`**；全量 `auth.*` **12 个**见 `auth/errors.ts:6-21`，本批实补 **8 个** + `oidc.not_configured`）③ **§7.1 标签 CRUD 补两码**（409 `label.slug_taken` · `label.definition_limit_exceeded` 定义上限 100——`labels/errors.ts:9,11,19`）④ **grilling 决策回写 3 项**：U3 反向守卫 = **`next` 优先**（保住 `/device?user_code=` 深链）· §7.2 G6 = ✅ **已决 B+ 新标签页直跳**（不做前置探测；`next` 对 OIDC 不适用）· §4 = 门户组**不加组标题**（零回归）。**grilling 其余 10 项批内决策**（10 Task 切分 / 3 真页+1 重定向+7 占位 / `/device` 完整实现 / `/dashboard` role 裁剪 / 占位页 DEV-only 批次号 / dogfood 六组断言 / 出口件④ 七项 / 3 种子账号 / 壳先渲染 + 第③类仅登录表单 / 不做原型）落 **M4b-2 批 design §2 拍板表** |
+| **v1.19** | 2026-09-16 | sunxuewen-rush | **B 组订正（K3/K4/N2，用户 2026-09-16 拍板「按推荐来」）**——① **新增 §3.4「设备授权页基址与 dev 口径」**（K3 = 推荐 A）：`PUBLIC_BASE_URL` **保持 API 源语义**（官方 `baseURL` / OIDC 回调推导源 / `trustedOrigins` 自动项，**不为 dev 双源妥协**）；生产反代同源 ⇒ 无需处理；dev 双源以 **web 源直达 + 手输/复制码**（`http://localhost:5173/device?user_code=…`）为准；**两项不采纳留痕**（dev 改指 web 源会带偏 OIDC 回调；API 代管违反零服务端改动）+ §5.1 与 §12 加指针② **§2.4 U3 补 `PROTECTED_PREFIXES` 清单**（K4 = 是）：`/dashboard` · `/admin` · `/reviews` · `/device` **4 个**（与 §5.2 路由同源；其余为公开段，401 静默 anon）③ **§2.4 U3 锁 401 接线点**（N2 = 推荐）：**单点在 `api/client.ts` 的 `apiGet` 层**，拦截后调 `AuthProvider` 注册的 `onUnauthorized`；`useApi` 保持通用薄 hook 零改动（`useApi.ts:17-47` 现状）＋ `sanitizeNext` 支持带 query 的站内相对路径。**本轮后 K/N 系列全部闭合**（⚪ N7 交互重叠态按主 design 纯度纪律留给批 design） |
+| **v1.18** | 2026-09-16 | sunxuewen-rush | **第三/四轮体检订正 A 组（K1/K2/K5/N1/N4/N5/N8/N10）**——口径：**契约级**（design 声明 vs 服务端真码）+ **深度档四轮审查**（R1 清单 / R2 无预设通读 / R3 UI 视角 / R4 三刀法）。① **K1** §7.1 补**设备授权·认领/批准/拒绝**三行契约（实测 `http/device-flow.test.ts:156-165` + `app.ts:145-185`：`{user_code,status:'pending',client_id,scope}` · `{success:true}` · **须先认领**否则 400 `DEVICE_CODE_NOT_CLAIMED`）+ CLI 两端与**轮询错误族**（`authorization_pending`/`slow_down`/`expired_token`/`access_denied`/`invalid_grant`）+ §7.2 登记 **G5**（原三处「见 §7.1」悬空引用闭合）② **K2** §2.2 Out：`REGISTRATION_ENABLED` 订正为**真码默认 `true`（`env.ts:35`/`.env.example:19`）**、`disableSignUp: !REGISTRATION_ENABLED`（`better-auth.ts:79-80`）、注册端点为官方 `sign-up/email`（原「`POST /api/auth/register` 存在」「默认关闭」两处订正）③ **K5** §7.1 通过/拒绝行补 **token scope `review:approve`**（`auth/token-scopes.ts:17`，原漏第 5 个 scope 码）④ **N1** §4 补**门户组**（M4a 既有 4 条，`SideNav.tsx:53-58` 无组标题平铺）为表格首行 + 说明句 + **显隐组合锚点段**（表/§12 线框/真码三向一致）⑤ **N5** §6.3 「零改动」清单**误列** `TopBar`/`SideNav` 订正为**改造件**（与 §2.4 U1「删产品元信息三项 / 加三组 / 清 `APP_VERSION`」自洽）⑥ **N10** §2.4 U1 「`Toaster` 与 `AuthProvider` 为本批最先落地」→ **仅 `AuthProvider`**（`Toaster` 已于 M4b-1 落仓，`main.tsx:45`）⑦ **N4** 占位机制统一：`/dashboard` 临时落地页 = `ComingSoon` **同件不同 props**（§2.3 + §6.2 双写）⑧ **N8** §3.1 补 OIDC **实测路径**（未配置=404 JSON / callback 失败=JSON 错误体 / 成功=302 `/?oidc=success` **不经 `next`**）+ §7.2 登记 **G6**（OIDC 成败路径与 `/login` 约定的缺口 → M4b-2 批内决策）。**未决（待拍板）**：K3 dev 双源基址 / K4 `PROTECTED_PREFIXES` / N2 401 接线点 |
+| **v1.17** | 2026-09-16 | sunxuewen-rush | **M4b-2 立项前第二轮体检订正（G1-G17）**——方法升级后（全量 `file:line` **语义回读** + 硬数字实测 + 跨节口径对照 + 修订记录声明回查实体）揭出 17 项，本轮全修：① **跨节口径统一**——§6.4 规模预估「10 条路由条目 / 3 i18n 资源组」→ **11 条（含 2 独立版式）/ 5 组**（G1/G2）· §2.2 In i18n 组补 `login`/`device`（G3）· §2.3 backlog M4b-6「25 个动作」→ **27**（G7）· §12 头部「现有 8 张 / `/login` 待 M4b-2 补」→ **10 张 / 11 视图已补**（G6）· R9/§10.1「9 视图」→ **11 视图**（G14）② **引用修正**——§7.1 表尾注 `app.ts:82-100`（回读为 `AppDeps`/`createApp`）→ **`app.ts:101-119`**（`// 统一错误出口` + `app.onError` 实测行）（G4）；表头核对日期改「业务面 2026-09-10 · 认证面 2026-09-16 重核」（G17）③ **§9 401 口径**「全局拦截重定向」→ **按 §2.4 U3 三分类分流**（消除与决策登记的矛盾）（G5）④ **「待拍板」残留清除**——§10.1 表格密度/抽屉宽改「**已取 40 / 560**（2026-09-14 拍板）」（G8）+ R9 同步（G9）⑤ **§6.2 组件树补 4 件**（`auth/roles.ts` · `ui/UserMenu.tsx` · `console/ComingSoon.tsx` · `pages/Device.tsx`）——修正 v1.16 修订记录「已增 `UserMenu`/`ComingSoon`」的**声明与实体不符**（G11）⑥ **§2.4 U3 补 P7 三改**（反向守卫 / `sanitizeNext` / 首帧预热）（G12）⑦ §3.1 三路分派表述去重（G15）· §14 时点列口径澄清（G16）· 头部 `**v1.15：**v1.15：` 排版破损修复 + CI 号段 **#41-#48 → #41-#49**（G10/G13）。**实测通过项**：audit 动作 **27 个**（常量表 `audit/audit.ts:5-20` 9 条 + 业务面散落 18 条，分域逐项吻合）· 60 处引用除 G4 外全部语义正确 |
+| **v1.16** | 2026-09-16 | sunxuewen-rush | **M4b-2 立项对齐（P1-P12）+ 主 design 契约订正（F1-F14）**：① **认证契约订正**（M4b-pre 整车迁移的正文同步）——登录 `POST /api/auth/sign-in/aih` · 登出 `POST /api/auth/sign-out` · `/me` 薄层改指 `http/auth-routes.ts:17-28`；死引用 `auth/routes.ts`（8 处）与 `db/schema/users.ts`（4 处）清除；行号漂移修正（`auth/rbac.ts:70` · `config/env.ts:36,104-105`）；**audit 动作 25 → 27 实测**（+`device.deny` / `ldap.provisioned`，并收敛 3 处散落字面量）② §3.0 增「认证栈实现载体」行（better-auth 官方整车 + 自绘目录凭证插件 + 业务面同源守卫）③ **设备授权页 `/device` 归 M4b-2**（原「M4c 或随 M5 CLI」作废；§2.2/§3.0/§5.1/§5.2/§11/§12 同步）④ **侧栏两组 → 三组**（个人 / 管理 / 超级管理；标签管理移入超级管理组）⑤ **用户区落侧栏底部**（顶栏只留品牌 + 触发钮 + 语言；侧栏底部移除产品元信息三项）⑥ **i18n 三组 → 五组**（+`login` / `device`；`errors` 补 10 码；文案分层口径）⑦ **组件树删 `RequireAuth`**（`RoleGuard(minRole=USER)` 覆盖其语义）+ 增 `UserMenu` / `ComingSoon` ⑧ §12 线框补 `/login`、`/device`（**10 张 / 11 视图**）· §13 引用清单 · §14 规范同步项同步。**本轮体检**：订正前 8 维 **8.4**（未达门，根因 = M4b-pre 收尾未同步主 design 正文契约） |
 | v0.1 | 2026-09-10 | sunxuewen-rush | 初稿：立项对齐产物——范围拍板 R1-R9（档 B/发布流后置/用户管理后置/本地+LDAP 登录/`/me` 补角色/`/admin/*` 复用壳/品牌沿用/精简视觉流程）；R6 缺口实证（探针 9/9）与处置（新增 `GET /api/me/assets` + 详情面授权集放宽 R6-b）；对标 21-skillhub 源码（admin 面/MeController filter 枚举/HIDDEN 超管校验）与 clawhub.ai 官方契约（无 hide/archive，soft delete + moderation 轴） |
 | v0.2 | 2026-09-10 | sunxuewen-rush | 8 维自检修复（8.6 → 重评）：🔴4 + 🟡8 全修——① `POST /api/namespaces` 权限对齐源码（`ASSET_ADMIN` 平台角色，非 asset:publish）② `canManageAsset` 归属修正（`assets/manage.ts`）③ §6.1 依赖段与 §6.3 的 diff 表述矛盾消除（明确不引入 diff 依赖、组件群不迁移）④ `/admin/reviews` 入口改「任何登录用户 + 按角色渲染 tab」，消除 `reviews/mine`（`requireAuth`）与入口条件（`ASSET_ADMIN`）的矛盾（撤回入口随之可达）；自助注册显式 out（含 `REGISTRATION_ENABLED` 无公开端点的影响说明）；术语统一（待审核）与线框/契约对齐（概览 `status=ALL`）；`platformRoles` 顺序不作契约；FileTree 迁移影响面说明（`FilesTab.tsx` import）；测试影响面补全（`:495` + `:990` 段两处）；拼写修正 |
 | v0.3 | 2026-09-10 | sunxuewen-rush | M4a 范本对标补全（学 M4a design 12 段 + 6 特质后回查缺口，11 项全补）：① **视觉参照三元组**（气质=M4a tokens / 形态=skillhub 管理面公开源 / 图标=lucide ISC——用户拍板）；② **三族适用性**（审核详情 manifest 卡按 type 分型，复用 M4a `OverviewTab` 分型探测）；③ 响应式断点（表格 <1100px 横向滚动 / 抽屉全宽 / 侧栏 <900px 图标态）；④ 组件补件（`Toaster`/`SkeletonLoader`/`RoleGuard`/`CopyButton`/`AuditActionSelect`——skillhub `shared/components` 对标发现）；⑤ 缺口 **G 段呈请编号**（G1-G4 → R5/R6/R6-b 两段式）；⑥ 审计页 8 过滤器全暴露 + **31 个 action 分组下拉**（清单列全，集中化登记 §14）；⑦ 联调数据需求（多角色/各状态/三族/FROZEN 空间）；⑧ 依赖版本锚；⑨ 关键空/错态文案示例；⑩ 评审物料时点修正；⑪ 规模预估更新（~27 组件） |
