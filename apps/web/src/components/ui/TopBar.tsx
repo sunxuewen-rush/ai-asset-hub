@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Separator } from '@/components/ui/shadcn/separator';
 import { SidebarTrigger } from '@/components/ui/shadcn/sidebar';
-import { useI18n } from '../../i18n/I18nProvider.js';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
-import { TypeIcon } from './TypeIcon.js';
 
 /**
  * 顶栏（design §4.4 v0.10，plan T5；design v0.12 增侧栏触发钮）
@@ -13,10 +11,14 @@ import { TypeIcon } from './TypeIcon.js';
  * 品牌字（v0.14，design §4.4 ②bis）：改 **`--gradient-brand` 蓝色渐变**（`bg-clip-text` +
  * `text-transparent`）——v0.9「渐变大字废弃 / 实底 primary」在此项上按用户 2026-09-11 拍板翻转。
  * 侧栏收起（plan T7b）：左端加 `SidebarTrigger`（shadcn 原语钮，`size-7` ghost；键盘 `⌘B`/`Ctrl+B` 亦有效）。
- * 不变：高度 **58px**、sticky/z-20、语言切换器与登录占位挂载点、竖分隔。
+ *
+ * **M4b-2 T5 减法（批 design §8「顶栏行」· 主 design §4）**：删除 M4a 的「登录」占位 `<span>`
+ * （类型图标衬底 + 登录文案）——用户区已落**侧栏底部**（`SideNav` 的 `UserMenu`）。
+ * 顶栏**仅余品牌 + `Separator` + `SidebarTrigger` + `LanguageSwitcher`**；随之移除占位件专用的
+ * 两个 import（图标组件 + i18n 上下文——占位删除后顶栏不再有任何文案消费）。
+ * 不变：高度 **58px**、sticky/z-20、竖分隔与语言切换器行为零变更。
  */
 export function TopBar() {
-  const { t } = useI18n();
   return (
     <header className="sticky top-0 z-20 flex h-[58px] items-center gap-3 border-b border-border bg-card px-4">
       <Link to="/" className="flex items-center no-underline" aria-label="AI X Hub home">
@@ -30,13 +32,6 @@ export function TopBar() {
       <SidebarTrigger />
       <div className="ml-auto flex items-center gap-3">
         <LanguageSwitcher />
-        {/* M4a 匿名门户无登录（design §2 out）——占位视觉，M4b 接真实认证 */}
-        <span className="flex cursor-default items-center gap-2 rounded-md border border-border bg-muted/40 py-[5px] pl-1.5 pr-3 text-xs font-semibold text-muted-foreground">
-          <span className="flex size-[26px] items-center justify-center rounded-full bg-muted-foreground text-primary-foreground">
-            <TypeIcon type="agent" size={13} />
-          </span>
-          {t('navigation', 'login')}
-        </span>
       </div>
     </header>
   );

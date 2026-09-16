@@ -22,9 +22,6 @@ import { useI18n } from '../../i18n/I18nProvider.js';
 import { TypeIcon } from './TypeIcon.js';
 import { UserMenu } from './UserMenu.js';
 
-/** 版本行文字与 web package.json version 同步（demo v0.1.0 · Apache 2.0） */
-const APP_VERSION = '0.1.0';
-
 type NavType = 'home' | AssetType;
 
 interface NavEntry {
@@ -216,27 +213,10 @@ export function SideNav() {
       </SidebarContent>
 
       <SidebarFooter className="gap-2 px-2 pb-2">
-        {/* 用户区（design §6.2：loading 骨架 / anon 登录入口 / authed 用户菜单） */}
+        {/* 用户区（design §6.2：loading 骨架 / anon 登录入口 / authed 用户菜单）
+            —— 侧栏底部**仅此一项**：原产品元信息三项（Star on GitHub / 使用文档·提交反馈 / 版本行）
+            已按批 design §8 + 主 design §4 于 **M4b-2 T5** 整体删除（`navigation` 同步 −4 键） */}
         <UserMenu />
-        <a
-          className="flex items-center justify-center gap-[7px] rounded-lg border border-border bg-card py-[7px] text-[13px] font-semibold text-foreground no-underline transition-colors group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:p-0 hover:border-ring hover:text-primary"
-          href="https://github.com/sunxuewen-rush/ai-asset-hub"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <span className="text-amber-500">★</span>
-          <span className="group-data-[collapsible=icon]:hidden">
-            {t('navigation', 'starRepo')}
-          </span>
-        </a>
-        {/* M4b/开源期接真实文档与反馈地址（现无可达目标——不渲染死链） */}
-        <div className="flex justify-center gap-3.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          <span>{t('navigation', 'footDocs')}</span>
-          <span>{t('navigation', 'footFeedback')}</span>
-        </div>
-        <div className="text-center font-mono text-[11px] text-muted-foreground/70 group-data-[collapsible=icon]:hidden">
-          {t('navigation', 'versionLine', { version: APP_VERSION })}
-        </div>
       </SidebarFooter>
 
       <SidebarRail />
