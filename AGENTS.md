@@ -92,9 +92,17 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 
 ## 里程碑
 
-见 `docs/00` §5 的 M0-M6 追踪表与出口标准（追踪表 = 状态唯一源）。当前：
+见 `docs/00` §5 的 M0-M6 追踪表与出口标准（追踪表 = 状态唯一源；**子批口径 = 出口五件**全绿才启下一批：
+`批 design 8 维 ≥9 定稿` + `批 plan Task 全绿` + `五门禁` + `dogfood/观感` + **`整体审计`**，见 `docs/00` §5/§7 ②）。当前：
 M0 ✅（骨架）· M1 ✅（平台底座）· M2 ✅（资产域）· M3 ✅（治理管线）· M4a ✅（市场门户）·
 **M4-pre ✅（扁平化重构：4 档角色 / 删空间域 / 删可见性 / 坐标改全局唯一裸 slug — 2026-09-10，
 迁移 0005-0007，design/plan 见 `docs/designs/2026-09-10-flat-model-refactor-design.md` +
-`docs/plans/M4-pre-flat-model-refactor.md`）**；
-下一步：M4b 管理后台（design 已按扁平模型重写 v1.0，先对齐范围再立 plan）。
+`docs/plans/M4-pre-flat-model-refactor.md`）**。
+
+**M4b 管理后台（拆 6 批，逐批对齐/实现；主 design = 跨批不变层）**：
+
+- 主 design：`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.22**）
+- **M4b-pre ✅**（认证整车迁移 better-auth — 2026-09-15）：`docs/designs/2026-09-15-m4b-pre-auth-migration-design.md` + `docs/plans/M4b-pre-auth-migration.md`
+- **M4b-1 ✅**（地基批：官方件归位 + 控制台组件面域 — 2026-09-14）：`docs/designs/2026-09-14-m4b1-console-foundation-design.md` + `docs/plans/M4b-1-console-foundation.md`
+- **M4b-2 🔵 计划已立**（认证与壳批：登录页 `/login` · 设备授权页 `/device` · 会话上下文 · 401 分流 · 侧栏三组 + 用户区 · 路由骨架 11 条）：`docs/designs/2026-09-16-m4b2-auth-shell-design.md`（**v1.3**）+ `docs/plans/M4b-2-auth-shell.md`（**v0.3** · **T1-T10 待执行**）——**服务端改动 0 行 · 新增依赖 0 个**
+- M4b-3…6 ⬜（个人面 A/B → 审核面 → 治理面；**M4b-4 为唯一含服务端读面改动的批**）
