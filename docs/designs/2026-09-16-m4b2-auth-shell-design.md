@@ -1,7 +1,12 @@
 # M4b-2 认证与壳批设计（登录 · 会话 · 角色感知壳）
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v1.12：T9 落地回写（i18n 实测键数回填）**——§10 全量改为**实测口径**
+> Updated: 2026-09-16（**v1.13：T10 收尾回写（批次完成 · converge 重评 9.50）**——§9 补「本批验收结果」
+（五门禁全绿含 `test` **500 pass·1 skip·0 fail** · 门户零回归 **36/36** + chain-smoke · 本批 dogfood 六组
+**24 PASS/0 FAIL + NO JS ERRORS** · 种子复核幂等 · **整体审计无未决项**）；**F4 关闭**（真机实测证伪 T4 的
+「变体未生效」= 测量假阴性：`-mt-8 → -32px` · `opacity-0 → 0` · `size-8! → 32×32` · 容器 **66px**）；
+**行数声明订正**（前序记录为执行期估算 ⇒ 权威表见 `docs/smoke/2026-09-16-m4b2-auth-shell.md` §6）；
+**v1.12：T9 落地回写（i18n 实测键数回填）**——§10 全量改为**实测口径**
 （批前基线 `0ff0693` **91 键 / 7 组** ⇒ 当前 **132 键 / 9 组** ⇒ **净增 41 键**）；`errors` 组
 **+9 → +12 码**（**补 3 个服务端实有码**：`auth.forbidden` · `auth.oidc_denied` · `auth.oidc_state_mismatch`
 ⇒ 18 → **21 键**，服务端 12 码**覆盖 12/12**）；`device` 组 **14 → 13**（T7 删 `expiresLabel`，本版同步算式）；
@@ -368,11 +373,17 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 - **混排结构（F3 登记）**：门户组（裸 `SidebarMenu`，Q3 零回归）× 三组（`SidebarGroup` > `SidebarGroupLabel` + `SidebarGroupContent` > `SidebarMenu`）在同一 `SidebarContent` 内**间距/分段视觉**未预设 ⇒ **T4 落地实测 + 用户确认观感**（不为统一而改门户组结构）
 - **落地实测（v1.7 · T4）**：四档显隐全绿（未登录 = 门户组 only · 1 档 +个人 4 条 · 10 档 +管理 2 条 · 100 档 +超级管理 **3 条**）；
   **F3 计算值** = `SidebarContent` gap **4px** · 门户组底→首组顶 **4px** · 组内 padding **8px** · 组标签高 **32px**（观感待用户确认）
-- **F4 登记（v1.7 · T4 实测异常 · 待深挖）**：`collapsible="icon"` 下 `data-state=collapsed` 成立，但**部分
+- **F4 ~~登记~~ 已关闭（v1.13 · T10 实测证伪）**：**T10 真机实测证明变体全部正常生效**——`.group` 与
+  `data-collapsible="icon"` 同元素；折叠后组标签 `margin-top = -32px`（`-mt-8`）、`opacity = 0`、菜单按钮
+  `32×32px`（`size-8!`）、容器 `66px`。T4 当时测得的「178px / marginTop 0px / opacity 1」= **展开态的值**
+  ⇒ 未真正进入折叠态（**测量假阴性**）。原文保留如下（史实）：
+- **F4（史实 · v1.7 · T4 实测异常）**：`collapsible="icon"` 下 `data-state=collapsed` 成立，但**部分
   `group-data-[collapsible=icon]` 变体未生效**——`hidden` **生效**（元素 computed width 0），而 `size-8!`（按钮仍 178px）·
   `-mt-8`/`opacity-0`（组标题 marginTop 0px / opacity 1，**未隐藏**）· `w-[calc(var(--sidebar-width-icon)+…)]`
   （container 仍 204px）**未生效**。已排除：mobile 视口（1440×900 复测同）· 祖先 `.group[data-collapsible=icon]` 缺失
   （`closest()` 命中）· M4b-2 引入（本批未改 `Sidebar`/`SidebarProvider` 配置）
+  ⇒ **T10 实测证伪 ⇒ 本项关闭**（变体全部正常生效）：详见本文件 v1.13 修订行 +
+  `docs/smoke/2026-09-16-m4b2-auth-shell.md` §7
 
 ### 6.2 用户区（`SidebarFooter`，`UserMenu.tsx`）
 
@@ -479,6 +490,23 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
   既有 `audit_log` 等引用继续指向同一用户 = **审计留痕不丢**。**禁全表 `delete`** 不变（会话清理按前缀
   `like` 筛子集，可重放）；账号**改名**不在本脚本能力内（无删除面）——改名需手工清理旧行
 
+### 9.6 本批验收结果（T10 收尾 · 2026-09-16 实测）
+
+> 全部数字为实测产出；**完整证据**（门禁表 / dogfood 六组明细 / 种子输出 / 审计十一维 / 行数权威表 /
+> F4 结论 / 观感清单）= `docs/smoke/2026-09-16-m4b2-auth-shell.md`。
+
+| 件（§9.1-9.5 口径） | 结果 |
+|---------------------|------|
+| **门户零回归**（§9.1） | ✅ `m4a-dogfood` **36/36 + NO JS ERRORS** · `m4a-chain-smoke` **PASS** |
+| **五门禁**（§9.2） | ✅ 逐项 exit 0 —— `install --frozen-lockfile` · `typecheck` · `lint` · `format:check` · `build` · `db:migrate` · **`CI=true bun run test` = 500 pass · 1 skip · 0 fail**（501 例 / 48 文件；与 M4b-pre 基线逐项一致 ⇒ **零回归**） |
+| **dogfood 六组**（§9.3） | ✅ **24 PASS / 0 FAIL + NO JS ERRORS**（G1 未登录壳态 4/4 · G2 `role=USER` 6/6 · G3 `role=ADMIN` 4/4 · G4 `role=SUPER_ADMIN` 4/4（占位条目 ×2 + 轻提示）· G5 登录→菜单→登出 4/4 · G6 设备授权认领→批准 2/2） |
+| **出口件 ④ 七项**（§9.4） | 🔶 **自测证据齐**（G1-G6 + T3/T6 断言）；**观感确认待用户实机执行**（清单见证据文件 §11） |
+| **种子数据**（§9.5） | ✅ A2 upsert **第 3 次复跑幂等**（`cleared 24 session(s)` + 三账号 `updated`）⇒ 3 账号就绪 |
+
+**整体审计（十一维）**：无未决项 —— 死导出 0 · i18n 键（132 / 双语差集 0 / 孤儿键违规 0 / 裸键泄漏 0）·
+批次号残留（产物 0 / `DEV_BATCH` 余 7 项均有占位路由）· 类串重复（T7 收敛）· 越轴值 / token（零新增）·
+**F4 关闭**（实测证伪测量假阴性）· 旧口径指针 5 处关闭 · **行数声明订正**（立权威表，后续批次 `wc -l` 实测）。
+
 ## 10. i18n 变更规格
 
 **新增 2 组**（`login` **8 键** / `device` **13 键**）；`errors` **+12 码**（T9 实测）；`dashboard` **+2 键**；`admin` **+1 键**；`navigation` **+3 键 / −4 键**（zh 真源 / en 完整对齐，缺键即编译错）。
@@ -577,6 +605,22 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.13** | 2026-09-16 | sunxuewen-rush | **T10 收尾回写（批次完成 · converge 重评 8 维 9.50）**——
+① **§9 补「本批验收结果」**：五门禁逐项 exit 0（CI 顺序复现；**`CI=true bun run test` = 500 pass · 1 skip ·
+0 fail**（501 例 / 48 文件），与 M4b-pre 基线逐项一致 ⇒ **零回归**）· **门户零回归** `m4a-dogfood` **36/36**
++ `m4a-chain-smoke` **PASS** · **本批 dogfood 六组**（新建 `docs/smoke/scripts/m4b2-auth-dogfood.ts`）
+**24 PASS / 0 FAIL + NO JS ERRORS** · 种子复核（A2 upsert 第 3 次复跑幂等）· **整体审计十一维无未决项** ·
+验收硬证据入库 `docs/smoke/2026-09-16-m4b2-auth-shell.md` ② **F4 关闭（★ 实测证伪）**：T4 登记的
+「`group-data-[collapsible=icon]` 变体未生效」为**测量假阴性**——T10 真机 `cmd+b` 折叠后实测：`.group`
+与 `data-collapsible="icon"` **同元素**（变体前提满足）· 组标签 `margin-top = **-32px**` · `opacity = **0**` ·
+菜单按钮 **32×32px** · 容器 **66px** ⇒ **全部生效**；T4 测得的值（178px / 0px / 1）= **展开态** ⇒ 当时未
+真正进入折叠态 ③ **行数声明订正（★ 审计发现）**：文档「`file`（**N 行**）」声明 vs `wc -l` 实测
+**15 处全部不符**（`Device.tsx` 303→**268** · `SideNav.tsx` 254→**225** · `Dashboard.tsx` 78→**73** ·
+`Login.tsx` 205→**203** · `TopBar.tsx` 41→**38** · `roles.ts` 38→**33** · `next.ts` 83→**97** ·
+`client.ts` 187→**205** …）——根因 = **前序 Task 的行数为执行期估算**（未实测即写入）⇒ 立 **权威行数表**
+（证据文件 §6）+ 不改写史实 + **后续批次一律 `wc -l` 实测** ④ **旧口径指针 5 处全部关闭**（plan
+`待深挖`×3 / `待 T10`×1 · design `待 T7 实测`×4 / `待深挖`×1）⑤ **出口五件**：①②③⑤ ✅ · ④ dogfood ✅ /
+观感七项**待用户实机确认**（证据文件 §11）⑥ 依据 = 批 plan **v0.13** |
 | **v1.12** | 2026-09-16 | sunxuewen-rush | **T9 落地回写（i18n 实测键数回填 · 本批唯一内容改动）**——
 ① **§10 全量改实测口径**：批前基线（M4b-2 首个提交 `e569298` 的父 `0ff0693`）**91 键 / 7 组** ⇒ 当前
 **132 键 / 9 组** ⇒ **净增 41 键**；逐组 `login` 8 · `device` 13 · `errors` +12（18 → 21）· `navigation` +3
