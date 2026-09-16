@@ -27,10 +27,30 @@ export class ApiError extends Error {
 
 const responseCache = new Map<string, Promise<unknown>>();
 
+/**
+ * 401 分流登记口（design §4.2）。
+ *
+ * **依赖方向 = `auth/* → api/*`（单向）**：`auth/AuthProvider` 挂载时注册处理函数，
+ * `api/client` 侧在 401 分支回调——反向 import 会形成 ESM 循环（`api/auth` → `client`）。
+ * T1 落登记口，**T2 落消费**（四分类：`/me` / 受保护路由 / 公开段 / `skipAuthRedirect`）。
+ */
+export type UnauthorizedHandler = (path: string, search: string) => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/** 注册 401 处理函数；返回注销函数（供 `useEffect` cleanup） */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): () => void {
+  unauthorizedHandler = handler;
+  return () => {
+    if (unauthorizedHandler === handler) unauthorizedHandler = null;
+  };
+}
+
 export interface ApiGetOptions {
   signal?: AbortSignal;
   /** 默认 true；需要每次新鲜的调用（如刷新统计）传 false */
   cache?: boolean;
+  /** true = 该调用的 401 **完全跳过分流**（交调用方 inline 展示，如登录表单；design §4.2 ④） */
+  skipAuthRedirect?: boolean;
 }
 
 export async function apiGet<T>(path: string, opts: ApiGetOptions = {}): Promise<T> {
@@ -40,7 +60,10 @@ export async function apiGet<T>(path: string, opts: ApiGetOptions = {}): Promise
     const hit = responseCache.get(key);
     if (hit) return hit as Promise<T>;
   }
-  const request = doFetch<T>(path, opts.signal);
+  const request = doFetch<T>(path, {
+    signal: opts.signal,
+    skipAuthRedirect: opts.skipAuthRedirect,
+  });
   if (cacheable) {
     responseCache.set(key, request);
     // 失败不污染缓存——错误后重试需能真实重发（失败 promise 若滞留，重试将永远命中坏缓存）
@@ -51,12 +74,53 @@ export async function apiGet<T>(path: string, opts: ApiGetOptions = {}): Promise
   return request;
 }
 
-async function doFetch<T>(path: string, signal?: AbortSignal): Promise<T> {
+export interface ApiPostOptions {
+  signal?: AbortSignal;
+  /** true = 该调用的 401 **完全跳过分流**（交调用方 inline 展示，design §4.2 ④） */
+  skipAuthRedirect?: boolean;
+}
+
+/**
+ * POST（JSON）——design §3.2 件 4。
+ *
+ * **复用 `doFetch`**（不新起 fetch 路径）：401 分流、错误归一、`Accept-Language` 与 GET 同源。
+ * `body` 省略 / `undefined` ⇒ **无请求体**（官方 `POST /api/auth/sign-out` 即此形态）。
+ */
+export async function apiPost<T>(
+  path: string,
+  body?: unknown,
+  opts: ApiPostOptions = {},
+): Promise<T> {
+  return doFetch<T>(path, {
+    method: 'POST',
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: opts.signal,
+    skipAuthRedirect: opts.skipAuthRedirect,
+  });
+}
+
+/** `doFetch` 请求形态（T1：method/body/headers；**T2**：401 四分类消费 `skipAuthRedirect`） */
+interface DoFetchInit {
+  method?: string;
+  /** 已序列化的请求体（JSON 字符串）；`undefined` = 无 body */
+  body?: string;
+  signal?: AbortSignal;
+  skipAuthRedirect?: boolean;
+}
+
+async function doFetch<T>(path: string, init: DoFetchInit = {}): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
-      headers: { Accept: 'application/json', 'Accept-Language': getCurrentLang() },
-      signal,
+      method: init.method ?? 'GET',
+      body: init.body,
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': getCurrentLang(),
+        // 仅在有 body 时声明 JSON（`sign-out` 等无 body 调用不引入无意义 content-type）
+        ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+      },
+      signal: init.signal,
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err; // 竞态终止由调用方处理
