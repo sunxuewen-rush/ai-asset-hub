@@ -466,7 +466,12 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 > ⇒ console 出现 `401` 网络 log。脚本按 T25 既有机制扩白名单（`netLogs` 404 / **`authNetLogs` 401** 双桶单列），
 > **不计入 `errors`**；JS 错误与一切未预期 log 的严格判定不变。
 
-### 9.4 出口件 ④（dogfood/观感）人工清单 —— 七项（Q9，用户实机确认）
+### 9.4 出口件 ④（dogfood/观感）清单 —— 七项（Q9）
+
+> **执行方式（v1.14 口径变更，用户 2026-09-16 授权代跑 + 认可）**：七项全为**功能/行为项**（是/否二值）
+> ⇒ 改为 **CDP 自动断言**（脚本 `docs/smoke/scripts/m4b2-acceptance-checklist.ts`，可重放），
+> 实测 **14 PASS / 0 FAIL + NO JS ERRORS**；原「用户实机逐项确认」不再逐条手工执行，
+> 人工价值收敛为「**认可结论**」。⚠️ **审美面不在本批范围**（视觉打磨归 **M4b-7**）。
 
 ① 未登录访 `/admin/reviews` → `/login?next=` → 登录后**回原页** ② 错密码 → **表单内 inline 错误**（不跳页）
 ③ 登录成功 → 用户区 displayName + 角色徽章；**硬刷新仍在登录态且不闪** ④ 登出 → 回首页、用户区变「登录」
@@ -500,7 +505,7 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 | **门户零回归**（§9.1） | ✅ `m4a-dogfood` **36/36 + NO JS ERRORS** · `m4a-chain-smoke` **PASS** |
 | **五门禁**（§9.2） | ✅ 逐项 exit 0 —— `install --frozen-lockfile` · `typecheck` · `lint` · `format:check` · `build` · `db:migrate` · **`CI=true bun run test` = 500 pass · 1 skip · 0 fail**（501 例 / 48 文件；与 M4b-pre 基线逐项一致 ⇒ **零回归**） |
 | **dogfood 六组**（§9.3） | ✅ **24 PASS / 0 FAIL + NO JS ERRORS**（G1 未登录壳态 4/4 · G2 `role=USER` 6/6 · G3 `role=ADMIN` 4/4 · G4 `role=SUPER_ADMIN` 4/4（占位条目 ×2 + 轻提示）· G5 登录→菜单→登出 4/4 · G6 设备授权认领→批准 2/2） |
-| **出口件 ④ 七项**（§9.4） | 🔶 **自测证据齐**（G1-G6 + T3/T6 断言）；**观感确认待用户实机执行**（清单见证据文件 §11） |
+| **出口件 ④ 七项**（§9.4） | ✅ **CDP 自动断言 14 PASS / 0 FAIL + NO JS ERRORS**（用户授权代跑 + 认可；口径变更见 §9.4；证据文件 §11） |
 | **种子数据**（§9.5） | ✅ A2 upsert **第 3 次复跑幂等**（`cleared 24 session(s)` + 三账号 `updated`）⇒ 3 账号就绪 |
 
 **整体审计（十一维）**：无未决项 —— 死导出 0 · i18n 键（132 / 双语差集 0 / 孤儿键违规 0 / 裸键泄漏 0）·
@@ -605,6 +610,12 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.14** | 2026-09-16 | sunxuewen-rush | **出口件 ④ 口径变更 + 批次五件全绿（用户授权代跑并认可）**——
+① **§9.4 执行方式变更**：由「用户实机逐项确认」改为 **CDP 自动断言**（七项全为功能/行为项 ⇒ 自动化更
+可重放、更可留证；脚本入仓 `docs/smoke/scripts/m4b2-acceptance-checklist.ts`），**实测 14 PASS / 0 FAIL +
+NO JS ERRORS**；人工价值收敛为「认可结论」；⚠️ **审美面不在本批范围**（归 M4b-7）② **§9.6 验收结果表**
+④ 行 🔶 → **✅** ③ 依据 = 用户 2026-09-16「认可」+ 验收脚本实测输出。**⇒ M4b-2 出口五件全绿**
+（①②③④⑤）。本版不含功能/契约改动（验证口径）|
 | **v1.13** | 2026-09-16 | sunxuewen-rush | **T10 收尾回写（批次完成 · converge 重评 8 维 9.50）**——
 ① **§9 补「本批验收结果」**：五门禁逐项 exit 0（CI 顺序复现；**`CI=true bun run test` = 500 pass · 1 skip ·
 0 fail**（501 例 / 48 文件），与 M4b-pre 基线逐项一致 ⇒ **零回归**）· **门户零回归** `m4a-dogfood` **36/36**

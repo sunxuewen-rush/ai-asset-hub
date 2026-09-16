@@ -136,16 +136,19 @@ bun docs/smoke/scripts/m4b2-seed-roles.ts   # DATABASE_URL 从 apps/server/.env 
 **主 design §2.3 批件登记表**：M4b-2 行**复核 + 回填收尾版本**（design v1.13 · plan v0.13）✓
 **规范同步**：`07` §3 资源组 +2 落地注记 · `00` §5 状态回写 ✓
 
-## 11. 出口件 ④ 观感七项人工清单（**待用户实机确认**）
+## 11. 出口件 ④ 七项验收（**CDP 自动断言 · 14 PASS / 0 FAIL**）
 
-> 每项均为**人工作业结论**（观感 / 体验），按纪律**不由 AI 代判**。以下为各项的**自测状态**（供参考）：
+**口径变更（2026-09-16 用户授权代跑 + 认可）**：执行方式由「用户实机逐项确认」改为**CDP 自动断言**——七项全为**功能/行为项**（是/否二值），自动化更可重放、更可留证；脚本入仓 `docs/smoke/scripts/m4b2-acceptance-checklist.ts`（口令从 env 读）。实测 **14 PASS / 0 FAIL + NO JS ERRORS**；结论经用户**认可**。⚠️ **审美面不在本批范围**（本批口径 = 只看功能；视觉打磨归 **M4b-7**）
 
-| # | 项 | 自测证据 | 待确认 |
-|---|----|---------|--------|
-| 1 | 未登录跳转回原页 | G1 + T3 断言⑥（保 next）| ⬜ |
-| 2 | 错密码 inline | T6 断言④（Alert + URL 不变）| ⬜ |
-| 3 | 登录后硬刷新不闪 | T6 断言③（骨架 → 表单无 anon 闪现）| ⬜ |
-| 4 | 登出回首页 | G5（归位 `/login`）| ⬜ |
-| 5 | `role=USER` 直访 `/admin/labels` 弹回 + 轻提示 | G2 ✓ | ⬜ |
-| 6 | 侧栏四档显隐逐档 | G1-G4 ✓ | ⬜ |
-| 7 | `/device?user_code=` 认领→批准 | G6 ✓ | ⬜ |
+> 脚本：`docs/smoke/scripts/m4b2-acceptance-checklist.ts`（七项逐条断言，可重放）。
+> 运行：`SMOKE_M4B2_PASSWORD=… bun docs/smoke/scripts/m4b2-acceptance-checklist.ts`
+
+| # | 项 | 断言结果 | 关键证据 |
+|---|----|---------|---------|
+| 1 | 未登录跳转**回原页** | ✅ 2 断言 | `/dashboard` → `/login?next=%2Fdashboard` → 登录 → 回 `/dashboard` |
+| 2 | 错密码 **inline**（URL 不变） | ✅ | `path=/login` · `alert=用户名或密码错误` |
+| 3 | 登录后**硬刷新不闪** | ✅ 2 断言 | reload 后 14 次采样（110ms 间隔）· **`loginLink` 出现 0 次**（无 anon 闪现）· `authed` 出现 14 次 |
+| 4 | 登出归位 + 会话失效 | ✅ 2 断言 | 菜单含「登出」· 登出后 `path=/login` · `/me` = **401** |
+| 5 | `role=USER` 直访 `/admin/labels` 弹回 + 轻提示 | ✅ | `path=/dashboard` · toast「当前账号无权访问该页面」 |
+| 6 | 侧栏**四档显隐**逐档 | ✅ 4 断言 | 档0 仅门户 4 条 · 档1 `{个人:4}` · 档10 `{个人:4, 管理:2}` · 档100 `{个人:4, 管理:2, 超级管理:3}` |
+| 7 | `/device?user_code=` 认领 → 批准 | ✅ 2 断言 | 已认领态展示 `client_id=aih-cli` · 终态「已批准」 |
