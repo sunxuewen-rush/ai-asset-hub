@@ -478,3 +478,118 @@ describe('读面加性 + 掩码配置（M4b-3 T2 · design §4.2 / §5）', () =
     expect(row.lastRequest).toBeNull();
   });
 });
+
+describe('PATCH /api/tokens/:id（M4b-3 T3 编辑：改名 + 改权限）', () => {
+  function patchReq(url: string, body: unknown, cookie?: string) {
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      ...ORIGIN,
+      host: 'localhost:3000',
+    };
+    if (cookie) headers.cookie = cookie;
+    return buildApp().request(url, { method: 'PATCH', headers, body: JSON.stringify(body) });
+  }
+
+  it('路由已注册：PATCH /api/tokens/:id', () => {
+    const routes = buildApp().routes.map((r) => `${r.method} ${r.path}`);
+    expect(routes).toContain('PATCH /api/tokens/:id');
+  });
+
+  it('改名：200 单条（与列表 item 同形）+ 列表回显新名', async () => {
+    const cookie = await cookieFor(u1);
+    const created = await postJson('/api/tokens', { name: 'edit-me' }, cookie);
+    const { id } = (await created.json()) as { id: string };
+    const res = await patchReq(`/api/tokens/${id}`, { name: 'CI 发布用' }, cookie);
+    expect(res.status).toBe(200);
+    const row = (await res.json()) as Record<string, unknown>;
+    expect(row.id).toBe(id);
+    expect(row.name).toBe('CI 发布用');
+    for (const key of [
+      'id',
+      'scope',
+      'name',
+      'start',
+      'tail',
+      'expiresAt',
+      'revokedAt',
+      'createdAt',
+      'lastRequest',
+    ]) {
+      expect(key in row).toBe(true);
+    }
+    const list = await buildApp().request('/api/tokens', { headers: { cookie } });
+    const items = ((await list.json()) as { items: Array<{ id: string; name: string | null }> })
+      .items;
+    expect(items.find((t) => t.id === id)!.name).toBe('CI 发布用');
+  });
+
+  it("改权限：子集 ⇒ 码串回显；scope: [] ⇒ 全量（''）", async () => {
+    const cookie = await cookieFor(u1);
+    const created = await postJson('/api/tokens', { name: 'scope-edit' }, cookie);
+    const { id } = (await created.json()) as { id: string };
+
+    const narrow = await patchReq(
+      `/api/tokens/${id}`,
+      { name: 'scope-edit', scope: ['audit:read'] },
+      cookie,
+    );
+    expect(narrow.status).toBe(200);
+    expect(((await narrow.json()) as { scope: string }).scope).toBe('audit:read');
+
+    const full = await patchReq(`/api/tokens/${id}`, { name: 'scope-edit', scope: [] }, cookie);
+    expect(full.status).toBe(200);
+    expect(((await full.json()) as { scope: string }).scope).toBe('');
+  });
+
+  it('名称必填：缺失 / 空串 / 纯空白 / 33 字 ⇒ 400 request.invalid', async () => {
+    const cookie = await cookieFor(u1);
+    const created = await postJson('/api/tokens', { name: 'req-edit' }, cookie);
+    const { id } = (await created.json()) as { id: string };
+    for (const body of [{}, { name: '' }, { name: '   ' }, { name: 'x'.repeat(33) }]) {
+      const res = await patchReq(`/api/tokens/${id}`, body, cookie);
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { code: string }).code).toBe('request.invalid');
+    }
+  });
+
+  it('仅本人：SUPER_ADMIN 改他人 token ⇒ 404（且原名保留）', async () => {
+    const cookie = await cookieFor(u1);
+    const created = await postJson('/api/tokens', { name: 'private-edit' }, cookie);
+    const { id } = (await created.json()) as { id: string };
+    const res = await patchReq(
+      `/api/tokens/${id}`,
+      { name: 'hacked' },
+      await cookieFor(superAdmin),
+    );
+    expect(res.status).toBe(404);
+    const [row] = await db.select({ name: apikey.name }).from(apikey).where(eq(apikey.id, id));
+    expect(row!.name).toBe('private-edit');
+  });
+
+  it('不存在 / 畸形 id ⇒ 404 / 400', async () => {
+    const cookie = await cookieFor(u1);
+    expect((await patchReq('/api/tokens/nonexistent-key', { name: 'x' }, cookie)).status).toBe(404);
+    expect((await patchReq('/api/tokens/bad%20id', { name: 'x' }, cookie)).status).toBe(400);
+  });
+
+  it('审计：token.update（target_type=api_key）且 detail 零明文', async () => {
+    const cookie = await cookieFor(u1);
+    const created = await postJson('/api/tokens', { name: 'audit-edit' }, cookie);
+    const { id, token } = (await created.json()) as { id: string; token: string };
+    const res = await patchReq(
+      `/api/tokens/${id}`,
+      { name: 'audit-edit-2', scope: ['audit:read'] },
+      cookie,
+    );
+    expect(res.status).toBe(200);
+    const rows = await db
+      .select({ action: auditLog.action, targetType: auditLog.targetType, detail: auditLog.detail })
+      .from(auditLog)
+      .where(and(eq(auditLog.actorId, u1), eq(auditLog.targetId, id)));
+    const upd = rows.find((r) => r.action === 'token.update');
+    expect(upd?.targetType).toBe('api_key');
+    const detail = JSON.stringify(upd?.detail ?? null);
+    expect(detail).not.toContain(token);
+    expect(detail).toContain('name');
+  });
+});

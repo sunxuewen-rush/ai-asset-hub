@@ -512,6 +512,12 @@ Tokens (page)
   该 token 行已存在但无 tail（前端兜底「—」）；同库同链路 ⇒ 概率极低，**接受并登记**
 - ★ **读面容错**：`metadata` 为 JSON 文本 ⇒ `parseTail` 按官方 `parseDoubleStringifiedMetadata`（`:25-29`）
   同款「单层 → 双串」容错；**落库形态实测 = 单层 JSON** `{"tail":"…"}`（T2 测试断言，兼作契约哨兵）
+- ★ **T3 编辑的落库形态（v1.12，实现期实证）**：① `name` **必填**后，官方「无任何变更」错误
+  `NO_VALUES_TO_UPDATE`（`dist/index.mjs:1526`）**不再可达**（路由层 zod 先拦缺名/空名）② **全量回写**（`scope: []`）
+  = 官方 `permissions` 列写**文本 `"null"`**（`JSON.stringify(null)`，`:1525`）——**不是 SQL NULL**；读面
+  `parsePermissions('null')` → `null` ⇒ `scope === ''`（全量）⇒ 与历史全量行（SQL NULL）**两种形态并存、读面归一**
+  ③ PATCH 审计 detail = `{ fields: ['name' | 'scope'] }`（**字段名清单**，零明文 / 零值回显；M4b-6 审计浏览消费）
+  ④ 200 响应复用 `readApiKeyRow`（新公共读面 —— 与列表 item **同形**，投影列/映射单源 `API_KEY_SELECT` + `toApiKeyRow`）
 - **无迁移 / 无 schema 改动 / 无新依赖**：`git diff --stat -- apps/server/drizzle packages/` 应为空
   （`05 §5` 需补一句「库中可存明文**首尾片段**用于掩码展示」——属规范层同步，非 schema 改动）
 
@@ -765,6 +771,7 @@ G3/G4/G6 需要可重放的数据构造：「有 PENDING 提交」「有 REJECTE
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.12** | 2026-09-16 | sunxuewen-rush | **T3 落地注记（实现期实证）**—— §5.2 新增「T3 编辑的落库形态」条：① 官方 `NO_VALUES_TO_UPDATE`（`:1526`）因 `name` 必填**不再可达** ② **全量回写 = `permissions` 列文本 `"null"`**（非 SQL NULL；读面归一 ⇒ `scope === ''`） ③ 审计 detail = `{ fields: [...] }`（零明文） ④ 200 响应复用新公共读面 `readApiKeyRow`（`API_KEY_SELECT` + `toApiKeyRow` 单源投影）。**无口径变更** ⇒ 8 维评分不变（**9.86**；本轮为纯实现注记，非重评） |
 | **v1.11** | 2026-09-16 | sunxuewen-rush | **名称必填 + 令牌彻底私有**（用户 2026-09-16 逐条对齐拍板 ①/③；与代码 / 测试 / 主 design / 批 plan 同批提交）—— ① **`name` 必填**（新建 + 编辑；`trim().min(1).max(32)`；缺名 / 空串 / 纯空白 ⇒ 400；前端提交按钮禁用 + 服务端 400 双保险；旧令牌列表仍「—」）；**不用官方 `requireName` 开关**（该开关会作用于内部签发通道 ⇒ 误伤）② **令牌彻底私有**：`DELETE /api/tokens/:id` 的 **SUPER_ADMIN 分支收回** ⇒ **仅本人**（他人含超管 ⇒ 404）—— 依据 = 规范层 `05 §5`「Token 签发 / 吊销 **本人**」（**代码此前超出规范**，本轮收回）+ 兄弟仓 new-api 同款私有口径（`model/token.go:364-375` 按 userId 过滤；超管无令牌管理页、无全站令牌接口）；如需超管治理 ⇒ 登记 M4b-6/M4c 候选 ③ 编辑权限语义 =「全不勾 = 全量」并在弹窗给同一提示；权限改动**保存即生效、界面不加提示**（用户定）④ 落点：§2.1 D6 · §2.1b Q9 · §4.2 三流 · §5.1 · §5.2 ③ · §5.3 ⑤ · §6.2 两键文案 · §7 两行（POST / DELETE）· §11 复评 **9.86**；同步主 design §7.1 + 批 plan v0.4 |
 | **v1.10** | 2026-09-16 | sunxuewen-rush | **T2 实现期官方源码复核订正**（用户 2026-09-16 拍板：「官方默认 32，我们就改成 32」；文档与 T2 代码同批提交）—— ① **名称上限 ≤64 → ≤32**（7 处落点：D6 · Q11 · §3.2#6 · §4.2 创建流/编辑流 · §5.1 · §7），依据 = 官方 `maximumNameLength` **默认 32**（`@better-auth/api-key` `dist/index.mjs:2328`）——原 ≤64 会被官方 400 拒 ② **`enableMetadata: true` 新增**（★ 官方 `enableMetadata` **默认 false**（`:2330`）⇒ 不开启则签发传 metadata **抛** `METADATA_DISABLED`（`:767-770`）、更新**静默忽略**（`:1511`）；`better-auth.ts` 配置 **1 行 → 3 行**，第 3 行为显式钉定 `maximumNameLength: 32` 防上游漂移）③ **`metadata.tail` 写入 = 两次官方调用**（明文由官方内部 keyGenerator 生成（`:802-808`）⇒ create body 无法预知 tail，改为 create 后补 `updateApiKey`；失败语义登记 = 500 + 行无 tail，前端兜底「—」）④ **空 / 纯空白名称 ⇒ 省略 `name` 字段**（官方 `minimumNameLength` 默认 1 会拒空串；T3 编辑流同口径 = 保持原名，官方无置空语义）⑤ **`parseTail` 双串化容错**（对齐官方 `parseDoubleStringifiedMetadata` `:25-29`）+ **落库形态实测 = 单层 JSON** `{"tail":"…"}`（T2 测试断言兼作契约哨兵）⑥ §5.1 行数**实测回填**（产品代码 4 件 +101/−9，注释 42 行；测试件 +176）⑦ §5.2 新增「官方侧 3 条实证约束」段 · §5.3 测试面 +3 断言 · §11 复评 **9.79**（9.57 → +0.22）；同步批 plan **v0.3**（T2 步骤 3/4/5 + 断言 ⑦⑧⑨ · T3 步骤与断言补空名口径） |
 | **v1.9** | 2026-09-16 | sunxuewen-rush | **提交前打分订正（8 项）**——`self-review-scoring` 8 维实测复评 **8.57 < 9 未达门** ⇒ **撤回 v1.8 的 9.81**（自检口径过窄，漏扫 §3）① 修 **3 处直接矛盾**：§3.2#7 `StatusPill` `REJECTED` destructive → **实色蓝紫渐变 + 白字** · §3.1#3 `FilterBar` → **官方 Select** · §3.2#2 i18n 24/28 → **25/41** ② 修 5 项缺漏：§3.1#2 补 `updateToken`+去 `expiresInDays` · §3.1#4 术语「吊销」→「删除」+补 6 列/编辑/只显有效 · §3.2#4/#5 补 `assetType` · §3.2#6 补 `start`/`metadata.tail`/`PATCH` · §3.1#1 命名与 plan 统一 · §3.2#7 渐变须走 token（禁 className） ⇒ 复评 **9.57 ≥9** | 

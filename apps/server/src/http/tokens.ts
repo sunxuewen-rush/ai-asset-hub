@@ -1,9 +1,16 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
-import { findApiKey, issueApiKey, listApiKeys, revokeApiKey } from '../auth/api-keys.js';
+import {
+  findApiKey,
+  issueApiKey,
+  listApiKeys,
+  readApiKeyRow,
+  revokeApiKey,
+  updateApiKey,
+} from '../auth/api-keys.js';
 import type { AihAuth } from '../auth/better-auth.js';
-import { ALL_TOKEN_SCOPES } from '../auth/token-scopes.js';
+import { ALL_TOKEN_SCOPES, scopesToPermissions } from '../auth/token-scopes.js';
 import type { Db } from '../db/client.js';
 import { requireAuth } from './auth-middleware.js';
 
@@ -42,6 +49,16 @@ const issueBodySchema = z.object({
   expiresInDays: z.number().int().min(1).max(3650).optional(),
   scope: z.array(z.enum(ALL_TOKEN_SCOPES)).max(10).optional(),
   name: z.string().trim().min(1).max(32),
+});
+
+/** PATCH body（M4b-3 T3：编辑 = 改名 + 改权限）——
+ *  `name` **必填**（与新建同口径：`trim().min(1).max(32)`；缺 / 空 / 纯空白 ⇒ 400）；
+ *  `scope` **省略 = 不改权限**，`[]` = **全量**（写 `permissions = null`，对齐签发语义）。
+ *  ⚠️ 官方对「无任何变更」的请求会抛 `NO_VALUES_TO_UPDATE`（`dist/index.mjs:1526`）——`name` 必填后
+ *  该边界在路由层即被拦下（zod），不会触达官方。 */
+const patchBodySchema = z.object({
+  name: z.string().trim().min(1).max(32),
+  scope: z.array(z.enum(ALL_TOKEN_SCOPES)).max(10).optional(),
 });
 
 export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
@@ -95,6 +112,55 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
     if (!principal) throw new Error('requireAuth guard violated: principal missing');
     const items = await listApiKeys(db, principal.userId);
     return c.json({ items });
+  });
+
+  // PATCH /api/tokens/:id（M4b-3 T3：编辑——改名 + 改权限；**仅本人**（令牌彻底私有）；他人视同 404 防枚举）
+  app.patch('/:id', async (c) => {
+    const principal = c.get('principal');
+    if (!principal) throw new Error('requireAuth guard violated: principal missing');
+    const keyId = c.req.param('id');
+    if (!KEY_ID_PATTERN.test(keyId)) {
+      return c.json({ code: 'request.invalid', message: 'invalid id' }, 400);
+    }
+    let payload: unknown;
+    try {
+      const text = await c.req.text();
+      payload = text.length === 0 ? {} : JSON.parse(text);
+    } catch {
+      return c.json({ code: 'request.invalid', message: 'request body must be valid json' }, 400);
+    }
+    const parsed = patchBodySchema.safeParse(payload);
+    if (!parsed.success) {
+      return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
+    }
+    const token = await findApiKey(db, keyId);
+    if (!token) return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
+    // 令牌彻底私有：本人以外（**含超管**）一律视同不存在（防枚举）
+    if (token.referenceId !== principal.userId) {
+      return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
+    }
+    // scope 省略 ⇒ 不改权限；`[]` / 畸形码 ⇒ 全量（`permissions = null`）
+    const permissions =
+      parsed.data.scope === undefined
+        ? undefined
+        : (scopesToPermissions(parsed.data.scope) ?? null);
+    await updateApiKey(auth, {
+      keyId,
+      ownerId: principal.userId,
+      name: parsed.data.name,
+      ...(permissions === undefined ? {} : { permissions }),
+    });
+    // 审计（detail 只记「改了哪些字段」——零明文、零值回显）
+    await deps.audit?.({
+      actorId: principal.userId,
+      action: 'token.update',
+      targetType: 'api_key',
+      targetId: keyId,
+      detail: { fields: parsed.data.scope === undefined ? ['name'] : ['name', 'scope'] },
+    });
+    // 回填 200 单条（与列表 item 同形）
+    const row = await readApiKeyRow(db, keyId);
+    return c.json(row, 200);
   });
 
   // DELETE /api/tokens/:id（T16：吊销——**仅本人**（2026-09-16 起令牌彻底私有）；幂等 204；他人 token 视同 404 防枚举）

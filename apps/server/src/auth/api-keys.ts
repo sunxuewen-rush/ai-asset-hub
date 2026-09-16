@@ -128,6 +128,31 @@ export async function revokeApiKey(
   });
 }
 
+/**
+ * 编辑（M4b-3 T3）：改名 + 改权限（**仅本人** —— 归属校验在路由层完成，此处传原归属者 id）。
+ * - `name`：非空名称（路由层已 `trim().min(1).max(32)`；官方上限由 `better-auth.ts` 的 `maximumNameLength` 钉定）
+ * - `permissions`：`undefined` = **不改权限**；`null` = **全量**（官方存 `"null"` 文本 ⇒ 读面 `parsePermissions`
+ *   解析回「无限制」，与签发「全量」语义一致）；对象 = 交集收窄
+ */
+export async function updateApiKey(
+  auth: AihAuth,
+  opts: {
+    keyId: string;
+    ownerId: string;
+    name: string;
+    permissions?: Record<string, string[]> | null;
+  },
+): Promise<void> {
+  await endpoints(auth).updateApiKey({
+    body: {
+      keyId: opts.keyId,
+      userId: opts.ownerId,
+      name: opts.name,
+      ...(opts.permissions === undefined ? {} : { permissions: opts.permissions }),
+    },
+  });
+}
+
 export interface VerifiedApiKey {
   keyId: string;
   userId: string;
@@ -168,6 +193,49 @@ export interface ApiKeyRow {
   lastRequest: Date | null;
 }
 
+/** 读面投影列（列表与单行读取共用 —— 防两份 mapper 漂移；M4b-3 T3 抽公共） */
+const API_KEY_SELECT = {
+  id: apikey.id,
+  name: apikey.name,
+  start: apikey.start,
+  metadata: apikey.metadata,
+  permissions: apikey.permissions,
+  expiresAt: apikey.expiresAt,
+  enabled: apikey.enabled,
+  lastRequest: apikey.lastRequest,
+  updatedAt: apikey.updatedAt,
+  createdAt: apikey.createdAt,
+};
+
+type ApiKeyDbRow = {
+  id: string;
+  name: string | null;
+  start: string | null;
+  metadata: string | null;
+  permissions: string | null;
+  expiresAt: Date | null;
+  enabled: boolean | null;
+  lastRequest: Date | null;
+  updatedAt: Date;
+  createdAt: Date;
+};
+
+/** 官方行 → 对外 `ApiKeyRow`（`tail` 自 `metadata` 解出；`revokedAt` 由 `enabled`/`updatedAt` 派生） */
+function toApiKeyRow(row: ApiKeyDbRow): ApiKeyRow {
+  return {
+    id: row.id,
+    scope: permissionsToScopeString(parsePermissions(row.permissions)),
+    name: row.name,
+    start: row.start,
+    tail: parseTail(row.metadata),
+    expiresAt: row.expiresAt,
+    /** 旧契约：吊销时间可见 ⇒ 由 `enabled=false` 时的 `updated_at` 表达 */
+    revokedAt: row.enabled === false ? row.updatedAt : null,
+    createdAt: row.createdAt,
+    lastRequest: row.lastRequest,
+  };
+}
+
 /**
  * 本人令牌列表（`{id, scope, name, start, tail, expiresAt, revokedAt, createdAt, lastRequest}`，
  * createdAt desc；M4b-3 T2 加性 +4 字段）。
@@ -179,33 +247,17 @@ export interface ApiKeyRow {
  */
 export async function listApiKeys(db: Db, userId: string): Promise<ApiKeyRow[]> {
   const rows = await db
-    .select({
-      id: apikey.id,
-      name: apikey.name,
-      start: apikey.start,
-      metadata: apikey.metadata,
-      permissions: apikey.permissions,
-      expiresAt: apikey.expiresAt,
-      enabled: apikey.enabled,
-      lastRequest: apikey.lastRequest,
-      updatedAt: apikey.updatedAt,
-      createdAt: apikey.createdAt,
-    })
+    .select(API_KEY_SELECT)
     .from(apikey)
     .where(eq(apikey.referenceId, userId))
     .orderBy(desc(apikey.createdAt));
-  return rows.map((row) => ({
-    id: row.id,
-    scope: permissionsToScopeString(parsePermissions(row.permissions)),
-    name: row.name,
-    start: row.start,
-    tail: parseTail(row.metadata),
-    expiresAt: row.expiresAt,
-    /** 旧契约：吊销时间可见 ⇒ 由 `enabled=false` 时的 `updated_at` 表达 */
-    revokedAt: row.enabled === false ? row.updatedAt : null,
-    createdAt: row.createdAt,
-    lastRequest: row.lastRequest,
-  }));
+  return rows.map(toApiKeyRow);
+}
+
+/** 单行读面（M4b-3 T3：PATCH 回填 200 响应用 —— 与列表 item **同形**；不存在 ⇒ null） */
+export async function readApiKeyRow(db: Db, keyId: string): Promise<ApiKeyRow | null> {
+  const [row] = await db.select(API_KEY_SELECT).from(apikey).where(eq(apikey.id, keyId));
+  return row ? toApiKeyRow(row) : null;
 }
 
 /** 单行读取（吊销前的归属判定用；不返回明文与哈希） */
