@@ -1,46 +1,196 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { AppShell } from './components/ui/AppShell.js';
-import { Toaster } from './components/ui/Toaster.js';
-import { I18nProvider } from './i18n/I18nProvider.js';
-import { AssetDetail } from './pages/AssetDetail';
-import { Center, type CenterType } from './pages/Center';
-import { Home } from './pages/Home';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AuthProvider, bootstrapAuth } from '@/auth/AuthProvider';
+import { ROLE } from '@/auth/roles';
+import { ComingSoon } from '@/components/console/ComingSoon';
+import { AppShell } from '@/components/ui/AppShell';
+import { RoleGuard } from '@/components/ui/RoleGuard';
+import { Toaster } from '@/components/ui/Toaster';
+import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
+import { AssetDetail } from '@/pages/AssetDetail';
+import { Center, type CenterType } from '@/pages/Center';
+import { Home } from '@/pages/Home';
 // 样式单入口（Tailwind v4 + shadcn token + AIH 层，design §4.4 v0.10 定案）：
 // Tailwind Preflight / 工具类与 AIH 层（含「Tailwind 不提供的项」迁移面）均经此文件生效。
 // T24 已删除旧层（原 `styles/tokens.css` + `styles/global.css`，双栈共存期结束）。
 import './index.css';
 
-// M4a 五路由（design §3，类型即路由）——板块 C/D/E 已完成：首页 / 三中心 / 详情均为真实页面（占位页零残留）
-// （2026-09-11 二轮审计更新表述）
+// 首帧预热（批 design §4.1 · 主 design U3）：模块级调用、**不 `await`**——`/me` 与首屏渲染并行，
+// 结果由 `<AuthProvider>` 挂载时复用（不重复请求）。
+bootstrapAuth();
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('missing #root mount element');
 }
 
+// 门户中心三路由（M4a，公开读面）
 const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
   { path: '/skills', type: 'skill' },
   { path: '/mcps', type: 'mcp' },
   { path: '/agents', type: 'agent' },
 ];
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <I18nProvider>
-      <BrowserRouter>
+/**
+ * DEV-only 批次号表（批 design §5.4：`import.meta.env.DEV` 门控的小字标注，**不进 i18n 字典**）。
+ *
+ * 门控写法是**生产产物纪律**的一部分：Vite 构建时把 `import.meta.env.DEV` 静态替换为 `false`
+ * ⇒ `false ? {…'M4b-3'…} : {}` 被常量折叠成 `{}` ⇒ **`M4b-` 字面量不进 bundle**
+ * （断言：`grep -c 'M4b-' dist/assets/*.js` = 0）。**不要**改成把批号塞进模块级数组/对象的字面量字段，
+ * 那会绕过折叠（属性值不可消除）。
+ */
+const DEV_BATCH: Record<string, string> = import.meta.env.DEV
+  ? {
+      '/login': 'M4b-2',
+      '/device': 'M4b-2',
+      '/dashboard': 'M4b-4',
+      '/dashboard/assets': 'M4b-4',
+      '/dashboard/submissions': 'M4b-3',
+      '/dashboard/tokens': 'M4b-3',
+      '/reviews/:id': 'M4b-5',
+      '/admin/reviews': 'M4b-5',
+      '/admin/labels': 'M4b-6',
+      '/admin/audit': 'M4b-6',
+    }
+  : {};
+
+/**
+ * 路由骨架（批 design §3.3：新增 11 条 + 门户 5 条）。
+ *
+ * - **独立版式**：`/login` `/device` 不入 `AppShell`（无侧栏/顶栏）；**T6/T7 换真页**（`pages/Login` / `pages/Device`）
+ * - **门户 5 条无守卫**（公开读面，M4a 零回归）
+ * - **守卫包裹（Q15）**：`/dashboard` + `/dashboard/*` 与非 `/admin` 的 `/reviews/:id` = `ROLE.USER`（布局路由一条包 4 条）；
+ *   `/admin` + `/admin/*` = `ROLE.ADMIN`；**`/admin` 的 `<Navigate>` 放在守卫内**（未达档先被弹回 `/dashboard`，不白跳一层）
+ * - **不加 `*` 兜底**（与 M4a 现态一致：未知路径落空白，本批不引入新行为）
+ * - 文案经 `useI18n()` 在组件内解析（响应语言切换）；`ComingSoon` 均**零业务请求**
+ */
+function AppRoutes() {
+  const { t } = useI18n();
+  return (
+    <BrowserRouter>
+      <AuthProvider>
         <Routes>
-          {/* 布局路由（T10 AppShell：顶栏 + 侧栏 + 内容区 Outlet） */}
+          {/* ── 独立版式（不入 AppShell）── T6/T7 替换为真页 */}
+          <Route
+            path="/login"
+            element={<ComingSoon title={t('navigation', 'login')} batch={DEV_BATCH['/login']} />}
+          />
+          <Route
+            path="/device"
+            element={<ComingSoon title={t('common', 'comingSoon')} batch={DEV_BATCH['/device']} />}
+          />
+
+          {/* ── 应用壳（顶栏 + 侧栏 + 内容区 Outlet）── */}
           <Route element={<AppShell />}>
+            {/* 门户 5 条（公开读面，**无守卫**） */}
             <Route path="/" element={<Home />} />
             {CENTER_ROUTES.map(({ path, type }) => (
               <Route key={path} path={path} element={<Center type={type} />} />
             ))}
             {/* 扁平化坐标：全局唯一裸 slug（M4-pre R5） */}
             <Route path="/assets/:slug" element={<AssetDetail />} />
+
+            {/* ── 个人段（USER = 1）── */}
+            <Route element={<RoleGuard minRole={ROLE.USER} />}>
+              <Route
+                path="/dashboard"
+                element={
+                  <ComingSoon
+                    title={t('dashboard', 'title')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/dashboard']}
+                  />
+                }
+              />
+              <Route
+                path="/dashboard/assets"
+                element={
+                  <ComingSoon
+                    title={t('dashboard', 'myAssets')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/dashboard/assets']}
+                  />
+                }
+              />
+              <Route
+                path="/dashboard/submissions"
+                element={
+                  <ComingSoon
+                    title={t('dashboard', 'submissions')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/dashboard/submissions']}
+                  />
+                }
+              />
+              <Route
+                path="/dashboard/tokens"
+                element={
+                  <ComingSoon
+                    title={t('dashboard', 'tokens')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/dashboard/tokens']}
+                  />
+                }
+              />
+              {/* 审核详情：提交人可达（撤回入口）；**不进 `/admin` 段** */}
+              <Route
+                path="/reviews/:id"
+                element={
+                  <ComingSoon
+                    title={t('review', 'title')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/reviews/:id']}
+                  />
+                }
+              />
+            </Route>
+
+            {/* ── 管理段（ADMIN = 10）── */}
+            <Route element={<RoleGuard minRole={ROLE.ADMIN} />}>
+              <Route path="/admin" element={<Navigate to="/admin/reviews" replace />} />
+              <Route
+                path="/admin/reviews"
+                element={
+                  <ComingSoon
+                    title={t('admin', 'reviews')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/admin/reviews']}
+                  />
+                }
+              />
+              <Route
+                path="/admin/labels"
+                element={
+                  <ComingSoon
+                    title={t('admin', 'labels')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/admin/labels']}
+                  />
+                }
+              />
+              <Route
+                path="/admin/audit"
+                element={
+                  <ComingSoon
+                    title={t('admin', 'audit')}
+                    description={t('common', 'comingSoon')}
+                    batch={DEV_BATCH['/admin/audit']}
+                  />
+                }
+              />
+            </Route>
           </Route>
         </Routes>
-      </BrowserRouter>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+createRoot(rootElement).render(
+  <StrictMode>
+    <I18nProvider>
+      <AppRoutes />
       {/* 轻提示单例（design §5.2：全局挂 App 根，路由之外 ⇒ 跨页存活） */}
       <Toaster />
     </I18nProvider>

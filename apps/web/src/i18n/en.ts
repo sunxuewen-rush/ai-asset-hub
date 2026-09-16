@@ -79,6 +79,7 @@ export const en: Dict = {
   dashboard: {
     title: 'Dashboard',
     myAssets: 'My assets',
+    submissions: 'My submissions',
     tokens: 'Access tokens',
     empty: 'No data',
   },
@@ -103,6 +104,8 @@ export const en: Dict = {
     retry: 'Retry',
     download: 'Download',
     pageOf: '{n} / {total} · page size {size}',
+    comingSoon: 'This feature will be available in a later release',
+    noPermission: 'Your account does not have access to this page',
   },
   errors: {
     'asset.not_found': 'Asset or version not found',

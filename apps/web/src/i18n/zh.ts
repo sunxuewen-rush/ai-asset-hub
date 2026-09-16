@@ -73,6 +73,7 @@ export const zh = {
   dashboard: {
     title: '个人工作台',
     myAssets: '我的资产',
+    submissions: '我的提交',
     tokens: '访问令牌',
     empty: '暂无数据',
   },
@@ -97,6 +98,8 @@ export const zh = {
     retry: '重试',
     download: '下载',
     pageOf: '{n} / {total} · 每页 {size}',
+    comingSoon: '该功能将在后续版本提供',
+    noPermission: '当前账号无权访问该页面',
   },
   errors: {
     'asset.not_found': '未找到该资源或版本',

@@ -21,6 +21,9 @@ const ok = (n: string, c: boolean, extra = '') =>
 const errors: string[] = [];
 /** 网络层 404 资源日志（单列；由 404 态断言**预期**触发，不计入 JS 错误——T25 增） */
 const netLogs: string[] = [];
+/** 网络层 401 资源日志（单列；未登录门户**必然**探测 `/api/auth/me`，401 即其预期结果
+ *  ——批 design §4.1「未登录 → anon」，M4b-2 T3 增） */
+const authNetLogs: string[] = [];
 /** 可参数化（多实例并存时用）：SMOKE_BASE_URL 指向前端 dev 端口；SMOKE_SHOT_PREFIX 给截图加前缀
  *  （避免覆盖历史里程碑的 docs/smoke/*.png 产物）。 */
 const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:5173';
@@ -61,9 +64,12 @@ async function main() {
       errors.push('exception: ' + (msg.params?.exceptionDetails?.text ?? '?'));
     if (msg.method === 'Log.entryAdded' && msg.params?.entry?.level === 'error') {
       const text = String(msg.params.entry.text ?? '?');
-      // 网络层资源加载失败（`Failed to load resource` + 404）**单列**：404 态断言会**预期**触发它；
-      // JS 错误 / 其它 log 仍严格计入 errors（T25：否则新增 404 断言会让「console 零错误」假红）
+      // 网络层资源加载失败**单列**（两类都是预期触发的网络 log，非 JS 错误）：
+      // ① 404 —— 404 态断言预期触发（T25）② 401 —— 未登录门户的 `/api/auth/me` 会话探测
+      // 预期结果（批 design §4.1：未登录 → anon；M4b-2 T3）
+      // JS 错误 / 其它 log 仍严格计入 errors（否则新增断言会让「console 零错误」假红）
       if (/^Failed to load resource/.test(text) && /404/.test(text)) netLogs.push(text);
+      else if (/^Failed to load resource/.test(text) && /401/.test(text)) authNetLogs.push(text);
       else errors.push('log: ' + text);
     }
     if (msg.method === 'Runtime.consoleAPICalled' && msg.params?.type === 'error') {
@@ -471,7 +477,7 @@ async function main() {
 
   console.log(
     errors.length === 0
-      ? `NO JS ERRORS${netLogs.length > 0 ? `（网络层 404 log ${netLogs.length} 条：404 态断言预期触发——非 JS 错误）` : ''}`
+      ? `NO JS ERRORS${netLogs.length > 0 ? `（网络层 404 log ${netLogs.length} 条：404 态断言预期触发——非 JS 错误）` : ''}${authNetLogs.length > 0 ? `（网络层 401 log ${authNetLogs.length} 条：未登录 /api/auth/me 会话探测预期触发——非 JS 错误）` : ''}`
       : `CONSOLE ERRORS (${errors.length}):\n${errors.slice(0, 8).join('\n')}`,
   );
   ws.close();
