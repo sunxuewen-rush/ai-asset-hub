@@ -9,6 +9,7 @@
  *   B. AIH blue 基色层（`html[data-base="aih"]` 生效）：官方 7 个 base color 全为中性/暖中性，
  *      无蓝调版本，故自建；值 = 与官方 neutral 逐项对照（design §4.4 ①（1））
  *   C. 品牌渐变层（v0.14，design §4.4 ②bis）：--gradient-brand / --gradient-cta / --gradient-page
+ *      / **--gradient-rejected**（v1.14 增：状态渐变 = review task「已驳回」）
  *      —— 消费走 `bg-[image:var(--gradient-*)]` 任意值（**不注册 @theme 映射**，避免与 `--color-*`
  *      的 `bg-*` 命名空间相撞）；换皮范围内除此之外不得出现 `linear-gradient`（plan T13 断言）
  *
@@ -119,7 +120,8 @@ html[data-base="aih"] {
 }
 
 /* ── C. 品牌渐变层（v0.14 用户拍板「主题需要蓝色渐变」——原 v0.9「拒玻璃/渐变」在此项上翻转） ──────
- * 白名单 = 下列 3 个 token，值只住本文件；组件侧不得出现裸渐变字面量。
+ * 白名单 = 下列 4 个 token（第 4 个为**状态渐变**，M4b-3 批 design D12 v1.14 增；同层同纪律：
+ * 值只住本文件、组件走任意值消费），组件侧不得出现裸渐变字面量。
  * 消费：`bg-[image:var(--gradient-brand)]`（Tailwind v4 任意值）——不注册 `@theme` 映射，
  * 避免与 `--color-*` 生成的 `bg-*` 工具类撞命名空间。 */
 :root {
@@ -129,6 +131,11 @@ html[data-base="aih"] {
   --gradient-cta: linear-gradient(180deg, #2563eb 0%, #1447e6 100%);
   /* 页面底：极轻蓝渐变（`background-attachment: fixed` 随视口不随滚动） */
   --gradient-page: linear-gradient(180deg, #f8faff 0%, #eff4ff 100%);
+  /* 状态渐变（M4b-3 批 design D12 v1.14，用户拍板落本层）：review task「已驳回」徽章 =
+   * 实底蓝→紫 + 白字（对标 21-skillhub 品牌渐变 #6A6DFF → #B85EFF，与「已通过」实底绿同构）。
+   * 唯一消费点 = `badge` 的 `rejected` variant（`bg-[image:var(--gradient-rejected)]`）——
+   * 组件侧禁裸渐变字面量、禁 `--color-*` 映射（渐变值塞 `background-color` 不成立）。 */
+  --gradient-rejected: linear-gradient(96deg, #6a6dff 0%, #b85eff 100%);
 }
 
 /* 页面底渐变落位：写进 `@layer base` ⇒ **层内规则**，仍可被 utilities 覆盖（不违反坑⑥ 无层声明纪律）。

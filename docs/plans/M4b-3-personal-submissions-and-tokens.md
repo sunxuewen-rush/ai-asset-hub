@@ -1,9 +1,9 @@
 # M4b-3 个人面 A：我的提交与我的令牌 —— 批计划
 
-> Updated: 2026-09-16（v0.4：**名称必填 + 令牌私有**（用户 2026-09-16 逐条对齐拍板）—— ① T2 路由层 `issueBodySchema` 的 `name` 改 **必填** `trim().min(1).max(32)`（缺 / 空 / 纯空白 ⇒ 400）；T2 断言 ⑦ 由「201 且 null」改 **400** ② T3 的 `name` 同步 **必填**（清空 / 缺失 ⇒ 400，「不发 name 保持原名」作废）③ T7 补「名称必填：空 / 纯空白 ⇒ 提交禁用」④ **新增**：`DELETE /api/tokens/:id` 超管分支收回（**仅本人**）—— 与批 design **v1.11** 同源；v0.3：**T2 实现期官方源码复核订正**（用户 2026-09-16 拍板）—— ① T2 步骤 4 由「1 行配置」改为 **3 行**（`charactersLength: 12` + `enableMetadata: true` + 钉定 `maximumNameLength: 32`）② T2 步骤 3 补「名称 `trim` 后为空 ⇒ 省略字段」（官方 `minimumNameLength` 默认 1）
+> Updated: 2026-09-16（v0.6：**T5 落地 —— 件表补正 + token/variant 落点定死**（用户 2026-09-16 拍板 **A**：渐变 token 落 **C 品牌渐变层**、名 `--gradient-rejected`）—— ① **T5 Files 1 件 → 3 件**（+`aih-theme.css` + `badge.tsx`）：design §3.2#7 的硬约束「渐变须落 token/variant，**禁 className 覆盖外观**」使另两件成为必需（改 1 件就只能把渐变写进消费点 className = 违规）② T5 步骤 2 → **4 条**（+token 落 C 层白名单 3 → 4 · +`badge.tsx` 加 `rejected` variant = 官方第 ④ 条路径，M4b-1 §3.5 授权先例）③ T5 断言 +2（④ 落层可验 · ⑤ **真渲染实测**：编译产物 CSS 规则 + 浏览器计算值，不靠 typecheck 推断）④ 与批 design **v1.14** 同源；**v0.4：**名称必填 + 令牌私有**（用户 2026-09-16 逐条对齐拍板）—— ① T2 路由层 `issueBodySchema` 的 `name` 改 **必填** `trim().min(1).max(32)`（缺 / 空 / 纯空白 ⇒ 400）；T2 断言 ⑦ 由「201 且 null」改 **400** ② T3 的 `name` 同步 **必填**（清空 / 缺失 ⇒ 400，「不发 name 保持原名」作废）③ T7 补「名称必填：空 / 纯空白 ⇒ 提交禁用」④ **新增**：`DELETE /api/tokens/:id` 超管分支收回（**仅本人**）—— 与批 design **v1.11** 同源；v0.3：**T2 实现期官方源码复核订正**（用户 2026-09-16 拍板）—— ① T2 步骤 4 由「1 行配置」改为 **3 行**（`charactersLength: 12` + `enableMetadata: true` + 钉定 `maximumNameLength: 32`）② T2 步骤 3 补「名称 `trim` 后为空 ⇒ 省略字段」（官方 `minimumNameLength` 默认 1）
 > ③ T2 步骤 5（新）「签发写 `metadata.tail` = create 后补 `updateApiKey`」，**两次官方调用**（明文由官方内部生成，无法预知）④ T2 断言补「空 / 纯空白名称 ⇒ 201 且 name null」「落库形态 = 单层 JSON 文本」⑤ T3 步骤补「名称 `trim ≤32`；清空 ⇒ 不发 `name`（保持原名）」+ 断言补空名回归；v0.2：**补自检打分段（8 维 9.61）**）；v0.1：**立项**——依据批 design `2026-09-16-m4b3-submissions-and-tokens-design.md` **定稿**
 > （8 维自检 **9.81** ≥9 · 用户 2026-09-16 批准）与主 design `2026-09-10-m4b-admin-console-and-auth-design.md` **v1.33**；本批 = M4b 拆批第 3 批「个人面 A」）
-> Status: **待执行**（T1-T10 ⬜ · 批 design 已定稿 · 出口五件见 §4 · **自检 8 维 9.61** 见 §9）
+> Status: **待执行**（T1-T10 ⬜ · 批 design 已定稿 · 出口五件见 §4 · **自检 8 维 9.61**（最新 **v0.6 复评 9.77**）见 §9）
 > 上游：批 design（定稿，版本以其版本头为准）· 主 design §2.3 拆批表与批件登记表 · `docs/00` §5
 > 依赖顺序：**M4b-1 / M4b-2 已完成** ⇒ 本批开工条件已满足
 
@@ -153,19 +153,36 @@
 
 ### T5 · 前端：`StatusPill` 加性扩展 `kind="task"`
 
-**Files**：`apps/web/src/components/console/StatusPill.tsx`
+**Files**：`apps/web/src/components/console/StatusPill.tsx` · `apps/web/src/styles/aih-theme.css` ·
+`apps/web/src/components/ui/shadcn/badge.tsx`
+
+> ⚠️ **v0.6 件表补正**：原只列 `StatusPill.tsx` **1 件**。design §3.2#7 写死「渐变须落 **token/variant**，
+> **禁 className 覆盖外观**」⇒ 只改 1 件就必然把渐变写进消费点 `className`（违规）；另两件为**硬约束倒逼**，
+> 非扩张。用户 2026-09-16 拍板 **A**：token 落 **C 品牌渐变层**、名 **`--gradient-rejected`**。
 
 **步骤**：
-1. 加 `TASK_STATUS_VARIANT`：`PENDING`=warning · `APPROVED`=success ·
-   **`REJECTED`=实色蓝→紫渐变 + 白字**（新语义色，见下）· `WITHDRAWN`=secondary
-2. `kind` 联合类型加 `'task'`
-3. **语义色 token**：`REJECTED` 的渐变（`#6A6DFF → #B85EFF`，对标 21-skillhub）落到 token/`variant`（**禁 className 覆盖外观**）
+1. `StatusPill.tsx` 加 `TASK_STATUS_VARIANT`（类型源 = `api/reviews.ts` 的 `ReviewStatus`，与 `08 §6` 同轴）：
+   `PENDING`=warning · `APPROVED`=success · **`REJECTED`=`rejected`**（实色蓝→紫渐变 + 白字）· `WITHDRAWN`=secondary
+2. `kind` 联合类型加 `'task'`；`status` 联合加 `keyof typeof TASK_STATUS_VARIANT`；**asset/version 两分支零改动**
+3. **token 落 C 品牌渐变层**：`aih-theme.css` 增 `--gradient-rejected: linear-gradient(96deg, #6a6dff 0%, #b85eff 100%)`；
+   层注释白名单 **3 → 4** 同步；**不注册** `@theme --color-*`（渐变值塞 `background-color` **永不渲染**）
+4. **variant（官方第 ④ 条路径「改组件源码加 variant」，M4b-1 §3.5 授权先例 = 同件加 `success`/`warning`）**：
+   `badge.tsx` 的 `cva` 增 `rejected` = `bg-[image:var(--gradient-rejected)] text-white [a&]:hover:brightness-105`
+   （**只增不改**；hover 用 `brightness` —— 渐变底会吃掉 `[a&]:hover:bg-x/90`，照抄官方 `destructive` = **假反馈**）
 
 **验收断言**：
 ```
-① `bun run --filter=@ai-asset-hub/web typecheck` exit 0；`kind="task"` 可用，既有 `asset`/`version` 两 kind 零行为变化
-② 四态文案与色可区分：待审核(warning) / 已通过(success) / 已驳回(实底蓝紫渐变+白字) / 已撤回(secondary)
-③ 无红色（`grep destructive` 该件零命中于 task 分支）
+① `bun run --filter=@ai-asset-hub/web typecheck` exit 0；`bun run --filter=@ai-asset-hub/web lint` exit 0；
+  根 `bun run format:check` exit 0；`kind="task"` 可用，既有 `asset`/`version` 两 kind 零行为变化
+  （该件**全仓零消费点** —— grep 实测，属结构性保证）
+② 四态映射可区分：PENDING→warning / APPROVED→success / REJECTED→rejected / WITHDRAWN→secondary（grep 四行）
+③ 无红色：task 分支 `grep destructive` = **0**（版本族的 REJECTED 仍 destructive，保持不变）
+④ token/variant 落层可验：`grep -rn linear-gradient apps/web/src` 仅命中 `aih-theme.css`（4 token + 1 注释）；
+  `badge.tsx` 仅**引用** `var(--gradient-rejected)`；C 层白名单注释 = **4 个**
+⑤ **真渲染实测**（不靠 typecheck 推断 CSS 生效）：`bun run build` 产物含
+  `.bg-\[image\:var\(--gradient-rejected\)\]{background-image:var(--gradient-rejected)}`；
+  浏览器（dev :5173）注入该 class 实测 `backgroundImage = linear-gradient(96deg, rgb(106,109,255) 0%, rgb(184,94,255) 100%)`
+  + `color = rgb(255,255,255)`；hover 规则 `a.…brightness-105:hover{filter:brightness(105%)}` 在样式表中
 ```
 
 ---
@@ -358,6 +375,9 @@ _（待执行）_
 ⑤ 与 design 的差异点 .................. 0（无 plan 单方面新决策）
 ```
 
+> **v0.6 复评（2026-09-16，T5 件表补正 + token/variant 落点定死后）**：8 维 **9.77** —— 完整性 **9.9**（T5 Files 1 → **3 件** 补正 + 断言 3 → **5 条**）· 一致性 **10**（与批 design **v1.14** 逐项 **22/22**：token 名 · C 层归属 · variant 名 · 白名单条数 · 双轴 REJECTED · 件数 11）· 清晰度 **9.6** · 可实施性 **9.9**（token 值 / variant 类串 / 消费点全定死 ⇒ 实现照抄）· 设计纯粹性 **9.5** · 边界覆盖 **9.8**（+两条**静默失效**坑入档：`--color-*` 不可注册渐变 · hover 反馈）· 实施精度 **9.9**（断言含 grep 与真渲染两条实跑法）；跨平台 N/A（分母 7）。
+> 换靶角度（本轮新增）：**件表差异**（plan Files 是否够容纳 design 的硬约束 ⇒ 1 件 vs 3 件）· **断言可实证性**（CSS 类是否**真发出**：编译产物 + 浏览器计算值双验）。
+
 ⚠️ **本轮自检的换靶角度**（均为上一轮 design 自检未用的）：① 全量 file 引用解析性（含「待创建」标注判定）
 ② 断言命令覆盖率（逐 Task 统计）③ **plan ↔ design 交叉一致性**（跨文档，非单文档内）
 
@@ -365,6 +385,7 @@ _（待执行）_
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.6 | 2026-09-16 | sunxuewen-rush | **T5 落地：件表补正 + token/variant 落点定死**（用户 2026-09-16 拍板 **A**）① **T5 Files 1 件 → 3 件**（+`aih-theme.css` + `badge.tsx`）—— design 「渐变须落 token/variant、禁 className」硬约束倒逼；**已按纪律在方案阶段先声明件表差异**（不执行到一半才说）② 步骤 2 → **4 条**（token 落 C 层 + `badge.rejected` variant）③ 断言 3 → **5 条**（+④ 落层可验 · +⑤ 真渲染实测：编译产物规则 + 浏览器计算值）④ 与批 design **v1.14** 同源；8 维 **9.61 → 9.77** |
 | v0.5 | 2026-09-16 | sunxuewen-rush | **T4 落地注记**：① T4 步骤 1 补 **`apiPatch`** 与 **空体守卫**（204 ⇒ `undefined`）② 步骤 3 的签名同步 `name` **必填**、`updateToken` 走 `apiPatch` ③ 断言 ① 加 `apiPatch` ④ 与批 design **v1.13** 同源；**无口径变更**（8 维 **9.74** 不变） |
 | v0.4 | 2026-09-16 | sunxuewen-rush | **名称必填 + 令牌私有**（用户 2026-09-16 逐条对齐拍板；与代码 / 测试 / 批 design v1.11 / 主 design v1.34 同批）① T2：路由层 `name` **必填**（`trim().min(1).max(32)`；缺/空 ⇒ 400）；断言 ⑦ 改 400；**+⑩ 超管删他人 token ⇒ 404** ② T3：`name` **必填**、断言 ⑦ 改 400 ③ T7：名称必填（提交禁用 + 初值预填）· 删除标注「仅本人」④ 依据 = 规范层 `05 §5`「Token 签发 / 吊销 = 本人」（代码此前超出规范）+ 兄弟仓 new-api 私有口径 |
 | v0.3 | 2026-09-16 | sunxuewen-rush | **T2 实现期官方源码复核订正**（用户 2026-09-16 拍板：名称上限「官方默认 32，我们就改成 32」；文档订正与 T2 代码同批）① **T2 步骤 4（原）→ 3/4/5 三条**：`issueApiKey` 透传 name（空 ⇒ 省略）· **签发写 `metadata.tail` = create 后补 `updateApiKey`（两次官方调用）** · `better-auth.ts` **3 行配置**（`charactersLength: 12` + **`enableMetadata: true`** + 钉定 `maximumNameLength: 32`）② **T2 Files 补测试件**（`http/tokens.test.ts`）③ **T2 断言 +3**（⑦ 空名 ⇒ 201 且 name null · ⑧ 上限 32（33 字 ⇒ 400）· ⑨ metadata 落库形态 = 单层 JSON 文本）④ **T3 步骤 + 断言**：名称 `trim ≤32`；**清空 ⇒ 不发 `name`（保持原名）**；断言补⑦⑧两条回归 ⑤ 与批 design **v1.10** 同源（官方源码实证：`METADATA_DISABLED` `:767-770` · 更新静默忽略 `:1511` · `maximumNameLength` 默认 32 `:2328`）| 

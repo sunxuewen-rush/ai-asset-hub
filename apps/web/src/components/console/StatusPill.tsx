@@ -1,8 +1,9 @@
 import type { VariantProps } from 'class-variance-authority';
 import { Badge, type badgeVariants } from '@/components/ui/shadcn/badge';
+import type { ReviewStatus } from '../../api/reviews.js';
 import type { AssetStatus } from '../../api/types.js';
 
-/** 官方 `Badge` variant 取值（含本仓在源码新增的 `success`/`warning`——design §3.5） */
+/** 官方 `Badge` variant 取值（含本仓在源码新增的 `success`/`warning`/`rejected`——design §3.5） */
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
 
 /**
@@ -34,7 +35,27 @@ export const VERSION_STATUS_VARIANT = {
 } as const satisfies Record<string, BadgeVariant>;
 
 /**
- * 资产/版本状态徽章（design §5.1）：`Badge` variant 由状态映射，文案由调用方传入（i18n 在消费点）。
+ * review task 四态（批 design `2026-09-16-m4b3` D7c/D12 · §4.4 表格 · M4b-3 v1.14）：
+ * `PENDING` = warning「待审核」· `APPROVED` = success「已通过」·
+ * **`REJECTED` = 实底蓝→紫渐变 + 白字**「已驳回」（渐变 token = `--gradient-rejected`（`aih-theme.css` C 层）
+ * ⇒ 经 `badge` 的 `rejected` variant 消费；**去红**，与「已通过」实底绿 + 白字**同构**）·
+ * `WITHDRAWN` = secondary「已撤回」（用户 2026-09-16 定：保持灰）。
+ *
+ * ⚠️ 与版本八态（上表）**不同轴**：本表的 `REJECTED` 是 review task「已驳回」（蓝紫渐变），
+ * 版本族的 `REJECTED`（扫描/版本被拒）**仍为 `destructive`** —— 版本族口径本批不动。
+ * 状态类型源 = 服务端 / `08 §6` 同轴的四态枚举（web 侧 `api/reviews.ts` 的 `ReviewStatus`）。
+ * `M4b-5` 审核面同样消费本映射。
+ */
+export const TASK_STATUS_VARIANT: Record<ReviewStatus, BadgeVariant> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'rejected',
+  WITHDRAWN: 'secondary',
+};
+
+/**
+ * 资产 / 版本 / review task 状态徽章（design §5.1）：`Badge` variant 由状态映射，文案由调用方传入
+ * （i18n 在消费点）。`kind` 缺省 = `'asset'`。
  * `mono` 透传（版本号/枚举值等需要等宽的场景）。
  */
 export function StatusPill({
@@ -43,16 +64,18 @@ export function StatusPill({
   label,
   mono = false,
 }: {
-  status: AssetStatus | keyof typeof VERSION_STATUS_VARIANT;
-  kind?: 'asset' | 'version';
+  status: AssetStatus | keyof typeof VERSION_STATUS_VARIANT | keyof typeof TASK_STATUS_VARIANT;
+  kind?: 'asset' | 'version' | 'task';
   /** 展示文案（消费点用 i18n 传入，如「已发布」） */
   label: string;
   mono?: boolean;
 }) {
   const variant =
-    kind === 'asset'
-      ? ASSET_STATUS_VARIANT[status as AssetStatus]
-      : VERSION_STATUS_VARIANT[status as keyof typeof VERSION_STATUS_VARIANT];
+    kind === 'task'
+      ? TASK_STATUS_VARIANT[status as ReviewStatus]
+      : kind === 'asset'
+        ? ASSET_STATUS_VARIANT[status as AssetStatus]
+        : VERSION_STATUS_VARIANT[status as keyof typeof VERSION_STATUS_VARIANT];
   return (
     <Badge variant={variant} className={mono ? 'font-mono' : undefined}>
       {label}
