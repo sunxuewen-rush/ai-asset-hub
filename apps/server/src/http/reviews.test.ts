@@ -23,7 +23,14 @@ import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetVersion, auditLog, reviewTask, user } from '../db/schema/index.js';
+import {
+  type AssetType,
+  asset,
+  assetVersion,
+  auditLog,
+  reviewTask,
+  user,
+} from '../db/schema/index.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './assets.js';
@@ -96,10 +103,13 @@ function postJson(url: string, body: unknown, cookie?: string) {
 
 let slugSeq = 0;
 
-/** 建资产 + DRAFT 版本（createdBy=uploader）→ 走 API submit → taskId */
-async function submitFlow(uploaderCookie: string, uploaderId: string) {
+/**
+ * 建资产 + DRAFT 版本（createdBy=uploader）→ 走 API submit → taskId
+ * M4b-3 T1：第 3 参 `type` 可选（默认 'skill'）⇒ 既有调用零改动，读面加性断言可构造 mcp 资产。
+ */
+async function submitFlow(uploaderCookie: string, uploaderId: string, type: AssetType = 'skill') {
   const slug = `${PREFIX}a${++slugSeq}-${randomUUID().slice(0, 6)}`;
-  await db.insert(asset).values({ slug, type: 'skill', ownerId });
+  await db.insert(asset).values({ slug, type, ownerId });
   await db.insert(assetVersion).values({
     assetId: (await db.select({ id: asset.id }).from(asset).where(eq(asset.slug, slug)))[0]!.id,
     version: '1.0.0',
@@ -283,5 +293,84 @@ describe('审核队列/详情/动作（M3 design §3.7/§9 R8——API 面）', 
     const res = await postJson(`/api/reviews/${taskId}/approve`, {}, contributorCookie);
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code: string }).code).toBe('review.access_denied');
+  });
+});
+
+describe('读面加性：reviewComment + assetType（M4b-3 T1 · design §3.2#5 / §8 R6-c）', () => {
+  interface ReadRow {
+    taskId: number;
+    reviewComment: string | null;
+    assetType: string;
+  }
+
+  /** 只取本文件自己造的提交（按 taskId 精确比对——不依赖「库里只有本文件数据」） */
+  async function mineRows(cookie: string): Promise<ReadRow[]> {
+    const res = await getReq('/api/reviews/mine?limit=100', cookie);
+    expect(res.status).toBe(200);
+    return ((await res.json()) as { items: ReadRow[] }).items;
+  }
+
+  it('mine：含 reviewComment（未裁决 ⇒ null）与 assetType（值域 skill|mcp|agent）', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const { taskId } = await submitFlow(contributorCookie, contributorId);
+    const row = (await mineRows(contributorCookie)).find((i) => i.taskId === taskId);
+    expect(row).toBeDefined();
+    expect('reviewComment' in row!).toBe(true);
+    expect('assetType' in row!).toBe(true);
+    expect(row!.reviewComment).toBeNull();
+    expect(['skill', 'mcp', 'agent']).toContain(row!.assetType);
+  });
+
+  it('mine：驳回后该行 reviewComment === 原因原文；未裁决行仍为 null', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const rejected = await submitFlow(contributorCookie, contributorId);
+    const pending = await submitFlow(contributorCookie, contributorId);
+    const res = await postJson(
+      `/api/reviews/${rejected.taskId}/reject`,
+      { comment: 'license missing' },
+      await cookieFor(assetAdminUserId),
+    );
+    expect(res.status).toBe(200);
+    const rows = await mineRows(contributorCookie);
+    expect(rows.find((i) => i.taskId === rejected.taskId)!.reviewComment).toBe('license missing');
+    expect(rows.find((i) => i.taskId === pending.taskId)!.reviewComment).toBeNull();
+  });
+
+  it('队列面（共用 LIST_SELECT）：同样含这两字段', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const { taskId } = await submitFlow(contributorCookie, contributorId);
+    const res = await getReq('/api/reviews?limit=100', await cookieFor(assetAdminUserId));
+    expect(res.status).toBe(200);
+    const row = ((await res.json()) as { items: ReadRow[] }).items.find((i) => i.taskId === taskId);
+    expect(row).toBeDefined();
+    expect('reviewComment' in row!).toBe(true);
+    expect(row!.reviewComment).toBeNull();
+    expect(['skill', 'mcp', 'agent']).toContain(row!.assetType);
+  });
+
+  it('assetType 与该版本所属资产类型一致（skill / mcp 各一）', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const skillTask = await submitFlow(contributorCookie, contributorId, 'skill');
+    const mcpTask = await submitFlow(contributorCookie, contributorId, 'mcp');
+    const rows = await mineRows(contributorCookie);
+    expect(rows.find((i) => i.taskId === skillTask.taskId)!.assetType).toBe('skill');
+    expect(rows.find((i) => i.taskId === mcpTask.taskId)!.assetType).toBe('mcp');
+  });
+
+  it('详情面（ReviewDetailItem 继承）：同样含这两字段', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const { taskId } = await submitFlow(contributorCookie, contributorId);
+    const rejectRes = await postJson(
+      `/api/reviews/${taskId}/reject`,
+      { comment: 'license missing' },
+      await cookieFor(assetAdminUserId),
+    );
+    expect(rejectRes.status).toBe(200);
+    const res = await getReq(`/api/reviews/${taskId}`, contributorCookie);
+    expect(res.status).toBe(200);
+    const detail = (await res.json()) as ReadRow & { manifestJson: unknown; files: unknown[] };
+    expect('reviewComment' in detail).toBe(true);
+    expect(detail.reviewComment).toBe('license missing');
+    expect(detail.assetType).toBe('skill');
   });
 });

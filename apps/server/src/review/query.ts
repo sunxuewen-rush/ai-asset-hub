@@ -13,6 +13,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
+  type AssetType,
   asset,
   assetFile,
   assetVersion,
@@ -41,6 +42,10 @@ export interface ReviewListItem {
   /** 版本当前状态（PENDING_REVIEW 等——队列中通常 PENDING） */
   versionStatus: string;
   versionId: number;
+  /** 驳回原因（M4b-3 R6-c 加性；仅 REJECTED 行有值，其余为 null） */
+  reviewComment: string | null;
+  /** 资产类型（M4b-3 加性；值域 skill/mcp/agent） */
+  assetType: AssetType;
 }
 
 export interface ReviewDetailItem extends ReviewListItem {
@@ -59,6 +64,9 @@ const LIST_SELECT = {
   assetVersion: assetVersion.version,
   versionStatus: assetVersion.status,
   versionId: assetVersion.id,
+  // M4b-3 R6-c 加性：拒绝原因（列自迁移 0000 起存在，本批只读出）+ 资产类型（asset 已在 join 内）
+  reviewComment: reviewTask.reviewComment,
+  assetType: asset.type,
 };
 
 async function baseQuery(filters: QueueFilters, mineViewerId?: string) {
