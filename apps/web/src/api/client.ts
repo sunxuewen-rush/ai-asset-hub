@@ -131,6 +131,42 @@ export async function apiPost<T>(
   });
 }
 
+/** 写请求（PATCH / DELETE）选项 —— 与 POST 同形（`ApiPostOptions` 的语义别名；M4b-3 T4） */
+export type ApiWriteOptions = ApiPostOptions;
+
+/**
+ * PATCH（JSON）—— M4b-3 T4 加性（**编辑令牌**走 PATCH，`PATCH /api/tokens/:id`）。
+ *
+ * 与 `apiPost` 同形并**复用 `doFetch`**（不新起 fetch 路径）：401 分流、错误归一、
+ * `Accept-Language` 与 content-type 声明全部继承。
+ */
+export async function apiPatch<T>(
+  path: string,
+  body?: unknown,
+  opts: ApiWriteOptions = {},
+): Promise<T> {
+  return doFetch<T>(path, {
+    method: 'PATCH',
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: opts.signal,
+    skipAuthRedirect: opts.skipAuthRedirect,
+  });
+}
+
+/**
+ * DELETE —— M4b-3 T4 加性（**吊销/删除令牌**）。
+ *
+ * ⚠️ 服务端吊销成功返回 **204（无响应体）** ⇒ 返回 `undefined`（由 `doFetch` 的空体守卫承担）；
+ * 调用方按 `Promise<void>` 消费（`api/tokens.ts` 的 `deleteToken` 即如此）。
+ */
+export async function apiDelete<T = void>(path: string, opts: ApiWriteOptions = {}): Promise<T> {
+  return doFetch<T>(path, {
+    method: 'DELETE',
+    signal: opts.signal,
+    skipAuthRedirect: opts.skipAuthRedirect,
+  });
+}
+
 /** `doFetch` 请求形态（T1：method/body/headers；**T2**：401 四分类消费 `skipAuthRedirect`） */
 interface DoFetchInit {
   method?: string;
@@ -176,7 +212,12 @@ async function doFetch<T>(path: string, init: DoFetchInit = {}): Promise<T> {
     // `body` 一并带出：OAuth 风格端点（设备流）无 `code` 字段，适配方需读原始体（见 `ApiError.body`）
     throw new ApiError(code, res.status, message ?? res.statusText, body);
   }
-  return (await res.json()) as T;
+  // 空响应体守卫（M4b-3 T4）：**204**（DELETE 吊销等）或 200 空体 ⇒ `undefined`。
+  // 原先直接 `res.json()` 会在空体上抛 `SyntaxError`（非 `ApiError` ⇒ 调用方无法归一，形态与错误面不一致）。
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  if (text.length === 0) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 /** 会话探测端点（design §4.2 ①：`/me` 的 401 是「未登录」正常态，交 `AuthProvider` 消费，**不跳转**） */

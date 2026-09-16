@@ -137,13 +137,13 @@
 **Files**：`apps/web/src/api/client.ts` · `apps/web/src/api/reviews.ts`（新建）· `apps/web/src/api/tokens.ts`（新建）
 
 **步骤**：
-1. `client.ts`：新增 `apiDelete<T>(path, opts)`（与 `apiPost` 同形，复用 `doFetch` —— 401 分流/语言头/错误归一自动继承）
+1. `client.ts`：新增 `apiDelete<T>` **与 `apiPatch<T>`**（与 `apiPost` 同形，复用 `doFetch` —— 401 分流/语言头/错误归一自动继承）+ **空体守卫**（204 / 空体 ⇒ `undefined`；删除令牌服务端回 204）
 2. `api/reviews.ts`：`fetchMyReviews({status,limit,offset}, signal)` · `withdrawReview(id, signal)`
-3. `api/tokens.ts`：`fetchTokens(signal)` · `createToken({name?,scope?}, signal)` · `updateToken(id,{name?,scope?}, signal)` · `deleteToken(id, signal)`
+3. `api/tokens.ts`：`fetchTokens(signal)` · `createToken({name,scope?}, signal)` · `updateToken(id,{name,scope?}, signal)`（走 `apiPatch`）· `deleteToken(id, signal)`（**`name` 必填** —— v0.4 口径）
 
 **验收断言**：
 ```
-① `bun run --filter=@ai-asset-hub/web typecheck` exit 0；`apiDelete` 导出存在且复用 `doFetch`（grep 断言）
+① `bun run --filter=@ai-asset-hub/web typecheck` exit 0；`apiDelete` **与 `apiPatch`** 导出存在且复用 `doFetch`（grep 断言）
 ② 四个令牌封装与两个 review 封装导出齐全
 ③ 类型与批 design §4.2 / §7.1 一致（`ApiKeyRow` 含 9 字段）
 ④ 既有 `apiGet`/`apiPost` 消费点零改动（门户零回归前置）
@@ -365,6 +365,7 @@ _（待执行）_
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.5 | 2026-09-16 | sunxuewen-rush | **T4 落地注记**：① T4 步骤 1 补 **`apiPatch`** 与 **空体守卫**（204 ⇒ `undefined`）② 步骤 3 的签名同步 `name` **必填**、`updateToken` 走 `apiPatch` ③ 断言 ① 加 `apiPatch` ④ 与批 design **v1.13** 同源；**无口径变更**（8 维 **9.74** 不变） |
 | v0.4 | 2026-09-16 | sunxuewen-rush | **名称必填 + 令牌私有**（用户 2026-09-16 逐条对齐拍板；与代码 / 测试 / 批 design v1.11 / 主 design v1.34 同批）① T2：路由层 `name` **必填**（`trim().min(1).max(32)`；缺/空 ⇒ 400）；断言 ⑦ 改 400；**+⑩ 超管删他人 token ⇒ 404** ② T3：`name` **必填**、断言 ⑦ 改 400 ③ T7：名称必填（提交禁用 + 初值预填）· 删除标注「仅本人」④ 依据 = 规范层 `05 §5`「Token 签发 / 吊销 = 本人」（代码此前超出规范）+ 兄弟仓 new-api 私有口径 |
 | v0.3 | 2026-09-16 | sunxuewen-rush | **T2 实现期官方源码复核订正**（用户 2026-09-16 拍板：名称上限「官方默认 32，我们就改成 32」；文档订正与 T2 代码同批）① **T2 步骤 4（原）→ 3/4/5 三条**：`issueApiKey` 透传 name（空 ⇒ 省略）· **签发写 `metadata.tail` = create 后补 `updateApiKey`（两次官方调用）** · `better-auth.ts` **3 行配置**（`charactersLength: 12` + **`enableMetadata: true`** + 钉定 `maximumNameLength: 32`）② **T2 Files 补测试件**（`http/tokens.test.ts`）③ **T2 断言 +3**（⑦ 空名 ⇒ 201 且 name null · ⑧ 上限 32（33 字 ⇒ 400）· ⑨ metadata 落库形态 = 单层 JSON 文本）④ **T3 步骤 + 断言**：名称 `trim ≤32`；**清空 ⇒ 不发 `name`（保持原名）**；断言补⑦⑧两条回归 ⑤ 与批 design **v1.10** 同源（官方源码实证：`METADATA_DISABLED` `:767-770` · 更新静默忽略 `:1511` · `maximumNameLength` 默认 32 `:2328`）| 
 | v0.2 | 2026-09-16 | sunxuewen-rush | **补「自检打分」段**（用户追问「这个 plan 检查打分了？」）—— 查项目惯例：M4b-1 plan:42 / M4b-2 plan 初稿修订行均要求「**plan 初稿也做 8 维自检**」⇒ 本 plan v0.1 **漏做该项**（自检疏漏，如实登记）；本轮补齐并**实测**：8 维 **9.61**（一致性满分 10 —— 与 design 逐项 15/15 一致）；新增 §9 自检打分段（含 5 条实测证据 + 换靶角度说明） | 
