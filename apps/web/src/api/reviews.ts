@@ -15,8 +15,14 @@ import type { AssetType } from './types.js';
 /** review task 状态（与 `08 §6` / 服务端 `review/query.ts` 同轴；**与版本八态不同轴**） */
 export type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
 
-/** 我的提交列表项（服务端 `ReviewListItem` 的同形投影） */
-export interface MyReviewItem {
+/**
+ * 我的提交列表项（服务端 `ReviewListItem` 的同形投影）。
+ *
+ * ⚠️ 刻意用 **type 别名**而非 `interface`：`DataTable` 的行约束为 `Record<string, unknown> | unknown[]`
+ * （等价 TanStack `RowData`），**interface 不带隐式索引签名** ⇒ 无法作为行类型传入；type 别名可以。
+ * 官方 shadcn data-table recipe 同样以 `type X = {...}` 声明行类型（T6 执行期实证）。
+ */
+export type MyReviewItem = {
   taskId: number;
   status: ReviewStatus;
   /** 评审计数（`08 §6` 重审递增） */
@@ -32,7 +38,7 @@ export interface MyReviewItem {
   reviewComment: string | null;
   /** M4b-3 T1 加性：资产类型（列序「资产 → **类型** → 状态 …」的取值来源） */
   assetType: AssetType;
-}
+};
 
 export interface MyReviewListResponse {
   items: MyReviewItem[];

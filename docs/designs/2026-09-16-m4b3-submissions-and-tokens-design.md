@@ -1,6 +1,6 @@
 # M4b-3 个人面 A：我的提交与我的令牌 —— 批设计（定稿）
 
-> Updated: 2026-09-16（**v1.14：REJECTED 渐变 token 命名与落层订正（2026-09-16 用户拍板 A）**）—— ① token 名 **`--rejected` → `--gradient-rejected`**、落层 = **C 品牌渐变层**（白名单 **3 → 4**；与 `--gradient-brand/cta/page` 同层同纪律：值只住 `aih-theme.css`、消费走 `bg-[image:var(--…)]` 任意值、**不注册 @theme `--color-*` 映射**）；**否决 B 选项**（忠于旧名 `--rejected` 入 A 语义补丁层）——理由 = A 层不变式是「实色值 + 成对 `@theme` 注册」，渐变两条都不满足（渐变塞 `background-color` 永不渲染）② 消费路径 = 官方 `badge.tsx` 的 **`rejected` variant**（官方第 ④ 条路径 · M4b-1 批 design §3.5 已授权先例 = 同件加 `success`/`warning`）⇒ `StatusPill kind="task"` **零 className 覆盖**（§3.2#7 硬约束）③ **件表补正**：T5 改动 1 件 → **3 件**（+`aih-theme.css` + `badge.tsx`），§3.2 改造件 **9 → 11** ④ 落点 5 处（D12 · §3.2#7 · §3.2#9/#10/#11 · §4.4 表格 · §4.4 色彩体系）⑤ 同步 M4a design §4.4 ②bis 渐变白名单；**v1.11：名称必填 + 令牌彻底私有（2026-09-16 用户逐条对齐拍板）**）—— ① **`name` 由可选改必填**（新建与编辑皆不可为空；`trim()` 后 1..32 字；缺名/空串/纯空白 ⇒ 400 `request.invalid`；**旧令牌**（历史无 name 行）列表仍回「—」）② **令牌彻底私有**：`DELETE /api/tokens/:id` 的 **SUPER_ADMIN 分支收回** ⇒ 列表/编辑/删除一律**仅本人**，他人（**含超管**）视同 404 —— **对齐规范层 `05 §5`「Token 签发 / 吊销 = 本人」**（代码此前超出规范，本轮收回；如需超管治理 ⇒ M4b-6/M4c 候选）③ 编辑权限「全不勾 = 全量」并在弹窗给同一提示；权限改动**保存即生效**、界面**不加额外提示**（用户定）④ 同步主 design §7.1（DELETE 授权行）+ 批 plan v0.4；v1.10：T2 实现期官方源码复核订正（用户 2026-09-16 拍板「官方默认 32，我们就改成 32」）—— ① 名称上限 **≤64 → ≤32**（对齐官方默认 `maximumNameLength: 32`，落点 7 处：D6 / Q11 / §3.2#6 / §4.2 创建流 / §4.2 编辑流 / §5.1 / §7 接口表）
+> Updated: 2026-09-16（**v1.15：T6 落地实证 + i18n 键缺口补登**）—— ① **键表补 2 键**：`submissions` 25 → **26**（+ `action.view`，组件树里「查看」图标原无文案键）· **`common` 组 +1**（`cancel`，`ConfirmDialog.cancelLabel` 消费点，T7 三个弹窗复用）⇒ 本批**净增 72 → 74 键** ② §4.4.1 补 **T6 落地注记**：空态两文案落点（从未提交 = 页面级 `Empty` 两行 / 筛选无结果 = `DataTable.emptyMessage`）· `Pagination` **仅 `total > limit`** 渲染（自检发现实现首版漏此条件，同轮修）· 行类型须 **type 别名**（`interface` 无隐式索引签名 ⇒ 进不了 `DataTable` 行约束）③ §3.2#1/#3/#2 落地注记（路由时点 / 键数）④ §11 补实测记录（门户 dogfood **36/36 + NO JS ERRORS** · 真浏览器 8 项验证）⑤ **登记 1 条既有缺陷（非本批引入）**：`m4a-dogfood.ts` 的「资产数 < limit ⇒ 无分页控件」断言**假 PASS**（选择器 `aria-label*="分页"` 永不匹配官方 `aria-label="pagination"`）⇒ 归 **M4b-7/T10 收尾**复核；**v1.14：REJECTED 渐变 token 命名与落层订正（2026-09-16 用户拍板 A）**）—— ① token 名 **`--rejected` → `--gradient-rejected`**、落层 = **C 品牌渐变层**（白名单 **3 → 4**；与 `--gradient-brand/cta/page` 同层同纪律：值只住 `aih-theme.css`、消费走 `bg-[image:var(--…)]` 任意值、**不注册 @theme `--color-*` 映射**）；**否决 B 选项**（忠于旧名 `--rejected` 入 A 语义补丁层）——理由 = A 层不变式是「实色值 + 成对 `@theme` 注册」，渐变两条都不满足（渐变塞 `background-color` 永不渲染）② 消费路径 = 官方 `badge.tsx` 的 **`rejected` variant**（官方第 ④ 条路径 · M4b-1 批 design §3.5 已授权先例 = 同件加 `success`/`warning`）⇒ `StatusPill kind="task"` **零 className 覆盖**（§3.2#7 硬约束）③ **件表补正**：T5 改动 1 件 → **3 件**（+`aih-theme.css` + `badge.tsx`），§3.2 改造件 **9 → 11** ④ 落点 5 处（D12 · §3.2#7 · §3.2#9/#10/#11 · §4.4 表格 · §4.4 色彩体系）⑤ 同步 M4a design §4.4 ②bis 渐变白名单；**v1.11：名称必填 + 令牌彻底私有（2026-09-16 用户逐条对齐拍板）**）—— ① **`name` 由可选改必填**（新建与编辑皆不可为空；`trim()` 后 1..32 字；缺名/空串/纯空白 ⇒ 400 `request.invalid`；**旧令牌**（历史无 name 行）列表仍回「—」）② **令牌彻底私有**：`DELETE /api/tokens/:id` 的 **SUPER_ADMIN 分支收回** ⇒ 列表/编辑/删除一律**仅本人**，他人（**含超管**）视同 404 —— **对齐规范层 `05 §5`「Token 签发 / 吊销 = 本人」**（代码此前超出规范，本轮收回；如需超管治理 ⇒ M4b-6/M4c 候选）③ 编辑权限「全不勾 = 全量」并在弹窗给同一提示；权限改动**保存即生效**、界面**不加额外提示**（用户定）④ 同步主 design §7.1（DELETE 授权行）+ 批 plan v0.4；v1.10：T2 实现期官方源码复核订正（用户 2026-09-16 拍板「官方默认 32，我们就改成 32」）—— ① 名称上限 **≤64 → ≤32**（对齐官方默认 `maximumNameLength: 32`，落点 7 处：D6 / Q11 / §3.2#6 / §4.2 创建流 / §4.2 编辑流 / §5.1 / §7 接口表）
 > ② **官方 `metadata` 默认关闭** ⇒ `better-auth.ts` 必须显式 `enableMetadata: true`（官方源码：签发时传 metadata 且未开启 ⇒ 抛 `METADATA_DISABLED`（`@better-auth/api-key` `dist/index.mjs:767-770`）；更新时**静默忽略**（`:1511`））—— 该文件配置 **1 行 → 3 行**（+ `enableMetadata` + 钉定 `maximumNameLength`）
 > ③ **签发写 `metadata.tail` 需两次官方调用**（明文由官方 `createApiKey` 内部 keyGenerator 生成 ⇒ create body 无法预知 tail，改为 create 后补一次 `updateApiKey`；官方 update body 确收 `metadata`）
 > ④ 空/纯空白名称 ⇒ **省略 name 字段**（官方 `minimumNameLength` 默认 1，传空串会 400）；T3 编辑流同理（清空 ⇒ 不发 name = 保持原名，官方无置空语义）
@@ -8,7 +8,7 @@
 > ② 原型物料**已删除**（`pages/__proto/M4b3Preview.tsx` + `main.tsx` 的 dev-only 路由 ⇒ 工作区零残留）
 > ③ 详情页边界入档（用户定 **A**：归 **M4b-5**，本批只做入口）④ 主 design §2.3 双表 + §7.1 契约表 + §5.1 职责矩阵 + `docs/00` §5 同步回写；
 > **v1.7：我的提交新增「类型」列**（列序 = 资产 → 类型 → 状态…））—— 用户 2026-09-16 定：「列再加 类型」；数据面**已在手边**（`asset` 表本就在 `baseQuery` 的 join 里 ⇒ 服务端**只 +1 行 SELECT**）；呈现 = `TypeIcon`（M4a 既有件，Clean Room 自绘）+ 短文案；新增 4 个 i18n 键（`col.type` / `type.*`）；**v1.6：行点击 → 操作列「查看」图标**）—— 用户 2026-09-16 定：「加一个查看」⇒ **推翻** U7 的「整行可点」（与令牌页操作列形态统一为**图标化**；**共享件零改动**，不需要 `DataTable.onRowClick`）；「**令牌 UI 已确认 OK**」；**v1.5：令牌页原型评审结论全部落地**）—— 经**可点原型**（`/dashboard/__proto/m4b3`，真仓真件 + 假数据 + 状态开关）多轮迭代，用户**逐条看效果拍板**；令牌页成型为「**6 列**（名称·Key·权限范围·创建时间·最后使用·操作）· **只显有效令牌** · Key = `aih_9fK2mQ4p*****3ba3` 掩码（前 12 + 后 4） · 图标化操作（编辑/删除**同色**，不用红）· 编辑 = 改名 + 改权限 · 删除确认**去红** · Last Used 超 3 个月标 warning」；「已驳回」徽章 = **实色蓝→紫渐变 + 白字**（对标 21-skillhub 品牌渐变，与「已通过」同构）；**范围 = 只做本批两页 + 全站去红登记 M4b-7**；新增 §2.1d 原型评审记录 · 清理 §2.1 重复编号 · 服务端改动面扩至 4 文件（含新增 `PATCH /api/tokens/:id`）；**v1.4：UI 逐条评审（①-⑤）落地 —— frontier 已空**）——按 `ui-design-review-walkthrough` （清单公式 = 页面×壳×跨面）逐条汇报并逐条拍板：① 我的提交 ② 我的令牌 ③ 创建 Dialog 两态 ④ 跨面交互约定 ⑤ 壳与导航。本轮处置 **23 条 findings**（含 4 处自产缺陷订正：`pagination.prev/next` 多余键 · 两组 `title` 键语义重复 · `client.ts` 无 DELETE 封装 · 主 design §7.1 契约表字段待同步）。**关键落值**：删 3 键 + 补 6 个 `review.*` 码 · URL 状态化约定 · 明文态四路径统一防护 + 隐藏 ✕ · 复制标记走页内 `onClickCapture` · `apiDelete` 新增 · 标题键复用 `dashboard.*`；**v1.3：补强 §4.4「UI 结构与组件树」**——新增组件树（两页）×线框差异声明×表格密度 40 落点×交互态×状态徽章与空值约定；过程中**新发现 3 处设计点**：① `StatusPill` 需**加性扩展 `kind="task"`**（原只支持 asset/version，无 review task 状态）② **不用 `FilterBar`**（该件强制带搜索框，本批只需状态维度 ⇒ 直用官方 `Select`）③ 令牌状态**用官方 `Badge`** 不扩 StatusPill（凭证状态与三族不同轴）；改造件 6 → **7**（+`StatusPill.tsx`）；**v1.2：grilling 轮 2 落地（Q9-Q14）**——令牌**名称可选**/不要求唯一/不限字符集（trim 判空，≤64）· 名称与 id **合并为一列**（列表 8 → 7 列）· scope 选项**两行排版**（码名 + 中文说明）· **不做**预设快捷；新增 §2.1b grilling 两轮决策记录段；**v1.1：grilling 轮 1 落地**——订正 2 处事实错误（`apikey.name` / `lastRequest` **列存在**，只是读面未取）+ 落 Q1-Q8 决策（**令牌命名全链支持** / 露最后使用时间 / `ToggleGroup` 多选 / 资产列链接 / `retryTick` 刷新 / `error.load` 保留 / 有效期前后端同限 / 隐藏已吊销不做）；v1.0：初稿——现状核对（真码实测）+ 10 项设计决策按推荐定案）
-> Status: **定稿**（8 维自检 ≥9 ✅ —— 定稿轮 **9.81** · v1.9 订正复评 **9.57** · v1.10 实现期订正复评 **9.79** · v1.11 复评 **9.86** · **v1.14 命名订正复评 9.89**；用户 **2026-09-16 批准**）—— 批 plan 见 `docs/plans/M4b-3-personal-submissions-and-tokens.md`；本批出口五件见 §9 与 `docs/00` §5
+> Status: **定稿**（8 维自检 ≥9 ✅ —— 定稿轮 **9.81** · v1.9 订正复评 **9.57** · v1.10 实现期订正复评 **9.79** · v1.11 复评 **9.86** · **v1.14 命名订正复评 9.89** · **v1.15 T6 落地复评 9.90**；用户 **2026-09-16 批准**）—— 批 plan 见 `docs/plans/M4b-3-personal-submissions-and-tokens.md`；本批出口五件见 §9 与 `docs/00` §5
 > Scope: M4b-3（`docs/00` §5 子行 / 主 design §2.3 拆批表）——个人面 A：**我的提交**（`/dashboard/submissions`）
 > + **我的令牌**（`/dashboard/tokens`）+ 服务端 **R6-c**（`reviewComment` 加性）
 > 引用链：本文档 → 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（§2.3 拆批 · §2.4 U7 ·
@@ -201,17 +201,17 @@ M4b 拆 7 批（主 design §2.3）：**顺序 1 → 2 → 3 → 4 → 5 → 6 �
 
 | # | 文件 | 职责 |
 |---|------|------|
-| 1 | `apps/web/src/api/reviews.ts` | `fetchMyReviews({ status, limit, offset })` · `withdrawReview(id)`（走 `apiGet`/`apiPost`，自动带会话与 401 分流）—— **命名与批 plan T4 一致** |
+| 1 | `apps/web/src/api/reviews.ts` | `fetchMyReviews({ status, limit, offset })` · `withdrawReview(id)`（走 `apiGet`/`apiPost`，自动带会话与 401 分流）—— **命名与批 plan T4 一致**；`MyReviewItem` 用 **type 别名**（非 `interface`）——`DataTable` 行约束 `Record<string, unknown> | unknown[]` **不吃 interface 的隐式索引签名**（T6 执行期实证；官方 data-table recipe 同为 `type X`） |
 | 2 | `apps/web/src/api/tokens.ts` | `fetchTokens()` · `createToken({ name, scope? })` · **`updateToken(id, { name, scope? })`**（编辑）· `deleteToken(id)`（删除）—— 走 `apiGet`/`apiPost`/**`apiPatch`**/**`apiDelete`**（后两者为本批给 `client.ts` 的加性新增；`name` **必填**、`scope` 省略 / `[]` 语义见 T3 契约） |
-| 3 | `apps/web/src/pages/Submissions.tsx` | 我的提交页（`PageHeader` + **官方 `Select` 状态筛选**（**不用 `FilterBar`** —— 该件强制带搜索框，见 §4.4.2）+ `DataTable`（**6 列**：资产·类型·状态·提交时间·拒绝原因·操作）+ 操作列 **[👁 查看][↩ 撤回]** + `Pagination`）· 筛选与分页 **URL 状态化**（§2.1 D8）· 三态 + 两种空态 |
+| 3 | `apps/web/src/pages/Submissions.tsx` | 我的提交页（`PageHeader` + **官方 `Select` 状态筛选**（**不用 `FilterBar`** —— 该件强制带搜索框，见 §4.4.2）+ `DataTable`（**6 列**：资产·类型·状态·提交时间·拒绝原因·操作）+ 操作列 **[👁 查看][↩ 撤回]** + `Pagination`）· 筛选与分页 **URL 状态化**（§2.1 D8）· 三态 + 两种空态；**T6 落地注记**：数据 hook = `useApi(() => fetchMyReviews({status,limit,offset}), [status,limit,offset,retryTick])` · 空态两文案落点 =「从未提交」页面级 `Empty`（`empty.none` + `empty.noneHint` 两行）/「筛选无结果」`DataTable.emptyMessage`（`empty.filtered`） · `Pagination` **仅 `total > limit`** 时渲染 · 撤回后 `invalidateCache('/api/reviews')` + `retryTick++` |
 | 4 | `apps/web/src/pages/Tokens.tsx` | 我的令牌页（**6 列**：名称·Key·权限范围·创建时间·最后使用·操作；**只显有效令牌**（前端过滤已吊销）+ **创建 Dialog 两态**（表单态 → 明文态，含误关防护）+ **编辑 Dialog**（改名 + 改权限）+ **删除确认**（去红）） |
 
 ### 3.2 改造件（11）
 
 | # | 文件 | 改动 |
 |---|------|------|
-| 1 | `apps/web/src/main.tsx` | 两条路由 `ComingSoon` → 真页；`DEV_BATCH` 删 `'/dashboard/submissions'` / `'/dashboard/tokens'` 两项 |
-| 2 | `apps/web/src/i18n/zh.ts` | 新建 `submissions`（**25 键**）与 `tokens`（**41 键**）两组 + `errors` 组 **+6 码**（`review.*`）—— 净增 **72 键**（**§6 为键数真值**，逐行实测） |
+| 1 | `apps/web/src/main.tsx` | 两条路由 `ComingSoon` → 真页；`DEV_BATCH` 删 `'/dashboard/submissions'` / `'/dashboard/tokens'` 两项（**v1.15 落地时点**：`/dashboard/submissions` 随 **T6** 切换 —— 该 Task 断言 ②-⑦ 均为浏览器可达类，不切路由无法实测；`/dashboard/tokens` 随 **T7/T9** 收尾） |
+| 2 | `apps/web/src/i18n/zh.ts` | 新建 `submissions`（**26 键**）与 `tokens`（**41 键**）两组 + `errors` 组 **+6 码**（`review.*`）+ 既有 `common` 组 **+1**（`cancel`）—— 净增 **74 键**（**§6 为键数真值**，逐行实测；v1.15：`submissions` +`action.view`） |
 | 3 | `apps/web/src/i18n/en.ts` | 同上（英文对译，键集合**逐一对应**） |
 | 4 | `apps/server/src/review/query.ts` | `ReviewListItem` + `reviewComment: string \| null` **与 `assetType: AssetType`**；`LIST_SELECT` + `reviewComment: reviewTask.reviewComment` **与 `assetType: asset.type`**（⚠️ `asset` 表**已在 `baseQuery` 的 join 里**（`apps/server/src/review/query.ts:82`）⇒ **无需加 join**） |
 | 5 | `apps/server/src/http/reviews.test.ts`（或 `review/service.test.ts`） | **新增**断言：`/mine` 与队列列表响应含 `reviewComment`（驳回后非空、未驳回为 `null`）**与 `assetType`（值 ∈ skill/mcp/agent，与所提交资产一致）**——**不修改既有断言** |
@@ -396,6 +396,12 @@ Submissions (page)
 └─ Pagination（官方 ui/Pagination）        仅 total > limit 时渲染
 ```
 
+> **T6 落地注记（v1.15，实现期实证）**：
+> 1. **空态两文案的落点**（design 要求「从未提交 / 筛选无结果」两种）：**从未提交**走**页面级** `Empty`（`EmptyTitle` = `empty.none` + `EmptyDescription` = `empty.noneHint` 两行）；**筛选无结果**走 `DataTable.emptyMessage`（`empty.filtered`）—— `DataTable` 的 `emptyMessage` 是单字符串，两行形态只能由页面承载。
+> 2. **`Pagination` 条件**：实现首版写 `data ? <Pagination/>`，实测**单页也显示「1 / 1 · 每页 20」**（与本树末行的「仅 `total > limit` 时渲染」不符）⇒ **同轮修为 `data.total > limit`**；真浏览器复验：`total=4/limit=20` 无控件 ·`total=25/limit=20` → 「Previous · 1 / 2 · 每页 20 · Next」。
+> 3. **实测记录**（真浏览器 + 真后端）：6 列表头与列序 ✓ · `TypeIcon` SVG 每行 1 枚 ✓ · 四态徽章 `data-variant` = `warning`/`success`/**`rejected`（实底 `linear-gradient(96deg, rgb(106,109,255) 0%, …)` + 白字）**/`secondary` ✓ · 操作列 PENDING 行 `[查看, 撤回]` 其余 `[查看]` ✓ · 拒绝原因 `title` 全文 + `text-overflow: ellipsis` ✓ · 筛选「全部」**不带 `status`** / 「已驳回」带 `status=REJECTED` ✓ · 非法 `status=BOGUS` 回落「全部」✓ · 刷新保持筛选 ✓ · 后退可回 ✓ · 载态 25 个骨架 ✓ · 错态 `role=alert` + 重试 ✓ · 撤回失败（**真后端 404**） toast「操作失败，review.not_found」+ 列表刷新 ✓。
+> 4. **未证项（数据缺位，非跳过）**：真实 `PENDING` 行上的**撤回成功**分支需本人名下真实提交 ⇒ 归 **T10 造数**（dev 库现 4 条 `review_task` 均属另一账号，`m4b2_user` 名下 0 条）。
+
 **`Tokens.tsx`**
 ```text
 Tokens (page)
@@ -543,7 +549,7 @@ Tokens (page)
 
 ## 6. i18n 变更规格
 
-### 6.1 新建组 1：`submissions`（**25 键** —— v1.7：+4（`col.type` / `type.skill` / `type.mcp` / `type.agent`））
+### 6.1 新建组 1：`submissions`（**26 键** —— v1.7：+4（`col.type` / `type.skill` / `type.mcp` / `type.agent`）；**v1.15：+1 `action.view`**）
 
 > v1.4：删 3 键 —— `pagination.prev` / `pagination.next`（官方 `PaginationPrevious/Next` **硬编码英文**，无消费点，R2）· `title`（**复用** `dashboard.submissions`，单一来源，D10/R21）。
 
@@ -565,6 +571,7 @@ Tokens (page)
 | `status.approved` | 已通过 | Approved |
 | `status.rejected` | 已驳回 | Rejected |
 | `status.withdrawn` | 已撤回 | Withdrawn |
+| `action.view` | 查看 | View |
 | `action.withdraw` | 撤回 | Withdraw |
 | `withdraw.title` | 确认撤回？ | Withdraw this submission? |
 | `withdraw.desc` | 撤回后该版本将退回草稿，可修改后重新提交。 | The version returns to draft and can be resubmitted after changes. |
@@ -636,8 +643,10 @@ Tokens (page)
 | `review.comment_required` | 请填写驳回原因 | A rejection reason is required |
 | `review.access_denied` | 无权查看或操作该审核任务 | You do not have access to this review task |
 
-**双向纪律**：zh/en **键集合逐一对应**（T9 实测口径：双向差集 = 0）；本批净增 **72 键**
-（新组 `submissions` **25** + `tokens` **41** = 66，另 `errors` 组 **+6**；键表**逐行实测核对**，见 §11 准确性依据）。
+**双向纪律**：zh/en **键集合逐一对应**（T9 实测口径：双向差集 = 0）；本批净增 **74 键**
+（新组 `submissions` **26** + `tokens` **41** = 67，另 `errors` 组 **+6**、既有 `common` 组 **+1**（`cancel`）；键表**逐行实测核对**，见 §11 准确性依据）。
+
+> **v1.15 补登 2 键（T6 落地暴露的缺口）**：① `submissions.action.view`（组件树的「查看」图标原只写中文 `aria-label`/`title`，无键可消费）② `common.cancel`（`ConfirmDialog.cancelLabel` **必填**，而既有 `common` 组无取消键 —— 实测 grep 只有 `device.confirm`）。两键**一次补足**：T7 的删除/编辑/明文态三个弹窗共用 `common.cancel`。
 
 ---
 
@@ -770,12 +779,17 @@ G3/G4/G6 需要可重放的数据构造：「有 PENDING 提交」「有 REJECTE
 **v1.14 复评（2026-09-16，REJECTED 渐变 token 命名/落层订正后）= 9.89** ✅ —— 完整性 **9.9**（件表补正：改造件 9 → **11**，消除 v1.9 同类「件表少列」缺陷）· 准确性 **9.9**（token 名 / 色值 / 落层 / variant 名与真码逐条实测：`aih-theme.css` C 层 + `badge.tsx`；构建产物实证 `.bg-\[image\:var\(--gradient-rejected\)\]{background-image:var(--gradient-rejected)}` 已发出）· 一致性 **10**（命名随 `--gradient-*` 族；与 M4a design §4.4 ②bis 白名单同步；与 `badge` 既有 `success`/`warning` 同构造）· 可用性 **9.9**（token 名 + variant 名 + 消费类串全定死，实现照抄）· 追溯性 **10**（授权出处 = M4b-1 §3.5「官方第 ④ 条路径」；用户拍板 **A** 留痕）· 反证 **9.9**（两选项对照 + 否决 B 的理由：破坏 A 层「实色 + 成对 `@theme`」不变式）· 边界 **9.8**（入档两条**静默失效**坑：渐变不可注册 `--color-*` · 渐变底吃掉 `bg-*/90` hover ⇒ 改 `brightness`）· 维护性 **9.9**（白名单条数 + 审计 grep 写入）。
 换靶角度（本轮新增）：**官方件定制路径授权回查**（改官方源码前先 grep 该路径是否已被上游批 design 授权 ⇒ M4b-1 §3.5 先例）· **样式层「真值注册表」同步**（M4a §4.4 白名单是跨批真值，留假条数会在收尾审计暴露）· **编译产物 + 真浏览器计算值双验**（不靠 typecheck 推断 CSS 生效）。
 
+**v1.15 复评（2026-09-16，T6 落地 + 键缺口补登后）= 9.90** ✅ —— 完整性 **9.9**（键表补 2 键；§4.4.1 补落地注记 ⇒ 「空态落点 / 分页条件 / 未证项」不再靠实现期默契）· 准确性 **9.9**（键数 26 / 41 / +6 / +1 = **74** 与 i18n 真码逐键实测一致；T6 实证结论逐条回填，含 1 处**自产缺陷**〔分页条件〕与 1 处**数据缺位**的明确标注）· 一致性 **10**（与 plan v0.7 逐项对照；与 §4.4.1 组件树、§6 键表三向一致）· 可用性 **9.9** · 追溯性 **10**（每条实证带命令或浏览器读数；缺口键带「为何 design 漏」的成因）· 反证 **9.9**（+「为何用 type 别名而非改共享件」否决留痕）· 边界 **9.8**（新登记 1 条**既有**缺陷：M4a dogfood 分页断言假 PASS）· 维护性 **9.9**（键数真值单点 §6 + 各处指针已对齐）。
+> ⚠️ **量级说明（防同分重报观感）**：v1.14 的 9.89 来自 **token 命名/落层订正**；本轮 9.90 来自 **键缺口补登 + 落地实证入档**——构成不同：本轮 完整性/准确性 的增量由「§6 键表 2 键 + §4.4.1 注记」贡献，而 边界 因**新发现既有缺陷**（假 PASS 断言）留在 9.8 不升。
+> 换靶角度（本轮新增）：**契约→实现的键覆盖回读**（design 写死的交互控件是否都有键可消费 ⇒ 抓出 2 键缺口）· **条件类断言的实现回读**（「仅 total > limit 渲染」这类条件句最易被实现漏掉）· **既有 dogfood 断言有效性抽检**（选择器与实际 DOM 属性是否真能匹配 ⇒ 抓出假 PASS）。
+
 ---
 
 ## 12. 修订记录
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.15** | 2026-09-16 | sunxuewen-rush | **T6 落地：键缺口补登 + §4.4.1 实证注记**（与代码 / 批 plan v0.7 同批）—— ① 键表 `submissions` 25 → **26**（+`action.view`）· `common` **+1**（`cancel`）⇒ 净增 **72 → 74**（落点 §3.2#2 · §6.1 标题+表 · §6.3）② §4.4.1 新增 **T6 落地注记**（空态两文案落点 / `Pagination` 条件与**自产缺陷**同轮修 / 真浏览器 8 项实证 / 未证项标注）③ §3.1#1 补 `MyReviewItem` 用 type 别名的原因 · §3.1#3 补数据 hook 与撤回刷新口径 · §3.2#1 补路由切换时点（submissions 随 T6）④ §11 复评 **9.90** ⑤ **登记既有缺陷**：`m4a-dogfood.ts`「资产数 < limit ⇒ 无分页控件」为**假 PASS**（选择器 `aria-label*="分页"` 永不匹配官方 `aria-label="pagination"`）⇒ 归 M4b-7/T10 复核 |
 | **v1.14** | 2026-09-16 | sunxuewen-rush | **T5 落地：REJECTED 渐变 token 命名/落层订正（用户 2026-09-16 拍板 A）**—— ① token `--rejected` → **`--gradient-rejected`**、落 **C 品牌渐变层**（白名单 3 → 4；不注册 `@theme --color-*`）② 消费 = 官方 `badge.tsx` 新增 **`rejected` variant**（第 ④ 条路径，M4b-1 §3.5 授权先例）⇒ `StatusPill` 零 className ③ **件表补正**：T5 Files 1 → **3 件**，§3.2 改造件 **9 → 11**（+`aih-theme.css` + `badge.tsx`）④ 落点 5 处（D12 · §3.2#7 · §3.2#10/#11 新增两行 · §4.4 表格 · §4.4 色彩体系）⑤ 同步 **M4a design §4.4 ②bis** 渐变白名单⑥ §11 复评 **9.89** ⑦ 与批 plan **v0.6**、M4a design **v0.26** 同批 |
 | **v1.13** | 2026-09-16 | sunxuewen-rush | **T4 落地注记（实现期实证）**—— ① **`apiPatch` 补登记**：§3.2#8 原仅记 `apiDelete`，而 T7「编辑令牌」走 `PATCH /api/tokens/:id`（T3 已交付）⇒ 无 `apiPatch` 则页面发不出请求（用户 2026-09-16 点头补）② **`doFetch` 空体守卫**：204 / 空体 ⇒ `undefined`（原先 `res.json()` 在 204 上抛 `SyntaxError`，非 `ApiError` ⇒ 与错误面形态不一致；`deleteToken` 依赖此守卫）③ §3.1#2 的 tokens.ts 签名同步 `{ name }` **必填**（v1.11 口径）④ web 侧**无测试框架**（脚本仅 dev/build/typecheck/lint）⇒ T4 验证 = typecheck + lint + format:check，真实行为在 **T6/T7 浏览器 dogfood** 覆盖。**无口径变更** ⇒ 8 维评分不变（**9.86**） |
 | **v1.12** | 2026-09-16 | sunxuewen-rush | **T3 落地注记（实现期实证）**—— §5.2 新增「T3 编辑的落库形态」条：① 官方 `NO_VALUES_TO_UPDATE`（`:1526`）因 `name` 必填**不再可达** ② **全量回写 = `permissions` 列文本 `"null"`**（非 SQL NULL；读面归一 ⇒ `scope === ''`） ③ 审计 detail = `{ fields: [...] }`（零明文） ④ 200 响应复用新公共读面 `readApiKeyRow`（`API_KEY_SELECT` + `toApiKeyRow` 单源投影）。**无口径变更** ⇒ 8 维评分不变（**9.86**；本轮为纯实现注记，非重评） |

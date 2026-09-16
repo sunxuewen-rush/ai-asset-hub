@@ -83,6 +83,38 @@ export const zh = {
     tokens: '访问令牌',
     empty: '暂无数据',
   },
+  /**
+   * 我的提交页（`/dashboard/submissions`；M4b-3 batch design §6.1 —— **26 键** =
+   * design 表 25 键 + `action.view`（v1.15 补：组件树的「查看」图标原无文案键））。
+   */
+  submissions: {
+    subtitle: '你提交的资产版本与审核进展',
+    'col.asset': '资产',
+    'col.type': '类型',
+    'col.status': '状态',
+    'col.submittedAt': '提交时间',
+    'col.rejectReason': '拒绝原因',
+    'col.actions': '操作',
+    'type.skill': '技能',
+    'type.mcp': 'MCP',
+    'type.agent': '专家',
+    'filter.label': '状态筛选',
+    'filter.all': '全部',
+    'status.pending': '待审核',
+    'status.approved': '已通过',
+    'status.rejected': '已驳回',
+    'status.withdrawn': '已撤回',
+    'action.view': '查看',
+    'action.withdraw': '撤回',
+    'withdraw.title': '确认撤回？',
+    'withdraw.desc': '撤回后该版本将退回草稿，可修改后重新提交。',
+    'withdraw.confirm': '确认撤回',
+    'withdraw.success': '已撤回',
+    'empty.none': '还没有提交记录',
+    'empty.noneHint': '提交资产版本后，可在此查看审核进展。',
+    'empty.filtered': '当前筛选下没有记录',
+    'error.load': '加载失败，请重试',
+  },
   admin: {
     title: '管理后台',
     reviews: '审核管理',
@@ -128,6 +160,8 @@ export const zh = {
     loading: '加载中…',
     empty: '暂无数据',
     retry: '重试',
+    /** 通用「取消」（v1.15 补：M4b-3 两页的确认弹窗 `ConfirmDialog.cancelLabel` 消费点） */
+    cancel: '取消',
     download: '下载',
     pageOf: '{n} / {total} · 每页 {size}',
     comingSoon: '该功能将在后续版本提供',
