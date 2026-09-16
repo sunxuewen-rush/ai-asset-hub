@@ -32,8 +32,13 @@ export const TOKEN_SCOPE_CODES = [
 
 export type TokenScopeCode = (typeof TOKEN_SCOPE_CODES)[number];
 
-/** 令牌列表项（服务端 `ApiKeyRow` 的同形投影，9 字段） */
-export interface ApiKeyRow {
+/**
+ * 令牌列表项（服务端 `ApiKeyRow` 的同形投影，9 字段）。
+ *
+ * ⚠️ 用 **type 别名**而非 `interface`：`DataTable` 的行约束为 `Record<string, unknown> | unknown[]`，
+ * interface 不带隐式索引签名 ⇒ 无法作为行类型传入（T6 实证；官方 data-table recipe 同为 `type X`）。
+ */
+export type ApiKeyRow = {
   id: string;
   /** 逗号串；`''` = 全量（服务端 `permissions` 为空/NULL 时归一） */
   scope: string;
@@ -50,7 +55,7 @@ export interface ApiKeyRow {
   createdAt: string;
   /** 最后使用（官方 verify 路径写入）；`null` = 从未使用 */
   lastRequest: string | null;
-}
+};
 
 export interface TokenListResponse {
   items: ApiKeyRow[];

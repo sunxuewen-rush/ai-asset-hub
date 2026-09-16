@@ -1,9 +1,9 @@
 # M4b-3 个人面 A：我的提交与我的令牌 —— 批计划
 
-> Updated: 2026-09-16（v0.8：**T10 件表补造数脚本 + T6 未证项关闭**）—— ① **T10 Files 补** `docs/smoke/scripts/m4b3-seed-submissions.ts`（新建 · 可重放造数：幂等 upsert / 零 delete / 前缀 `m4b3-seed-%`；重跑复位，供 G2/G3/G4/G15 复用）② T10 步骤补「**造数**」一条（放在 dogfood 前）③ T6 断言 ③（撤回成功链）**已用真实账号 + 真实后端 + 服务端落库复核关闭**（撤回后 task `WITHDRAWN` · version 退 `UPLOADED`）；**v0.7：**T6 落地 —— 件表补正（+i18n 两件 + main.tsx 路由）+ 键缺口补登**—— ① **T6 Files 1 件 → 4 件**（+`i18n/zh.ts` + `i18n/en.ts` + `main.tsx`）：断言 ②-⑦ 全为浏览器可达类，页面必须先有键可渲染、有路由可直达 ⇒ `submissions` 组键随 T6 落地（T8 相应收窄）、`/dashboard/submissions` 路由随 T6 切换（T9 收窄）② **键缺口 2 处**：`action.view`（查看图标无键）· `common.cancel`（`ConfirmDialog.cancelLabel` 必填）⇒ `submissions` 25 → **26**、`common` **+1**、净增 72 → **74**③ T6 断言 8 → **10**（+分页条件 · +键数）④ 同轮修 1 处**自产缺陷**（`Pagination` 未按 design「仅 `total > limit`」渲染）⑤ 与批 design **v1.15** 同源；**v0.6：**T5 落地 —— 件表补正 + token/variant 落点定死**（用户 2026-09-16 拍板 **A**：渐变 token 落 **C 品牌渐变层**、名 `--gradient-rejected`）—— ① **T5 Files 1 件 → 3 件**（+`aih-theme.css` + `badge.tsx`）：design §3.2#7 的硬约束「渐变须落 token/variant，**禁 className 覆盖外观**」使另两件成为必需（改 1 件就只能把渐变写进消费点 className = 违规）② T5 步骤 2 → **4 条**（+token 落 C 层白名单 3 → 4 · +`badge.tsx` 加 `rejected` variant = 官方第 ④ 条路径，M4b-1 §3.5 授权先例）③ T5 断言 +2（④ 落层可验 · ⑤ **真渲染实测**：编译产物 CSS 规则 + 浏览器计算值，不靠 typecheck 推断）④ 与批 design **v1.14** 同源；**v0.4：**名称必填 + 令牌私有**（用户 2026-09-16 逐条对齐拍板）—— ① T2 路由层 `issueBodySchema` 的 `name` 改 **必填** `trim().min(1).max(32)`（缺 / 空 / 纯空白 ⇒ 400）；T2 断言 ⑦ 由「201 且 null」改 **400** ② T3 的 `name` 同步 **必填**（清空 / 缺失 ⇒ 400，「不发 name 保持原名」作废）③ T7 补「名称必填：空 / 纯空白 ⇒ 提交禁用」④ **新增**：`DELETE /api/tokens/:id` 超管分支收回（**仅本人**）—— 与批 design **v1.11** 同源；v0.3：**T2 实现期官方源码复核订正**（用户 2026-09-16 拍板）—— ① T2 步骤 4 由「1 行配置」改为 **3 行**（`charactersLength: 12` + `enableMetadata: true` + 钉定 `maximumNameLength: 32`）② T2 步骤 3 补「名称 `trim` 后为空 ⇒ 省略字段」（官方 `minimumNameLength` 默认 1）
+> Updated: 2026-09-16（v0.9：**T7 落地 —— 件表 4 件 + 键缺口补登 7 键 + T8/T9 收窄**）—— ① **T7 Files 1 件 → 4 件**（+`i18n/zh.ts` + `i18n/en.ts` + `main.tsx`：断言 ②-⑩ 全为浏览器可达类 ⇒ 页面必须先有键可渲染、有路由可直达）② **键缺口 7 处**：5 个 scope 说明（Q13 两行排版）+ `edit.success` / `delete.success`（断言 ⑧ 与删除流的 toast）⇒ `tokens` 41 → **48**、本批净增 **74 → 81** ③ **T8 收窄**（只剩 `errors` +6 码）④ **T9 并入 T10**（路由接线随 T6/T7 完成，余下只有「路由条数 + 侧栏高亮 + 未登录直访」三条复核，合并到 T10 一次跑）⑤ T7 断言 10 → **11**（+键数）· 登记 1 条未证项（明文态遮罩关闭路径，转 T10 真指针复验）；**v0.8：**T10 件表补造数脚本 + T6 未证项关闭**—— ① **T10 Files 补** `docs/smoke/scripts/m4b3-seed-submissions.ts`（新建 · 可重放造数：幂等 upsert / 零 delete / 前缀 `m4b3-seed-%`；重跑复位，供 G2/G3/G4/G15 复用）② T10 步骤补「**造数**」一条（放在 dogfood 前）③ T6 断言 ③（撤回成功链）**已用真实账号 + 真实后端 + 服务端落库复核关闭**（撤回后 task `WITHDRAWN` · version 退 `UPLOADED`）；**v0.7：**T6 落地 —— 件表补正（+i18n 两件 + main.tsx 路由）+ 键缺口补登**—— ① **T6 Files 1 件 → 4 件**（+`i18n/zh.ts` + `i18n/en.ts` + `main.tsx`）：断言 ②-⑦ 全为浏览器可达类，页面必须先有键可渲染、有路由可直达 ⇒ `submissions` 组键随 T6 落地（T8 相应收窄）、`/dashboard/submissions` 路由随 T6 切换（T9 收窄）② **键缺口 2 处**：`action.view`（查看图标无键）· `common.cancel`（`ConfirmDialog.cancelLabel` 必填）⇒ `submissions` 25 → **26**、`common` **+1**、净增 72 → **74**③ T6 断言 8 → **10**（+分页条件 · +键数）④ 同轮修 1 处**自产缺陷**（`Pagination` 未按 design「仅 `total > limit`」渲染）⑤ 与批 design **v1.15** 同源；**v0.6：**T5 落地 —— 件表补正 + token/variant 落点定死**（用户 2026-09-16 拍板 **A**：渐变 token 落 **C 品牌渐变层**、名 `--gradient-rejected`）—— ① **T5 Files 1 件 → 3 件**（+`aih-theme.css` + `badge.tsx`）：design §3.2#7 的硬约束「渐变须落 token/variant，**禁 className 覆盖外观**」使另两件成为必需（改 1 件就只能把渐变写进消费点 className = 违规）② T5 步骤 2 → **4 条**（+token 落 C 层白名单 3 → 4 · +`badge.tsx` 加 `rejected` variant = 官方第 ④ 条路径，M4b-1 §3.5 授权先例）③ T5 断言 +2（④ 落层可验 · ⑤ **真渲染实测**：编译产物 CSS 规则 + 浏览器计算值，不靠 typecheck 推断）④ 与批 design **v1.14** 同源；**v0.4：**名称必填 + 令牌私有**（用户 2026-09-16 逐条对齐拍板）—— ① T2 路由层 `issueBodySchema` 的 `name` 改 **必填** `trim().min(1).max(32)`（缺 / 空 / 纯空白 ⇒ 400）；T2 断言 ⑦ 由「201 且 null」改 **400** ② T3 的 `name` 同步 **必填**（清空 / 缺失 ⇒ 400，「不发 name 保持原名」作废）③ T7 补「名称必填：空 / 纯空白 ⇒ 提交禁用」④ **新增**：`DELETE /api/tokens/:id` 超管分支收回（**仅本人**）—— 与批 design **v1.11** 同源；v0.3：**T2 实现期官方源码复核订正**（用户 2026-09-16 拍板）—— ① T2 步骤 4 由「1 行配置」改为 **3 行**（`charactersLength: 12` + `enableMetadata: true` + 钉定 `maximumNameLength: 32`）② T2 步骤 3 补「名称 `trim` 后为空 ⇒ 省略字段」（官方 `minimumNameLength` 默认 1）
 > ③ T2 步骤 5（新）「签发写 `metadata.tail` = create 后补 `updateApiKey`」，**两次官方调用**（明文由官方内部生成，无法预知）④ T2 断言补「空 / 纯空白名称 ⇒ 201 且 name null」「落库形态 = 单层 JSON 文本」⑤ T3 步骤补「名称 `trim ≤32`；清空 ⇒ 不发 `name`（保持原名）」+ 断言补空名回归；v0.2：**补自检打分段（8 维 9.61）**）；v0.1：**立项**——依据批 design `2026-09-16-m4b3-submissions-and-tokens-design.md` **定稿**
 > （8 维自检 **9.81** ≥9 · 用户 2026-09-16 批准）与主 design `2026-09-10-m4b-admin-console-and-auth-design.md` **v1.33**；本批 = M4b 拆批第 3 批「个人面 A」）
-> Status: **待执行**（T1-T10 ⬜ · 批 design 已定稿 · 出口五件见 §4 · **自检 8 维 9.61**（最新 **v0.8 复评 9.83**）见 §9）
+> Status: **待执行**（T1-T10 ⬜ · 批 design 已定稿 · 出口五件见 §4 · **自检 8 维 9.61**（最新 **v0.9 复评 9.81**）见 §9）
 > 上游：批 design（定稿，版本以其版本头为准）· 主 design §2.3 拆批表与批件登记表 · `docs/00` §5
 > 依赖顺序：**M4b-1 / M4b-2 已完成** ⇒ 本批开工条件已满足
 
@@ -16,7 +16,7 @@
 | 1 | **我的提交** `/dashboard/submissions` | 6 列（资产 · **类型** · 状态 · 提交时间 · 拒绝原因 · 操作）；操作列 **[👁 查看][↩ 撤回]** 图标化；状态筛选（含 `WITHDRAWN`）；URL 状态化；三态 + 两种空态；分页 |
 | 2 | **我的令牌** `/dashboard/tokens` | 6 列（名称 · **Key 掩码** · 权限范围 · 创建时间 · 最后使用 · 操作）；**[✎ 编辑][🗑 删除]** 同色图标；只显有效令牌；**创建** Dialog 两态（明文一次性 + 误关防护）；编辑（改名 + 改权限）；删除（去红二次确认） |
 | 3 | **服务端加性改动** | `reviewComment` + `assetType`（读面）· `name` / `start` / `tail` / `lastRequest`（读面）· **新增 `PATCH /api/tokens/:id`** · `charactersLength: 12` · 签发写 `metadata.tail`（**零迁移 · 零 schema**） |
-| 4 | **i18n** | 新建 `submissions`（**26 键**）· `tokens`（41 键）· `errors` +6 码 · `common` **+1** ⇒ **净增 74 键** |
+| 4 | **i18n** | 新建 `submissions`（**26 键**）· `tokens`（**48 键**）· `errors` +6 码 · `common` **+1** ⇒ **净增 81 键** |
 
 **非目标（Out）**：
 - 详情页 `/reviews/:id` 的内容（**归 M4b-5**；本批只做入口 —— 用户 2026-09-16 定 A）
@@ -36,9 +36,9 @@
 | **T4** | 前端：api 层（`apiDelete` + `reviews.ts` + `tokens.ts`） | `api/client.ts` · `api/reviews.ts` · `api/tokens.ts` | 4 | — |
 | **T5** | 前端：`StatusPill` 加性扩展 `kind="task"` | `components/console/StatusPill.tsx` | 3 | — |
 | **T6** | 前端：我的提交页（+`submissions` 组键 + 路由） | `pages/Submissions.tsx` · `i18n/*` · `main.tsx` | 10 | T1/T4/T5 |
-| **T7** | 前端：我的令牌页（含创建两态 / 编辑 / 删除） | `pages/Tokens.tsx` | 10 | T2/T3/T4 |
-| **T8** | i18n：**收窄为** `tokens` 组 + `errors` 6 码（`submissions` 组 + `common.cancel` 已随 T6 落地） | `i18n/zh.ts` · `i18n/en.ts` | 4 | — |
-| **T9** | 路由接线（两条真路由 + DEV_BATCH 删 2 项） | `main.tsx` · `pages/Dashboard.tsx` | 4 | T6/T7 |
+| **T7** | 前端：我的令牌页（+`tokens` 组键 + 路由） | `pages/Tokens.tsx` · `i18n/*` · `main.tsx` | 11 | T2/T3/T4 |
+| **T8** | i18n：**再收窄为** `errors` 6 码（`submissions`/`tokens` 两组 + `common.cancel` 已随 T6/T7 落地） | `i18n/zh.ts` · `i18n/en.ts` | 4 | — |
+| **T9** | ~~路由接线~~ **并入 T10**（两条真路由已在 T6/T7 切换；余下 3 条复核合并进 T10 一次跑） | — | 4 | T6/T7 |
 | **T10** | 验证收尾（dogfood G1-G15 + 出口五件 + 证据文件） | `docs/smoke/**` | 6 | T1-T9 |
 
 **顺序说明**：T1-T3（服务端）与 T4/T5/T8（前端基建）可并行；T6/T7 依赖各自前置；T9 收口路由；T10 收尾。
@@ -222,7 +222,9 @@
 
 ### T7 · 前端：我的令牌页
 
-**Files**：`apps/web/src/pages/Tokens.tsx`（新建）
+**Files**：`apps/web/src/pages/Tokens.tsx`（新建）· `apps/web/src/i18n/zh.ts` · `apps/web/src/i18n/en.ts` · `apps/web/src/main.tsx`
+
+> ⚠️ **v0.9 件表补正（方案阶段先声明）**：原只列页面 1 件。断言 ②-⑩ 均为**浏览器可达**类 ⇒ 需 ① 有键可渲染（`tokens` **48 键**：其中 5 个 scope 说明 + 2 个成功提示是 design 键表缺口，已补登 v1.17）② 有路由可直达（`/dashboard/tokens` 换真页 + `DEV_BATCH` 删该项）；与 T6 同款处置（T8/T9 相应收窄）。
 
 **步骤**（组件树见批 design §4.4.1）：
 - 列（6）：名称 · Key（`aih_` 前 12 + `*****` + 后 4；旧数据「—」）· 权限范围 · 创建时间 · 最后使用（超 3 月 `text-warning`）· 操作
@@ -244,7 +246,9 @@
 ⑦ 关闭后再次打开 ⇒ 回到表单态（**不复用上次明文/复制标记**）
 ⑧ 编辑：改名 + 改权限 ⇒ 保存 ⇒ 列表回显新值 + toast
 ⑨ 删除：确认按钮**非红色**（primary）；确认后该行从列表消失
-⑩ Last Used 超 3 个月的行文字为 warning 色；门户零回归 36/36
+⑩ Last Used 超 3 个月的行文字为 warning 色（造数探针 `m4b3-seed-stale`）；门户零回归 36/36（**T7 实测 PASS + NO JS ERRORS**）
+⑪ 键数实测：`tokens` **48**（含 5 个 `scope.*` + `edit.success` / `delete.success`）；zh/en 逐组对称（双向差集 0）
+⑫ 旧数据兜底：`start`/`tail` 为 null 的行 Key 列显「—」（造数探针 `m4b3-seed-legacy`，**实测 ✓**）
 ```
 
 ---
@@ -388,6 +392,9 @@ _（待执行）_
 > 换靶角度（本轮新增）：**断言的「前置件」依赖审计**（一条断言要求浏览器可达，Files 却只列了页面 ⇒ 抓出 3 件缺列）· **键覆盖回读**（design 写死的控件是否都有键消费 ⇒ 抓出 2 键缺口）。
 > **v0.8 复评（2026-09-16，造数脚本落地 + T6 未证项关闭后）**：8 维 **9.83** —— 完整性 **9.9**（T10 件表补造数脚本 + 步骤补「造数」）· 一致性 **10**（与批 design **v1.16** 逐项对照：造数路径 / 前缀纪律 / G 项映射 / 复位语义）· 清晰度 **9.7** · 可实施性 **9.9**（造数命令与前置写明，可一条命令重放）· 设计纯粹性 **9.5** · 边界覆盖 **9.9**（造数**授权**与幂等/复位入档；写库范围限于 `m4b3-seed-%`）· 实施精度 **9.9**；跨平台 N/A（分母 7）。
 > 换靶角度（本轮新增）：**写库脚本的纪律审计**（是否有 delete / 是否越前缀 / 重跑是否复位）· **未证项闭环**（T6 断言 ③ 由「待造数」转「已实证」）。
+> **v0.9 复评（2026-09-16，T7 落地 + 键缺口补登后）**：8 维 **9.81** —— 完整性 **9.9**（T7 Files 1 → **4 件** + 断言 10 → **12**；T8/T9 收窄登记）· 一致性 **10**（与批 design **v1.17** 逐项对照：键 48 · 净增 81 · scope 说明 5 · toast 2 · 探针 2 · 路由时点）· 清晰度 **9.7** · 可实施性 **9.9** · 设计纯粹性 **9.5** · 边界 **9.8**（**+1 条未证项登记**：明文态遮罩关闭路径 ⇒ 转 T10 真指针复验；另登记工具通道限制——CDP 原生命中在本机长跑实例上间歇超时，dogfood 脚本须用 `clickReal()`）· 实施精度 **9.9**；跨平台 N/A（分母 7）。
+> ⚠️ 与 v0.8 的 **9.83 → 9.81** 变化说明：分数**下降**来自本轮**新登记 1 条未证项 + 工具通道限制**（边界 9.9 → 9.8），非产物变差；完整性/实施精度同轮上升（T7 件表与断言补正）。
+> 换靶角度（本轮新增）：**键表 ↔ UI 规格字面回读**（抓 7 键缺口）· **「可跑断言」的前置件审计**（T7 断言全为浏览器可达 ⇒ 件表必须含 i18n 与路由）。
 
 ⚠️ **本轮自检的换靶角度**（均为上一轮 design 自检未用的）：① 全量 file 引用解析性（含「待创建」标注判定）
 ② 断言命令覆盖率（逐 Task 统计）③ **plan ↔ design 交叉一致性**（跨文档，非单文档内）
@@ -396,6 +403,7 @@ _（待执行）_
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.9 | 2026-09-16 | sunxuewen-rush | **T7 落地：件表 4 件 + 键缺口补登 7 键 + T8/T9 收窄** ① T7 Files 1 → **4 件**（+i18n 两件 + main.tsx）② 键缺口 7 处（5 scope 说明 + 2 成功提示）⇒ `tokens` **48** · 净增 **81** ③ T8 收窄为 `errors` 6 码 ④ **T9 并入 T10** ⑤ 断言 10 → **12**⑥ 登记 1 条未证项（遮罩关闭路径 ⇒ T10 真指针）；与批 design **v1.17** 同源；8 维 **9.83 → 9.81**（边界因新登记未证项 -0.1，非产物变差） |
 | v0.8 | 2026-09-16 | sunxuewen-rush | **T10 件表补造数脚本 + T6 未证项关闭**（用户 2026-09-16 授权写 dev 库）① T10 Files +`m4b3-seed-submissions.ts`·步骤 +「造数」② T6 断言 ③ 已实证关闭（真实账号 + 真实后端 + 落库复核：task `WITHDRAWN` · version 退 `UPLOADED`）③ 与批 design **v1.16** 同源；8 维 **9.81 → 9.83** |
 | v0.7 | 2026-09-16 | sunxuewen-rush | **T6 落地：件表补正 + 键缺口补登**—— ① T6 Files 1 → **4 件**（+i18n 两件 + `main.tsx`；「断言可跑」倒逼，方案阶段先声明）② 键缺口：`action.view` + `common.cancel` ⇒ `submissions` **26** · 净增 **74**；T8 收窄（只剩 `tokens` + `errors`）；T9 收窄（只剩 tokens 路由）③ T6 断言 8 → **10** ④ 同轮修 1 处**自产缺陷**（`Pagination` 条件）⑤ 与批 design **v1.15** 同源；8 维 **9.77 → 9.81** |
 | v0.6 | 2026-09-16 | sunxuewen-rush | **T5 落地：件表补正 + token/variant 落点定死**（用户 2026-09-16 拍板 **A**）① **T5 Files 1 件 → 3 件**（+`aih-theme.css` + `badge.tsx`）—— design 「渐变须落 token/variant、禁 className」硬约束倒逼；**已按纪律在方案阶段先声明件表差异**（不执行到一半才说）② 步骤 2 → **4 条**（token 落 C 层 + `badge.rejected` variant）③ 断言 3 → **5 条**（+④ 落层可验 · +⑤ 真渲染实测：编译产物规则 + 浏览器计算值）④ 与批 design **v1.14** 同源；8 维 **9.61 → 9.77** |

@@ -146,6 +146,27 @@ async function ensureTask(
   });
 }
 
+// ⑤ 令牌探针（可选 · T7 用）：两条**只对已存在的同名令牌**生效 —— 令牌本身必须经产品路径（UI/API）创建，
+//    本脚本只负责把它们的「旧数据形态」复位，供列表兜底渲染断言使用：
+//      · `m4b3-seed-stale`  → `last_request` 置 120 天前 ⇒ 验「最后使用」超 3 个月的 `warning` 色
+//      · `m4b3-seed-legacy` → `start` / `metadata` 置 null ⇒ 验旧令牌 Key 列「—」兜底（迁移前形态）
+async function probeTokens(): Promise<string[]> {
+  const notes: string[] = [];
+  const stale = await db.$client.query(
+    `update apikey set last_request = now() - interval '120 days'
+      where reference_id = $1 and name = 'm4b3-seed-stale'`,
+    [ownerId],
+  );
+  notes.push(`  stale 探针：命中 ${stale.rowCount ?? 0} 行（>0 ⇒ 已置 120 天前）`);
+  const legacy = await db.$client.query(
+    `update apikey set start = null, metadata = null
+      where reference_id = $1 and name = 'm4b3-seed-legacy'`,
+    [ownerId],
+  );
+  notes.push(`  legacy 探针：命中 ${legacy.rowCount ?? 0} 行（>0 ⇒ 已置 start/metadata 为 null）`);
+  return notes;
+}
+
 const summary: string[] = [];
 for (const spec of SPECS) {
   const assetId = await ensureAsset(spec.slug, spec.type);
@@ -158,5 +179,7 @@ for (const spec of SPECS) {
 
 console.log(`M4b-3 造数完成（账号 ${targetUsername}）：`);
 console.log(summary.join('\n'));
+console.log('令牌探针（可选 —— 无同名令牌时命中 0 行，属正常）：');
+console.log((await probeTokens()).join('\n'));
 console.log('重跑即复位（撤回后再跑 ⇒ PENDING 复位）。');
 process.exit(0);

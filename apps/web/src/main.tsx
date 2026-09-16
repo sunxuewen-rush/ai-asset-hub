@@ -15,6 +15,7 @@ import { Device } from '@/pages/Device';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
 import { Submissions } from '@/pages/Submissions';
+import { Tokens } from '@/pages/Tokens';
 // 样式单入口（Tailwind v4 + shadcn token + AIH 层，design §4.4 v0.10 定案）：
 // Tailwind Preflight / 工具类与 AIH 层（含「Tailwind 不提供的项」迁移面）均经此文件生效。
 // T24 已删除旧层（原 `styles/tokens.css` + `styles/global.css`，双栈共存期结束）。
@@ -45,13 +46,12 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
  * 那会绕过折叠（属性值不可消除）。
  *
  * 独立版式两页（`/login` **T6** · `/device` **T7**）与 `/dashboard`（**T8**）均已换真页
- * ⇒ 表内**不再有**这三条；M4b-3 的 `/dashboard/submissions`（**T6**）同样已换真页 ⇒ 随之下表。
+ * ⇒ 表内**不再有**这三条；M4b-3 的 `/dashboard/submissions`（T6）与 `/dashboard/tokens`（T7）同样已换真页 ⇒ 随之删。
  * 余下条目对应的仍是占位页。
  */
 const DEV_BATCH: Record<string, string> = import.meta.env.DEV
   ? {
       '/dashboard/assets': 'M4b-4',
-      '/dashboard/tokens': 'M4b-3',
       '/reviews/:id': 'M4b-5',
       '/admin/reviews': 'M4b-5',
       '/admin/labels': 'M4b-6',
@@ -108,16 +108,8 @@ function AppRoutes() {
               />
               {/* 我的提交：真页（M4b-3 T6） */}
               <Route path="/dashboard/submissions" element={<Submissions />} />
-              <Route
-                path="/dashboard/tokens"
-                element={
-                  <ComingSoon
-                    title={t('dashboard', 'tokens')}
-                    description={t('common', 'comingSoon')}
-                    batch={DEV_BATCH['/dashboard/tokens']}
-                  />
-                }
-              />
+              {/* 我的令牌：真页（M4b-3 T7） */}
+              <Route path="/dashboard/tokens" element={<Tokens />} />
               {/* 审核详情：提交人可达（撤回入口）；**不进 `/admin` 段** */}
               <Route
                 path="/reviews/:id"
