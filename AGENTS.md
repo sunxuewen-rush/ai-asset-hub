@@ -104,5 +104,5 @@ M0 ✅（骨架）· M1 ✅（平台底座）· M2 ✅（资产域）· M3 ✅�
 - 主 design：`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.22**）
 - **M4b-pre ✅**（认证整车迁移 better-auth — 2026-09-15）：`docs/designs/2026-09-15-m4b-pre-auth-migration-design.md` + `docs/plans/M4b-pre-auth-migration.md`
 - **M4b-1 ✅**（地基批：官方件归位 + 控制台组件面域 — 2026-09-14）：`docs/designs/2026-09-14-m4b1-console-foundation-design.md` + `docs/plans/M4b-1-console-foundation.md`
-- **M4b-2 🔵 执行中**（认证与壳批：登录页 `/login` · 设备授权页 `/device` · 会话上下文 · 401 分流 · 侧栏三组 + 用户区 · 路由骨架 11 条）：`docs/designs/2026-09-16-m4b2-auth-shell-design.md` + `docs/plans/M4b-2-auth-shell.md`（**版本以各自版本头为准** · **T1-T6 ✅** / T7-T10 ⬜ · 批内进度见批 plan）——**服务端改动 0 行 · 新增依赖 0 个**
+- **M4b-2 🔵 执行中**（认证与壳批：登录页 `/login` · 设备授权页 `/device` · 会话上下文 · 401 分流 · 侧栏三组 + 用户区 · 路由骨架 11 条）：`docs/designs/2026-09-16-m4b2-auth-shell-design.md` + `docs/plans/M4b-2-auth-shell.md`（**版本以各自版本头为准** · **T1-T7 ✅** / T8-T10 ⬜ · 批内进度见批 plan）——**服务端改动 0 行 · 新增依赖 0 个**
 - M4b-3…6 ⬜（个人面 A/B → 审核面 → 治理面；**M4b-4 为唯一含服务端读面改动的批**）

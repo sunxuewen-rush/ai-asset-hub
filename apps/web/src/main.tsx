@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
 import { AssetDetail } from '@/pages/AssetDetail';
 import { Center, type CenterType } from '@/pages/Center';
+import { Device } from '@/pages/Device';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
 // 样式单入口（Tailwind v4 + shadcn token + AIH 层，design §4.4 v0.10 定案）：
@@ -41,11 +42,10 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
  * （断言：`grep -c 'M4b-' dist/assets/*.js` = 0）。**不要**改成把批号塞进模块级数组/对象的字面量字段，
  * 那会绕过折叠（属性值不可消除）。
  *
- * `/login` 项已随 **T6** 移除（该路由换真页 `pages/Login.tsx`，不再有占位批次号）。
+ * 独立版式两页（`/login` 随 **T6**、`/device` 随 **T7**）均已换真页 ⇒ 表内**不再有**这两条。
  */
 const DEV_BATCH: Record<string, string> = import.meta.env.DEV
   ? {
-      '/device': 'M4b-2',
       '/dashboard': 'M4b-4',
       '/dashboard/assets': 'M4b-4',
       '/dashboard/submissions': 'M4b-3',
@@ -60,11 +60,12 @@ const DEV_BATCH: Record<string, string> = import.meta.env.DEV
 /**
  * 路由骨架（批 design §3.3：新增 11 条 + 门户 5 条）。
  *
- * - **独立版式**：`/login` 已是真页（`pages/Login.tsx`，T6）· `/device` 仍为 `ComingSoon` 占位
- *   （**T7 换真页** `pages/Device.tsx`）
+ * - **独立版式两页均为真页**：`/login`（`pages/Login.tsx`，T6）· `/device`（`pages/Device.tsx`，T7）
+ *   —— 二者共用跨页件 `components/console/AuthLayout.tsx`
  * - **门户 5 条无守卫**（公开读面，M4a 零回归）
  * - **守卫包裹（Q15）**：`/dashboard` + `/dashboard/*` 与非 `/admin` 的 `/reviews/:id` = `ROLE.USER`（布局路由一条包 4 条）；
  *   `/admin` + `/admin/*` = `ROLE.ADMIN`；**`/admin` 的 `<Navigate>` 放在守卫内**（未达档先被弹回 `/dashboard`，不白跳一层）
+ * - **`/device` 不入 `RoleGuard`**：未登录时由 `claimDevice` 的 401（§4.2 ② 分类）跳登录并**保码回跳**
  * - **不加 `*` 兜底**（与 M4a 现态一致：未知路径落空白，本批不引入新行为）
  * - 文案经 `useI18n()` 在组件内解析（响应语言切换）；`ComingSoon` 均**零业务请求**
  */
@@ -74,12 +75,9 @@ function AppRoutes() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* ── 独立版式（不入 AppShell）── `/device` 待 T7 替换为真页 */}
+          {/* ── 独立版式（不入 AppShell）── 两页均已换真页 */}
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/device"
-            element={<ComingSoon title={t('common', 'comingSoon')} batch={DEV_BATCH['/device']} />}
-          />
+          <Route path="/device" element={<Device />} />
 
           {/* ── 应用壳（顶栏 + 侧栏 + 内容区 Outlet）── */}
           <Route element={<AppShell />}>

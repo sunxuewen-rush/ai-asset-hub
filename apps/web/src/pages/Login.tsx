@@ -1,7 +1,8 @@
 /**
  * 登录页 `/login`（批 design §5.1 页面规格 · §4.3 反向守卫 · §4.2 ④ inline 失败态；线框见主 design §12）。
  *
- * **独立版式**：不入 `AppShell`（**无侧栏 / 无用户区**）——顶部品牌 + 语言切换器，中部居中官方 `Card`。
+ * **独立版式**：不入 `AppShell`（**无侧栏 / 无用户区**）——版式由跨页件 `AuthLayout` 提供
+ * （与 `/device` 共用；T7 执行期从本文件的 `LoginScaffold` 抽出）。
  *
  * 渲染顺序（**顺序敏感**，design §5.1 + Y3）：
  * 1. `loading`（`bootstrapAuth` 未返回）→ 官方 `Skeleton` 骨架、**不渲染表单**
@@ -30,13 +31,13 @@
  * 企业目录通道用 `sAMAccountName`）。
  */
 import { TriangleAlert } from 'lucide-react';
-import { type FormEvent, type ReactNode, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { type FormEvent, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { login } from '@/api/auth';
 import { ApiError, invalidateCache } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { sanitizeNext } from '@/auth/next';
-import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { AuthLayout } from '@/components/console/AuthLayout';
 import { Alert, AlertTitle } from '@/components/ui/shadcn/alert';
 import { Button } from '@/components/ui/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/shadcn/card';
@@ -56,28 +57,6 @@ const TAB_OIDC = 'oidc';
  * **不做前置探测**（Q2 = B+）：探测会写 `oidc_state` cookie，且未启用时的 404 由新标签页自行呈现。
  */
 const OIDC_AUTHORIZE_URL = '/api/auth/oidc/authorize';
-
-/**
- * 登录页版式骨架（独立版式）：顶部品牌 + 语言切换器，中部居中内容。
- *
- * 与 `AppShell` 无关（**无侧栏 / 无顶栏件**）；品牌沿用 `TopBar` 的 `--gradient-brand` 渐变字
- * （视觉真值 SSOT = M4a design §4.4，此处引用不复制色值），并保留回门户首页的链接。
- */
-function LoginScaffold({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-svh flex-col bg-background">
-      <header className="flex items-center justify-between px-6 py-6">
-        <Link to="/" className="flex items-center no-underline" aria-label="AI X Hub home">
-          <b className="bg-[image:var(--gradient-brand)] bg-clip-text text-[17px] font-bold tracking-[-0.3px] text-transparent">
-            AI X Hub
-          </b>
-        </Link>
-        <LanguageSwitcher />
-      </header>
-      <main className="flex flex-1 items-start justify-center px-6 pb-24">{children}</main>
-    </div>
-  );
-}
 
 export function Login() {
   const { state, refresh } = useAuth();
@@ -99,7 +78,7 @@ export function Login() {
   //    切态时无收缩跳动（否则骨架卡与表单卡的 padding 差异本身就成了新的闪动源）
   if (state.status === 'loading') {
     return (
-      <LoginScaffold>
+      <AuthLayout>
         <Card className="w-full max-w-sm">
           <CardHeader>
             <Skeleton className="h-5 w-20" />
@@ -114,7 +93,7 @@ export function Login() {
             <Skeleton className="h-9 w-full" />
           </CardContent>
         </Card>
-      </LoginScaffold>
+      </AuthLayout>
     );
   }
 
@@ -141,7 +120,7 @@ export function Login() {
   }
 
   return (
-    <LoginScaffold>
+    <AuthLayout>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{t('login', 'title')}</CardTitle>
@@ -219,6 +198,6 @@ export function Login() {
           </Tabs>
         </CardContent>
       </Card>
-    </LoginScaffold>
+    </AuthLayout>
   );
 }

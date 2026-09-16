@@ -17,12 +17,22 @@ export interface ApiErrorBody {
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
+  /**
+   * **原始错误体**（已解析；解析失败为 `undefined`）。
+   *
+   * 存在的理由：**OAuth 风格端点**（官方设备流 `device-authorization`）返回
+   * `{error, error_description}` 而非本仓 `{code, message}` ⇒ 归一 `code` 会退化为
+   * `http_{status}`。**适配方**（`api/auth.ts` 的 device 封装）需读本字段把 `error`
+   * 映射为本仓码（批 design §5.2 · Q18①「适配点在设备封装内、页面不直读 code」）。
+   */
+  readonly body: unknown;
 
-  constructor(code: string, status: number, message?: string) {
+  constructor(code: string, status: number, message?: string, body?: unknown) {
     super(message ?? code);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -153,15 +163,18 @@ async function doFetch<T>(path: string, init: DoFetchInit = {}): Promise<T> {
   if (!res.ok) {
     let code = `http_${res.status}`;
     let message: string | undefined;
+    let body: unknown;
     try {
-      const body = (await res.json()) as ApiErrorBody;
-      if (body && typeof body.code === 'string' && body.code.length > 0) code = body.code;
-      if (body && typeof body.message === 'string') message = body.message;
+      body = await res.json();
+      const parsed = body as ApiErrorBody;
+      if (parsed && typeof parsed.code === 'string' && parsed.code.length > 0) code = parsed.code;
+      if (parsed && typeof parsed.message === 'string') message = parsed.message;
     } catch {
       // 非 JSON 错误体——保留 http_{status} 归一码
     }
     if (res.status === 401) handleUnauthorized(path, init.skipAuthRedirect === true);
-    throw new ApiError(code, res.status, message ?? res.statusText);
+    // `body` 一并带出：OAuth 风格端点（设备流）无 `code` 字段，适配方需读原始体（见 `ApiError.body`）
+    throw new ApiError(code, res.status, message ?? res.statusText, body);
   }
   return (await res.json()) as T;
 }

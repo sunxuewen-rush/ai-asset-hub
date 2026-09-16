@@ -51,6 +51,20 @@ const ENCODED_CONTROL = /%(0[0-9a-f]|1[0-9a-f])/i;
 const ENCODED_BACKSLASH = /%5c/i;
 
 /**
+ * `/device` 站内路由（带可选设备码）——**唯一**构造该路由 query 的页面侧落点。
+ *
+ * 用途：未登录访 `/device?user_code=…` 时生成回跳 URL（`/login?next=<本值>`），
+ * 使「保码」逻辑集中一处（页面不出现裸拼接；`user_code` 字面量只在本文件与 `api/auth.ts` 出现）。
+ *
+ * ⚠️ 语义区别：`api/auth.ts` 的 `claimDevice` 拼的是 **API 请求** query（同一参数名、下划线），
+ * 本函数拼的是 **站内路由** URL——二者字面相同但域不同。
+ */
+export function devicePath(userCode?: string | null): string {
+  const code = (userCode ?? '').trim();
+  return code ? `/device?user_code=${encodeURIComponent(code)}` : '/device';
+}
+
+/**
  * `next` 白名单（design §4.3）——**仅接受以单个 `/` 开头的站内相对路径**：
  *
  * | 输入 | 结果 | 理由 |

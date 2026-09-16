@@ -1,7 +1,13 @@
 # M4b-2 认证与壳批设计（登录 · 会话 · 角色感知壳）
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v1.9：T6 落地回写**——① **§9.5 种子形态改写为 upsert（A2）**：原「删
+> Updated: 2026-09-16（**v1.10：T7 落地回写 + 4 处契约订正**——① **§5.2 未登录判定机制重写**：官方
+`GET /device?user_code=` **未登录也返回 200**（实测）⇒ plan 原「401 ② 分类」**不成立**，且会误报
+「他人已认领」⇒ 改为**读会话三态设门**（`loading` 骨架 / `anon` 跳登录**保码** / `authed` 四态）
+② **§5.2 四态表订正**：② 行去「有效期」（详情接口**不返** `expires_in`）· ① 行码形态改**实测 8 位无横线** ·
+④ 行「他人已认领」改写为 **② 的变体**（前置 = GET 响应缺 `client_id`；兜底 = approve 403 `access_denied`）
+③ **§10 `device` 组 14 → 13 键**（去 `expiresLabel`，无数据源） ④ **§5.2 补落地注**（四态 + 保码闭环 +
+刷新态 + 预填归一全实测）；**v1.9：T6 落地回写**——① **§9.5 种子形态改写为 upsert（A2）**：原「删
 `session`/`account`/`user` 后重建」在 `audit_log.actor_id` 有行时恒 **23503**（实测引用 `"user"` 的
 外键 = **12 约束 / 9 张表**）⇒ 只清 `session` + `user`/`account` **有则改、无则建**（`user` 行**永不删**
 ⇒ 引用表全不需清理 · `user.id` **恒定** ⇒ 审计留痕不丢）② **§5.1 补 T6 落地注 + F5 缺口登记**
@@ -270,10 +276,20 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 | 态 | 触发 | 呈现 |
 |----|------|------|
-| ① 输入 | 无有效码 / 码被拒 | `Field` + `Input`（格式提示 `XXXX-XXXX`）+ 「确认」`Button` |
-| ② 已认领 | `GET /api/auth/device?user_code=` 200 | `client_id` / 请求范围（`scope` 空 = 全量）/ 有效期（`expires_in` = 30 分钟）+ 「批准」/「拒绝」 |
-| ③ 已处理 | 批准/拒绝成功 | 「已批准」/「已拒绝」（终态，不再给动作） |
-| ④ 错误 | 无效/过期码 · 网络错 · （他人已认领 —— **待实测**） | 码级错误文案（`Alert`），回到①；**他人已认领分支仓内无据**（Q18②）——T7 实测，若无此态则删 |
+| ① 输入 | 无有效码 / 码被拒 | `Field` + `Input`（placeholder 提示码形态 —— **实测 8 位大写字母数字无横线**，
+如 `CMK68C6R`；T7 订正，原写 `XXXX-XXXX`）+ 「确认」`Button` |
+| ② 已认领 | `GET /api/auth/device?user_code=` 200 **且响应含 `client_id`** | `client_id` / 请求范围
+（`scope` 为 **`null`** = 全量；T7 实测订正，原写「空」）+ 「批准」/「拒绝」。**无「有效期」行**——
+该接口**不返回** `expires_in`（T7 实测；该字段只在 CLI 侧 `POST /device/code` 响应里） |
+| ③ 已处理 | 批准/拒绝成功，**或刷新后返回终态** | 「已批准」/「已拒绝」（终态，不再给动作）。
+**实测**：批准后 `GET` 返回 `status:'approved'`（deny 后 `'denied'`）⇒ 刷新**自然落本态** |
+| ② 变体 · **他人已认领** | 前置：`GET` 200 但**响应缺 `client_id`**（官方只把 `client_id`/`scope` 给
+认领者）；兜底：非认领者 `POST /approve` → **403 `{error:'access_denied'}`** | 终态「该请求已由其他账号
+认领」（**不给批准按钮**——调用方不可能是认领者）。**Q18② 实测定案**：此态**存在**，且**不是** ④ 码级
+错误（T7 订正），`claimedByOther` 键**保留** |
+| ④ 错误 | `invalid_request`（错码 / 已处理 / 未认领）· `expired_token`（过期）· 网络错 | 码级错误文案
+（`Alert`），回到①。**错误体为 OAuth 风格 `{error, error_description}`**（唯一例外：缺参走本仓
+`{code:'VALIDATION_ERROR'}`）⇒ 适配在 `api/auth.ts` 封装内（`ApiError.body`） |
 
 - 端点（主 design §7.1 三行）：`GET /api/auth/device?user_code=`（**下划线**）· `POST /api/auth/device/approve` `{userCode}`（**驼峰**）· `POST /api/auth/device/deny` `{userCode}`
   —— **两处命名不同是实现坑**，落到 `api/auth.ts` 内封装，页面不直接拼参数
@@ -286,6 +302,18 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
   **页面不直读 `code`**；`errors` 表按映射后的码本地化
 - **「他人已认领」态（Q18② · 仓内无据）**：该文案在服务端**无对应错误码**（`auth/errors.ts` 12 码无 device 专属；
   `grep claimed` 零命中）⇒ **T7 实测确认存在性**；**若无此态则删除该分支与 `claimedByOther` 键**（不臆造契约）
+- **未登录判定（T7 实测修正）**：**不能依赖 401 分流**——官方 `GET /device?user_code=` **未登录也返回 200**
+  （只给 `status`、不给 `client_id`/`scope`）⇒ 401 分类**永不触发**，且未登录用户会因「响应缺 `client_id`」
+  落入**「他人已认领」误报**。⇒ 页面**读会话三态设门**（`useAuth`，与 `/login` 顺序、`RoleGuard` 未登录
+  判定同源）：`loading` → 官方 `Skeleton` 骨架（**不渲染表单**）· `anon` →
+  `<Navigate to={/login?next=devicePath(user_code)} />`（**保码**，Q1）· `authed` → 四态流程 + 自动认领
+  （自动认领的 effect **门控在 `authed`**）。**实测闭环**：未登录访 `/device?user_code=NP7954C5` →
+  `/login?next=%2Fdevice%3Fuser_code%3DNP7954C5` → 登录 → **回跳并自动认领** ✓
+- **落地（v1.10 · T7）**：件 `pages/Device.tsx`（**303 行**）已落仓；`main.tsx` 的 `/device` 占位改真页
+  （`DEV_BATCH['/device']` 项**删除**）；独立版式由跨页件 **`components/console/AuthLayout.tsx`** 提供
+  （与 `/login` 共用，T7 从 T6 的 `LoginScaffold` 抽出）。**十项断言全实测通过**：四态 · 保码闭环 ·
+  预填（含大写归一）· 实测链 · **刷新态 = 终态** · 错误体适配（不落 `http_400`）· **他人已认领双路** ·
+  门禁四连 · 生产产物零 `M4b-` · 门户零回归 **36/36**
 - 本批**不消费** CLI 两端（`/device/code`、`/device/token`）
 
 ### 5.3 工作台临时落地页 `/dashboard`（Q5）
@@ -447,7 +475,12 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 | 组 | 键 | 说明 |
 |----|-----|------|
 | `login`（8） | `title` · `tabLocal` · `tabOidc` · `username` · `password` · `submit` · `submitting` · `oidcHint` | 两 tab 与表单 |
-| `device`（14） | `title` · `codeLabel` · `codePlaceholder` · `confirm` · `clientLabel` · `scopeLabel` · `scopeAll` · `expiresLabel` · `approve` · `deny` · `approved` · `denied` · `claimedByOther`※ · `invalidCode` | 四态文案（※ **键去留待 T7 实测**——Q18②：若无「他人已认领」态则删键，`device` 组 14 → 13、净增 **34 → 33**） |
+| `device`（**13**） | `title` · `codeLabel` · `codePlaceholder` · `confirm` · `clientLabel` · `scopeLabel` ·
+`scopeAll` · `approve` · `deny` · `approved` · `denied` · `claimedByOther` · `invalidCode` | 四态文案。
+**T7 落定**：① ~~`expiresLabel`~~ **删除**（详情接口不返 `expires_in` ⇒ 无数据源）⇒ 14 → **13 键**
+② `claimedByOther` **保留**（Q18② 实测：此态存在，判定 = GET 响应缺 `client_id` / approve 403）|
+| （`errors` 组） | 无新增 | device 错误经 `api/auth.ts` 归一到 `device.invalidCode` /
+`device.claimedByOther` ⇒ **走 `device` 组文案**（不占 `errors` 组） |
 | `errors`（+9） | `auth.invalid_credentials` · `auth.user_disabled` · `auth.user_pending` · `auth.ldap_denied` · `auth.email_missing` · `auth.email_conflict` · `auth.csrf_failed` · `auth.session_expired` · `oidc.not_configured` | （`auth.rate_limited` M4a 已落；`auth.forbidden`/`auth.oidc_*` 见主 design §7.2 G6） |
 | `common`（**+2**） | `comingSoon` · `noPermission` | **T3 落**：7 条占位页 description + 守卫档位不足 notice |
 | `dashboard`（+2） | `submissions`（**T3 落**）· `welcome`（T8） | 侧栏条目 + 临时页欢迎语 |
@@ -501,6 +534,22 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.10** | 2026-09-16 | sunxuewen-rush | **T7 落地回写 + 4 处契约订正（用户 2026-09-16 拍板「按推荐来」）**——
+① **§5.2 未登录判定机制重写**（★设计缺口）：官方 `GET /device?user_code=` **未登录也返回 200**
+（dev 真机实测：`{user_code, status:'pending'}`，仅缺 `client_id`/`scope`）⇒ plan 原「未登录 → 401 ② 分类
+生成 `next`」**不成立**（401 永不触发），且未登录用户会因「响应缺 `client_id`」**误落「他人已认领」终态**
+⇒ 改为页面**读会话三态设门**（`useAuth`；与 `/login` 顺序、`RoleGuard` 同源）⇒ **保码回跳闭环实测通过**
+② **§5.2 四态表订正**：② 行**删「有效期」**（详情接口不返 `expires_in`——该字段只在 CLI 侧
+`POST /device/code` 响应里）· ① 行码形态 `XXXX-XXXX` → **实测 8 位大写字母数字无横线** · ④ 行
+「他人已认领」**改判为 ② 的变体**（前置 = GET 响应缺 `client_id`；兜底 = approve 403
+`{error:'access_denied'}`——`device-flow.test.ts:346` + dev 真机双证）· ④ 行补**错误体形态**（OAuth 风格
+`{error, error_description}`，唯一例外 = 缺参走本仓 `{code:'VALIDATION_ERROR'}`）③ **§10 `device` 组
+14 → 13 键**（去 `expiresLabel`）· `claimedByOther` **保留**（Q18② 实测存在）· 补「device 错误经封装归一到
+`device` 组文案，**不占 `errors` 组**」 ④ **§5.2 补落地注**（十项断言：四态 · 保码闭环 · 预填+大写归一 ·
+刷新态 = 终态 · 错误体适配不落 `http_400` · 他人已认领双路 · 门禁四连 · 门户零回归 **36/36**）
+⑤ **实现落点 3 处**：`ApiError` 补 **`body`**（OAuth 适配前提——归一 `code` 会退化 `http_400`）·
+`AuthLayout` **抽跨页件**（消 T6 自检 B3/C4 的「品牌字重复」扣分）· `devicePath` 落 `auth/next.ts`
+（站内路由构造单点）。依据 = 批 plan **v0.10** T7 落地记录（含 6 处执行期修正）|
 | **v1.9** | 2026-09-16 | sunxuewen-rush | **T6 落地回写 + 种子形态改写（A2，用户拍板）**——
 ① **§9.5 种子段重写**：形态由「删 `session`/`account`/`user` 后重建」→ **upsert**（只清 `session` +
 `user`/`account` 有则改无则建）。**根因实证**：原形态在 **`audit_log.actor_id` 有行**时恒 **23503**——
