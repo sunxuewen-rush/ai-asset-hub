@@ -14,6 +14,13 @@ export const zh = {
     starRepo: 'Star on GitHub',
     versionLine: 'v{version} · Apache 2.0',
     login: '登录',
+    groupPersonal: '个人',
+    groupAdmin: '管理',
+    groupSuperAdmin: '超级管理',
+    roleUser: '用户',
+    roleAdmin: '管理员',
+    roleSuperAdmin: '超级管理员',
+    logout: '登出',
   },
   market: {
     heroIntro: '发现和分享AI资源',
@@ -83,6 +90,7 @@ export const zh = {
     audit: '审计日志',
     labels: '标签管理',
     users: '用户管理',
+    settings: '系统设置',
     empty: '暂无数据',
   },
   review: {

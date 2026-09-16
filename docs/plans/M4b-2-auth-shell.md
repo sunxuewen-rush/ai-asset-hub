@@ -1,8 +1,8 @@
 # M4b-2 认证与壳批（登录 · 会话 · 角色感知壳）实现计划
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v0.6：T3 落地回写**——T3 ✅（2026-09-16）新建 `console/ComingSoon.tsx` + **种子脚本提前落地**（`docs/smoke/scripts/m4b2-seed-roles.ts`）· `RoleGuard.tsx` 重写（43 → 44 行）· `main.tsx` 48 → **196 行**（11 条路由 + 两段守卫 + `DEV_BATCH` 常量表）· i18n `common` +2 / `dashboard.submissions` +1；断言实测（路由 **11 条** · `/admin` 守卫内重定向 · `bootstrapAuth` 模块级 · `ROLE` 残留 **0** · **生产产物零 `M4b-` 字面量**（build + grep 实测）· **真浏览器 4/4 + role=1 实测** （`/admin*` → 落 `/dashboard`）· 门禁四连 exit 0 · 门户零回归 **36/36**）；**执行期细化 4 处**（/login `/device` T3 形态 = 占位 ⇒ T6/T7 补 `Modify main.tsx` · 占位页文案键 `common.comingSoon` · notice 键 `common.noPermission` · **种子脚本提前落地并跑通**）；**连带发现**（dogfood 401 口径 → 单列）；**v0.5：T2 落地回写**——T2 ✅（2026-09-16）新建件 9 `auth/next.ts` + `client.ts` 扩至 187 行；断言实测（**纯函数探针 27/27** · **门户零回归 dogfood 36/36 + NO JS ERRORS** · 门禁三连 exit 0）；**执行期细化 3 处**（`sanitizeNext` 单参 · `PROTECTED_PREFIXES` 落 `auth/next.ts` · `invalidateCache` 语言无关 path 前缀）；连带修复 biome 控制字符正则规则；**v0.4：T1 落地回写**——T1 ✅（2026-09-16）新建 3 件 + `client.ts` 扩至 119 行；断言实测（`hasRole` 探针 **14/14** · 门禁三连 exit 0 · 零服务端改动）；**执行期修正 2 处**（`apiPost` 前移 T1 解循环依赖 · 401 登记口落 `api/client.ts` 防 ESM 循环）· **登记 1 项归 T4**（角色徽章键与组标题键语义不符）；**v0.3：grilling 第 3 轮（Q14-Q19）断言同步**——T2 断言③ **判定域 = 当前路由**（Q14：实测全仓 `apiGet` 均为 `/api/...`，与原「按 path 匹配」不同域）+ 断言⑤ 补 **`/\evil.com` / `/%5Cevil.com` → `null`**（Q16）· T3 断言⑦ **守卫包裹与 `minRole` 映射**（Q15）· T7 断言⑧ **device 错误体 OAuth 风格适配**（Q18①）+ 断言⑨ **「他人已认领」态实测**（Q18②）· T8 断言⑤ **`location.state.notice` 消费**（Q17）· T9 断言⑥ **`claimedByOther` 键去留**（Q18②）· T10 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）；**顺带修正 T4/T7 断言编号重复（⑦ 各出现两次，自产缺陷同轮修）**；**v0.2：深度档评审同步**——§1.4 两缺口全部闭合（批 design v1.2：`auth/next.ts` 件 9 + Q8 边界订正）· T4 补 F3/图标态断言 · T7 补 F1 刷新态 · T9 补净增 32 键对照 · T10 补 F2 提示 + 登记表改「复核」；**v0.1 初稿**：M4b-2 Task 清单 **T1-T10**（认证地基 → API 客户端扩展 → 路由骨架 → 侧栏三组 → TopBar 减法 → `/login` → `/device` → `/dashboard` → i18n 对齐 → 门禁/dogfood/收口），每 Task 含 **Files / Assert（可现场跑）/ Commit**；依据批 design `2026-09-16-m4b2-auth-shell-design.md` **v1.1**（定稿 · 8 维 9.44）与上游主 design **v1.21** §2.3 拆批表；§1.4 登记**两处待补设计缺口**（① `sanitizeNext` 落点未在件清单列明 ② Q8「反向守卫」Task 边界措辞）；10 项行数声明与 i18n 键数**全部实测一致** · file:line 引用**全部回读**）
-> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ 2026-09-16** · T4-T10 ⬜ 待执行；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
+> Updated: 2026-09-16（**v0.7：T4 落地回写**——T4 ✅（2026-09-16）新建 `ui/UserMenu.tsx` · `SideNav.tsx` 加三组（门户组 JSX 逐字保留）+ Footer 接用户区 · i18n `navigation` +6 / `admin` +1；断言实测（**四档显隐全绿** （未登录/1/10/100）· **UserMenu 四态**含 loading 采样序列（404ms skeleton → 3406ms authed，**无 ANON 闪现**）· 占位条目 `BUTTON` + toast · **F3 计算值**（组间距 4px · 组内 padding 8px · 标签高 32px）· 门禁四连 · 门户零回归 **36/36**）；**执行期修正 5 处**（plan 断言③ 超管组 **4 → 3 条**（主 design §4 唯一源）· `admin.phase2Notice` **不存在 ⇒ 复用 `common.comingSoon`** · 徽章键 3 个落定 · **补 2 处遗漏键**（`navigation.logout`/`admin.settings`）⇒ 净增 34 → **39** · **修 T1 缺陷**（`apiPost` 写请求 content-type + `logout` 传 `{}` ⇒ sign-out 实测 415/400 两坑全通））；**F4 登记**（图标态部分 `group-data-[collapsible=icon]` 变体未生效，待深挖）；**v0.6：T3 落地回写**——T3 ✅（2026-09-16）新建 `console/ComingSoon.tsx` + **种子脚本提前落地**（`docs/smoke/scripts/m4b2-seed-roles.ts`）· `RoleGuard.tsx` 重写（43 → 44 行）· `main.tsx` 48 → **196 行**（11 条路由 + 两段守卫 + `DEV_BATCH` 常量表）· i18n `common` +2 / `dashboard.submissions` +1；断言实测（路由 **11 条** · `/admin` 守卫内重定向 · `bootstrapAuth` 模块级 · `ROLE` 残留 **0** · **生产产物零 `M4b-` 字面量**（build + grep 实测）· **真浏览器 4/4 + role=1 实测** （`/admin*` → 落 `/dashboard`）· 门禁四连 exit 0 · 门户零回归 **36/36**）；**执行期细化 4 处**（/login `/device` T3 形态 = 占位 ⇒ T6/T7 补 `Modify main.tsx` · 占位页文案键 `common.comingSoon` · notice 键 `common.noPermission` · **种子脚本提前落地并跑通**）；**连带发现**（dogfood 401 口径 → 单列）；**v0.5：T2 落地回写**——T2 ✅（2026-09-16）新建件 9 `auth/next.ts` + `client.ts` 扩至 187 行；断言实测（**纯函数探针 27/27** · **门户零回归 dogfood 36/36 + NO JS ERRORS** · 门禁三连 exit 0）；**执行期细化 3 处**（`sanitizeNext` 单参 · `PROTECTED_PREFIXES` 落 `auth/next.ts` · `invalidateCache` 语言无关 path 前缀）；连带修复 biome 控制字符正则规则；**v0.4：T1 落地回写**——T1 ✅（2026-09-16）新建 3 件 + `client.ts` 扩至 119 行；断言实测（`hasRole` 探针 **14/14** · 门禁三连 exit 0 · 零服务端改动）；**执行期修正 2 处**（`apiPost` 前移 T1 解循环依赖 · 401 登记口落 `api/client.ts` 防 ESM 循环）· **登记 1 项归 T4**（角色徽章键与组标题键语义不符）；**v0.3：grilling 第 3 轮（Q14-Q19）断言同步**——T2 断言③ **判定域 = 当前路由**（Q14：实测全仓 `apiGet` 均为 `/api/...`，与原「按 path 匹配」不同域）+ 断言⑤ 补 **`/\evil.com` / `/%5Cevil.com` → `null`**（Q16）· T3 断言⑦ **守卫包裹与 `minRole` 映射**（Q15）· T7 断言⑧ **device 错误体 OAuth 风格适配**（Q18①）+ 断言⑨ **「他人已认领」态实测**（Q18②）· T8 断言⑤ **`location.state.notice` 消费**（Q17）· T9 断言⑥ **`claimedByOther` 键去留**（Q18②）· T10 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）；**顺带修正 T4/T7 断言编号重复（⑦ 各出现两次，自产缺陷同轮修）**；**v0.2：深度档评审同步**——§1.4 两缺口全部闭合（批 design v1.2：`auth/next.ts` 件 9 + Q8 边界订正）· T4 补 F3/图标态断言 · T7 补 F1 刷新态 · T9 补净增 32 键对照 · T10 补 F2 提示 + 登记表改「复核」；**v0.1 初稿**：M4b-2 Task 清单 **T1-T10**（认证地基 → API 客户端扩展 → 路由骨架 → 侧栏三组 → TopBar 减法 → `/login` → `/device` → `/dashboard` → i18n 对齐 → 门禁/dogfood/收口），每 Task 含 **Files / Assert（可现场跑）/ Commit**；依据批 design `2026-09-16-m4b2-auth-shell-design.md` **v1.1**（定稿 · 8 维 9.44）与上游主 design **v1.21** §2.3 拆批表；§1.4 登记**两处待补设计缺口**（① `sanitizeNext` 落点未在件清单列明 ② Q8「反向守卫」Task 边界措辞）；10 项行数声明与 i18n 键数**全部实测一致** · file:line 引用**全部回读**）
+> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ 2026-09-16** · T5-T10 ⬜ 待执行；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
 > 引用链：本文档 → 批 design `docs/designs/2026-09-16-m4b2-auth-shell-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层）`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**版本以其版本头为准**）→ 规范 `00` §5/§7 · `05` §3/§5/§6 · `07` §3/§4 → M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -129,17 +129,19 @@
   ⑧ 门禁（web 侧四连）
 - **Commit**: `feat(web): add auth routing skeleton and placeholder pages`
 
-### T4 侧栏三组 + 门户组保留 + 用户区 ⬜
+### T4 侧栏三组 + 门户组保留 + 用户区 ✅（2026-09-16 落地；执行期修正 5 处见「落地记录」）
 - **设计**：批 design §6.1（显隐矩阵）· §6.2（用户区四态）· §6.3（占位条目交互）
 - **Files**: Modify `apps/web/src/components/ui/SideNav.tsx`（现 143 行：`entries` :53-58 ·
   `SidebarContent` :73-116 · `SidebarFooter` :118-138）· Create `apps/web/src/components/ui/UserMenu.tsx` ·
-  `i18n/{zh,en}.ts`（`navigation` **+3** 组标题键）
+  `i18n/{zh,en}.ts`（`navigation` **+3** 组标题键 + **+3 徽章键**（T4 定案）+ **+1 `logout`**（遗漏补缺）；
+  `admin` **+1 `settings`**（遗漏补缺）——**执行期修正**，见落地记录
 - **Assert**:
   ① **门户组保持现形态**（4 条、**无组标题**、`SidebarMenu` 直挂）——源码零改动（Q3 零回归）
   ② 三组用官方标准形态：`SidebarGroup` > `SidebarGroupLabel` + `SidebarGroupContent` > `SidebarMenu`
-  ③ 组级与条目级**同取 `hasRole`**；**组内无可见条目 ⇒ 整组不渲染**，
+  ③ 组级与条目级**同取门槛**；**组内无可见条目 ⇒ 整组不渲染**，
      四档实测（未登录 / 1 / 10 / 100）：未登录仅门户组 · 1 档 +个人（4 条）· 10 档 +管理（2 条）·
-     100 档 +超级管理（2 条真链 + 2 条占位）
+     100 档 +超级管理（**1 条真链 + 2 条占位 = 3 条**——**执行期订正**：原写「2 条真链 + 2 条占位」，
+     与主 design §4（唯一源）「标签管理 / 系统设置 / 用户管理」不符）
   ④ `UserMenu` 四态：`loading` 行骨架 · `anon` = `SidebarMenuButton` + `Link to="/login"`
      （复用既有 `navigation.login` 键）· `authed` = `size="lg"`（`Avatar` 首字 + `displayName` +
      角色徽章 + `DropdownMenu`：我的资产 / 我的令牌 / ── / 登出）· 图标态只留头像（官方 `tooltip`）
@@ -371,6 +373,46 @@
   **实测复验**（清 Edge cookie 后重跑）：尾行 `NO JS ERRORS（… ）（网络层 401 log 9 条 …）` ✓
   严格性不变（未预期 log 仍计入 `errors`）✓ **截图** `docs/smoke/m4b2-t3*.png`（4 轮）**不入库**
 
+**T4 侧栏三组 + 门户组保留 + 用户区 ✅（2026-09-16 落地）**
+
+- **落地**：新建 `components/ui/UserMenu.tsx`（四态）；改 `components/ui/SideNav.tsx`（143 → **254 行**：
+  `SidebarContent` 内**门户组 JSX 逐字保留** + 三组用官方 `SidebarGroup` > `SidebarGroupLabel` +
+  `SidebarGroupContent` > `SidebarMenu`；`SidebarFooter` 顶部接 `<UserMenu />`，元信息三项**保留**（T5 删））；
+  `i18n/{zh,en}.ts`（`navigation` +6：3 组标题 + 3 徽章 · +1 `logout`；`admin` +1 `settings`）
+- **断言实测**（真浏览器 1440×900 桌面视口；账号 = 种子三角色）：
+  ① **门户组零改动**：4 条（首页/技能中心/MCP 中心/专家中心）形态与计数不变，源码块逐字保留 ✓
+  ② 三组官方标准形态（`SidebarGroup` > `SidebarGroupLabel` + `SidebarGroupContent` > `SidebarMenu`）✓
+  ③ **四档显隐全绿**：未登录 = 门户组 only（三组零渲染）· `role=1` = +「个人」4 条（个人工作台 / 我的资产 /
+  我的提交 / 访问令牌）· `role=10` = +「管理」2 条（审核管理 / 审计日志）· `role=100` = +「超级管理」**3 条**
+  （标签管理 / 系统设置 / 用户管理）✓
+  ④ **UserMenu 四态**：`loading` 骨架（`data-slot=sidebar-menu-skeleton`）· `anon` = 登录入口（`Link /login`）·
+  `authed` = `SidebarMenuButton size="lg"`（Avatar 首字 + displayName + **徽章**：用户/管理员/超级管理员）+ 菜单
+  **「我的资产 / 访问令牌 / 登出」** ✓
+  ⑤ **占位条目** = `BUTTON`（非 `Link`）+ 点击 `sonner` 轻提示「该功能将在后续版本提供」✓（两条目零路由）
+  ⑥ **loading 不闪**（CDP 注入延迟 `/me` 1.5s + 40ms 采样）：序列 = `404ms skeleton` → `3406ms authed:…`，
+  **全程无 ANON 形态** ✓（骨架**就地替换**，无「未登录」闪现）
+  ⑦ **F3 混排计算值**（门户组裸 `SidebarMenu` × `SidebarGroup`）：`SidebarContent` gap **4px** · 门户组底 →
+  首组顶 **4px** · 组内 padding **8px** · 组标签高 **32px**；**观感交用户确认**（不为统一而改门户组结构）
+  ⑧ **图标态实测值（F4 登记 · 异常）**：`collapsible="icon"` 下 `data-state=collapsed` ✓ 但
+  **部分 `group-data-[collapsible=icon]` 变体未生效**——`hidden` 类**生效**（相关元素 computed width 0 ✓），
+  而 `size-8!`（按钮仍 178px）· `-mt-8`/`opacity-0`（组标题 marginTop 0px / opacity 1，**未隐藏**）·
+  `w-[calc(var(--sidebar-width-icon)+…)]`（container 仍 204px，未收窄到 48px 档）**均未生效**；
+  已排除：非 mobile 视口（1440×900 复测同结论）· 非「祖先 `.group[data-collapsible=icon]` 缺失」
+  （`closest()` 命中 ✓）· 非 M4b-2 引入（本 Task 未改 `Sidebar`/`SidebarProvider` 配置，门户组原样）；
+  **待深挖**（候选方向：`--spacing` 变量与 `opacity: 0%` 产物的实际解析）
+  ⑨ 门禁四连：`typecheck` 0 · `lint` 0（93 文件）· `format:check` ✓（237）· `build` ✓；
+  **门户零回归** `m4a-dogfood` **36/36 PASS + NO JS ERRORS** ✓
+- **执行期修正 5 处**：① **plan 断言③ 订正**：超管组「2 条真链 + 2 条占位」→ **3 条（1 真 + 2 占位）**
+  （主 design §4 为唯一源；批 design §6.1 同）② **`admin.phase2Notice` 键不存在**（`grep` 零命中，design §6.3
+  单方面引用）⇒ 按用户拍板**复用 `common.comingSoon`**（§6.3 键名同步订正）③ **角色徽章键落定 3 个**
+  （`navigation.roleUser`/`roleAdmin`/`roleSuperAdmin`，设计 34 → 37）④ **补 2 处遗漏键**：
+  `navigation.logout`（用户菜单登出项）· `admin.settings`（超管组「系统设置」条目）——两处均为 design 要求了
+  UI 但 §10 台账未列 ⇒ **净增 37 → 39** ⑤ **修 T1 件缺陷（登出链不通）**：`doFetch` 原「仅在有 body 时声明
+  `content-type`」⇒ `POST /api/auth/sign-out` 恒 **415**；改「**写请求一律声明**」后仍 **400**
+  （`Invalid JSON in request body`——服务端要求**合法 JSON body**）⇒ `logout` 传 `{}` ⇒ **200 `{success:true}`**；
+  修复后登出链实测全通（URL → `/` · 用户区 → 「登录」· 三组 → 0 · `/me` → **401**）
+- **截图**：`docs/smoke/m4b2-t4*.png`（2 轮）**不入库**（门户零回归证据 = 36/36 断言文本）
+
 ## 3. 整体审计（收尾 · 待 T10）
 
 > 口径来源：**十一维**扫描（`docs/00` §7 ② · M4b-1 plan §3 先例）。
@@ -396,6 +438,7 @@
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.7 | 2026-09-16 | sunxuewen-rush | **T4 落地回写**：① T4 标题 → **✅**（2026-09-16）② 新增「落地记录 · T4」段（`UserMenu.tsx` 新建 · `SideNav.tsx` 143 → **254 行** · i18n `navigation` +6/+1 · `admin` +1；**九条断言实测**：门户组零改动 · 三组官方形态 · **四档显隐全绿** · UserMenu 四态（含 loading 采样 **无 ANON 闪现**）· 占位条目 `BUTTON`+toast · **F3 计算值** · 图标态 → **F4 登记** · 门禁四连 · 门户零回归 **36/36**）③ **执行期修正 5 处**（plan 断言③ 超管组 **4 → 3 条**（主 design §4 唯一源）· `admin.phase2Notice` **不存在 ⇒ 复用 `common.comingSoon`** · 徽章键 3 个落定 · **补 2 处遗漏键**（`navigation.logout` / `admin.settings`）⇒ 键数 **37 → 39** · **修 T1 缺陷**：`apiPost` 写请求 content-type + `logout` 传 `{}`（sign-out 415/400 两坑）⇒ 登出链实测全通）④ **F4 登记**：图标态部分 `group-data-[collapsible=icon]` 变体未生效（`hidden` 生效但 `size-8!`/`-mt-8`/`opacity-0`/宽度变体未生效；已排除视口/祖先/M4b-2 引入三因，待深挖）⑤ 状态 → T1-T4 ✅ · T5-T10 ⬜ |
 | v0.6 | 2026-09-16 | sunxuewen-rush | **T3 落地回写**：① T3 标题 → **✅**（2026-09-16）② 新增「落地记录 · T3」段（`console/ComingSoon.tsx` + 种子脚本提前落地 · `RoleGuard` 重写 · `main.tsx` 48 → **196 行** · i18n `common` +2 / `dashboard.submissions` +1；**八条断言实测**：路由 11 条 · `/admin` 守卫内重定向 · `bootstrapAuth` 模块级 · `ROLE` 残留 0 · **生产产物零 `M4b-` 字面量** · **真浏览器 4/4 + role=1 实测** · 门禁四连 · 门户零回归 **36/36**）③ **执行期细化 4 处**（/login `/device` T3 形态 = 占位 ⇒ **T6/T7 Files 各补 `Modify main.tsx`** · 占位页文案键 `common.comingSoon` · 守卫 notice 键 `common.noPermission` · **种子脚本提前落地并跑通** ⇒ **T10 种子步骤改复核**）④ **T8 Files `dashboard` +2 键 → +1 键**（`submissions` 随 T3 前移）⑤ **键数口径连锁**：T9 断言 净增 **32 → 34** · T7 `32 → 31` 改 **34 → 33** · T4 徽章键 `32 → 35` 改 **34 → 37** ⑥ **连带发现**：dogfood **401 log 单列**（`authNetLogs` 桶，依据 design §4.1；严格性不变，实测复验通过）⑦ 状态 → T1 ✅ · T2 ✅ · **T3 ✅** · T4-T10 ⬜ |
 | v0.5 | 2026-09-16 | sunxuewen-rush | **T2 落地回写**：① T2 标题 → ✅ ② 新增「落地记录 · T2」段（件 9 `auth/next.ts` 83 行 + `client.ts` 187 行 · 七条断言实测 · 门户零回归 **36/36** 硬证据）③ **执行期细化 3 处**：`sanitizeNext` **单参**（`origin` 冗余）· `PROTECTED_PREFIXES` 落 `auth/next.ts`（零 import ⇒ 单向引用不成环）· `invalidateCache(prefix)` 按**语言无关 path 前缀**失效（原文「按键前缀」字面读法会永不命中）④ **连带修复**：biome `noControlCharactersInRegex` ⇒ 控制字符检测改码点判定⑤ 401 四分类的**端到端验证点后移 T3 断言⑥**（本 Task 不接线，无真 401 路径）⑥ 截图 11 张**不入库**（零 UI 变更）⑦ 状态 → T1 ✅ · **T2 ✅** · T3-T10 ⬜ |
 | v0.4 | 2026-09-16 | sunxuewen-rush | **T1 落地回写（首个实现 Task 完成）**：① T1 标题 → ✅（2026-09-16）② 新增「落地记录 · T1」段（落地件与行数 · 五条断言实测证据 · 门禁三连 exit 0）③ **执行期修正 1**：`apiPost` 从 T2 前移 T1（**T1 ↔ T2 循环依赖**：T1 的 login 需 POST、T2 的 401 分流需 T1 的 AuthProvider 钩子）⇒ T2 收窄为「401 四分类 + `invalidateCache` + `sanitizeNext`」（T2 Files 已同步）④ **执行期修正 2**：401 登记口落 **`api/client.ts` 的 `setUnauthorizedHandler`**（防 `client → AuthProvider` 反向 import 形成 ESM 循环；§3.1 件 1 语义不变）⑤ **登记归 T4**：角色徽章键与组标题键语义不符（design §6.2 ↔ §10）⑥ 状态 → **执行中**（T1 ✅ / T2-T10 ⬜） |

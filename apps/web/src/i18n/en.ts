@@ -15,6 +15,13 @@ export const en: Dict = {
     starRepo: 'Star on GitHub',
     versionLine: 'v{version} · Apache 2.0',
     login: 'Sign in',
+    groupPersonal: 'Personal',
+    groupAdmin: 'Admin',
+    groupSuperAdmin: 'Super admin',
+    roleUser: 'User',
+    roleAdmin: 'Administrator',
+    roleSuperAdmin: 'Super administrator',
+    logout: 'Sign out',
   },
   market: {
     heroIntro: 'Discover & share AI resources',
@@ -89,6 +96,7 @@ export const en: Dict = {
     audit: 'Audit log',
     labels: 'Labels',
     users: 'Users',
+    settings: 'System settings',
     empty: 'No data',
   },
   review: {

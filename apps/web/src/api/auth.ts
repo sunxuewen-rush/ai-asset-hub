@@ -50,9 +50,18 @@ export async function login(
   );
 }
 
-/** 登出（官方端点；无 body）。调用方负责清缓存与跳转（design §4.4：清上下文 + 回首页）。 */
+/**
+ * 登出（官方端点）。
+ *
+ * **调用形态为实测所得**（2026-09-16 T4 登出链，两种失败各实锤一次）：
+ * - 无 `content-type` ⇒ **415 `UNSUPPORTED_MEDIA_TYPE`**（`Content-Type is required. Allowed types: application/json`）
+ * - 有 `content-type` 但**空 body** ⇒ **400 `BAD_REQUEST`**（`Invalid JSON in request body`）
+ * - ⇒ 必须 `content-type: application/json` + **合法 JSON body**（传 `{}`）⇒ **200 `{success:true}`**
+ *   （`content-type` 由 `apiPost` 对所有写请求统一声明；body 必须由调用方给出）
+ * 调用方负责清缓存与跳转（design §4.4：清上下文 + 回首页）。
+ */
 export async function logout(opts?: { signal?: AbortSignal }): Promise<void> {
-  await apiPost<unknown>('/api/auth/sign-out', undefined, { signal: opts?.signal });
+  await apiPost<unknown>('/api/auth/sign-out', {}, { signal: opts?.signal });
 }
 
 /**

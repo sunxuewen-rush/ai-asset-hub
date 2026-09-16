@@ -103,7 +103,10 @@ export interface ApiPostOptions {
  * POST（JSON）——design §3.2 件 4。
  *
  * **复用 `doFetch`**（不新起 fetch 路径）：401 分流、错误归一、`Accept-Language` 与 GET 同源。
- * `body` 省略 / `undefined` ⇒ **无请求体**（官方 `POST /api/auth/sign-out` 即此形态）。
+ * `body` 省略 / `undefined` ⇒ **无请求体**；`content-type: application/json` 由 `doFetch` 对
+ * **所有写请求**声明（服务端 415 门，详见 `doFetch`）。⚠ **但服务端可能同时要求合法 JSON body**
+ * （如 `POST /api/auth/sign-out`：空 body ⇒ 400 `Invalid JSON in request body`，实测）⇒ 此类端点
+ * 须显式传 `{}`（见 `api/auth.ts` 的 `logout`）。
  */
 export async function apiPost<T>(
   path: string,
@@ -136,8 +139,10 @@ async function doFetch<T>(path: string, init: DoFetchInit = {}): Promise<T> {
       headers: {
         Accept: 'application/json',
         'Accept-Language': getCurrentLang(),
-        // 仅在有 body 时声明 JSON（`sign-out` 等无 body 调用不引入无意义 content-type）
-        ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+        // 写请求（POST）**一律**声明 JSON——**与是否有 body 无关**：服务端 `sign-out` 等端点对缺失
+        // `content-type` 直接 **415 `UNSUPPORTED_MEDIA_TYPE`**（2026-09-16 T4 登出链实测；原「仅在有
+        // body 时声明」的写法使无 body 的登出恒 415，登出静默失败）
+        ...((init.method ?? 'GET') === 'GET' ? {} : { 'content-type': 'application/json' }),
       },
       signal: init.signal,
     });
