@@ -1,7 +1,14 @@
 # M4b-2 认证与壳批设计（登录 · 会话 · 角色感知壳）
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v1.8：T5 落地回写（减法批）**——§3.2 件 1（`TopBar`）与件 2（`SideNav`）补落地注（顶栏**仅余 4 件**、侧栏 Footer **仅余 `UserMenu`**；`navigation` **−4 键已落** ⇒ 键数口径与其算式自洽）；**v1.7：T4 落地执行期修正（5 处，用户拍板「按推荐来」）**——① **§6.1 超管组条目数订正**：plan 断言③ 的「2 条真链 + 2 条占位」→ **3 条（1 真 + 2 占位）**（主 design §4 唯一源）② **§6.3 占位条目提示键订正**：`admin.phase2Notice` **仓内不存在** ⇒ **复用 `common.comingSoon`**（零新增键）③ **§6.2 徽章键落定**：`navigation.roleUser`/`roleAdmin`/`roleSuperAdmin`（3 键，用户拍板）④ **§10 键数口径 → 净增 39 键**（补 2 处遗漏键：`navigation.logout` · `admin.settings`——design 要求了 UI 但台账未列）⑤ **§6.1/§6.2 补落地实测值**（四档显隐 · F3 混排计算值 · F4 图标态登记）；**v1.6：T3 落地执行期细化（4 处，用户拍板「按推荐来」）**——① §3.3 路由表补 **T3 形态注**（`/login` `/device` 本批 T3 = `ComingSoon` 独立版式占位，真页 T6/T7 ⇒ **T6/T7 各需 `Modify main.tsx`**）② §10 键数口径 → **净增 34 键**（新增 `common` 组 **+2**：`comingSoon` = 占位页 description · `noPermission` = 守卫 notice 文案；`dashboard.submissions` **随 T3 前移**落仓 ⇒ T8 仅余 `welcome`）· 连锁：§6.2 徽章键 **34 → 37** · device 删键 **34 → 33** ③ §5.4 补落地注（件已落仓；批次号经 **`DEV_BATCH` 常量表** + `import.meta.env.DEV` 门控 ⇒ **生产产物零 `M4b-` 字面量**，build 后 grep 实测）④ §9.5 种子脚本**已落仓并跑通**（运行须 `--env-file=apps/server/.env`——仓库根无 `.env`）⑤ §9.3 dogfood **401 单列**口径（未登录 `/api/auth/me` 探测）；**v1.5：T2 落地执行期细化**——§3.1 件 9 扩为**路由安全单点**（`sanitizeNext` + `PROTECTED_PREFIXES` + `isProtectedRoute`；**零 import** ⇒ `api/client` 单向引用不成环）· §4.2 `invalidateCache(prefix)` 语义写实（**语言无关 path 前缀**）· §4.3 `sanitizeNext` **单参**（`origin` 冗余）+ 补拒**控制字符**（含 `%00`–`%1f`）+ 落点写明；**v1.4：T1 落地执行期登记**——§3.2 件 4 补「`apiPost` + `doFetch` 参数化 + `setUnauthorizedHandler` 已随 T1 落地」（解 T1↔T2 循环依赖 + 防 ESM 循环）· §6.2 登记**角色徽章键与组标题键语义不符**的缺口（T4 定：补 3 键 32 → 35，或徽章只显色不显字）· §10 增**两处待定键**口径（`claimedByOther` 待 T7 实测 · 徽章键待 T4 定；净增 32 为 baseline，T9 实测回填）；**v1.3：grilling 第 3 轮（Q14-Q20）落地**——**Q14 401 判定域写实**（判定 = **当前路由**，非 API 路径；实测全仓 `apiGet` 均为 `/api/...`）· **Q15 守卫包裹与 `minRole` 映射表**（门户 5 条无守卫 / `/dashboard`+`/reviews` = USER(1) / `/admin` = ADMIN(10)；`/admin` 的 `Navigate` 在守卫内）· **Q16 `sanitizeNext` 拒 `\` 与 `%5C`**（开放重定向边界，形态 `^/[^/\\]`）· **Q17 `/dashboard` 消费 `location.state.notice`**（toast + 清 state 防重弹）· **Q18 device 错误体 = OAuth 风格 `{error}`**（适配点 `api/auth.ts`）+ 「他人已认领」态**仓内无据 ⇒ 待 T7 实测、无则删** · **Q19 种子口令 = 单变量 `SMOKE_M4B2_PASSWORD`**；**v1.2：深度档评审修正（D3 + Y1-Y4 + F1-F3 + plan 缺口落档）**——口径 = 三合一 15 维 + 深度 4 维 + **四轮审查法**（四方对账）；§10 补**净增 32 键**口径注 · 图标态措辞写实 · 补 **`/me` 非 401 失败态**与 **`/login` loading 态** · 种子脚本落点写实（表 `user` / `username` / `role` / `status`）· 登记 F1-F3 · **件清单 8 → 9**（补 `src/auth/next.ts`）· Q8 反向守卫边界订正；深度档实测 **9.19 → 9.44**（8 维）/ 三合一 **9.47**；**v1.1：自检订正轮（U1-U5，第七轮换轴体检）**——轴 = **官方件 API 核对 + 上游引用一致性 + 件清单复算**：改造件 **5 → 6 处**（补 `RoleGuard.tsx`）· §4.5 写实 `RoleGuard` 改造三点（删本地 `ROLE` 常量 / **删 `role` prop** / 接三态）· §5.4 按官方件族落位（`EmptyHeader`/`EmptyMedia`/`EmptyTitle`/`EmptyDescription`/**`EmptyContent`**）· 补 `SidebarGroupContent` 与 `SidebarMenuSkeleton` · §9.1 措辞「逐字不变」→「行为语义不变 + 类型面加性扩展」；自检 **9.17 → 9.44**）；**v1.0 初稿**：M4b-2 对齐定稿——**grilling 13 项决策**（2026-09-16 两轮 + 1 补问，全部按推荐拍板）+ 上游主 design **v1.20** 契约承接；入口现状 8 项真码实证）
+> Updated: 2026-09-16（**v1.9：T6 落地回写**——① **§9.5 种子形态改写为 upsert（A2）**：原「删
+`session`/`account`/`user` 后重建」在 `audit_log.actor_id` 有行时恒 **23503**（实测引用 `"user"` 的
+外键 = **12 约束 / 9 张表**）⇒ 只清 `session` + `user`/`account` **有则改、无则建**（`user` 行**永不删**
+⇒ 引用表全不需清理 · `user.id` **恒定** ⇒ 审计留痕不丢）② **§5.1 补 T6 落地注 + F5 缺口登记**
+（OIDC 成功 `/?oidc=success` 门户面零消费 ⇒ 交 M4b 收尾 / M4c）③ **§10 补 T6 落值**：`login` **8 键**
++ `errors` **9 码**已落（9 码逐条有服务端依据）⇒ 键数 **39 → 56**（T9 回填）+ **跨面共享码（暂零消费）
+登记**（`oidc.not_configured` · `auth.session_expired`）④ 依据 = 批 plan T6 落地记录（**v0.9**：
+六项断言 + 门禁四连 + 门户零回归 **36/36** · 生产产物零 `M4b-`）；**v1.8：T5 落地回写（减法批）**——§3.2 件 1（`TopBar`）与件 2（`SideNav`）补落地注（顶栏**仅余 4 件**、侧栏 Footer **仅余 `UserMenu`**；`navigation` **−4 键已落** ⇒ 键数口径与其算式自洽）；**v1.7：T4 落地执行期修正（5 处，用户拍板「按推荐来」）**——① **§6.1 超管组条目数订正**：plan 断言③ 的「2 条真链 + 2 条占位」→ **3 条（1 真 + 2 占位）**（主 design §4 唯一源）② **§6.3 占位条目提示键订正**：`admin.phase2Notice` **仓内不存在** ⇒ **复用 `common.comingSoon`**（零新增键）③ **§6.2 徽章键落定**：`navigation.roleUser`/`roleAdmin`/`roleSuperAdmin`（3 键，用户拍板）④ **§10 键数口径 → 净增 39 键**（补 2 处遗漏键：`navigation.logout` · `admin.settings`——design 要求了 UI 但台账未列）⑤ **§6.1/§6.2 补落地实测值**（四档显隐 · F3 混排计算值 · F4 图标态登记）；**v1.6：T3 落地执行期细化（4 处，用户拍板「按推荐来」）**——① §3.3 路由表补 **T3 形态注**（`/login` `/device` 本批 T3 = `ComingSoon` 独立版式占位，真页 T6/T7 ⇒ **T6/T7 各需 `Modify main.tsx`**）② §10 键数口径 → **净增 34 键**（新增 `common` 组 **+2**：`comingSoon` = 占位页 description · `noPermission` = 守卫 notice 文案；`dashboard.submissions` **随 T3 前移**落仓 ⇒ T8 仅余 `welcome`）· 连锁：§6.2 徽章键 **34 → 37** · device 删键 **34 → 33** ③ §5.4 补落地注（件已落仓；批次号经 **`DEV_BATCH` 常量表** + `import.meta.env.DEV` 门控 ⇒ **生产产物零 `M4b-` 字面量**，build 后 grep 实测）④ §9.5 种子脚本**已落仓并跑通**（运行须 `--env-file=apps/server/.env`——仓库根无 `.env`）⑤ §9.3 dogfood **401 单列**口径（未登录 `/api/auth/me` 探测）；**v1.5：T2 落地执行期细化**——§3.1 件 9 扩为**路由安全单点**（`sanitizeNext` + `PROTECTED_PREFIXES` + `isProtectedRoute`；**零 import** ⇒ `api/client` 单向引用不成环）· §4.2 `invalidateCache(prefix)` 语义写实（**语言无关 path 前缀**）· §4.3 `sanitizeNext` **单参**（`origin` 冗余）+ 补拒**控制字符**（含 `%00`–`%1f`）+ 落点写明；**v1.4：T1 落地执行期登记**——§3.2 件 4 补「`apiPost` + `doFetch` 参数化 + `setUnauthorizedHandler` 已随 T1 落地」（解 T1↔T2 循环依赖 + 防 ESM 循环）· §6.2 登记**角色徽章键与组标题键语义不符**的缺口（T4 定：补 3 键 32 → 35，或徽章只显色不显字）· §10 增**两处待定键**口径（`claimedByOther` 待 T7 实测 · 徽章键待 T4 定；净增 32 为 baseline，T9 实测回填）；**v1.3：grilling 第 3 轮（Q14-Q20）落地**——**Q14 401 判定域写实**（判定 = **当前路由**，非 API 路径；实测全仓 `apiGet` 均为 `/api/...`）· **Q15 守卫包裹与 `minRole` 映射表**（门户 5 条无守卫 / `/dashboard`+`/reviews` = USER(1) / `/admin` = ADMIN(10)；`/admin` 的 `Navigate` 在守卫内）· **Q16 `sanitizeNext` 拒 `\` 与 `%5C`**（开放重定向边界，形态 `^/[^/\\]`）· **Q17 `/dashboard` 消费 `location.state.notice`**（toast + 清 state 防重弹）· **Q18 device 错误体 = OAuth 风格 `{error}`**（适配点 `api/auth.ts`）+ 「他人已认领」态**仓内无据 ⇒ 待 T7 实测、无则删** · **Q19 种子口令 = 单变量 `SMOKE_M4B2_PASSWORD`**；**v1.2：深度档评审修正（D3 + Y1-Y4 + F1-F3 + plan 缺口落档）**——口径 = 三合一 15 维 + 深度 4 维 + **四轮审查法**（四方对账）；§10 补**净增 32 键**口径注 · 图标态措辞写实 · 补 **`/me` 非 401 失败态**与 **`/login` loading 态** · 种子脚本落点写实（表 `user` / `username` / `role` / `status`）· 登记 F1-F3 · **件清单 8 → 9**（补 `src/auth/next.ts`）· Q8 反向守卫边界订正；深度档实测 **9.19 → 9.44**（8 维）/ 三合一 **9.47**；**v1.1：自检订正轮（U1-U5，第七轮换轴体检）**——轴 = **官方件 API 核对 + 上游引用一致性 + 件清单复算**：改造件 **5 → 6 处**（补 `RoleGuard.tsx`）· §4.5 写实 `RoleGuard` 改造三点（删本地 `ROLE` 常量 / **删 `role` prop** / 接三态）· §5.4 按官方件族落位（`EmptyHeader`/`EmptyMedia`/`EmptyTitle`/`EmptyDescription`/**`EmptyContent`**）· 补 `SidebarGroupContent` 与 `SidebarMenuSkeleton` · §9.1 措辞「逐字不变」→「行为语义不变 + 类型面加性扩展」；自检 **9.17 → 9.44**）；**v1.0 初稿**：M4b-2 对齐定稿——**grilling 13 项决策**（2026-09-16 两轮 + 1 补问，全部按推荐拍板）+ 上游主 design **v1.20** 契约承接；入口现状 8 项真码实证）
 > Status: **定稿**（**8 维 9.44 · 深度档三合一 9.50** ≥9——**实测值**；六轮口径：9.00 → 9.44 → 9.17 → 9.19（深度档评审）→ 9.44（v1.2）→ **v1.3 grilling 第 3 轮后 9.44 / 9.50**；上游主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md` §2.3 的子批之一；主 design 版本随其自身演进，**以其版本头为准**）
 > Scope: **仅 M4b-2（认证与壳批）**——登录页 `/login` · 设备授权页 `/device` · `AuthProvider` 会话上下文 · 401 三分类分流 · 角色判定单点 · 登出 · 侧栏三组 + 用户区 · 路由骨架（11 条）· 占位页；**零服务端改动、零新增依赖**
 > 引用链：本文档 → 上游主 design（§2.4 决策登记 U1-U3 · §3.1-§3.4 认证与会话 · §4 入口分层与显隐 · §5.1/§5.2 页面与路由 · §6.2 组件树 · §7.1 device 三行 · §11 i18n）→ 规范 `00` §5/§7 · `05` §3/§5/§6 · `07` §3/§4 → M4a design **§4.4**（全站视觉真值 SSOT，引用不复制）
@@ -241,6 +248,20 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 - 登录成功：`invalidateCache()` → 重取 `/me` → `navigate(next ?? '/dashboard')`
 - **不显示注册入口**；**无侧栏/无用户区**；反向守卫见 §4.3
 - 用户名为**中性文案**（不是「邮箱」——企业目录通道用 `sAMAccountName`）
+- **落地（v1.9 · T6）**：件 `pages/Login.tsx`（**205 行**）已落仓；`main.tsx` 的 `/login` 占位改真页
+  （`DEV_BATCH['/login']` 项**删除**）。**六项断言全实测通过**：独立版式（无侧栏/无顶栏）·
+  **两 tab**（OAuth 侧 **CDP 真指针**切换后 `href=/api/auth/oidc/authorize` + `rel=noreferrer`；
+  ⓘ 合成 `.click()` 对 Radix `Tabs` 无效）· **首帧骨架**（`/me` 延迟 1.6s：150-1500ms
+  `skeleton=4 / form=false`，1650ms 落表单 ⇒ **Y3 实证**）· **错口令 inline + URL 不变** ·
+  **成功链**（→ `/dashboard` + `/me` 200）· **反向守卫保码回跳**（`/device?user_code=ABCD-1234`）
+  与非法 `next` 回落 `/dashboard`）
+- **自检修复（v1.9 · 同轮）**：骨架卡结构**镜像表单卡**（`CardHeader` 标题位 + `CardContent` 逐位镜像
+  Tabs 条 → （label + input）×2 → 提交钮）——原 `CardContent pt-6` 无 `CardHeader` ⇒ 实测高度差
+  **103px → 13px**、顶部偏移 **0px**（消除 loading → anon 的切态跳动）
+- **登记（F5 · 本批不处理的已知缺口）**：OIDC 成功 302 **`/?oidc=success`（不经 `next`）** 落门户首页，
+  而门户面**零 `oidc` 消费点**（2026-09-16 实测 `apps/web/src` grep 零命中）⇒ 会话 Cookie 已建但
+  `AuthProvider` 不知情（用户需刷新才见登录态）。**消费点落门户面会碰 M4a 零回归硬约束** ⇒ 交
+  **M4b 收尾 / M4c**（主 design §7.2 G6 缺口的延续）
 
 ### 5.2 设备授权页 `/device`（线框见主 design §12；基址口径见主 design §3.4）
 
@@ -405,7 +426,14 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
   运行须显式 `--env-file=apps/server/.env`（**仓库根无 `.env`**，`DATABASE_URL` 只在 `apps/server/.env`）；
   依赖 `drizzle-orm` **不直接从脚本 import**（`docs/` 非 workspace 包 ⇒ 经 `apps/server/**` 间接解析）
   **落点写实（真码）**：表 **`user`**（`apps/server/src/db/schema/auth.ts:43`）· 按 **`username`**（`:54`）前缀 `m4b2_` 匹配 · 写入 **`role`**（`:56`）与 **`status`**（`:61`，默认 `ACTIVE`）；
-  **清理须先删依赖行**（官方 `session` / `account` 表 FK）再删 `user` —— **禁全表 `delete`**（按前缀 `like` 筛子集，可重放）
+  **形态 = upsert（2026-09-16 T6 修正为 A2，用户拍板）**——原「删 `session`/`account` 再删 `user` 后重建」
+  在 **`audit_log.actor_id` 有行**时恒 **23503 外键违反**（**实测引用 `"user"` 的外键 = 12 约束 / 9 张表**：
+  `account` · `asset`×3 · `asset_label` · `asset_version`×2 · `audit_log` · `label_definition` ·
+  `review_task`×2 · `session`；T3 落脚本时只清了 `session`/`account`，**T4 实测登录产生 8 条审计行后暴露**）。
+  现形态：① **只清 `session`**（本前缀用户）——改口令后旧会话必须失效 ② `user`/`account` **有则改、无则建**
+  （`user` 行**永不删除** ⇒ 引用表**全不需清理**，把 FK 触发器**根除**而非逐个补漏；`user.id` **恒定** ⇒
+  既有 `audit_log` 等引用继续指向同一用户 = **审计留痕不丢**。**禁全表 `delete`** 不变（会话清理按前缀
+  `like` 筛子集，可重放）；账号**改名**不在本脚本能力内（无删除面）——改名需手工清理旧行
 
 ## 10. i18n 变更规格
 
@@ -428,6 +456,14 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 | `admin`（**+1**，T4 落） | `settings` | 超管组「系统设置」条目（遗漏补缺） |
 
 > 文案分层口径（主 design §11）：导航条目用**短词**，页头用**全称**。
+> **T6 落值（v1.9）**：`login` 组 **8 键** + `errors` **9 码**已落——**9 码逐条有服务端依据**
+> （`auth/errors.ts:6-21` 的 12 码取其中 8 个 + **`oidc.not_configured`**，后者见
+> `http/oidc-routes.ts:98,127` 的 404 体 `{code:'oidc.not_configured'}` ⇒ **服务端确有、非臆造**）
+> ⇒ 键数 **39 → 56**（**T9 实测回填**）。**跨面共享码（暂零消费）登记**：`oidc.not_configured` 与
+> `auth.session_expired` 在 M4b-2 内**无消费点**（OAuth tab **零前置探测** ⇒ 404 落独立标签页；401 已被
+> §4.2 全分流）——落键依据 = i18n 表**完整覆盖服务端实有码**（07 §4 方针），消费点随后续批出现
+> （**收尾整体审计勿判死键**）。
+>
 > ⚠ **键数口径的两处待定（登记）**：① `device` 组 `claimedByOther` 键去留待 **T7** 实测确认「他人已认领」态存在性（无则删键，14 → 13）② 角色徽章文案键（**T4** 定：补 3 键或零键，见 §6.2 脚注）⇒ **净增 39 键为 v1.7 值**（T4 后；徽章键已定 3 键；仍待 T7 `claimedByOther` 去留，**最终值 T9 实测回填**）。
 
 ## 11. 引用文件清单
@@ -465,6 +501,26 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.9** | 2026-09-16 | sunxuewen-rush | **T6 落地回写 + 种子形态改写（A2，用户拍板）**——
+① **§9.5 种子段重写**：形态由「删 `session`/`account`/`user` 后重建」→ **upsert**（只清 `session` +
+`user`/`account` 有则改无则建）。**根因实证**：原形态在 **`audit_log.actor_id` 有行**时恒 **23503**——
+实测引用 `"user"` 的外键 = **12 约束 / 9 张表**（`account` · `asset`×3 · `asset_label` ·
+`asset_version`×2 · `audit_log` · `label_definition` · `review_task`×2 · `session`），T3 落脚本时只清了
+`session`/`account`，**T4 实测登录产生 8 条审计行后暴露**。**A2 收益**：`user` 行永不删 ⇒ 引用表全不需
+清理（FK 触发器**根除**）· `user.id` **恒定** ⇒ 既有 `audit_log` 引用继续指向同一用户（**审计留痕不丢**，
+删审计日志属治理底线）· 真幂等（可无限重放）。**未采纳**：C 案（保持删+建、补清 `audit_log`）——
+补漏式、随业务表增长复发 ② **§5.1 补 T6 落地注**（件已落仓 · 六项断言实测：独立版式 · 两 tab（**真指针**）·
+**首帧骨架**（`/me` 延迟 1.6s，150-1500ms `sk=4/form=false`，1650ms 落表单 ⇒ **Y3 实证**）· 错口令
+**inline + URL 不变** · 成功链 → `/dashboard` + `/me` 200 · 反向守卫**保码回跳**与非法 next 回落）+
+**F5 缺口登记**（OIDC 成功 `/?oidc=success` **不经 `next`** 落门户面、门户零 `oidc` 消费 ⇒ 会话已建但
+`AuthProvider` 不知情；消费点落门户面会碰 M4a 零回归 ⇒ 交 M4b 收尾 / M4c） ③ **§10 补 T6 落值 +
+跨面共享码登记**：`login` **8 键** + `errors` **9 码**（**逐条有服务端依据**，含 `oidc.not_configured`
+= `http/oidc-routes.ts:98,127` 实测）⇒ 键数 **39 → 56**（T9 回填）；`oidc.not_configured` /
+`auth.session_expired` **暂零消费**（落键 = i18n 覆盖服务端实有码 · 07 §4 方针；**勿判死键**）
+④ **自检修复 1 处（18 维自检发现 · 同轮修）**：骨架卡结构对齐表单卡（原 `CardContent pt-6` 无
+`CardHeader` ⇒ 实测高度差 **103px**；改为 `CardHeader` + `CardContent` 逐位镜像后 **13px**、顶部偏移
+**0px**）⑤ 依据 = 批 plan **v0.9** T6 落地记录（门禁四连 · 生产产物零 `M4b-` · 门户零回归 **36/36** ·
+零服务端改动） |
 | **v1.8** | 2026-09-16 | sunxuewen-rush | **T5 落地回写（减法批）**——① **§3.2 件 1**（`TopBar`）补落地：43 → **41 行**，删「登录」占位 `<span>` + 图标组件/ i18n 上下文两个 import ⇒ 顶栏**仅余 4 件**（品牌 · `Separator` · `SidebarTrigger` · `LanguageSwitcher`），实测 `height: 58px` 不变、语言切换零变更 ② **§3.2 件 2**（`SideNav`）补落地：元信息三项与 `APP_VERSION` 随 T5 删除 ⇒ Footer **仅余 `UserMenu`**（`children = 1` 实测）③ **§10 `navigation`（+3/−4）增删均已落**（+3 随 T4 · **−4 随 T5**；四键 `grep` 零残留 ⇒ 与 39 键算式自洽）。④ 依据 = 批 plan T5 落地记录（v0.8：门禁四连 · 门户零回归 **36/36**）。**本版无设计内容改动**（落地注与口径自洽） |
 | **v1.7** | 2026-09-16 | sunxuewen-rush | **T4 落地执行期修正（5 处，用户拍板「按推荐来」）**——① **§6.1 超管组条目数订正**：plan T4 断言③ 原写「2 条真链 + 2 条占位」→ **3 条（1 真 + 2 占位）**（主 design §4 为唯一源）② **§6.3 占位条目提示键订正**：`admin.phase2Notice` 仓内不存在 ⇒ **复用 `common.comingSoon`**（零新增键）③ **§6.2 徽章键落定**（用户拍板）：`navigation.roleUser` / `roleAdmin` / `roleSuperAdmin` ⇒ 设计 34 → 37 ④ **§10 键数口径 → 净增 39 键**（**补 2 处遗漏键**：`navigation.logout` · `admin.settings`——均为 design 要求了 UI 而台账漏列）⑤ **§6.1/§6.2 补落地实测**：四档显隐全绿 · UserMenu 四态（loading 采样无 ANON 闪现）· **F3 计算值**（gap 4px / 组内 padding 8px / 标签高 32px）· **F4 登记**（图标态部分 `group-data-[collapsible=icon]` 变体未生效：`hidden` 生效而 `size-8!`/`-mt-8`/`opacity-0`/宽度变体未生效；已排除视口 / 祖先 / 本批引入三因）。⑥ 依据 = 批 plan T4 落地记录（v0.7；含 **T1 件缺陷修复**：`apiPost` 写请求 content-type + `logout` 传 `{}`，sign-out **415/400** 两坑实测全通）。**本版无设计内容改动**（仅口径订正与实测登记） |
 | **v1.6** | 2026-09-16 | sunxuewen-rush | **T3 落地执行期细化（4 处，用户拍板「按推荐来」）**——① **§3.3 补 T3 形态注**：`/login` `/device` 本批 T3 = `ComingSoon` 独立版式占位 ⇒ **T6/T7 各需 `Modify main.tsx`**（原 plan 未列该文件，占位元素无法替换）② **§10 键数口径 → 净增 34 键**（新增 `common` 组 +2：`comingSoon` = 7 条占位页 description · `noPermission` = 守卫档位不足 notice；`dashboard.submissions` **T3 前移**落仓 ⇒ T8 仅余 `welcome`）；连锁订正 §6.2 徽章键 **34 → 37** · device 删键 **34 → 33** ③ **§5.4 落地补注**（件已落仓；批次号经 **`DEV_BATCH` 常量表** + `import.meta.env.DEV` 门控 ⇒ **生产产物零 `M4b-` 字面量**，build 后 grep 实测）④ **§9.5 种子脚本已落仓并跑通**（3 账号；`SMOKE_M4B2_PASSWORD`；前缀清理可重放；运行须 `--env-file=apps/server/.env`）⑤ **§9.3 dogfood 401 单列口径**（未登录 `/api/auth/me` 探测；`authNetLogs` 桶，严格性不变）⑥ 依据 = 批 plan T3 落地记录（v0.6：路由 **11 条** · 真浏览器 **4/4** + **role=1 实测** · 门禁四连 · 门户零回归 **36/36**）。**本版无设计内容改动**（仅执行期落地登记与口径写实） |

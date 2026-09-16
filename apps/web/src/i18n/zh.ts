@@ -1,6 +1,8 @@
 /**
  * zh-CN UI 资源（07 §3：navigation/market/common/errors 四组；文案按 demo-m4a.html 拍板——
  * 技能中心 Skill / MCP 中心 MCP Server / 专家中心 Agent / 总览·文件·版本）。
+ *
+ * M4b-2 新增 `login` 组（批 design §10；`device` 组随 T7 落）+ `errors` 补 9 码。
  * 结构性事实源：en.ts 以本字典为类型对齐（缺键即编译错）。
  */
 export const zh = {
@@ -96,6 +98,16 @@ export const zh = {
     reason: '原因',
     empty: '暂无待审条目',
   },
+  login: {
+    title: '登录',
+    tabLocal: '常规登录',
+    tabOidc: 'OAuth 登录',
+    username: '用户名',
+    password: '密码',
+    submit: '登录',
+    submitting: '登录中…',
+    oidcHint: '将跳转至统一身份认证页面（在新标签页打开）。',
+  },
   common: {
     loading: '加载中…',
     empty: '暂无数据',
@@ -111,7 +123,16 @@ export const zh = {
     'asset.version_yanked': '该版本已撤回，不可访问',
     'asset.version_file_not_found': '文件不存在或已移除',
     'asset.version_file_path_invalid': '文件路径无效',
+    'auth.csrf_failed': '登录来源校验失败，请刷新页面后重试',
+    'auth.email_conflict': '该邮箱已被其他账号占用，请联系管理员处理',
+    'auth.email_missing': '目录身份缺少邮箱，无法建立账号，请联系管理员',
+    'auth.invalid_credentials': '用户名或密码错误',
+    'auth.ldap_denied': '目录认证未通过，请确认账号状态',
     'auth.rate_limited': '请求过于频繁，请稍后再试',
+    'auth.session_expired': '会话已过期，请重新登录',
+    'auth.user_disabled': '该账号已被禁用，请联系管理员',
+    'auth.user_pending': '该账号尚未启用，请联系管理员',
+    'oidc.not_configured': '当前环境未启用 OAuth 登录',
     'request.invalid': '请求参数有误',
     network: '网络异常，请稍后重试',
     unknown: '操作失败，{code}',

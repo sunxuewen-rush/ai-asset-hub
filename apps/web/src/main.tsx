@@ -11,6 +11,7 @@ import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
 import { AssetDetail } from '@/pages/AssetDetail';
 import { Center, type CenterType } from '@/pages/Center';
 import { Home } from '@/pages/Home';
+import { Login } from '@/pages/Login';
 // 样式单入口（Tailwind v4 + shadcn token + AIH 层，design §4.4 v0.10 定案）：
 // Tailwind Preflight / 工具类与 AIH 层（含「Tailwind 不提供的项」迁移面）均经此文件生效。
 // T24 已删除旧层（原 `styles/tokens.css` + `styles/global.css`，双栈共存期结束）。
@@ -39,10 +40,11 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
  * ⇒ `false ? {…'M4b-3'…} : {}` 被常量折叠成 `{}` ⇒ **`M4b-` 字面量不进 bundle**
  * （断言：`grep -c 'M4b-' dist/assets/*.js` = 0）。**不要**改成把批号塞进模块级数组/对象的字面量字段，
  * 那会绕过折叠（属性值不可消除）。
+ *
+ * `/login` 项已随 **T6** 移除（该路由换真页 `pages/Login.tsx`，不再有占位批次号）。
  */
 const DEV_BATCH: Record<string, string> = import.meta.env.DEV
   ? {
-      '/login': 'M4b-2',
       '/device': 'M4b-2',
       '/dashboard': 'M4b-4',
       '/dashboard/assets': 'M4b-4',
@@ -58,7 +60,8 @@ const DEV_BATCH: Record<string, string> = import.meta.env.DEV
 /**
  * 路由骨架（批 design §3.3：新增 11 条 + 门户 5 条）。
  *
- * - **独立版式**：`/login` `/device` 不入 `AppShell`（无侧栏/顶栏）；**T6/T7 换真页**（`pages/Login` / `pages/Device`）
+ * - **独立版式**：`/login` 已是真页（`pages/Login.tsx`，T6）· `/device` 仍为 `ComingSoon` 占位
+ *   （**T7 换真页** `pages/Device.tsx`）
  * - **门户 5 条无守卫**（公开读面，M4a 零回归）
  * - **守卫包裹（Q15）**：`/dashboard` + `/dashboard/*` 与非 `/admin` 的 `/reviews/:id` = `ROLE.USER`（布局路由一条包 4 条）；
  *   `/admin` + `/admin/*` = `ROLE.ADMIN`；**`/admin` 的 `<Navigate>` 放在守卫内**（未达档先被弹回 `/dashboard`，不白跳一层）
@@ -71,11 +74,8 @@ function AppRoutes() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* ── 独立版式（不入 AppShell）── T6/T7 替换为真页 */}
-          <Route
-            path="/login"
-            element={<ComingSoon title={t('navigation', 'login')} batch={DEV_BATCH['/login']} />}
-          />
+          {/* ── 独立版式（不入 AppShell）── `/device` 待 T7 替换为真页 */}
+          <Route path="/login" element={<Login />} />
           <Route
             path="/device"
             element={<ComingSoon title={t('common', 'comingSoon')} batch={DEV_BATCH['/device']} />}
