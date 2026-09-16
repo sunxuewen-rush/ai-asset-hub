@@ -250,10 +250,11 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     expect(await noOrigin.json()).toMatchObject({ code: 'auth.csrf_failed' });
 
     // ③ 同源（官方 baseURL 自动入白名单，``AUTH_TRUSTED_ORIGINS`` 空亦可）→ 放行进业务：201 签发
+    // （M4b-3：名称必填 ⇒ body 带 name）
     const sameOrigin = await app.request('/api/tokens', {
       method: 'POST',
       headers: { cookie, ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-      body: '{}',
+      body: JSON.stringify({ name: 'origin-guard' }),
     });
     expect(sameOrigin.status).toBe(201);
 
@@ -294,7 +295,7 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
         host: 'localhost:3000',
         'content-type': 'application/json',
       },
-      body: '{}',
+      body: JSON.stringify({ name: 'referer-trusted' }), // M4b-3：名称必填
     });
     expect(refererTrusted.status).toBe(201); // 受信任 Referer → 放行进业务
 
@@ -321,7 +322,7 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
         host: 'localhost:3000',
         'content-type': 'application/json',
       },
-      body: '{}',
+      body: JSON.stringify({ name: 'null-origin-samesite' }), // M4b-3：名称必填
     });
     expect(nullOriginSameSite.status).toBe(201);
 

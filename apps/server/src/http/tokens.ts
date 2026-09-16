@@ -3,7 +3,6 @@ import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
 import { findApiKey, issueApiKey, listApiKeys, revokeApiKey } from '../auth/api-keys.js';
 import type { AihAuth } from '../auth/better-auth.js';
-import { ACCOUNT_ROLE } from '../auth/rbac.js';
 import { ALL_TOKEN_SCOPES } from '../auth/token-scopes.js';
 import type { Db } from '../db/client.js';
 import { requireAuth } from './auth-middleware.js';
@@ -11,6 +10,9 @@ import { requireAuth } from './auth-middleware.js';
 /**
  * /api/tokens 路由组（T14-T16，板块 C；05 §5 API Token——平台通用凭证）：
  * 任何 ACTIVE 用户签发本人凭证，无需权限码（签发自己 token 天然授权）。
+ * **令牌彻底私有（2026-09-16 用户拍板，对齐规范层 `05 §5`「Token 签发 / 吊销 = 本人」）**：
+ * 列表 / 编辑 / 删除一律**仅本人**，本人以外视同不存在（404 防枚举）——**超管亦无例外**
+ * （原 DELETE 的 SUPER_ADMIN 分支已收回；未来若需超管令牌治理能力 ⇒ 另立治理面端点，登记 M4b-6/M4c 候选）。
  *
  * M4b-pre T4（令牌面切流）：内部改官方 api-key 插件（服务端直呼，`auth/api-keys.ts` 薄适配层）；
  * **响应形状保持**（design §8）——明文只在签发响应出现一次；库中只有官方哈希（`base64url(sha256)`）。
@@ -34,12 +36,12 @@ const KEY_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 /** POST body（T14：省略 expiresInDays = 永不过期 expiresAt null；1-3650 天，超限 400；
  *  T15：可选 scope = **scope 码**白名单（交集收窄——R14；省略 = 空 scope 全量；
  *  码表单源 `auth/token-scopes.ts`——M4-pre D2：scope 与角色正交，非权限码）；
- *  M4b-3 T2：可选 `name`（**上限 32 = 官方 `maximumNameLength` 默认口径**，钉定于 `better-auth.ts`；
- *  `trim()` 后为空 ⇒ 省略字段不传——官方 `minimumNameLength` 默认 1，传空串会被官方拒） */
+ *  M4b-3：`name` **必填**（用户 2026-09-16 定「新建和编辑名字都不能为空」）——`trim()` 后 1..32 字
+ *  （上限 = 官方 `maximumNameLength` 默认口径，钉定于 `better-auth.ts`；下限 1 由我们前置拦，不进官方） */
 const issueBodySchema = z.object({
   expiresInDays: z.number().int().min(1).max(3650).optional(),
   scope: z.array(z.enum(ALL_TOKEN_SCOPES)).max(10).optional(),
-  name: z.string().trim().max(32).optional(),
+  name: z.string().trim().min(1).max(32),
 });
 
 export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
@@ -72,8 +74,8 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
       expiresAt,
       // scope 缺省 = 全量（`permissions` 不写）；显式 scope = 交集收窄（T15 R14）
       scope: parsed.data.scope ?? null,
-      // M4b-3 T2：名称（issueApiKey 内 trim；空/纯空白 ⇒ 省略官方字段）
-      name: parsed.data.name ?? null,
+      // M4b-3：名称（必填；`issueApiKey` 内 trim 后透传）
+      name: parsed.data.name,
     });
     // 审计（T17：token.issue——detail 零明文（明文只在签发响应；库中仅官方哈希））
     await deps.audit?.({
@@ -95,7 +97,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
     return c.json({ items });
   });
 
-  // DELETE /api/tokens/:id（T16：吊销——本人或 SUPER_ADMIN；幂等 204；他人 token 视同 404 防枚举）
+  // DELETE /api/tokens/:id（T16：吊销——**仅本人**（2026-09-16 起令牌彻底私有）；幂等 204；他人 token 视同 404 防枚举）
   app.delete('/:id', async (c) => {
     const principal = c.get('principal');
     if (!principal) throw new Error('requireAuth guard violated: principal missing');
@@ -106,16 +108,8 @@ export function createTokenRoutes(deps: TokenRoutesDeps): Hono {
     const token = await findApiKey(db, keyId);
     if (!token) return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
 
-    const isOwner = token.referenceId === principal.userId;
-    let isSuperAdmin = false;
-    if (!isOwner) {
-      const rbac = c.get('rbac');
-      if (!rbac) throw new Error('rbac not injected via rbacContext (app assembly error)');
-      const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
-      isSuperAdmin = role >= ACCOUNT_ROLE.SUPER_ADMIN;
-    }
-    if (!isOwner && !isSuperAdmin) {
-      // 防枚举：他人 token 视同不存在
+    // 令牌彻底私有：本人以外（**含超管**）一律视同不存在（防枚举）——规范层 05 §5「Token 签发 / 吊销 = 本人」
+    if (token.referenceId !== principal.userId) {
       return c.json({ code: 'token.not_found', message: 'token.not_found' }, 404);
     }
     if (token.enabled === false) return c.body(null, 204); // 幂等：已吊销

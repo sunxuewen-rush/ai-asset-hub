@@ -1,7 +1,7 @@
 # M4b 管理后台与认证设计
 
 > Date: 2026-09-10
-> Updated: 2026-09-16（**v1.33：M4b-3 批 design 定稿 + 登记回写**——§2.3 拆批表与批件登记表 M4b-3 行回填（批 design **定稿** · 8 维 **9.81** · 批 plan **v0.1**）· §7.1 契约表补 `reviewComment`/`assetType`/`name`/`start`/`tail`/`lastRequest` 与**新增 `PATCH /api/tokens/:id` 行** · §5.1 令牌行补编辑 ② 上游 `docs/00` 升 **v1.54**；**v1.32：M4b-2 出口五件全绿**——§2.3 登记表 M4b-2 行出口件 ④ 由「观感七项待用户
+> Updated: 2026-09-16（**v1.34：M4b-3 令牌面契约收紧回写**——§7.1「令牌吊销」授权行由「本人 ∨ `SUPER_ADMIN`」→ **仅本人**（令牌彻底私有，对齐规范层 `05 §5`「Token 签发 / 吊销 = 本人」；依据 = M4b-3 批 design **v1.11**）——本版不含实现改动；v1.33：M4b-3 批 design 定稿 + 登记回写**——§2.3 拆批表与批件登记表 M4b-3 行回填（批 design **定稿** · 8 维 **9.81** · 批 plan **v0.1**）· §7.1 契约表补 `reviewComment`/`assetType`/`name`/`start`/`tail`/`lastRequest` 与**新增 `PATCH /api/tokens/:id` 行** · §5.1 令牌行补编辑 ② 上游 `docs/00` 升 **v1.54**；**v1.32：M4b-2 出口五件全绿**——§2.3 登记表 M4b-2 行出口件 ④ 由「观感七项待用户
 实机确认」→ **CDP 自动断言 14 PASS / 0 FAIL + NO JS ERRORS**（用户授权代跑 + 认可；口径变更登记于批
 design **v1.14** §9.4）⇒ **M4b-2 批次正式完成（五件全绿）**；上游 `docs/00` 升 **v1.53**）；
 **v1.31：新增 M4b-7「控制台视觉打磨批」（用户拍板 A）**——§2.3 拆批表 + backlog 表 + 
@@ -510,7 +510,7 @@ src/
 | 令牌列表 | `GET /api/tokens` | 登录（仅本人） | `{items:[{id,scope,expiresAt,revokedAt,createdAt,`**`name`**`,`**`start`**`,`**`tail`**`,`**`lastRequest`**`}]}`（M4b-3 加性；库中仍仅 sha256，**`start` = 明文前 12 位**（官方写入）· **`tail`** 自 `metadata.tail` = 明文后 4 位（签发时记） ⇒ 仅够掩码展示） | `http/tokens.ts:87-102` |
 | 令牌签发 | `POST /api/tokens`（`{scope?:string[], expiresInDays?, `**`name?`**`}`） | 登录 | 201 `{id,token,expiresAt}`——**明文仅此一次** | `http/tokens.ts:41-82` |
 | **令牌编辑（M4b-3 新增）** | **`PATCH /api/tokens/:id`**（`{name?, scope?}`） | 本人（他人视同 404 防枚举，同 DELETE 口径） | 200 单条 `ApiKeyRow`；透传官方 `updateApiKey`（原生支持 `name` + `permissions`）；审计 **`token.update`** | 本批新增 |
-| 令牌吊销 | `DELETE /api/tokens/:id` | 本人 ∨ `role >= SUPER_ADMIN`；幂等 204；他人 token 视同 404 防枚举 | 204 | `http/tokens.ts:105-141` |
+| 令牌吊销 | `DELETE /api/tokens/:id` | **仅本人**（**v1.34**：`SUPER_ADMIN` 分支已收回——令牌彻底私有，对齐 `05 §5`；他人**含超管**视同 404 防枚举）；幂等 204 | 204 | `http/tokens.ts:98-126` |
 | 审计 | `GET /api/audit?action=&targetType=&targetId=&actorId=&requestId=&clientIp=&from=&to=&limit=&offset=` | 管理档 `role >= ADMIN`（token scope `audit:read` 交集） | `{items:[audit_log 全列],total,limit,offset}`，createdAt desc + id desc 稳定分页 | `http/audit.ts:45-55` |
 | 公开统计 | `GET /api/stats` | 匿名 | 公开聚合（活跃资产计数等） | `http/stats.ts:11-14` |
 | 资产列表 | `GET /api/assets?limit=&offset=&type=&q=&label=` | **匿名**（读面恒「活跃资产」面，与 viewer 无关） | `{items:AssetItem[],total,limit,offset}`；项含 latest 投影 + ownerDisplayName | `http/assets.ts:75-83,256-283` · `assets/service.ts:173-177` |
@@ -967,6 +967,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.34** | 2026-09-16 | sunxuewen-rush | **M4b-3 令牌面契约收紧回写**（用户 2026-09-16 拍板：令牌彻底私有）① §7.1「令牌吊销」行：本人 ∨ `SUPER_ADMIN` → **仅本人**（他人含超管 ⇒ 404 防枚举）；依据 = 规范层 `05 §5` 原文本就是「本人」（**代码此前超出规范**）+ 兄弟仓 new-api 同款（`model/token.go:364-375` 按 userId 过滤、无全站令牌接口/页）② `PATCH /api/tokens/:id`（M4b-3 新增）同口径 **仅本人** ③ 如需超管令牌治理能力 ⇒ 另立治理面端点，登记 **M4b-6/M4c 候选**；本版不含实现改动 |
 | **v1.33** | 2026-09-16 | sunxuewen-rush | **M4b-3 批 design 定稿 + 登记回写**（用户 2026-09-16「1原型删除 2批准」）① §2.3 拆批表 M4b-3 行范围更新（**类型列** · 操作列 **[👁 查看][↩ 撤回]** 图标化 · 令牌 **6 列** · 编辑/删除 · **`PATCH /api/tokens/:id`** · `assetType`）② §2.3 批件登记表 M4b-3 行回填实际件名（批 design `2026-09-16-m4b3-submissions-and-tokens-design.md` **定稿** · 批 plan `M4b-3-personal-submissions-and-tokens.md` **v0.1**）③ §7.1 契约表：我的提交 + `assetType`；令牌三行 + `name`/`start`/`tail`/`lastRequest`；**新增 `PATCH /api/tokens/:id` 行**；§5.1 令牌行补**编辑**操作 ④ 上游 `docs/00` 升 **v1.54**（§5 M4b-3 行 → 🔵 计划已立）⑤ 原型物料已删除（工作区零残留）⑥ 本版不含实现改动 | 
 | **v1.32** | 2026-09-16 | sunxuewen-rush | **M4b-2 出口五件全绿（批次正式完成）**：§2.3 登记表 M4b-2 行
 「出口五件」⑤ 列由「④ dogfood ✅ / **观感七项待用户实机确认** 🔶」→ **全部 ✅**（④ = **CDP 自动断言

@@ -188,7 +188,7 @@ describe('Bearer token 认证中间件（T17 · 官方 api-key 校验）', () =>
     const res = await buildApp().request('/api/tokens', {
       method: 'POST',
       headers: { authorization: `Bearer ${plain}`, 'content-type': 'application/json' },
-      body: '{}',
+      body: JSON.stringify({ name: 'bearer-csrf' }), // M4b-3：名称必填
     });
     expect(res.status).toBe(201);
   });

@@ -64,7 +64,8 @@ async function issueToken(userId: string, scope?: string[]): Promise<string> {
       'content-type': 'application/json',
       cookie: await cookieFor(userId),
     },
-    body: JSON.stringify(scope === undefined ? {} : { scope }),
+    // M4b-3：名称必填（2026-09-16 契约变更）⇒ 造数请求体补 name
+    body: JSON.stringify({ name: 'scope-test', ...(scope === undefined ? {} : { scope }) }),
   });
   expect(res.status).toBe(201);
   return ((await res.json()) as { token: string }).token;

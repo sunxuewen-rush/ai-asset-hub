@@ -117,7 +117,7 @@ describe('POST /api/tokens（T14 签发）', () => {
 
   it('省略 expiresInDays → 201 永不过期（expiresAt null），明文一次 + 库中仅官方哈希', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', {}, cookie);
+    const res = await postJson('/api/tokens', { name: 'no-expiry' }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { id: string; token: string; expiresAt: string | null };
     expect(body.token.startsWith('aih_')).toBe(true);
@@ -148,7 +148,7 @@ describe('POST /api/tokens（T14 签发）', () => {
 
   it('scope 非空 → 官方 permissions 形态落库（`{audit:["read"]}`）', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', { scope: ['audit:read'] }, cookie);
+    const res = await postJson('/api/tokens', { name: 'scoped', scope: ['audit:read'] }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { id: string };
     const [row] = await db.select().from(apikey).where(eq(apikey.id, body.id));
@@ -158,7 +158,7 @@ describe('POST /api/tokens（T14 签发）', () => {
   it('expiresInDays=30 → expiresAt 约 now+30d', async () => {
     const before = Date.now();
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', { expiresInDays: 30 }, cookie);
+    const res = await postJson('/api/tokens', { name: 'expiry-30', expiresInDays: 30 }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { id: string; token: string; expiresAt: string };
     const at = new Date(body.expiresAt).getTime();
@@ -168,7 +168,7 @@ describe('POST /api/tokens（T14 签发）', () => {
 
   it('expiresInDays 上界 3650 天仍受理（官方 keyExpiration.maxExpiresIn 配置生效）', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', { expiresInDays: 3650 }, cookie);
+    const res = await postJson('/api/tokens', { name: 'expiry-max', expiresInDays: 3650 }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { expiresAt: string };
     const days = (new Date(body.expiresAt).getTime() - Date.now()) / 86_400_000;
@@ -178,7 +178,11 @@ describe('POST /api/tokens（T14 签发）', () => {
   it('expiresInDays 超界（0 / 3651 / 非整数）→ 400 request.invalid', async () => {
     const cookie = await cookieFor(u1);
     for (const bad of [0, 3651, 30.5]) {
-      const res = await postJson('/api/tokens', { expiresInDays: bad }, cookie);
+      const res = await postJson(
+        '/api/tokens',
+        { name: 'out-of-range', expiresInDays: bad },
+        cookie,
+      );
       expect(res.status).toBe(400);
       const body = (await res.json()) as { code: string };
       expect(body.code).toBe('request.invalid');
@@ -197,13 +201,17 @@ describe('POST /api/tokens（T14 签发）', () => {
 
   it('无平台角色普通用户可签（签发本人 token 不需权限码）', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', undefined, cookie);
+    const res = await postJson('/api/tokens', { name: 'plain-user' }, cookie);
     expect(res.status).toBe(201);
   });
 
   it('多 scope 同 resource → permissions 保全全部 action（防单层聚合静默丢权）', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', { scope: ['asset:publish', 'asset:manage'] }, cookie);
+    const res = await postJson(
+      '/api/tokens',
+      { name: 'multi-scope', scope: ['asset:publish', 'asset:manage'] },
+      cookie,
+    );
     expect(res.status).toBe(201);
     const body = (await res.json()) as { id: string };
     const [row] = await db.select().from(apikey).where(eq(apikey.id, body.id));
@@ -220,7 +228,7 @@ describe('POST /api/tokens（T14 签发）', () => {
 
   it('审计落 `target_type = api_key`（design §8 登记项：表已由 api_token 换为官方 apikey）', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', {}, cookie);
+    const res = await postJson('/api/tokens', { name: 'audit-target' }, cookie);
     const body = (await res.json()) as { id: string };
     const rows = await db
       .select({
@@ -247,7 +255,7 @@ describe('POST /api/tokens（T14 签发）', () => {
 
   it('吊销后明文立即失效（端到端 401 对照：签发 201 → 吊销 204 → Bearer 401）', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', {}, cookie);
+    const res = await postJson('/api/tokens', { name: 'revoke-e2e' }, cookie);
     const body = (await res.json()) as { id: string; token: string };
     // 未吊销前：Bearer 可用（令牌通道经 token-middleware → requireAuth）
     const before = await buildApp().request('/api/tokens', {
@@ -275,8 +283,8 @@ describe('GET /api/tokens（T15 列表）', () => {
   it('仅返回本人 token；含过期/吊销/永不过期混合状态；倒序', async () => {
     const cookie = await cookieFor(u1);
     const mints = [
-      await postJson('/api/tokens', {}, cookie),
-      await postJson('/api/tokens', { expiresInDays: 30 }, cookie),
+      await postJson('/api/tokens', { name: 'list-never' }, cookie),
+      await postJson('/api/tokens', { name: 'expiry-30', expiresInDays: 30 }, cookie),
     ];
     expect(mints[0]!.status).toBe(201);
     expect(mints[1]!.status).toBe(201);
@@ -373,13 +381,13 @@ describe('DELETE /api/tokens/:id（T16 吊销）', () => {
     expect(row!.enabled).toBe(true); // 未被吊销
   });
 
-  it('SUPER_ADMIN 吊销他人 token → 204（超管治理面）', async () => {
+  it('SUPER_ADMIN 吊销他人 token ⇒ 404（令牌彻底私有：本人以外视同不存在；2026-09-16 契约变更）', async () => {
     const id = await mintFor(u1);
     const cookie = await cookieFor(superAdmin);
     const res = await deleteReq(`/api/tokens/${id}`, cookie);
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(404);
     const [row] = await db.select().from(apikey).where(eq(apikey.id, id));
-    expect(row!.enabled).toBe(false);
+    expect(row!.enabled).toBe(true); // 未被吊销
   });
 
   it('不存在 id → 404；畸形 id → 400；无 Origin 的 DELETE 走业务语义（origin 守卫已前置）', async () => {
@@ -412,27 +420,22 @@ describe('读面加性 + 掩码配置（M4b-3 T2 · design §4.2 / §5）', () =
     return ((await res.json()) as { items: TokenRow[] }).items;
   }
 
-  it('命名：带 name 签发 ⇒ 列表回显；不带 ⇒ null', async () => {
+  it('命名：带 name 签发 ⇒ 列表回显', async () => {
     const cookie = await cookieFor(u1);
     const named = await postJson('/api/tokens', { name: 'CI 发布用' }, cookie);
     expect(named.status).toBe(201);
     const namedId = ((await named.json()) as { id: string }).id;
-    const unnamed = await postJson('/api/tokens', {}, cookie);
-    expect(unnamed.status).toBe(201);
-    const unnamedId = ((await unnamed.json()) as { id: string }).id;
 
     const rows = await listRows(cookie);
     expect(rows.find((t) => t.id === namedId)!.name).toBe('CI 发布用');
-    expect(rows.find((t) => t.id === unnamedId)!.name).toBeNull();
   });
 
-  it('空 / 纯空白名称 ⇒ 201 且 name 为 null（规避官方 minimumNameLength=1）', async () => {
+  it('名称必填（2026-09-16 契约变更）：缺 name / 空串 / 纯空白 ⇒ 400 request.invalid', async () => {
     const cookie = await cookieFor(u1);
-    for (const name of ['', '   ']) {
-      const res = await postJson('/api/tokens', { name }, cookie);
-      expect(res.status).toBe(201);
-      const id = ((await res.json()) as { id: string }).id;
-      expect((await listRows(cookie)).find((t) => t.id === id)!.name).toBeNull();
+    for (const body of [{}, { name: '' }, { name: '   ' }]) {
+      const res = await postJson('/api/tokens', body, cookie);
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { code: string }).code).toBe('request.invalid');
     }
   });
 
@@ -459,7 +462,7 @@ describe('读面加性 + 掩码配置（M4b-3 T2 · design §4.2 / §5）', () =
 
   it('metadata 列实读含 tail（JSON 容错解析）· lastRequest 字段存在（未使用 ⇒ null）', async () => {
     const cookie = await cookieFor(u1);
-    const res = await postJson('/api/tokens', {}, cookie);
+    const res = await postJson('/api/tokens', { name: 'meta-shape' }, cookie);
     expect(res.status).toBe(201);
     const body = (await res.json()) as { id: string; token: string };
     const [dbRow] = await db.select().from(apikey).where(eq(apikey.id, body.id));
