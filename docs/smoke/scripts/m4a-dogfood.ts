@@ -326,10 +326,18 @@ async function main() {
   await sleep(1500);
   ok('筛选「全部」复位 URL', ((await evalJs('location.search')) as string) === '');
   // 全态 ③ 分页：3 资产 < limit 20 ⇒ 分页控件不渲染（正当行为；真翻页需 >20 资产 → 登记）
+  // ⚠ 2026-09-16 修正（M4b-3 T6 自检发现**假 PASS**）：旧选择器 `nav[aria-label*="分页"]` **永不匹配**
+  //   —— 官方 `Pagination` 的 `aria-label` 是英文 `pagination`（`components/ui/shadcn/pagination.tsx:11`）
+  //   ⇒ 该断言恒真、静默失效（实测：中心页当时确在渲染「1 / 1 · 每页 20」）。现改为官方真值选择器，
+  //   并**补非空洞条件**（同页真实卡片已渲染）⇒「控件缺席」才是真结论。配套真码修正见
+  //   `components/market/CenterPage.tsx`（分页补 `total > PAGE_SIZE` 条件）。
   ok(
     '资产数 < limit ⇒ 无分页控件（正当缺席）',
     (await evalJs(
-      `document.querySelector('[role="navigation"][aria-label*="分页"], nav[aria-label*="分页"]') === null`,
+      `(() => {
+        const rendered = document.body.innerText.includes('LangGraph RAG 检索技能');
+        return rendered && document.querySelector('nav[aria-label="pagination"]') === null;
+      })()`,
     )) === true,
   );
 

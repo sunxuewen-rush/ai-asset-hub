@@ -227,12 +227,19 @@ export function CenterPage({ type }: { type: AssetType }) {
               <AssetCard key={item.id} item={item} />
             ))}
           </AssetGrid>
-          <Pagination
-            total={list.total}
-            limit={PAGE_SIZE}
-            offset={(page - 1) * PAGE_SIZE}
-            onPageChange={handlePageChange}
-          />
+          {/* 分页：**仅多页时渲染**（`total > PAGE_SIZE`）—— 单页显示「1 / 1 · 每页 20」是噪音。
+              ⚠️ 2026-09-16（M4b-3 T6 自检发现）：本件此前**无条件**渲染分页（`Pagination` 只在 `total <= 0`
+              时自隐）⇒ 3 个资产也出「1 / 1」，与门户 dogfood 断言「资产数 < limit ⇒ 无分页控件（正当缺席）」
+              的**声明意图相反**（该断言当时因选择器写错而**假 PASS**，见 `docs/smoke/scripts/m4a-dogfood.ts:328`）。
+              现补该条件，与 M4b-3 批 design §4.4.1「`Pagination` 仅 `total > limit` 时渲染」同口径。 */}
+          {list.total > PAGE_SIZE ? (
+            <Pagination
+              total={list.total}
+              limit={PAGE_SIZE}
+              offset={(page - 1) * PAGE_SIZE}
+              onPageChange={handlePageChange}
+            />
+          ) : null}
         </>
       )}
     </div>
