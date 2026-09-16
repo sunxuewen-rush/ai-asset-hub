@@ -1,7 +1,11 @@
 # M4b-2 认证与壳批设计（登录 · 会话 · 角色感知壳）
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v1.11：T8 落地回写**——§5.3 补落地注（内容槽形态 · **三档入口裁剪实测**
+> Updated: 2026-09-16（**v1.12：T9 落地回写（i18n 实测键数回填）**——§10 全量改为**实测口径**
+（批前基线 `0ff0693` **91 键 / 7 组** ⇒ 当前 **132 键 / 9 组** ⇒ **净增 41 键**）；`errors` 组
+**+9 → +12 码**（**补 3 个服务端实有码**：`auth.forbidden` · `auth.oidc_denied` · `auth.oidc_state_mismatch`
+⇒ 18 → **21 键**，服务端 12 码**覆盖 12/12**）；`device` 组 **14 → 13**（T7 删 `expiresLabel`，本版同步算式）；
+**v1.11：T8 落地回写**——§5.3 补落地注（内容槽形态 · **三档入口裁剪实测**
 （role 1 → 2 项 / 10 与 100 → 3 项）· `notice` toast + 刷新不重弹 · **零业务请求口径补壳层例外**）+
 **「零请求」行口径订正**（实测 `/api/stats` 由 `SideNav.tsx:16` 发出 = M4a 既有侧栏计数徽章，
 非本页引入 ⇒ 订正为「**页面自身**零业务请求」）；**v1.10：T7 落地回写 + 4 处契约订正**——① **§5.2 未登录判定机制重写**：官方
@@ -477,12 +481,19 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 ## 10. i18n 变更规格
 
-**新增 2 组**（`login` **8 键** / `device` **14 键**）；`errors` **+9 码**；`dashboard` **+2 键**；`navigation` **+3 键 / −4 键**（zh 真源 / en 完整对齐，缺键即编译错）。
+**新增 2 组**（`login` **8 键** / `device` **13 键**）；`errors` **+12 码**（T9 实测）；`dashboard` **+2 键**；`admin` **+1 键**；`navigation` **+3 键 / −4 键**（zh 真源 / en 完整对齐，缺键即编译错）。
 
-> **键数口径（单一来源，防两处并读出错）**：新增两组 **22 键**（`login` 8 + `device` 14）+ `errors` **+9 码** + `dashboard` **+2 键**（`submissions` **T3 已落** / `welcome` T8）+ `common` **+2 键**（`comingSoon` + `noPermission`，**T3 落**）+ `navigation` **净 −1**（+3/−4）⇒ **净增 39 键**（**v1.7 更新**：T4 执行期新增 `navigation` 徽章 3 键 + 补 2 处遗漏键 `navigation.logout` /
-> `admin.settings`——design 要求了 UI 但本表未列；式 = 22 + 9 + 2 + 2 + 6（navigation：3 组标题 + **3 徽章**）
-> − 4（元信息待 T5 删）+ 2（遗漏补缺））。
-> 本文件 §13 **v1.0 修订行的「i18n 22 键 + 9 码」是两组新增的窄口径**（史实，不改）——总量以本条为准；T9 落地后按实测回填实际键数。
+> **键数口径（单一来源，防两处并读出错 · T9 实测定案）**：**T9 实测回填（2026-09-16）**：数字全部由审计脚本从 `apps/web/src/i18n/zh.ts` **真实 import** 产出
+（非人工点数）。批前基线 = M4b-2 首个提交 `e569298` 的父提交 **`0ff0693`**（**91 键 / 7 组**）⇒ 当前
+**132 键 / 9 组** ⇒ **净增 41 键**。逐组：`login` **8**（新组）· `device` **13**（新组）· `errors` **+12**
+（18 → **21**）· `navigation` **+3**（9 → 12）· `dashboard` **+2**（4 → 6）· `admin` **+1**（6 → 7）·
+`common` **+2**（5 → 7）· `market` **53**（未变）· `review` **5**（未变）。算式 = 8 + 13 + 12 + 3 + 2 + 1 + 2
+= **41** ✓
+> 三处史实值**不改、以本条为准**：① §13 **v1.0** 的「i18n 22 键 + 9 码」= 两组新增的**窄口径**
+> ② §10 **v1.7** 的「净增 39 键」= `device` 仍按 14 计 + `errors` 仍按 +9 计的**中间值**（T7 删
+> `expiresLabel`、T9 补 3 码后失效）③ §10 **T6 落值**曾写「键数 39 → 56」，同为中间值（**作废**）。
+> ④ **v1.10/v1.12 的「跨面共享码（暂零消费）」登记不变**：`oidc.not_configured` 与
+> `auth.session_expired` 在本批内仍无消费点（收尾整体审计**勿判死键**）
 
 | 组 | 键 | 说明 |
 |----|-----|------|
@@ -493,7 +504,12 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 ② `claimedByOther` **保留**（Q18② 实测：此态存在，判定 = GET 响应缺 `client_id` / approve 403）|
 | （`errors` 组） | 无新增 | device 错误经 `api/auth.ts` 归一到 `device.invalidCode` /
 `device.claimedByOther` ⇒ **走 `device` 组文案**（不占 `errors` 组） |
-| `errors`（+9） | `auth.invalid_credentials` · `auth.user_disabled` · `auth.user_pending` · `auth.ldap_denied` · `auth.email_missing` · `auth.email_conflict` · `auth.csrf_failed` · `auth.session_expired` · `oidc.not_configured` | （`auth.rate_limited` M4a 已落；`auth.forbidden`/`auth.oidc_*` 见主 design §7.2 G6） |
+| `errors`（**+12**） | 本批新增：`auth.invalid_credentials` · `auth.user_disabled` · `auth.user_pending` ·
+`auth.ldap_denied` · `auth.email_missing` · `auth.email_conflict` · `auth.csrf_failed` · `auth.session_expired` ·
+`oidc.not_configured`（**T6 落 9 码**）+ **`auth.forbidden` · `auth.oidc_denied` · `auth.oidc_state_mismatch`**
+（**T9 补 3 码**） | 组规模 **18 → 21 键**。**T9 实测：服务端 `auth/errors.ts` 实有 12 码 ⇒ 覆盖 12/12、
+缺失 0**（`auth.rate_limited` M4a 已落）。补 3 码依据 = 本 plan 断言③「`errors` 组覆盖服务端实有码」——
+`auth.forbidden` 是**真实可达**的用户可见错误（越权 403），原缺 ⇒ 落 `errors.unknown` 兜底，体验不佳 |
 | `common`（**+2**） | `comingSoon` · `noPermission` | **T3 落**：7 条占位页 description + 守卫档位不足 notice |
 | `dashboard`（+2） | `submissions`（**T3 落**）· `welcome`（T8） | 侧栏条目 + 临时页欢迎语 |
 | `navigation`（+3/−4） | **+** `groupPersonal` · `groupAdmin` · `groupSuperAdmin`；**−** `starRepo` · `footDocs` · `footFeedback` · `versionLine` —— **增删均已落**（+3 随 T4 · −4 随 **T5**，`grep` 四键零残留） | 组标题；元信息三项删除 |
@@ -501,15 +517,30 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 | `admin`（**+1**，T4 落） | `settings` | 超管组「系统设置」条目（遗漏补缺） |
 
 > 文案分层口径（主 design §11）：导航条目用**短词**，页头用**全称**。
-> **T6 落值（v1.9）**：`login` 组 **8 键** + `errors` **9 码**已落——**9 码逐条有服务端依据**
-> （`auth/errors.ts:6-21` 的 12 码取其中 8 个 + **`oidc.not_configured`**，后者见
-> `http/oidc-routes.ts:98,127` 的 404 体 `{code:'oidc.not_configured'}` ⇒ **服务端确有、非臆造**）
-> ⇒ 键数 **39 → 56**（**T9 实测回填**）。**跨面共享码（暂零消费）登记**：`oidc.not_configured` 与
-> `auth.session_expired` 在 M4b-2 内**无消费点**（OAuth tab **零前置探测** ⇒ 404 落独立标签页；401 已被
-> §4.2 全分流）——落键依据 = i18n 表**完整覆盖服务端实有码**（07 §4 方针），消费点随后续批出现
-> （**收尾整体审计勿判死键**）。
 >
-> ⚠ **键数口径的两处待定（登记）**：① `device` 组 `claimedByOther` 键去留待 **T7** 实测确认「他人已认领」态存在性（无则删键，14 → 13）② 角色徽章文案键（**T4** 定：补 3 键或零键，见 §6.2 脚注）⇒ **净增 39 键为 v1.7 值**（T4 后；徽章键已定 3 键；仍待 T7 `claimedByOther` 去留，**最终值 T9 实测回填**）。
+> **T9 实测定案（v1.12 · 全量）**：**T9 实测回填（2026-09-16）**：数字全部由审计脚本从 `apps/web/src/i18n/zh.ts` **真实 import** 产出
+（非人工点数）。批前基线 = M4b-2 首个提交 `e569298` 的父提交 **`0ff0693`**（**91 键 / 7 组**）⇒ 当前
+**132 键 / 9 组** ⇒ **净增 41 键**。逐组：`login` **8**（新组）· `device` **13**（新组）· `errors` **+12**
+（18 → **21**）· `navigation` **+3**（9 → 12）· `dashboard` **+2**（4 → 6）· `admin` **+1**（6 → 7）·
+`common` **+2**（5 → 7）· `market` **53**（未变）· `review` **5**（未变）。算式 = 8 + 13 + 12 + 3 + 2 + 1 + 2
+= **41** ✓
+>
+> **T9 校验全绿**（审计脚本实测）：① 双语**双向差集 = 0**（组级 + 键级）② 插值占位符**不一致 = 0**
+> ③ 空值 = **0** ④ `errors` 组 vs 服务端 `auth/errors.ts`：**实有 12 码覆盖 12/12**（缺 0）⑤ 门禁四连 + 
+> 生产产物零 `M4b-` + 门户零回归 **36/36**。
+>
+> **T9 补 3 码（本批唯一内容改动）**：`auth.forbidden` · `auth.oidc_denied` · `auth.oidc_state_mismatch`
+> ——依据 = plan 断言③「`errors` 组覆盖服务端实有码」（07 §4 方针）；原表把三者推给主 design §7.2 G6，
+> 但 `auth.forbidden` 在**本批即可达**（越权 403）⇒ 不补则落 `errors.unknown` 兜底。
+>
+> **T6 落值（v1.9 · 史实）**：`login` 组 **8 键** + `errors` **9 码**（`auth/errors.ts` 12 码取其中 8 个 +
+> `oidc.not_configured`——后者见 `http/oidc-routes.ts:98,127` 的 404 体，**服务端确有、非臆造**）。
+> **跨面共享码（暂零消费）登记**：`oidc.not_configured` 与 `auth.session_expired` 在 M4b-2 内**无消费点**
+> （OAuth tab 零前置探测 ⇒ 404 落独立标签页；401 已被 §4.2 全分流）——落键依据 = 完整覆盖服务端实有码，
+> 消费点随后续批出现（**收尾整体审计勿判死键**）。
+>
+> ⚠ **口径待定项已全部关闭（T9 收口）**：① `device.claimedByOther` **保留**（T7 实测该态存在）
+> ② 角色徽章 3 键 **T4 已落** ③ `device` 组 **13 键**（T7 删 `expiresLabel`）
 
 ## 11. 引用文件清单
 
@@ -546,6 +577,19 @@ export function hasRole(role: number | null | undefined, min: number): boolean; 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v1.12** | 2026-09-16 | sunxuewen-rush | **T9 落地回写（i18n 实测键数回填 · 本批唯一内容改动）**——
+① **§10 全量改实测口径**：批前基线（M4b-2 首个提交 `e569298` 的父 `0ff0693`）**91 键 / 7 组** ⇒ 当前
+**132 键 / 9 组** ⇒ **净增 41 键**；逐组 `login` 8 · `device` 13 · `errors` +12（18 → 21）· `navigation` +3
+（9 → 12）· `dashboard` +2（4 → 6）· `admin` +1（6 → 7）· `common` +2（5 → 7）· `market` 53（未变）·
+`review` 5（未变）；算式 8+13+12+3+2+1+2 = **41** ✓（数字全部由审计脚本**真实 import `zh.ts`** 产出，
+非人工点数）② **`errors` 组 +9 → +12 码**：**补 3 个服务端实有码** `auth.forbidden` · `auth.oidc_denied` ·
+`auth.oidc_state_mismatch`（组规模 18 → **21 键**；服务端 `auth/errors.ts` 12 码**覆盖 12/12、缺失 0**）
+——依据 = plan 断言③「`errors` 组覆盖服务端实有码」（07 §4 方针）；`auth.forbidden` 本批即可达（越权 403），
+原缺会落 `errors.unknown` 兜底 ③ **§10 首行** `device` 14 → **13**（T7 删 `expiresLabel`，本版同步算式）+
+`errors` +9 → **+12** + 补 `admin` **+1** 行 ④ **三处史实值订正声明**：§13 v1.0「22 键 + 9 码」= 窄口径；
+§10 v1.7「净增 39」与 T6 落值「39 → 56」= **中间值（作废）** ⑤ **§10 口径待定项全关闭**（`claimedByOther`
+保留 · 徽章 3 键已落 · `device` 13 键）⑥ **T9 校验全绿**：双语双向差集 **0** · 占位符不一致 **0** · 空值 **0** ·
+服务端码覆盖 **12/12** · 门禁四连 · 产物零 `M4b-` · 门户零回归 **36/36**。依据 = 批 plan **v0.12** |
 | **v1.11** | 2026-09-16 | sunxuewen-rush | **T8 落地回写 + 1 处口径订正**——① **§5.3 补落地注**：件已落仓 ·
 `main.tsx` `/dashboard` 换真页 · `dashboard` 组 **+1 键**（`welcome`）· 六条断言实测（档 0 跳登录保码 ·
 **三档入口裁剪**（role=1 → 2 项；10/100 → 3 项）· `notice` toast + 刷新不重弹 · 零业务请求 · 门禁四连 ·
