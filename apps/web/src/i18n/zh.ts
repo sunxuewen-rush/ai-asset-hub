@@ -84,8 +84,8 @@ export const zh = {
     empty: '暂无数据',
   },
   /**
-   * 我的提交页（`/dashboard/submissions`；M4b-3 batch design §6.1 —— **26 键** =
-   * design 表 25 键 + `action.view`（v1.15 补：组件树的「查看」图标原无文案键））。
+   * 我的提交页（`/dashboard/submissions`；M4b-3 batch design §6.1 —— **25 键** = design 表 25 键；
+   * 原 `error.load` 于 2026-09-17 **删除**（Q6 改判：载入失败统一走 `tErr(code)`，不另设平行键））。
    */
   submissions: {
     subtitle: '你提交的资产版本与审核进展',
@@ -113,12 +113,11 @@ export const zh = {
     'empty.none': '还没有提交记录',
     'empty.noneHint': '提交资产版本后，可在此查看审核进展。',
     'empty.filtered': '当前筛选下没有记录',
-    'error.load': '加载失败，请重试',
   },
   /**
-   * 我的令牌页（`/dashboard/tokens`；M4b-3 批 design §6.2 —— **48 键** = design 表 41 键
+   * 我的令牌页（`/dashboard/tokens`；M4b-3 批 design §6.2 —— **47 键** = design 表 41 键
    * + 5 个 scope 说明（v1.17 补：Q13「每项两行」缺键）+ 2 个成功提示（`edit.success` / `delete.success`，
-   * 断言 ⑧ 与 §4.2 删除流要求 toast 但键表漏列））。
+   * 断言 ⑧ 与 §4.2 删除流要求 toast 但键表漏列）− 1 `error.load`（2026-09-17 删，同 §6.1 口径））。
    */
   tokens: {
     subtitle: '用于 CLI、脚本与自动化访问平台 API',
@@ -169,7 +168,6 @@ export const zh = {
     'plain.closeCancel': '返回',
     'empty.none': '还没有访问令牌',
     'empty.noneHint': '创建一个令牌，供 CLI 或脚本调用平台 API。',
-    'error.load': '加载失败，请重试',
   },
   admin: {
     reviews: '审核管理',

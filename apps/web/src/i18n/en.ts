@@ -87,7 +87,10 @@ export const en: Dict = {
     tokens: 'Access tokens',
     empty: 'No data',
   },
-  /** 我的提交页（M4b-3 §6.1；与 zh 组**逐一对应** —— 类型对齐 `Dict` 保证缺键即编译错） */
+  /**
+   * 我的提交页（M4b-3 §6.1 —— **25 键**；与 zh 组**逐一对应** —— 类型对齐 `Dict` 保证缺键即编译错；
+   * `error.load` 于 2026-09-17 删除，同 zh 组）
+   */
   submissions: {
     subtitle: 'Your submitted asset versions and review progress',
     'col.asset': 'Asset',
@@ -114,9 +117,8 @@ export const en: Dict = {
     'empty.none': 'No submissions yet',
     'empty.noneHint': 'Submit an asset version to track its review progress here.',
     'empty.filtered': 'No records for this filter',
-    'error.load': 'Failed to load, please retry',
   },
-  /** 我的令牌页（M4b-3 §6.2；**48 键** = 41 + 5 scope 说明 + 2 成功提示；与 zh 组逐一对应） */
+  /** 我的令牌页（M4b-3 §6.2；**47 键** = 41 + 5 scope 说明 + 2 成功提示 − 1 `error.load`（2026-09-17 删）；与 zh 组逐一对应） */
   tokens: {
     subtitle: 'For CLI, scripts and automation',
     'col.name': 'Name',
@@ -166,7 +168,6 @@ export const en: Dict = {
     'plain.closeCancel': 'Back',
     'empty.none': 'No access tokens yet',
     'empty.noneHint': 'Issue a token so CLI or scripts can call the platform API.',
-    'error.load': 'Failed to load, please retry',
   },
   admin: {
     reviews: 'Review queue',

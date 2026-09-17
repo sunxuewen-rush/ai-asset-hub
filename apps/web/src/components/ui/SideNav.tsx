@@ -39,6 +39,15 @@ const ICON_BY_TYPE: Record<AssetType, { idle: string; active: string }> = {
 };
 
 /**
+ * 精确匹配路径（其余条目按前缀匹配）——首页与控制台首页。
+ *
+ * `/dashboard` 必须精确：它是个人组的**分区父项**，而 `/dashboard/assets|submissions|tokens`
+ * 是它的子路径 ⇒ 前缀匹配会让「工作台」在任一子页与子页**同时高亮**
+ * （M4b-3 T9④ 实测，2026-09-17 用户拍板 ①）。
+ */
+const EXACT_MATCH_PATHS = new Set(['/', '/dashboard']);
+
+/**
  * 侧栏导航（批 design §6.1 显隐矩阵 · 主 design §4「入口分层与显隐规则」为唯一源）。
  *
  * **门户组**（首页 + 三中心 + 计数）= M4a 既有形态：**无组标题平铺**、`SidebarMenu` 直挂、
@@ -82,9 +91,9 @@ export function SideNav() {
   const countOf = (type: NavType): number | undefined =>
     type === 'home' ? undefined : stats?.typeCounts[type];
 
-  /** 激活判定（首页精确匹配；类型中心以路径前缀匹配——等价原 `NavLink end`） */
+  /** 激活判定（精确匹配集合 = `EXACT_MATCH_PATHS`；其余按路径前缀匹配——等价原 `NavLink end`） */
   const isActive = (to: string): boolean =>
-    to === '/' ? pathname === '/' : pathname.startsWith(to);
+    EXACT_MATCH_PATHS.has(to) ? pathname === to : pathname.startsWith(to);
 
   /**
    * 三组条目（文案在组件内求值 ⇒ 语言切换随上下文重渲染；`to` 缺省 = 占位条目）。

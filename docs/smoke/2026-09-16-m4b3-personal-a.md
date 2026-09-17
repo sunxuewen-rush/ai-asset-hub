@@ -86,7 +86,7 @@ SMOKE_TARGET_USERNAME=m4b3_dogfood bun --env-file=apps/server/.env docs/smoke/sc
 | 维度 | 结果 |
 |------|------|
 | 死导出 | 本批新建件扫描 ⇒ **0 孤儿**：`fetchMyReviews`/`withdrawReview`（Submissions 消费）· `fetchTokens`/`createToken`/`updateToken`/`deleteToken`/`TOKEN_SCOPE_CODES`（Tokens 消费）· `apiPatch`/`apiDelete`（api 层消费）· `StatusPill kind="task"`（**T5 时零消费点 ⇒ T6 起被 Submissions 消费，该项关闭**） |
-| i18n 键 | ✓ 本批新增 **82 键**（`submissions` **26** · `tokens` **48** · `errors` +7 · `common` +1）· 双语差集 **0** · 孤儿键 **2 处登记**（`error.load` ×2 —— 属**已拍板键**，处置待用户，见 §6 #1）· 裸键泄漏 0（门户 dogfood 覆盖） |
+| i18n 键 | ✓ 本批新增 **80 键**（2026-09-17 订正：`error.load` ×2 删除）（`submissions` **25** · `tokens` **47** · `errors` +7 · `common` +1）· 双语差集 **0** · **孤儿键 0**（`error.load` 处置见 §6 #1）· 裸键泄漏 0（门户 dogfood 覆盖） |
 | 批次号残留 | `DEV_BATCH` 表余 **5 项**（`/dashboard/submissions` 与 `/dashboard/tokens` 已随 T6/T7 移除）· 生产产物命中 0 |
 | 品牌渐变白名单 | C 层 = **4** 条（本批 +`--gradient-rejected`）· 值只住 `aih-theme.css`（组件用任意值消费 · `apps/web/src` 内 `linear-gradient` 命中 **0**） |
 | 越轴值 | 本批零新增硬编码色值/间距（全部 token / 官方件默认）；新增 token 仅 §4.4 白名单内 1 条 |
@@ -101,7 +101,7 @@ SMOKE_TARGET_USERNAME=m4b3_dogfood bun --env-file=apps/server/.env docs/smoke/sc
 
 | # | 发现 | 处置 |
 |---|------|------|
-| 1 | **`error.load` ×2 零消费**（`submissions`/`tokens` 各 1）—— `ErrorState` 已用 `tErr(error.code)` 本地化 + 兜底含 code（`ErrorState.tsx:7/20`），该键在当前实现下**不被渲染** | ⚠️ **登记待用户拍板（不擅自删）**：该键是 design §2.1 **Q6 的拍板项**「保留 `error.load` 新键（「加载失败」≠「网络异常」）」⇒ 与实现期的「错误码本地化」口径**重叠**。**二选一**：① **删键**（承认被 `tErr` 取代）② **接键**（`DataTable`/`ErrorState` 加 `title` 覆盖位，页面传入该键）。我**先复原该键**（不推翻已定案），处置等你一句话 |
+| 1 | **`error.load` ×2 零消费**（`submissions`/`tokens` 各 1）—— `ErrorState` 已用 `tErr(error.code)` 本地化 + 兜底含 code（`ErrorState.tsx:7/20`），该键在当前实现下**不被渲染** | ✅ **已处置（2026-09-17 用户拍板 ②：删键）**—— 判据订正：该键与 `errors.network` 是**同一次载入失败的两个说法**（互斥非互补）⇒ 接了只换文案不增信息；载入失败统一走 `ErrorState` 的 `tErr(code)`（`common.retry` 已复用 ✓）。落地 = 4 行删除（zh/en 对称）⇒ 键数实测 **25 / 47 / 28 / 8**；记账 = 批 design **v1.21**（§2.1 Q6 改判）· 批 plan **v0.13** · 主 design **v1.37** · `docs/00` **v1.58** |
 | 2 | design §6.3 原文「`errors` **22** → 28 键」的基线**声明错误** | 实测基线 = **21**（`asset.*`×5 + `auth.*`×11 + `oidc.*`×1 + `request.invalid` + `network` + `unknown`）⇒ **已订正**（T8 同轮，design v1.18） |
 | 3 | `token.not_found` **从 UI 不可达**（服务端吊销**幂等**：已吊销再删 ⇒ 204 而非 404） | 保留为**防御性映射**（防兜底串外露）；验证改为「服务端探针（不存在 id ⇒ 404 ✓）+ 键对称 ✓ + 映射机制由 `review.not_pending` 端到端证成 ✓」 |
 
@@ -127,9 +127,9 @@ SMOKE_TARGET_USERNAME=m4b3_dogfood bun --env-file=apps/server/.env docs/smoke/sc
 | `docs/smoke/scripts/m4b3-seed-submissions.ts` | **186** |
 | `docs/smoke/scripts/m4b3-personal-a-dogfood.ts` | **885** |
 | `docs/smoke/scripts/m4a-dogfood.ts`（本批修 2 处断言） | **509** |
-| `docs/smoke/2026-09-16-m4b3-personal-a.md`（本文件） | **162** |
-| `docs/designs/2026-09-16-m4b3-submissions-and-tokens-design.md` | **861** |
-| `docs/plans/M4b-3-personal-submissions-and-tokens.md` | **440** |
+| `docs/smoke/2026-09-16-m4b3-personal-a.md`（本文件） | **198** |
+| `docs/designs/2026-09-16-m4b3-submissions-and-tokens-design.md` | **865** |
+| `docs/plans/M4b-3-personal-submissions-and-tokens.md` | **457** |
 
 > 前序 Task 落地记录中的行数为**执行期估算** ⇒ **本表为权威源**，前序记录不改写（迭代史实）。
 > **后续批次纪律**：行数声明一律 `wc -l` 实测后回填。
@@ -138,16 +138,16 @@ SMOKE_TARGET_USERNAME=m4b3_dogfood bun --env-file=apps/server/.env docs/smoke/sc
 
 | 件 | 状态 | 证据 |
 |----|------|------|
-| ① 批 design **8 维 ≥9** 定稿 | ✅ | **v1.19 = 9.93**（§10） |
+| ① 批 design **8 维 ≥9** 定稿 | ✅ | **v1.19 = 9.93**（收口后 **v1.21 = 9.95**）（§10） |
 | ② 批 plan **Task 全绿**（T1-T10） | ✅ | T1-T10 逐 Task 落地记录 + 本文件（T10 §7 台账已回填） |
 | ③ **五门禁** exit 0 | ✅ | §1 |
-| ④ **dogfood / 观感** | 🔶 | dogfood **39/39 + NO JS ERRORS** ✅；**观感 = `docs/smoke/m4b3-G*.png` 6 张真截图待人眼过目**（审美面归 M4b-7，本批只验合规则） |
+| ④ **dogfood / 观感** | ✅ | dogfood **39/39 + NO JS ERRORS** ✅；**观感 = 用户 2026-09-17 人眼复核通过**（6 张真截图；审美深挖归 M4b-7） |
 | ⑤ **整体审计** | ✅ | §5-§8（无未决项：孤儿键清除 · 3 处门户断言修复 · 行数权威表 · 登记项状态逐条关闭/保留） |
 
 ## 10. 文档-代码对齐重评（converge）
 
-**批 design 重评**：**v1.19 = 9.93**（含 T10 落地实证 + 孤儿键订正 + 遮罩路径关闭；见批 design §11 修订记录）
-**批 plan 复评**：**v0.11 = 9.87**（T10 落地 + 台账回填 + 键数订正）
+**批 design 重评**：**v1.21 = 9.95**（2026-09-17 收口：T9④/T8③ 结论入档 + Q6 改判留痕 + 键数重测；此前 **v1.19 = 9.93**；见批 design §11 修订记录）
+**批 plan 复评**：**v0.13 = 9.89**（2026-09-17 收口：断言 69/69 + 键数订正落点；此前 **v0.11 = 9.87**）
 **主 design §2.3 批件登记表**：M4b-3 行回填收尾版本 ✓
 **规范同步**：`05 §5`（Token 签发/吊销 = 本人 ✓ M4b-3 引用一致）；`07 §`（本地化键数口径）无变更需求 ✓
 
@@ -159,9 +159,10 @@ SMOKE_TARGET_USERNAME=m4b3_dogfood bun --env-file=apps/server/.env docs/smoke/sc
 | 2 | 「资产 > 20 的真翻页」（分页控件正向用例） | **未证**：dev 库资产数 < pageSize，无数据可测（登记，M4a 面） |
 | 3 | 审美/观感 | **✅ 已过（2026-09-17 用户人眼复核通过）**（深挖归 M4b-7）；本批 6 张真截图已供过目 |
 | 4 | ~~本轮 dogfood 走「复用登录态」分支~~ | **✅ 已闭环（2026-09-17）**：用户以口令登录**实机复核通过**（即 §12）；该分支同时**暴露了登录端点缺陷**（§13 #1）|
-| 5 | dev 库残留 | 测试账号 `m4b3_dogfood` + 其造数行（3 review task / 3 令牌）· 另 `probe-check@example.invalid`（探测注册端点开放性的空壳账号）⇒ 可一行 SQL 清理（**未清，等用户口令**）；**2026-09-17 用户授权改库 1 行**：`account.account_id` 由 `user.id` → 登录名 `m4b3_dogfood`（解锁登录的**临时绕过**，§13 #1 修复后回滚）|
-| 6 | `error.load` 孤儿键 ×2 | **待拍板**（§6 #1：删键 vs 接键）⇒ 本批**不擅动**（属已定案键） |
-| 7 | `submissions`/`tokens` 两组中「间接消费」的键（`type.*`/`status.*`/`scope.*` 共 13 键） | 经**单点映射**（`TYPE_KEY`/`STATUS_KEY`/`SCOPE_KEY`）消费 ⇒ 字面 grep 不可见，**已人工逐键核对**（G2/G15 实测徽章文案与类型文案正确 ⇒ 非孤儿）✓ |
+| 5 | dev 库残留 | 测试账号 `m4b3_dogfood` + 其造数行（3 review task / 3 令牌）· 另 `probe-check@example.invalid`（探测注册端点开放性的空壳账号）⇒ 可一行 SQL 清理（**未清，等用户口令**）；**2026-09-17 用户两次授权改库 1 行**（同一行）：`account.account_id` 由 `user.id` → 登录名 `m4b3_dogfood` —— 第一次供人工验收、**已回滚**；第二次供 §14 #2 的真机 4 路径实测（**本次用完即回滚**，§13 #1 修复后该绕过彻底退役）|
+| 6 | `error.load` 孤儿键 ×2 | ✅ **已闭环（2026-09-17）**：用户拍板 **② 删键** ⇒ 4 行删除、键数**实测** 25/47/28/8（zh=en 对称）、全仓引用 **0**（见 §6 #1）|
+| 7 | 侧栏**激活语义**（T9④） | ✅ **已定案 + 已实测（2026-09-17 用户拍板 ①）**：`/dashboard` 走**精确匹配**（`SideNav.tsx` `EXACT_MATCH_PATHS` = `/` + `/dashboard`）⇒ 停子页时「工作台」不再常亮。**真机 4 路径实测**（桌面视口 1440×900 · 读官方 `[data-active="true"]`）：`/dashboard` ⇒ **个人工作台** · `/dashboard/assets` ⇒ **我的资产** · `/dashboard/submissions` ⇒ **我的提交** · `/dashboard/tokens` ⇒ **访问令牌** —— **四路径均恰 1 条激活** ✓；**反证（同法实测）**：临时改回旧逻辑（前缀匹配）⇒ `/dashboard/submissions` 读到 **["个人工作台","我的提交"]（2 条 ✗）**、`/dashboard/tokens` ⇒ **["个人工作台","访问令牌"]（2 条 ✗）**、`/dashboard` ⇒ 1 条 ✓（与根因一致：仅子页路径触发双亮）⇒ 正反双证齐全 ✓|
+| 8 | `submissions`/`tokens` 两组中「间接消费」的键（`type.*`/`status.*`/`scope.*` 共 13 键） | 经**单点映射**（`TYPE_KEY`/`STATUS_KEY`/`SCOPE_KEY`）消费 ⇒ 字面 grep 不可见，**已人工逐键核对**（G2/G15 实测徽章文案与类型文案正确 ⇒ 非孤儿）✓ |
 
 ## 12. 人工验收（2026-09-17 · 用户实机 · 结论 = **验证通过** ✅）
 
@@ -182,4 +183,16 @@ SMOKE_TARGET_USERNAME=m4b3_dogfood bun --env-file=apps/server/.env docs/smoke/sc
 | 1 | **登录端点「本地账号短路」查错列** | 页面端点 `POST /api/auth/sign-in/aih` 按 `account.provider_id='credential' AND account.account_id = 归一登录名` 查凭据行；而**产品注册口径**（官方 `sign-up/email`，`better-auth/dist/api/routes/sign-up.mjs:245`）写入 `account_id = user.id` ⇒ 注册口径建号的账号**一律 401 `auth.invalid_credentials`**（与「口令错」同码 ⇒ UI 显示「用户名或密码错误」）。实证：同一口令 `/sign-in/username`（官方，按 `user.username` 定位）**200** ↔ `/sign-in/aih` **401** | **归属 M4b-pre `fb7b4a7`**（本批零触碰该文件）· **另立 `fix:` 件**（口径按 `docs/05 §3.1`「`username` 命中保留本地账号」= `user.username`，并兼容 seed 老口径 `account_id`）· 本次仅**一行数据对齐**临时解锁（可回滚）· 该缺陷同时影响路径③「目录不可达回退本地」 |
 | 2 | 自查 SQL 用错 join 列（本助手执行失误，自纠） | 首轮核对用 `join asset_version av on av.id = rt.version` —— `review_task.version` 实为**重审计数**，FK 是 `asset_version_id` ⇒ 三条提交行的资产列被错配成 `smoke-skill` | **当场自纠**：改 `rt.asset_version_id` 后实测 = `m4b3-seed-skill@1.0.0`(skill·PENDING) / `@0.9.0`(skill·REJECTED) / `m4b3-seed-mcp@2.1.0`(mcp·WITHDRAWN)；**数据本身无问题**，仅核对口径错 · 未影响任何已入库证据（服务端 API 用正确外键）|
 
-> **未闭环项**：§13 #1 的修复（`fix:` 件）与 `error.load` 孤儿键（§11 #6）、侧栏高亮语义（跨面项）—— 均在批后单独处置。
+> **未闭环项（2026-09-17 收口后）**：① §13 #1 登录端点缺陷的**修复**（`fix:` 件，用户定「第②条先别做」⇒ 待重新立项）② §11 #8 侧栏高亮的**真机 4 路径实测**（代码已落地，待可登录会话）。**已闭环**：`error.load`（§11 #6 → 删键）· 观感（§11 #3）· 口令登录分支（§11 #4）· 遮罩路径（§11 #2）。
+
+## 14. 批后收口（2026-09-17 · 两条未闭环断言）
+
+| # | 项 | 拍板 | 落地 | 实测 |
+|---|----|------|------|------|
+| 1 | T8③ `error.load` 孤儿键（§11 #6） | **② 删键**（用户） | `zh.ts`/`en.ts` 各删 2 行（4 行，zh/en 对称）+ Q6 改判记账（批 design v1.21 §2.1） | 键数**脚本实测** `submissions 25 · tokens 47 · errors 28 · common 8`（zh=en 全对称）· 全仓 `error.load` 引用 **0** |
+| 2 | T9④ 侧栏激活语义（§11 #8） | **① 工作台精确匹配**（用户） | `SideNav.tsx`：`EXACT_MATCH_PATHS = new Set(['/', '/dashboard'])`；判定 `has(to) ? pathname === to : startsWith(to)` | **真机 4 路径实测 ✅**（桌面视口 1440×900 · 读官方 `[data-active="true"]`）：`/dashboard` ⇒ 个人工作台 · `assets` ⇒ 我的资产 · `submissions` ⇒ 我的提交 · `tokens` ⇒ 访问令牌 —— **均恰 1 条** |
+
+> **实测口径注记（踩坑）**：headless 浏览器默认视口 < 768px 时，官方 `Sidebar` 退化为**移动端 Sheet**（未展开 ⇒ 侧栏条目不入 DOM，`[data-active]` 读不到）⇒ 侧栏类断言**必须先 `Emulation.setDeviceMetricsOverride` 到桌面宽度**（与 `m4a-dogfood.ts` 头部同款护栏）。
+> **会话前提**：本次实测需可登录会话 —— 当日由**一行数据对齐**临时解锁（§11 #5），**用完即回滚**。
+
+> 数字口径：本批新增键由 **82 → 80**（`submissions` 26 → 25 · `tokens` 48 → 47）；`errors` +7 与 `common` +1 不变。
