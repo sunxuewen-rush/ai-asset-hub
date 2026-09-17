@@ -1,7 +1,7 @@
 # M4b-1 地基批设计（组件归位 + 控制台组件面域）
 
 > Date: 2026-09-14
-> Updated: 2026-09-14（**v1.6：收尾整体审计（承 M4a T17-T26 惯例）—— findings 8 项逐条处置（修 1 · 订正 1 · 回填 1 · 口径登记 5）**：① **F1 注释腐化（修）**`market/FilterStrip.tsx:39` 文档注释仍写 `spacing={7}`（真值 `1.75` = 7px，标度为 0.25rem 乘数）② **F2 既有登记项不成立（订正）**§6.4 `--radius-2xl` 从「潜在零消费者」候选剔除（`rounded-2xl` utility 有 1 消费点 `SideNav.tsx:71`）③ **F3 回填** M4a 审计第 24 项（chip 类串跨 4 文件重复）**本批已收敛**（chip 外观落官方 `toggle.tsx` `variant="chip"`，`FilterStrip` 零手搓类串）④ **F4/F5 口径登记** 地基批「有意零消费」清单（console **6** 件 + 跨面 **4** 件 + i18n 三组 **15** 键 → 消费点 M4b-2..6）· 越轴任意值清单（布局级，官方允许 className 做布局）⑤ **F6 方法教训** i18n 键计数须按**顶层缩进**匹配（宽松正则把嵌套键计入 → market 假阳性 53/58；顶层键重算 **53/53 对齐**）⑥ **F7** 既有死导出 2 个（`buildLabelRows`/`labelName`）状态不变 ⑦ **F8 无需动作**（已删件残留 8 类全 0 · 官方件硬规则 6 项 0 违规 · 文档量化声明 8 项实测一致）；**v1.5：收尾 converge —— §3.7/§3.11/§3.12 三处「预期列 vs 实测」订正（批 design 收敛）**——
+> Updated: 2026-09-17（**v1.7：D′ 项「输入框内按钮改 `InputGroup`」收口**—— 该合规项原以「hero 搜索行为 `Input`+`Button` 并列 ⇒ 官方硬规则 5 不适用」豁免；用户 2026-09-17 拍板改为**框内形态** ⇒ 已落地（M4a 门户 design **v0.29** §8.9），豁免口径作废。本版**零实现改动**）；**v1.6：收尾整体审计（承 M4a T17-T26 惯例）—— findings 8 项逐条处置（修 1 · 订正 1 · 回填 1 · 口径登记 5）**：① **F1 注释腐化（修）**`market/FilterStrip.tsx:39` 文档注释仍写 `spacing={7}`（真值 `1.75` = 7px，标度为 0.25rem 乘数）② **F2 既有登记项不成立（订正）**§6.4 `--radius-2xl` 从「潜在零消费者」候选剔除（`rounded-2xl` utility 有 1 消费点 `SideNav.tsx:71`）③ **F3 回填** M4a 审计第 24 项（chip 类串跨 4 文件重复）**本批已收敛**（chip 外观落官方 `toggle.tsx` `variant="chip"`，`FilterStrip` 零手搓类串）④ **F4/F5 口径登记** 地基批「有意零消费」清单（console **6** 件 + 跨面 **4** 件 + i18n 三组 **15** 键 → 消费点 M4b-2..6）· 越轴任意值清单（布局级，官方允许 className 做布局）⑤ **F6 方法教训** i18n 键计数须按**顶层缩进**匹配（宽松正则把嵌套键计入 → market 假阳性 53/58；顶层键重算 **53/53 对齐**）⑥ **F7** 既有死导出 2 个（`buildLabelRows`/`labelName`）状态不变 ⑦ **F8 无需动作**（已删件残留 8 类全 0 · 官方件硬规则 6 项 0 违规 · 文档量化声明 8 项实测一致）；**v1.5：收尾 converge —— §3.7/§3.11/§3.12 三处「预期列 vs 实测」订正（批 design 收敛）**——
 > ① §3.7 `Spinner` 预期「⚪ 零变化（同为环形）」→ 实测**载态按官方用法拆分**（页面级 `Skeleton` 4 文件 + 局部 `Spinner`
 > 2 文件；`ui/Spinner.tsx` 整件删除）② §3.11 分页预期「`mx-auto` 居中 / `PaginationLink` 渲染为 button」→ 真值
 > **`justify-center`**（`w-full` 下 `mx-auto` = 0px）· 控件渲染 **`<a>`**（无 `href` ⇒ 键盘不可达）· 英文硬编码 + 尺寸口径，
@@ -49,7 +49,7 @@
 | **A′** | `Card` 归位形态 | **接受官方默认**（`rounded-xl`(14px) + 1px `border` + `py-6 gap-6` + `CardContent px-6`）；**不做**调用点覆盖。AIH 页面级卡原 18px 无边框随之收敛为 14px 有描边（见 §8） |
 | **B′** | `Dialog` 归位形态 | **接受官方默认**（含 1px 描边与内置 ✕）；**尺寸用 `className` 覆盖**（属布局，官方允许） |
 | **C′** | 筛选条 chip 形态 | **固定小集合 → `ToggleGroup`（+`ToggleGroupItem`）**；**动态数量的标签 → `Toggle` + `cn()`**（不引手搓三段常量） |
-| **D′** | 其余合规项 | `ErrorState` 壳改官方 **`Alert`** · 输入框内按钮改 **`InputGroup`** · 条件类统一 **`cn()`** · 补装 `toggle`/`toggle-group`/`input-group`/`alert`（**零新 npm 依赖**） |
+| **D′** | 其余合规项 | `ErrorState` 壳改官方 **`Alert`** · 输入框内按钮改 **`InputGroup`**（**✅ 已落地 2026-09-17**：首页 hero 搜索行改官方 `InputGroup` 框内形态 —— 用户拍板；原「并列 ⇒ 不适用」豁免口径**作废**，见 M4a 门户 design **v0.29** §8.9） · 条件类统一 **`cn()`** · 补装 `toggle`/`toggle-group`/`input-group`/`alert`（**零新 npm 依赖**） |
 | **E** | 依赖清单 | 按已授权执行（`cmdk` / `react-day-picker`+`date-fns` / `@tanstack/react-table`）；`command`+`calendar` 实战消费点在 M4b-4/6（本批仅落位） |
 | **F** | 工具纪律 | **本批起 registry 情报与落地一律走 CLI**（`bunx --bun shadcn@latest search|view|docs|add|add --dry-run|add --diff`）；**禁手工从 GitHub 抓文件**；未获用户批准**禁 `--overwrite`** |
 
