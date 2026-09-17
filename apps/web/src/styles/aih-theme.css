@@ -49,11 +49,11 @@
 @theme {
   --animate-rise: rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 
-  /* 滚动条四值（T24 自旧 `tokens.css` 逐字迁入；design §4.4 ⑥「细滚动条沿用，值迁入 @theme」）
-   * —— 无新命名空间（不生成工具类），仅登记为 CSS 变量供下方无层规则消费 */
-  --scroll-track: rgba(37, 99, 235, 0.06);
-  --scroll-thumb: rgba(37, 99, 235, 0.3);
-  --scroll-thumb-hover: rgba(37, 99, 235, 0.5);
+  /* 滚动条滑块色（T24 自旧 `tokens.css` 逐字迁入；design §4.4 ⑥「细滚动条」）
+   * —— 无新命名空间（不生成工具类），仅登记为 CSS 变量供下方无层规则消费。
+   * 2026-09-17「两项遗留对齐」：本组由**四值收敛为单值** ——
+   *   · `--scroll-track` / `--scroll-thumb` / `--scroll-thumb-hover` 此前**仅被 `::-webkit-scrollbar*` 死代码引用**，已删；
+   *   · 轨道改为在 `scrollbar-color` 第二值**显式写 `transparent`**（用户拍板「滚动条不要背景色」）。 */
   --scroll-color: rgba(37, 99, 235, 0.35);
 
   @keyframes rise {
@@ -158,27 +158,15 @@ html[data-base="aih"] {
  * `@keyframes rise` → 已随 `--animate-rise` 住本层 `@theme`（此处不再重复）；`fadein` 零消费者；
  * `.glass` / `.bg-glow` 换皮后零消费者（毛玻璃与氛围光斑均属 §4.4 废弃项）。 */
 
-/* 全站统一细蓝滚动条（6px；导航栏内滚隐藏由各模块自覆）
- * 2026-09-17 用户拍板**保留** AIH 定制：侧栏宽度/面板圆角已对齐官方，但滚动条属**视觉体系**项
- * （design §4.4 ⑥），不随官方默认（浏览器原生 15px）改。 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--scroll-track);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--scroll-thumb);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scroll-thumb-hover);
-}
+/* 滚动条外观（2026-09-17「两项遗留对齐」后：**只留一套机制**）
+ * 历史：曾并存两套 —— ① `::-webkit-scrollbar*` 定制（6px 细蓝）② 标准属性 `scrollbar-width` / `scrollbar-color`。
+ * 规范上 ② 生效时浏览器**忽略** ① ⇒ ① **从未生效**（死代码，同日实测确认），已整块删除。
+ * 现只保留 ②：滑块 = `--scroll-color` · 轨道 = **`transparent`**（用户拍板「滚动条不要背景色」）；
+ *   `thin` 定宽度，具体渲染交给浏览器（mac = overlay 细条）。
+ * 侧栏另有 `scrollbar-gutter: stable`（见下）—— 那是**布局**补丁（防挤动），非外观定制。 */
 html {
   scrollbar-width: thin;
-  scrollbar-color: var(--scroll-color) var(--scroll-track);
+  scrollbar-color: var(--scroll-color) transparent;
 }
 
 /* ── 侧栏内容区滚动条（2026-09-17 用户选方案 ②：「先按 2 看效果」）────────────────────
