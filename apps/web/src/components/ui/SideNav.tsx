@@ -1,4 +1,18 @@
 import { cn } from 'cn';
+import {
+  ClipboardCheck,
+  Gauge,
+  House,
+  KeyRound,
+  LayoutDashboard,
+  Package,
+  ScrollText,
+  Send,
+  Settings,
+  Tags,
+  Users,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -8,10 +22,12 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/shadcn/sidebar';
 import { fetchStats } from '../../api/stats.js';
 import type { AssetType } from '../../api/types.js';
@@ -31,12 +47,38 @@ interface NavEntry {
   enLabel: string;
 }
 
-/** 类型 icon 衬底（design §4.4 ②：`--tint-*` 衬底 + `--type-*` 前景；渐变已废弃） */
-const ICON_BY_TYPE: Record<AssetType, { idle: string; active: string }> = {
-  skill: { idle: 'bg-tint-skill text-type-skill', active: 'bg-type-skill text-white' },
-  mcp: { idle: 'bg-tint-mcp text-type-mcp', active: 'bg-type-mcp text-white' },
-  agent: { idle: 'bg-tint-agent text-type-agent', active: 'bg-type-agent text-white' },
-};
+/*
+ * 类型色衬底已于 2026-09-17 撤除（用户拍板「14 条全用中性底」）——
+ * 门户组原 `bg-tint-*` / `text-type-*` 衬底与三组 `bg-muted` 不一致 ⇒ 统一中性。
+ * `--tint-*` / `--type-*` 主题 token **保留**（`aih-theme.css`，资产类型色体系仍在使用场景）。
+ */
+
+/**
+ * 导航条目图标槽（批 design §14.4 C：图标 **16**（`size-4`）· 槽 **22×22** 圆角居中）。
+ *
+ * **14 条同款**（2026-09-17 用户拍板「侧栏条目形态统一」）：门户组与三组共用**同一槽规格 + 同一衬底色**
+ * ——常态一律中性 `bg-muted`，激活一律 `bg-primary` 实底（原门户组的资产类型色衬底已撤除）。
+ */
+function IconSlot({ children, className }: { children: ReactNode; className?: string }) {
+  // 图标态由 **状态**驱动（不用 `group-data-*` 变体：实测该组合在本仓工具链不稳定）
+  const { state } = useSidebar();
+  const collapsed = state === 'collapsed';
+  return (
+    <span
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground',
+        // 展开态：槽 22（图标 16 居中）
+        // 收起态（2026-09-17 用户要求「不要两个背景色」）：槽放大到 **32×32 = 整个按钮**
+        //   （`-m-2` 抵消按钮 `p-2`）⇒ 衬底色铺满按钮，视觉上只有**一层**底色；
+        //   图标 16 仍在正中（槽 32 居中 ⇒ 按钮居中）
+        collapsed ? 'size-8 -m-2' : 'size-[22px]',
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
 
 /**
  * 精确匹配路径（其余条目按前缀匹配）——首页与控制台首页。
@@ -50,8 +92,9 @@ const EXACT_MATCH_PATHS = new Set(['/', '/dashboard']);
 /**
  * 侧栏导航（批 design §6.1 显隐矩阵 · 主 design §4「入口分层与显隐规则」为唯一源）。
  *
- * **门户组**（首页 + 三中心 + 计数）= M4a 既有形态：**无组标题平铺**、`SidebarMenu` 直挂、
- * 定制外观（类型色图块 + 双行 zh/en + 计数）——**Q3 零回归：本组 JSX 与逻辑零改动**。
+ * **门户组**（首页 + 三中心 + 计数）= **带组标题「门户」的 `SidebarGroup`**（2026-09-17 用户拍板：
+ * 原「不加标题」翻转 ⇒ 与三组同构）；内容增量保留（计数 + 英文副标，副标降级 hover tooltip）。
+ * 条目形态与三组**完全一致**（行高 32 · 图标槽 22×22 中性衬底 · 宽度 162 · 单行）。
  *
  * **三组**（个人 / 管理 / 超级管理）= 官方标准形态 `SidebarGroup` > `SidebarGroupLabel` +
  * `SidebarGroupContent` > `SidebarMenu`：
@@ -64,15 +107,17 @@ const EXACT_MATCH_PATHS = new Set(['/', '/dashboard']);
  * - 图标态（`collapsible="icon"`）组标题随**官方默认**（`SidebarGroupLabel` 自带
  *   `group-data-[collapsible=icon]:-mt-8 …:opacity-0`）——**不自写隐藏类**
  *
- * **F3 登记（混排结构视觉）**：门户组（裸 `SidebarMenu`）× 三组（`SidebarGroup`）在同一
- * `SidebarContent` 内的间距/分段为**实测记录项**（T4 记录计算值 + 观感交用户确认），
- * **不为统一而改门户组结构**。
+ * **F3 登记（混排结构视觉，已闭环）**：门户组原为裸 `SidebarMenu`、三组为 `SidebarGroup` ⇒ 2026-09-17
+ * 用户拍板：门户组**并入 `SidebarGroup` 并加组标题「门户」**，四组结构自此同构；条目级规格
+ * （行高 32 · 槽 22×22 中性衬底 · 宽度 162 · 字号 14 · 字重循官方默认）实测 14 条逐项相同。
  *
  * 收起/展开（plan T7b，design v0.12）：接入 shadcn `Sidebar` 原语——`collapsible="icon"`（收起为 48px
  * 图标轨、悬停出 tooltip）+ `variant="floating"`（浮起面板）+ `SidebarRail`（右缘可拖/点）；
  * 开合由顶栏 `SidebarTrigger` / `⌘B`·`Ctrl+B` 驱动，状态 cookie 持久化，<768px 自动 Sheet。
- * **AIH 覆盖 3 处**（design §4.4 ③）：定位 `top-[58px] bottom-0 h-auto`（留在 58px 顶栏之下）·
- * 面板圆角 `2xl`(18px)（官方 floating 为 `lg` 10px）· 展开/图标态宽度由 `SidebarProvider` 变量覆盖。
+ * **AIH 覆盖点**（design §4.4 ③ · 2026-09-17 收敛为 **1 处**）：仅剩展开/图标态宽度变量
+ * （`SidebarProvider` 覆盖，见 `AppShell.tsx`）。定位覆盖 `top-[58px] bottom-0 h-auto` 已随结构改官方形态
+ * （`SidebarProvider > SideNav + SidebarInset`）**退役** ⇒ 侧栏回到官方 `inset-y-0`（顶到最上）。
+ * 2026-09-17 用户提议「不要套壳」⇒ `variant` 由 `floating` 改为**官方默认 `sidebar`**（实心贴边 · 无圆角/边框/阴影）。
  * 不变：导航条目 / 路由 / 计数逻辑；激活判定改 `useLocation`（原 NavLink 子函数渲染，与 `asChild` 不兼容）。
  */
 export function SideNav() {
@@ -80,6 +125,10 @@ export function SideNav() {
   const { pathname } = useLocation();
   const { data: stats } = useApi((signal) => fetchStats({ signal }), []);
   const { state, role } = useAuth();
+  // 侧栏开合由**状态**驱动（2026-09-17：实测本仓工具链下 `group-data-[collapsible=icon]` 类
+  // 在部分节点不稳定 ⇒ 条目收窄/文字隐藏统一用 `collapsed` 判定，避免"某些条目没收缩"）
+  const { state: sideState } = useSidebar();
+  const collapsed = sideState === 'collapsed';
 
   const entries: NavEntry[] = [
     { type: 'home', to: '/', zhLabel: t('navigation', 'home'), enLabel: 'Home' },
@@ -102,87 +151,129 @@ export function SideNav() {
   const navGroups: Array<{
     labelKey: 'groupPersonal' | 'groupAdmin' | 'groupSuperAdmin';
     gate: 'authed' | number;
-    entries: Array<{ to?: string; text: string }>;
+    entries: Array<{ to?: string; text: string; icon: ReactNode }>;
   }> = [
     {
       labelKey: 'groupPersonal',
       gate: 'authed',
       entries: [
-        { to: '/dashboard', text: t('dashboard', 'title') },
-        { to: '/dashboard/assets', text: t('dashboard', 'myAssets') },
-        { to: '/dashboard/submissions', text: t('dashboard', 'submissions') },
-        { to: '/dashboard/tokens', text: t('dashboard', 'tokens') },
+        {
+          to: '/dashboard',
+          text: t('dashboard', 'title'),
+          icon: <LayoutDashboard className="size-4" />,
+        },
+        {
+          to: '/dashboard/assets',
+          text: t('dashboard', 'myAssets'),
+          icon: <Package className="size-4" />,
+        },
+        {
+          to: '/dashboard/submissions',
+          text: t('dashboard', 'submissions'),
+          icon: <Send className="size-4" />,
+        },
+        {
+          to: '/dashboard/tokens',
+          text: t('dashboard', 'tokens'),
+          icon: <KeyRound className="size-4" />,
+        },
       ],
     },
     {
       labelKey: 'groupAdmin',
       gate: ROLE.ADMIN,
       entries: [
-        { to: '/admin/reviews', text: t('admin', 'reviews') },
-        { to: '/admin/audit', text: t('admin', 'audit') },
+        // 「管理看板」= **占位条目**（`to` 缺省 ⇒ 轻提示）；页面本体 + `/admin` 路由归 **M4b-6**
+        // （批 design §14.7：本批**不改路由表**——`/admin` 维持既有重定向 → `/admin/reviews`）
+        { text: t('navigation', 'adminBoard'), icon: <Gauge className="size-4" /> },
+        {
+          to: '/admin/reviews',
+          text: t('admin', 'reviews'),
+          icon: <ClipboardCheck className="size-4" />,
+        },
+        { to: '/admin/audit', text: t('admin', 'audit'), icon: <ScrollText className="size-4" /> },
       ],
     },
     {
       labelKey: 'groupSuperAdmin',
       gate: ROLE.SUPER_ADMIN,
       entries: [
-        { to: '/admin/labels', text: t('admin', 'labels') },
-        { text: t('admin', 'settings') },
-        { text: t('admin', 'users') },
+        { to: '/admin/labels', text: t('admin', 'labels'), icon: <Tags className="size-4" /> },
+        { text: t('admin', 'settings'), icon: <Settings className="size-4" /> },
+        { text: t('admin', 'users'), icon: <Users className="size-4" /> },
       ],
     },
   ];
 
+  // variant = 官方默认 `sidebar`（实心贴边 · 无圆角/边框/阴影 = 「不套壳」——2026-09-17 用户提议）
   return (
-    <Sidebar
-      collapsible="icon"
-      variant="floating"
-      className="top-[58px] bottom-0 h-auto [&>[data-slot=sidebar-inner]]:rounded-2xl"
-    >
-      <SidebarContent className="gap-1 px-1 pt-1">
-        {/* ── 门户组（M4a 既有形态：无组标题平铺 · Q3 零回归，本块源码零改动）── */}
-        <SidebarMenu className="gap-[3px]">
-          {entries.map(({ type, to, zhLabel, enLabel }) => {
-            const count = countOf(type);
-            const active = isActive(to);
-            return (
-              <SidebarMenuItem key={to}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={active}
-                  tooltip={zhLabel}
-                  className="h-auto gap-[11px] px-2 py-2.5 font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground data-[active=true]:font-semibold data-[active=true]:text-foreground"
-                >
-                  <NavLink to={to}>
-                    <span
-                      className={cn(
-                        'flex size-[22px] shrink-0 items-center justify-center rounded-sm text-xs',
-                        type === 'home' ? 'bg-muted' : ICON_BY_TYPE[type].idle,
-                        active &&
-                          (type === 'home'
-                            ? 'bg-primary text-primary-foreground'
-                            : ICON_BY_TYPE[type].active),
-                      )}
+    <Sidebar collapsible="icon">
+      {/* ── 侧栏顶部品牌区（2026-09-17 对齐官方骨架：品牌由顶栏移入侧栏，官方 `SidebarHeader` 形态）──
+          常态 = 渐变字标（照真仓 `TopBar` 原款 17px/700）；图标态 = 渐变小方块（首字母，同设备页品牌块）。 */}
+      <SidebarHeader>
+        <Link
+          to="/"
+          aria-label="AI X Hub home"
+          className="flex h-8 items-center gap-2 px-2 no-underline group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+        >
+          <b className="bg-[image:var(--gradient-brand)] bg-clip-text text-[17px] font-bold tracking-[-0.3px] text-transparent group-data-[collapsible=icon]:hidden">
+            AI X Hub
+          </b>
+          <span className="hidden size-7 shrink-0 items-center justify-center rounded-md bg-[image:var(--gradient-brand)] text-sm font-bold text-white group-data-[collapsible=icon]:flex">
+            A
+          </span>
+        </Link>
+      </SidebarHeader>
+
+      {/* `px-1` 为 AIH 覆盖：**2026-09-17 撤除**（用户要求收起态图标与图标轨**几何居中**）——
+          官方 `SidebarGroup` 的 `p-2`(8) 已提供左右内缩；撤除后图标中心 = 面板中心。 */}
+      <SidebarContent className="gap-1 pt-1">
+        {/* ── 门户组 ──
+            2026-09-17 用户拍板两条：① **加组标题「门户」**（原「不加」拍板翻转，与三组同构）
+            ② 14 条**全用中性底**（门户原资产类型色衬底撤除）。
+            条目形态与三组一致；内容增量保留（类型计数留右侧；hover tooltip 与三组同款 = **纯中文**）。
+            ★ 本组自 M4a 落地后首次改动（结构与条目级形态，均经用户拍板）。 */}
+        <SidebarGroup>
+          <SidebarGroupLabel>{t('navigation', 'groupPortal')}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {entries.map(({ type, to, zhLabel }) => {
+                const count = countOf(type);
+                const active = isActive(to);
+                return (
+                  <SidebarMenuItem key={to}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      // 提示语统一为**中文**（与三组同款；原「中文 · 英文」形式按 2026-09-17 用户要求撤除）
+                      tooltip={zhLabel}
+                      className={collapsed ? 'size-8' : undefined}
                     >
-                      {type === 'home' ? '⌂' : <TypeIcon type={type} />}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col leading-[1.25] group-data-[collapsible=icon]:hidden">
-                      {zhLabel}
-                      <em className="font-normal text-[11px] text-muted-foreground/70 not-italic tracking-[0.2px]">
-                        {enLabel}
-                      </em>
-                    </span>
-                    {count !== undefined && (
-                      <span className="ml-auto font-medium text-[11px] text-muted-foreground/70 tabular-nums group-data-[collapsible=icon]:hidden">
-                        {count.toLocaleString()}
-                      </span>
-                    )}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
+                      <NavLink to={to}>
+                        <IconSlot
+                          className={active ? 'bg-primary text-primary-foreground' : undefined}
+                        >
+                          {type === 'home' ? <House size={16} /> : <TypeIcon type={type} />}
+                        </IconSlot>
+                        <span className={cn('truncate', collapsed && 'hidden')}>{zhLabel}</span>
+                        {count !== undefined && (
+                          <span
+                            className={cn(
+                              'ml-auto text-[11px] font-medium text-muted-foreground/70 tabular-nums',
+                              collapsed && 'hidden',
+                            )}
+                          >
+                            {count.toLocaleString()}
+                          </span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* ── 三组（官方标准形态；组级 + 条目级同取门槛；组内无可见条目 ⇒ 整组不渲染）── */}
         {navGroups.map((group) => {
@@ -194,26 +285,46 @@ export function SideNav() {
               <SidebarGroupLabel>{t('navigation', group.labelKey)}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {group.entries.map((entry) => (
-                    <SidebarMenuItem key={entry.to ?? entry.text}>
-                      <SidebarMenuButton
-                        asChild={entry.to !== undefined}
-                        isActive={entry.to !== undefined && isActive(entry.to)}
-                        tooltip={entry.text}
-                        onClick={
-                          entry.to === undefined
-                            ? () => toast(t('common', 'comingSoon'))
-                            : undefined
-                        }
-                      >
-                        {entry.to !== undefined ? (
-                          <Link to={entry.to}>{entry.text}</Link>
-                        ) : (
-                          entry.text
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {group.entries.map((entry) => {
+                    const active = entry.to !== undefined && isActive(entry.to);
+                    return (
+                      <SidebarMenuItem key={entry.to ?? entry.text}>
+                        <SidebarMenuButton
+                          asChild={entry.to !== undefined}
+                          isActive={active}
+                          tooltip={entry.text}
+                          onClick={
+                            entry.to === undefined
+                              ? () => toast(t('common', 'comingSoon'))
+                              : undefined
+                          }
+                          className={collapsed ? 'size-8' : undefined}
+                        >
+                          {entry.to !== undefined ? (
+                            <Link to={entry.to}>
+                              <IconSlot
+                                className={
+                                  active ? 'bg-primary text-primary-foreground' : undefined
+                                }
+                              >
+                                {entry.icon}
+                              </IconSlot>
+                              <span className={cn('truncate', collapsed && 'hidden')}>
+                                {entry.text}
+                              </span>
+                            </Link>
+                          ) : (
+                            <>
+                              <IconSlot>{entry.icon}</IconSlot>
+                              <span className={cn('truncate', collapsed && 'hidden')}>
+                                {entry.text}
+                              </span>
+                            </>
+                          )}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

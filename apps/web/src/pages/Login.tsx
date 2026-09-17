@@ -1,62 +1,80 @@
 /**
- * 登录页 `/login`（批 design §5.1 页面规格 · §4.3 反向守卫 · §4.2 ④ inline 失败态；线框见主 design §12）。
+ * 登录页 `/login`（批 design **§14.4 A** 落地规格 · §5.1 功能契约 · §4.3 反向守卫 · §4.2 ④ inline 失败态）。
  *
- * **独立版式**：不入 `AppShell`（**无侧栏 / 无用户区**）——版式由跨页件 `AuthLayout` 提供
- * （与 `/device` 共用；T7 执行期从本文件的 `LoginScaffold` 抽出）。
+ * **2026-09-17 UI 重做（T13 · 方向 V1 浅蓝·品牌承载）**：
+ * - **全屏双栏** `grid-cols-[minmax(0,42%)_minmax(0,58%)]` + `min-h-svh`——**不套 `AuthLayout`**
+ *   （该件随 T14 退役）：左栏 = `--gradient-brand` 品牌面板，右栏 = 表单区（**无白卡**）
+ * - **无 tab**（Q9）：单表单 + 底部「使用 OAuth 登录」文本按钮 ⇒ 切**备用面板**（OAuth 说明 +
+ *   打开统一认证页 + 返回密码登录）；语言切换器落**右栏右上角**（Q10）
+ * - 尺寸档（实测口径见 §14.4 A）：表单列 **336** · 字段 **48/圆角 28** · 主按钮 **42 胶囊** ·
+ *   字段间距 **22**；令牌语义 = `bg-muted` / `border-input` / `placeholder:text-muted-foreground/60`
  *
- * 渲染顺序（**顺序敏感**，design §5.1 + Y3）：
- * 1. `loading`（`bootstrapAuth` 未返回）→ 官方 `Skeleton` 骨架、**不渲染表单**
- *    ——否则会「表单闪现 → 反向守卫跳走」的竞态闪烁
- * 2. `authed`（已登录访 `/login`）→ **反向守卫** `<Navigate to={next ?? '/dashboard'} />`
- *    （**Q1：`next` 优先**——保住 `/device?user_code=…` 的深链回跳）
- * 3. `anon` → 两 tab 表单
+ * **功能契约零变更**（本页重写只动视觉）：
+ * 1. `loading`（`bootstrapAuth` 未返回）→ 官方 `Skeleton` 骨架、**不渲染表单**（Y3：防「表单闪现 →
+ *    反向守卫跳走」竞态）；骨架**镜像表单列**（同宽同节奏）⇒ 切态无跳动
+ * 2. `authed`（已登录访 `/login`）→ **反向守卫** `<Navigate to={next ?? '/dashboard'} />`（**Q1：`next` 优先**）
+ * 3. `anon` → 表单；失败态**全部 inline**（`skipAuthRedirect` ⇒ 401 不退化全局跳转，**错口令 URL 不变**），
+ *    文案经 `tErr()` 本地化（07 §4：页面不直读 `code`）
+ * 4. 成功链：`invalidateCache()`（全量）→ `refresh()`（真实重取 `/me`）→ 跳 `next ?? '/dashboard'`
+ * 5. OAuth 入口（Q2 = B+）：`<a target="_blank" rel="noreferrer">` 直跳、**不做前置探测**（`GET /authorize`
+ *    有写 `oidc_state` cookie 的副作用）；未启用时落独立标签页 JSON 404（可关闭、不破坏本页）
  *
- * **失败态全部 inline**（design §4.2 ④）：`login()` 已内置 `skipAuthRedirect: true` ⇒ 401 **不**退化为
- * 全局跳转，错误由表单内 `Alert` 展示（**实测断言：错口令 URL 不变**）；码经 `tErr()` 本地化
- * （07 §4：页面**不直读** `code` 的语义，未命中兜底 `errors.unknown`）。
- *
- * **成功链**（design §5.1）：`invalidateCache()`（全量）→ `refresh()`（真实重取 `/me`，绕过预热值）→
- * 跳 `next ?? '/dashboard'`。
- *
- * OAuth tab（Q2 = B+）：官方 `Button asChild` 包 `<a target="_blank" rel="noreferrer">` 直跳，
- * **不做前置探测**（`GET /authorize` 有写 `oidc_state` cookie 的副作用）；未启用时落在独立标签页的
- * JSON 404（`http/oidc-routes.ts:98` 返回 `{code:'oidc.not_configured'}`）——可关闭、不破坏登录页。
- *
- * ⚠ **本批不处理的已知缺口（登记）**：OIDC 成功 302 `/?oidc=success`（**不经 `next`**）落门户首页，
- * 而门户面零 `oidc` 消费点（2026-09-16 实测 `apps/web/src` grep 零命中）⇒ 会话 Cookie 已建但
- * `AuthProvider` 不知情，用户需刷新页面才见登录态。消费点落门户面会碰 M4a **零回归硬约束**
- * ⇒ 登记交 M4b 收尾 / M4c（主 design §7.2 G6 缺口的延续）。
+ * ⚠ **已知缺口（F5 登记，本批不处理）**：OIDC 成功 302 `/?oidc=success`（**不经 `next`**）落门户首页，
+ * 门户面零 `oidc` 消费点 ⇒ 会话 Cookie 已建但 `AuthProvider` 不知情（需刷新才见登录态）；消费点落门户面
+ * 会碰 M4a **零回归硬约束** ⇒ 交 M4b 收尾 / M4c（主 design §7.2 G6 延续）。
  *
  * **无注册入口**（企业目录 + 管理员建号，05 §3.1）；用户名字段为**中性文案**（非「邮箱」——
- * 企业目录通道用 `sAMAccountName`）。
+ * 企业目录通道用 `sAMAccountName`）。左栏品牌字与许可行**硬编码**（品牌陈述，先例 = `TopBar` 品牌字）。
  */
-import { TriangleAlert } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { login } from '@/api/auth';
 import { ApiError, invalidateCache } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { sanitizeNext } from '@/auth/next';
-import { AuthLayout } from '@/components/console/AuthLayout';
-import { Alert, AlertTitle } from '@/components/ui/shadcn/alert';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { Button } from '@/components/ui/shadcn/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/shadcn/card';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/shadcn/field';
 import { Input } from '@/components/ui/shadcn/input';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { Spinner } from '@/components/ui/shadcn/spinner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/shadcn/tabs';
 import { useI18n } from '@/i18n/I18nProvider';
-
-/** tab 值（两 tab：常规登录 / OAuth 登录） */
-const TAB_LOCAL = 'local';
-const TAB_OIDC = 'oidc';
 
 /**
  * OAuth 授权入口 —— **站内同源路径**（服务端 `/api/auth/oidc/authorize`）。
  * **不做前置探测**（Q2 = B+）：探测会写 `oidc_state` cookie，且未启用时的 404 由新标签页自行呈现。
  */
 const OIDC_AUTHORIZE_URL = '/api/auth/oidc/authorize';
+
+/** 字段与主按钮的共用尺寸档（§14.4 A：输入 48 / 圆角 28 / 间距 22 / 按钮 42） */
+const FIELD_CLASS =
+  'h-12 rounded-[28px] border-input bg-muted px-4 placeholder:text-muted-foreground/60 focus-visible:border-primary/40';
+const SUBMIT_CLASS = 'h-[42px] w-full rounded-full';
+
+/** 左栏（品牌面板）——三段式 `justify-between`；文案走 `login` 组键，品牌字与许可行硬编码 */
+function BrandPanel() {
+  const { t } = useI18n();
+  return (
+    <section
+      className="relative flex flex-col justify-between p-12 text-white"
+      style={{ backgroundImage: 'var(--gradient-brand)' }}
+    >
+      <div>
+        <div className="text-[17px] font-bold tracking-[-0.3px]">AI X Hub</div>
+        <div className="mt-1 text-xs text-white/70">{t('login', 'brandTagline')}</div>
+      </div>
+      <div>
+        <h1 className="text-[34px] font-bold leading-tight">{t('login', 'heroTitle')}</h1>
+        <p className="mt-3 max-w-md text-sm text-white/80">{t('login', 'heroDesc')}</p>
+        <ul className="mt-8 space-y-3 text-sm text-white/85">
+          <li>· {t('login', 'feature1')}</li>
+          <li>· {t('login', 'feature2')}</li>
+          <li>· {t('login', 'feature3')}</li>
+        </ul>
+      </div>
+      <div className="text-xs text-white/60">Apache 2.0 · 可自托管</div>
+    </section>
+  );
+}
 
 export function Login() {
   const { state, refresh } = useAuth();
@@ -69,31 +87,32 @@ export function Login() {
   /** 失败码（`ApiError.code` 或传输层 `network`）；`null` = 无错误条 */
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** 备用面板（Q9：OAuth 链接 ⇒ 面板；不再用 tab） */
+  const [altMode, setAltMode] = useState(false);
 
   // `next` 白名单校验（design §4.3 单点 `sanitizeNext`）：非法/缺失 ⇒ `null` ⇒ 回落 `/dashboard`
   const destination = sanitizeNext(new URLSearchParams(search).get('next')) ?? '/dashboard';
 
-  // ① 首帧骨架（**不渲染表单**——防「表单闪现 → 反向守卫跳走」）
-  //    结构**镜像表单卡**（`CardHeader` 标题位 + `CardContent` 内容位）：两态卡片高度与间距一致，
-  //    切态时无收缩跳动（否则骨架卡与表单卡的 padding 差异本身就成了新的闪动源）
+  // ① 首帧骨架（**不渲染表单**）——骨架镜像表单列（同宽 336 + 同节奏），切态无跳动
   if (state.status === 'loading') {
     return (
-      <AuthLayout>
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <Skeleton className="h-5 w-20" />
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {/* 逐位镜像常规登录表单：Tabs 条 → （label + input）×2 → 提交钮 */}
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-          </CardContent>
-        </Card>
-      </AuthLayout>
+      <div className="relative grid min-h-svh grid-cols-[minmax(0,42%)_minmax(0,58%)]">
+        <BrandPanel />
+        <section className="relative flex items-center justify-center px-12">
+          <div className="absolute top-6 right-6">
+            <LanguageSwitcher />
+          </div>
+          <div className="w-full max-w-[336px]">
+            <Skeleton className="mx-auto h-8 w-40" />
+            <Skeleton className="mx-auto mt-2 h-4 w-52" />
+            <div className="mt-6 flex flex-col gap-[22px]">
+              <Skeleton className="h-12 w-full rounded-[28px]" />
+              <Skeleton className="h-12 w-full rounded-[28px]" />
+              <Skeleton className="h-[42px] w-full rounded-full" />
+            </div>
+          </div>
+        </section>
+      </div>
     );
   }
 
@@ -120,58 +139,70 @@ export function Login() {
   }
 
   return (
-    <AuthLayout>
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>{t('login', 'title')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue={TAB_LOCAL}>
-            <TabsList className="w-full">
-              <TabsTrigger value={TAB_LOCAL}>{t('login', 'tabLocal')}</TabsTrigger>
-              <TabsTrigger value={TAB_OIDC}>{t('login', 'tabOidc')}</TabsTrigger>
-            </TabsList>
+    <div className="relative grid min-h-svh grid-cols-[minmax(0,42%)_minmax(0,58%)]">
+      <BrandPanel />
+      <section className="relative flex items-center justify-center px-12">
+        <div className="absolute top-6 right-6">
+          <LanguageSwitcher />
+        </div>
+        {/* 右栏内**水平 + 垂直居中**（§14.4 A）；表单直落页面底 ⇒ **无白卡** */}
+        <div className="w-full max-w-[336px]">
+          <h2 className="text-center text-[24px] font-semibold tracking-[-0.2px]">
+            {t('login', 'title')}
+          </h2>
+          <p className="mt-1 text-center text-[13px] text-muted-foreground">
+            {t('login', 'subtitle')}
+          </p>
 
-            {/* ── 常规登录：原生 `<form>` ⇒ Enter 提交 ── */}
-            <TabsContent value={TAB_LOCAL}>
-              {/* `noValidate`：空值/格式交服务端（错误码经 `tErr` 落 inline 错误条，不用浏览器原生气泡） */}
-              <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-                <FieldGroup className="gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="login-username">{t('login', 'username')}</FieldLabel>
-                    <Input
-                      id="login-username"
-                      name="username"
-                      autoComplete="username"
-                      required
-                      value={username}
-                      disabled={submitting}
-                      onChange={(event) => setUsername(event.target.value)}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="login-password">{t('login', 'password')}</FieldLabel>
-                    <Input
-                      id="login-password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      required
-                      value={password}
-                      disabled={submitting}
-                      onChange={(event) => setPassword(event.target.value)}
-                    />
-                  </Field>
-                </FieldGroup>
+          <div className="mt-6">
+            {altMode ? (
+              <div className="flex flex-col gap-[22px]">
+                <p className="text-[13px] leading-[22px] text-muted-foreground">
+                  {t('login', 'oidcHint')}
+                </p>
+                <Button asChild className={SUBMIT_CLASS}>
+                  <a href={OIDC_AUTHORIZE_URL} target="_blank" rel="noreferrer">
+                    {t('login', 'oidcOpen')}
+                  </a>
+                </Button>
+              </div>
+            ) : (
+              /* `noValidate`：空值/格式交服务端（错误码经 `tErr` 落 inline 错误条，不用浏览器原生气泡） */
+              <form onSubmit={onSubmit} noValidate className="flex flex-col gap-[22px]">
+                <Input
+                  id="login-username"
+                  name="username"
+                  autoComplete="username"
+                  required
+                  aria-label={t('login', 'username')}
+                  placeholder={t('login', 'username')}
+                  className={FIELD_CLASS}
+                  value={username}
+                  disabled={submitting}
+                  onChange={(event) => setUsername(event.target.value)}
+                />
+                <Input
+                  id="login-password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  aria-label={t('login', 'password')}
+                  placeholder={t('login', 'password')}
+                  className={FIELD_CLASS}
+                  value={password}
+                  disabled={submitting}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
 
+                {/* 失败态 = inline 错误行（**非 Alert 块**），位置在密码字段与主按钮之间（§14.4 A） */}
                 {errorCode ? (
-                  <Alert variant="destructive">
-                    <TriangleAlert />
-                    <AlertTitle>{tErr(errorCode)}</AlertTitle>
-                  </Alert>
+                  <p role="alert" className="px-1 text-[13px] leading-[22px] text-destructive">
+                    {tErr(errorCode)}
+                  </p>
                 ) : null}
 
-                <Button type="submit" className="w-full" disabled={submitting}>
+                <Button type="submit" className={SUBMIT_CLASS} disabled={submitting}>
                   {submitting ? (
                     <>
                       <Spinner />
@@ -182,22 +213,21 @@ export function Login() {
                   )}
                 </Button>
               </form>
-            </TabsContent>
+            )}
+          </div>
 
-            {/* ── OAuth 登录：新标签页直跳（零前置探测）── */}
-            <TabsContent value={TAB_OIDC}>
-              <div className="flex flex-col gap-4">
-                <p className="text-sm text-muted-foreground">{t('login', 'oidcHint')}</p>
-                <Button asChild variant="outline" className="w-full">
-                  <a href={OIDC_AUTHORIZE_URL} target="_blank" rel="noreferrer">
-                    {t('login', 'tabOidc')}
-                  </a>
-                </Button>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </AuthLayout>
+          {/* 底部浅色链接（§14.4 A：仅此一条 —— 与备用面板互为出入口） */}
+          <div className="mt-4 flex items-center justify-center text-[13px]">
+            <button
+              type="button"
+              onClick={() => setAltMode((value) => !value)}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {altMode ? t('login', 'backToForm') : t('login', 'oidcLink')}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

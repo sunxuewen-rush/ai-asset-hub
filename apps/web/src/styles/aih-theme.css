@@ -158,7 +158,9 @@ html[data-base="aih"] {
  * `@keyframes rise` → 已随 `--animate-rise` 住本层 `@theme`（此处不再重复）；`fadein` 零消费者；
  * `.glass` / `.bg-glow` 换皮后零消费者（毛玻璃与氛围光斑均属 §4.4 废弃项）。 */
 
-/* 全站统一细蓝滚动条（6px；导航栏内滚隐藏由各模块自覆） */
+/* 全站统一细蓝滚动条（6px；导航栏内滚隐藏由各模块自覆）
+ * 2026-09-17 用户拍板**保留** AIH 定制：侧栏宽度/面板圆角已对齐官方，但滚动条属**视觉体系**项
+ * （design §4.4 ⑥），不随官方默认（浏览器原生 15px）改。 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -179,6 +181,16 @@ html {
   scrollbar-color: var(--scroll-color) var(--scroll-track);
 }
 
+/* ── 侧栏内容区滚动条（2026-09-17 用户选方案 ②：「先按 2 看效果」）────────────────────
+ * 现状基线：官方 `SidebarContent` = 裸 `overflow-auto`（官方 34 件**零**滚动条定制）；
+ * 本仓因上面的 `scrollbar-width: thin` 生效，实际跑的就是原生滚动条（15px）⇒ 侧栏**不定制外观**。
+ * 唯一补丁 = `scrollbar-gutter: stable`：滚动条**出现/消失时不再挤动内容**
+ * （实测问题：矮屏溢出时侧栏内容被挤窄 15px、条目右缘跳一下 ⇒ 观感「不自然」）。
+ * 作用域**仅限侧栏内容区**，不影响全站。 */
+[data-slot='sidebar-content'] {
+  scrollbar-gutter: stable;
+}
+
 body {
   /* font-family / background / color 归 Tailwind base（Preflight + `@theme`）——本处只留 Tailwind
      不提供的两项（字体平滑 / body 最小高度，保页面底渐变在短内容页仍铺满视口） */
@@ -196,3 +208,4 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+

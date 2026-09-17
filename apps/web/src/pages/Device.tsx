@@ -1,7 +1,9 @@
 /**
  * 设备授权页 `/device`（批 design §5.2 四态 · §4.3 `next` 保码 · 主 design §3.4 基址与 dev 口径 · §7.1 device 三行）。
  *
- * **版式 = 独立**（`AuthLayout`，与 `/login` 共用；**不入 `AppShell`**）。
+ * **版式 = 独立**（**2026-09-17 UI 重做 T14 · 批 design §14.4 B**）：**不套 `AuthLayout`**（该件已退役）——
+ * 单列居中 `min-h-svh` + 28×28 品牌小方块（`--gradient-brand`）+ 语言切换器置**右上角**；
+ * 字段档与登录页同规格（48 / 圆角 28 / `bg-muted`+`border-input`）+ 授权码额外 `letter-spacing 2.52px`。
  *
  * **三态门（顺序敏感，与 `/login` 同构）**：
  * 1. `loading`（`bootstrapAuth` 未返回）→ 官方 `Skeleton` 骨架、**不渲染表单**
@@ -36,17 +38,15 @@
  * 本文件不出现裸 query 拼接。
  */
 import { TriangleAlert } from 'lucide-react';
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { approveDevice, claimDevice, type DeviceClaim, denyDevice } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { devicePath } from '@/auth/next';
-import { AuthLayout } from '@/components/console/AuthLayout';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { Alert, AlertTitle } from '@/components/ui/shadcn/alert';
 import { Button } from '@/components/ui/shadcn/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/shadcn/card';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/shadcn/field';
 import { Input } from '@/components/ui/shadcn/input';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { Spinner } from '@/components/ui/shadcn/spinner';
@@ -125,18 +125,14 @@ export function Device() {
   // 门① 会话探测中：骨架（结构镜像输入卡 ⇒ 切态无跳动）、**不渲染表单**
   if (state.status === 'loading') {
     return (
-      <AuthLayout>
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <Skeleton className="h-5 w-20" />
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-          </CardContent>
-        </Card>
-      </AuthLayout>
+      <DeviceShell>
+        <Skeleton className="mx-auto h-8 w-32" />
+        <Skeleton className="mx-auto mt-2 h-4 w-56" />
+        <div className="mt-6 flex flex-col gap-[22px]">
+          <Skeleton className="h-12 w-full rounded-[28px]" />
+          <Skeleton className="h-[42px] w-full rounded-full" />
+        </div>
+      </DeviceShell>
     );
   }
 
@@ -184,85 +180,112 @@ export function Device() {
   ) : null;
 
   return (
-    <AuthLayout>
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>{t('device', 'title')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {terminal ? (
-            /* ③ 已处理 / ② 变体：终态（不再给动作） */
-            <p className="text-sm" data-testid="device-terminal">
-              {terminal === 'foreign' ? t('device', 'claimedByOther') : t('device', terminal)}
-            </p>
-          ) : claim ? (
-            /* ② 已认领：详情 + 批准 / 拒绝 */
-            <div className="flex flex-col gap-4">
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">{t('device', 'clientLabel')}</dt>
-                <dd className="font-medium break-all">{claim.client_id}</dd>
-                <dt className="text-muted-foreground">{t('device', 'scopeLabel')}</dt>
-                <dd className="font-medium break-all">
-                  {claim.scope ? claim.scope : t('device', 'scopeAll')}
-                </dd>
-              </dl>
-              {failAlert}
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  className="flex-1"
-                  disabled={busy}
-                  onClick={() => decide('approve')}
-                >
-                  {busy ? <Spinner /> : null}
-                  {t('device', 'approve')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  disabled={busy}
-                  onClick={() => decide('deny')}
-                >
-                  {t('device', 'deny')}
-                </Button>
-              </div>
-            </div>
-          ) : busy ? (
-            /* 认领中：结构镜像输入卡（骨架 → 表单无跳动） */
-            <div className="flex flex-col gap-4">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          ) : (
-            /* ① 输入 */
-            <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-              <FieldGroup className="gap-4">
-                <Field>
-                  <FieldLabel htmlFor="device-code">{t('device', 'codeLabel')}</FieldLabel>
-                  <Input
-                    id="device-code"
-                    name="device-code"
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    placeholder={t('device', 'codePlaceholder')}
-                    value={code}
-                    disabled={busy}
-                    /* 设备码实测为**大写字母数字**（如 `CMK68C6R`）⇒ 输入即归一为大写 */
-                    onChange={(event) => setCode(event.target.value.toUpperCase())}
-                  />
-                </Field>
-              </FieldGroup>
-              {failAlert}
-              <Button type="submit" className="w-full" disabled={busy || code.trim().length === 0}>
-                {t('device', 'confirm')}
+    <DeviceShell>
+      <h2 className="text-center text-[24px] font-semibold tracking-[-0.2px]">
+        {t('device', 'title')}
+      </h2>
+      <p className="mt-1 text-center text-[13px] text-muted-foreground">
+        {t('device', 'subtitle')}
+      </p>
+      <div className="mt-6">
+        {terminal ? (
+          /* ③ 已处理 / ② 变体：终态（不再给动作） */
+          <p className="text-sm" data-testid="device-terminal">
+            {terminal === 'foreign' ? t('device', 'claimedByOther') : t('device', terminal)}
+          </p>
+        ) : claim ? (
+          /* ② 已认领：详情 + 批准 / 拒绝 */
+          <div className="flex flex-col gap-[22px]">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">{t('device', 'clientLabel')}</dt>
+              <dd className="font-medium break-all">{claim.client_id}</dd>
+              <dt className="text-muted-foreground">{t('device', 'scopeLabel')}</dt>
+              <dd className="font-medium break-all">
+                {claim.scope ? claim.scope : t('device', 'scopeAll')}
+              </dd>
+            </dl>
+            {failAlert}
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                className="flex-1"
+                disabled={busy}
+                onClick={() => decide('approve')}
+              >
+                {busy ? <Spinner /> : null}
+                {t('device', 'approve')}
               </Button>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </AuthLayout>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                disabled={busy}
+                onClick={() => decide('deny')}
+              >
+                {t('device', 'deny')}
+              </Button>
+            </div>
+          </div>
+        ) : busy ? (
+          /* 认领中：结构镜像输入卡（骨架 → 表单无跳动） */
+          <div className="flex flex-col gap-[22px]">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        ) : (
+          /* ① 输入 */
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-[22px]">
+            <Input
+              id="device-code"
+              name="device-code"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              aria-label={t('device', 'codeLabel')}
+              placeholder={t('device', 'codePlaceholder')}
+              className="h-12 rounded-[28px] border-input bg-muted px-4 tracking-[2.52px] placeholder:text-muted-foreground/60 focus-visible:border-primary/40 placeholder:tracking-normal"
+              value={code}
+              disabled={busy}
+              /* 设备码实测为**大写字母数字**（如 `CMK68C6R`）⇒ 输入即归一为大写 */
+              onChange={(event) => setCode(event.target.value.toUpperCase())}
+            />
+            {failAlert}
+            <Button
+              type="submit"
+              className="h-[42px] w-full rounded-full"
+              disabled={busy || code.trim().length === 0}
+            >
+              {t('device', 'confirm')}
+            </Button>
+          </form>
+        )}
+      </div>
+    </DeviceShell>
+  );
+}
+
+/**
+ * 设备页独立版式（批 design §14.4 B）：单列居中 + 品牌小方块 + 右上角语言切换；列宽 **336**。
+ * 与登录页同为**全屏**（`min-h-svh`）——两页共用同一套版式语言，不共用组件（登录页另有左品牌栏）。
+ */
+function DeviceShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative flex min-h-svh items-center justify-center p-12">
+      <div className="absolute top-6 right-6">
+        <LanguageSwitcher />
+      </div>
+      <div className="w-full max-w-[336px]">
+        <div className="mb-2 flex justify-center">
+          <span
+            className="inline-flex size-7 items-center justify-center rounded-md text-xs font-bold text-white"
+            style={{ backgroundImage: 'var(--gradient-brand)' }}
+          >
+            A
+          </span>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }

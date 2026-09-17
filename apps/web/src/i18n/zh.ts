@@ -12,6 +12,7 @@ export const zh = {
     mcps: 'MCP 中心',
     agents: '专家中心',
     login: '登录',
+    groupPortal: '门户',
     groupPersonal: '个人',
     groupAdmin: '管理',
     groupSuperAdmin: '超级管理',
@@ -19,6 +20,8 @@ export const zh = {
     roleAdmin: '管理员',
     roleSuperAdmin: '超级管理员',
     logout: '登出',
+    // 「管理看板」占位条目（批 design §14.7；页面本体归 M4b-6）
+    adminBoard: '管理看板',
   },
   market: {
     heroIntro: '发现和分享AI资源',
@@ -184,18 +187,32 @@ export const zh = {
     reason: '原因',
     empty: '暂无待审条目',
   },
+  /**
+   * 登录页（**UI 重做 T13 · 批 design §14.4 A** —— 16 键 = 原 8 −1（删 `tabLocal`）+ 改名 1
+   * （`tabOidc` → `oidcLink`）+ 新增 8（`subtitle`/`oidcOpen`/`backToForm` + 左栏品牌面板 5 条：
+   * `brandTagline`/`heroTitle`/`heroDesc`/`feature1-3`）。品牌字「AI X Hub」与许可行硬编码（不进字典）。
+   */
   login: {
-    title: '登录',
-    tabLocal: '常规登录',
-    tabOidc: 'OAuth 登录',
-    username: '用户名',
+    title: '登录 AI X Hub',
+    subtitle: '使用企业目录账号登录',
+    username: '企业工号 / 用户名',
     password: '密码',
     submit: '登录',
     submitting: '登录中…',
+    oidcLink: '使用 OAuth 登录',
     oidcHint: '将跳转至统一身份认证页面（在新标签页打开）。',
+    oidcOpen: '打开统一认证页',
+    backToForm: '返回密码登录',
+    brandTagline: '企业级 AI 资产注册中心与市场',
+    heroTitle: '分发 · 协作 · 治理',
+    heroDesc: '技能 / MCP Server / Agent 定义的统一注册与分发平台，带开放协作审核治理。',
+    feature1: '三族资产统一协议与版本化分发',
+    feature2: '开放协作审核：提交 · 复核 · 审计留痕',
+    feature3: '企业目录账号直连（LDAP / OIDC）',
   },
   device: {
     title: '设备授权',
+    subtitle: '在 CLI 中粘贴下方授权码后，回到此处确认',
     codeLabel: '设备码',
     codePlaceholder: '输入 8 位设备码',
     confirm: '确认',

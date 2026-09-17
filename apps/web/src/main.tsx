@@ -8,6 +8,7 @@ import { AppShell } from '@/components/ui/AppShell';
 import { RoleGuard } from '@/components/ui/RoleGuard';
 import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
+// 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
 import { AssetDetail } from '@/pages/AssetDetail';
 import { Center, type CenterType } from '@/pages/Center';
 import { Dashboard } from '@/pages/Dashboard';
@@ -63,7 +64,8 @@ const DEV_BATCH: Record<string, string> = import.meta.env.DEV
  * 路由骨架（批 design §3.3：新增 11 条 + 门户 5 条）。
  *
  * - **独立版式两页均为真页**：`/login`（`pages/Login.tsx`，T6）· `/device`（`pages/Device.tsx`，T7）
- *   —— 二者共用跨页件 `components/console/AuthLayout.tsx`
+ *   —— **2026-09-17 UI 重做 T13/T14**：两页改**全屏版式**（登录双栏 42/58 · 设备单列居中），
+ *   原跨页件 `components/console/AuthLayout.tsx` **已删件**（顶栏/语言切换由各页自持）
  * - **`/dashboard` 已是真页**（`pages/Dashboard.tsx`，T8；M4b-4 换三卡前的过渡形态）
  * - **门户 5 条无守卫**（公开读面，M4a 零回归）
  * - **守卫包裹（Q15）**：`/dashboard` + `/dashboard/*` 与非 `/admin` 的 `/reviews/:id` = `ROLE.USER`（布局路由一条包 4 条）；
@@ -81,6 +83,8 @@ function AppRoutes() {
           {/* ── 独立版式（不入 AppShell）── 两页均已换真页 */}
           <Route path="/login" element={<Login />} />
           <Route path="/device" element={<Device />} />
+
+          {/* ── 一次性原型（DEV-only：M4b-2 UI 视觉方向评审用；定稿后随原型删除）── */}
 
           {/* ── 应用壳（顶栏 + 侧栏 + 内容区 Outlet）── */}
           <Route element={<AppShell />}>
