@@ -27,6 +27,7 @@ const authNetLogs: string[] = [];
 /** 可参数化（多实例并存时用）：SMOKE_BASE_URL 指向前端 dev 端口；SMOKE_SHOT_PREFIX 给截图加前缀
  *  （避免覆盖历史里程碑的 docs/smoke/*.png 产物）。 */
 const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:5173';
+const API_BASE = process.env.SMOKE_API_URL ?? 'http://localhost:3000';
 const SHOT_PREFIX = process.env.SMOKE_SHOT_PREFIX ?? '';
 
 async function main() {
@@ -286,9 +287,19 @@ async function main() {
     '中心真实数据卡',
     await until(async () => ((await homeTxt()) ?? '').includes('LangGraph RAG 检索技能')),
   );
+  // ⚠ 2026-09-16 修正（M4b-3 T10 自检发现**数据依赖**）：原断言硬编码「共 3 个技能」——
+  //   任何新增 skill 资产（如 M4b-3 造数）都会误报失败 ⇒ 改为**与 `/api/stats` 对账**（AGENTS.md：测试只依赖自己造的数据）
   ok(
-    '中心计数 共 3 个技能',
-    await until(async () => ((await homeTxt()) ?? '').includes('共 3 个技能')),
+    '中心计数与 `stats` 接口技能数一致',
+    await until(async () => {
+      const t = (await homeTxt()) ?? '';
+      // ⚠ 该 `until` 回调在 **Node 侧**执行（非页面上下文）⇒ 必须用绝对 URL
+      const api = (await fetch(`${API_BASE}/api/stats`)
+        .then((r) => r.json())
+        .catch(() => null)) as { typeCounts?: { skill?: number } } | null;
+      const n = api?.typeCounts?.skill;
+      return typeof n === 'number' && t.includes(`共 ${n} 个技能`);
+    }),
   );
   ok('中心排序栏', ((await homeTxt()) ?? '').includes('最近更新'));
   await shot('2-skills');
