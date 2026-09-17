@@ -1,7 +1,7 @@
 # M4b-2 认证与壳批（登录 · 会话 · 角色感知壳）实现计划
 
 > Date: 2026-09-16
-> Updated: 2026-09-16（**v0.13：T10 收尾回写（批次完成）**——T10 ✅：**五门禁全绿**（`test` **500 pass ·
+> Updated: 2026-09-17（**v0.20：官方结构 + 官方 SiteHeader 对齐 + 图标态闭环（T11 补记四 · 用户拍板「对齐官方骨架」）**—— ① **结构改官方形态**：`SidebarProvider > SideNav + SidebarInset`（顶栏入 Inset ⇒ 宽 **1184**，不再全宽）· 侧栏回 `inset-y-0` · 官方 container `border-r` **1px** · **AIH 覆盖点 2 → 1 处** ② **顶栏照官方 `dashboard-01` SiteHeader 对齐 6 项**（`--header-height` 变量 / 内层容器 / `Separator mx-2` / 标题改 **`<h1>`** / `shrink-0`+`transition` / 图标态保持 **58** 不收矮）+ 品牌移入**侧栏顶部** `SidebarHeader` ③ **图标态闭环（F4 遗留项真因）**：官方件 `group-data-[collapsible=icon]:w-(--sidebar-width-icon)` 在 **tw 4.3.3 未生成**（CSSOM 0 命中）⇒ 受控 open + **状态驱动** `--sidebar-width` 256↔48（实测容器 **48** / 面板 **47** / 14 条图标偏差 **≤1**）④ 收起态**单层底色**（槽 32×32 铺满按钮 ⇒ 按钮宽 `uniq=[32]`）⑤ hover 提示**统一纯中文** ⑥ 滚动条**方案 ②**（`scrollbar-gutter:stable` ⇒ 条目宽 239 → **224**）⑦ 断言 **39 → 47 PASS / 0 FAIL**（+C2b/C2c/C2d/C2e/C2f/C2g/C8b/C8c）⑧ 五门禁 exit 0（`typecheck`/`lint`/`format:check` 实测 0）⑨ 截图 04/05 重出；v0.19：侧栏宽 256 + 面板圆角对齐官方（T11 补记三 · 用户拍板 ①保留 ②保留 ③回退）**—— ① `--sidebar-width` 204 → **256**（官方 16rem）② 撤圆角覆盖 ⇒ 官方 floating（10px + border + shadow-sm）③ 滚动条回退 AIH 6px ④ 实测 `sidebarW=256` `radius=10px` `uniqW=[214]` ⑤ 断言同步 **39 PASS / 0 FAIL**（C1/C2/C4b/C9）⑥ 截图 04/05 重出；v0.18：门户组加组标题 + 14 条全中性底（T11 补记二 · 用户拍板）**—— ① 用户口令「1-门户 4 条加组标题『门户』 2-14 条全用中性底」② 落地：门户组改 `SidebarGroup` + 组标题（新键 `navigation.groupPortal`）· 删 `ICON_BY_TYPE` ⇒ 常态 `bg-muted` / 激活 `bg-primary` ③ 实测组标题 **4** · 14 条 `uniqH=[32] uniqW=[162] uniqSlot=[22x22]` · 常态衬底种类 **1** ④ 断言 **38 → 39 PASS / 0 FAIL**（C3 改 4 · +C4c）⑤ i18n **222 键**（`navigation` 14）⑥ 截图 04/05 重出；v0.17：侧栏条目形态统一（T11 补记 · 用户拍板）**—— ① 用户 2026-09-17 指出门户组 4 条与三组 10 条「很不协调」（实测 5 维硬差）② 落地方案 = 收敛为官方标准形态（行高 32 · 宽 162 · 槽 22×22 · 单行）+ 英文副标降级 hover tooltip + 门户保类型色 / 三组中性底 ③ 实测 14 条 `uniqH=[32] uniqW=[162] uniqSlot=[22x22]` · tooltip = `首页 · Home` · 断言 **37 → 38 PASS / 0 FAIL**（+C4b）④ 证据文件追加「补充轮次」段 + 截图 04/05 重出；**v0.16：UI 视觉重做落地收口（T11-T15 ✅ 全绿）**—— ① T11 ✅ 侧栏图标 14 条 + 顶栏页面标题区（Q7）② T12 ✅ 「管理看板」占位条目（`navigation.adminBoard` · 不改路由）③ T13 ✅ 登录页重写（双栏/无白卡/撤 tab/无 `AuthLayout` · `login` 8 → 16 键）④ T14 ✅ 设备页重写 + **删件 `AuthLayout.tsx`**（`device` +`subtitle`）⑤ T15 ✅ 断言脚本 **37 PASS / 0 FAIL** + 五门禁 exit 0（`test` **517 pass / 1 skip / 0 fail**）+ 门户零回归 **36/36 + chain-smoke PASS** + 截图 5 张 + i18n 实测 **221 键 / 11 组**（本批净增 **10**）⑥ 证据 = `docs/smoke/2026-09-17-m4b2-ui-redo.md`；**本 plan 8 维自检 9.71**（完整性 9.7 · 一致性 9.7 · 清晰度 9.7 · 可实施性 9.7 · 设计纯粹性 9.7 · 边界覆盖 9.7 · 实施精度 9.8 · 跨平台 9.6）；**v0.15：UI 视觉重做 Task 立项（T11-T15）**—— 用户 2026-09-17 拍板「本批内升版、不另立批」⇒ 依批 design **§14**（落地规格 + **29 条**验收断言）追加 5 个 Task：**T11** 侧栏图标回写（14 条映射 · 首页 `⌂`→`House`）+ 顶栏**页面标题区**（Q7）· **T12** 「管理看板」**占位条目**（i18n `navigation.adminBoard` · **不改路由**，`/admin` 维持重定向）· **T13** 登录页**视觉重写**（双栏 42/58 · 无白卡 · 撤 tab + 备用面板 · 无 `AuthLayout` 页头 · `login` 组 **8 → 10 键**）· **T14** 设备页重写 + **`AuthLayout` 删件**（Q10）· **T15** 门禁 + **29 条断言脚本** + 原型删除 + 收口回写。**功能契约零变更** ⇒ 出口件 ④ 以 §14.5 脚本重跑 + 用户观感认可为准；**本 plan 自检 8 维 = 9.63**（完整性 9.7 · 一致性 9.6 · 清晰度 9.6 · 可实施性 9.7 · 设计纯粹性 9.6 · 边界覆盖 9.6 · 实施精度 9.7 · 跨平台 9.5）；**v0.13：T10 收尾回写（批次完成）**——T10 ✅：**五门禁全绿**（`test` **500 pass ·
 1 skip · 0 fail**，与 M4b-pre 基线一致 ⇒ 零回归）· **门户零回归** `m4a-dogfood` **36/36** + `m4a-chain-smoke`
 **PASS** · **本批 dogfood 六组**（新建 `docs/smoke/scripts/m4b2-auth-dogfood.ts`）**24 PASS / 0 FAIL +
 NO JS ERRORS** · **种子复核**（A2 upsert 第 3 次复跑幂等）· **整体审计十一维**（F4 **关闭**——实测证伪 T4
@@ -13,7 +13,7 @@ NO JS ERRORS** · **种子复核**（A2 upsert 第 3 次复跑幂等）· **整�
 **补 `auth.forbidden` · `auth.oidc_denied` · `auth.oidc_state_mismatch`**（`errors` 18 → **21 键**；服务端 12 码
 **覆盖 12/12**）；**校验全绿**（双语双向差集 **0** · 占位符不一致 **0** · 空值 **0** · 门禁四连 · 产物零 `M4b-` ·
 门户零回归 **36/36**）；**本批唯一内容改动 = 补 3 键**（其余为文档回填）；**v0.11：T8 落地回写**——T8 ✅（2026-09-16）新建 `apps/web/src/pages/Dashboard.tsx`（**78 行**：`ComingSoon` 内容槽形态 + 按档位裁剪入口 + `state.notice` 消费）· `main.tsx` `/dashboard` 占位 → **真页**（删 `DEV_BATCH['/dashboard']`）· i18n `dashboard` **+1 键**（`welcome`）；断言实测（**档 0 未登录 → `/login?next=%2Fdashboard`** · **三档入口裁剪**（role 1 → 2 项 / 10 与 100 → 3 项）· **零业务请求**（排除壳层 M4a 既有 `/api/stats` 与会话 `/api/auth/me` 后 = **0**）· **`notice` toast + 刷新不重弹** · 门禁四连 · 生产产物零 `M4b-` · 门户零回归 **36/36**）；**执行期修正 1 处**（断言③ 口径补壳层例外，见落地记录）；**v0.10：T7 落地回写**——T7 ✅（2026-09-16）新建 `apps/web/src/pages/Device.tsx`（**303 行**）· 新建跨页件 `components/console/AuthLayout.tsx`（与 `/login` 共用独立版式）· `main.tsx` `/device` 占位 → **真页**（删 `DEV_BATCH['/device']`）· `api/auth.ts` 加 device 三封装 + OAuth 错误映射 · `api/client.ts` 的 `ApiError` 补 **`body`**（原始错误体，OAuth 适配所需）· `auth/next.ts` 加 **`devicePath`**（站内路由构造单点）· i18n `device` 组 **13 键**；断言实测（**未登录保码回跳闭环** · **四态全绿** · **首帧门** · **刷新态 = `status:approved`** · **他人已认领双路** · **错误体适配**（不落 `http_400`）· 门禁四连 · 生产产物零 `M4b-` · 门户零回归 **36/36**）；**执行期修正 6 处**（见落地记录）；**v0.9：T6 落地回写**——T6 ✅（2026-09-16）新建 `apps/web/src/pages/Login.tsx`（**205 行**）· `main.tsx` `/login` 占位 → **真页**（删 `DEV_BATCH['/login']`）· i18n `login` 组 **+8 键** + `errors` **+9 码**；断言实测（**独立版式**（无侧栏/无顶栏）· **两 tab**（**CDP 真指针**切换实测 `href=/api/auth/oidc/authorize` + `rel=noreferrer`；Radix 合成 click 无效）· **首帧骨架**（`/me` 延迟 1.6s 采样：**150-1500ms 恒 `skeleton=4 / form=false`**，1650ms 才落表单 ⇒ design Y3 实证）· **失败态全 inline**（错口令 Alert + **URL 不变**）· **成功链**（→ `/dashboard` + `/me` 200）· **反向守卫**（无 next → `/dashboard` · **保码回跳** `/device?user_code=ABCD-1234` · 非法 next 回落）· 无注册入口 · 门禁四连 · **生产产物零 `M4b-`** · 门户零回归 **36/36**）；**执行期细化 1 处 + 连带修正 1 处**（`login.title` 与 `navigation.login` 并存——后者仍由 `UserMenu` 消费 2 处 · **种子脚本改 upsert（A2，用户拍板）**）；**v0.8：T5 落地回写**——T5 ✅（2026-09-16）**减法批**：`TopBar.tsx` 43 → 41 行（删「登录」占位 `<span>` + 图标/i18n 两个 import）· `SideNav.tsx` 删 `APP_VERSION` 与 Footer 三项（**Footer 仅余 `UserMenu`**，children = 1）· i18n `navigation` **−4 键**；断言实测（TopBar 仅余 **4 件**（品牌 + `Separator` + `SidebarTrigger` + `LanguageSwitcher`）· `grep` 三零（login 占位 / 图标 import / `APP_VERSION` / 4 键）· 顶栏 **58px** 实测 · 语言切换零变更（EN ↔ 中文 徽章往返）· 门禁四连 · 门户零回归 **36/36**）；**v0.7：T4 落地回写**——T4 ✅（2026-09-16）新建 `ui/UserMenu.tsx` · `SideNav.tsx` 加三组（门户组 JSX 逐字保留）+ Footer 接用户区 · i18n `navigation` +6 / `admin` +1；断言实测（**四档显隐全绿** （未登录/1/10/100）· **UserMenu 四态**含 loading 采样序列（404ms skeleton → 3406ms authed，**无 ANON 闪现**）· 占位条目 `BUTTON` + toast · **F3 计算值**（组间距 4px · 组内 padding 8px · 标签高 32px）· 门禁四连 · 门户零回归 **36/36**）；**执行期修正 5 处**（plan 断言③ 超管组 **4 → 3 条**（主 design §4 唯一源）· `admin.phase2Notice` **不存在 ⇒ 复用 `common.comingSoon`** · 徽章键 3 个落定 · **补 2 处遗漏键**（`navigation.logout`/`admin.settings`）⇒ 净增 34 → **39** · **修 T1 缺陷**（`apiPost` 写请求 content-type + `logout` 传 `{}` ⇒ sign-out 实测 415/400 两坑全通））；**F4 登记**（图标态部分 `group-data-[collapsible=icon]` 变体未生效，待深挖）；**v0.6：T3 落地回写**——T3 ✅（2026-09-16）新建 `console/ComingSoon.tsx` + **种子脚本提前落地**（`docs/smoke/scripts/m4b2-seed-roles.ts`）· `RoleGuard.tsx` 重写（43 → 44 行）· `main.tsx` 48 → **196 行**（11 条路由 + 两段守卫 + `DEV_BATCH` 常量表）· i18n `common` +2 / `dashboard.submissions` +1；断言实测（路由 **11 条** · `/admin` 守卫内重定向 · `bootstrapAuth` 模块级 · `ROLE` 残留 **0** · **生产产物零 `M4b-` 字面量**（build + grep 实测）· **真浏览器 4/4 + role=1 实测** （`/admin*` → 落 `/dashboard`）· 门禁四连 exit 0 · 门户零回归 **36/36**）；**执行期细化 4 处**（/login `/device` T3 形态 = 占位 ⇒ T6/T7 补 `Modify main.tsx` · 占位页文案键 `common.comingSoon` · notice 键 `common.noPermission` · **种子脚本提前落地并跑通**）；**连带发现**（dogfood 401 口径 → 单列）；**v0.5：T2 落地回写**——T2 ✅（2026-09-16）新建件 9 `auth/next.ts` + `client.ts` 扩至 187 行；断言实测（**纯函数探针 27/27** · **门户零回归 dogfood 36/36 + NO JS ERRORS** · 门禁三连 exit 0）；**执行期细化 3 处**（`sanitizeNext` 单参 · `PROTECTED_PREFIXES` 落 `auth/next.ts` · `invalidateCache` 语言无关 path 前缀）；连带修复 biome 控制字符正则规则；**v0.4：T1 落地回写**——T1 ✅（2026-09-16）新建 3 件 + `client.ts` 扩至 119 行；断言实测（`hasRole` 探针 **14/14** · 门禁三连 exit 0 · 零服务端改动）；**执行期修正 2 处**（`apiPost` 前移 T1 解循环依赖 · 401 登记口落 `api/client.ts` 防 ESM 循环）· **登记 1 项归 T4**（角色徽章键与组标题键语义不符）；**v0.3：grilling 第 3 轮（Q14-Q19）断言同步**——T2 断言③ **判定域 = 当前路由**（Q14：实测全仓 `apiGet` 均为 `/api/...`，与原「按 path 匹配」不同域）+ 断言⑤ 补 **`/\evil.com` / `/%5Cevil.com` → `null`**（Q16）· T3 断言⑦ **守卫包裹与 `minRole` 映射**（Q15）· T7 断言⑧ **device 错误体 OAuth 风格适配**（Q18①）+ 断言⑨ **「他人已认领」态实测**（Q18②）· T8 断言⑤ **`location.state.notice` 消费**（Q17）· T9 断言⑥ **`claimedByOther` 键去留**（Q18②）· T10 口令变量 → 单变量 **`SMOKE_M4B2_PASSWORD`**（Q19）；**顺带修正 T4/T7 断言编号重复（⑦ 各出现两次，自产缺陷同轮修）**；**v0.2：深度档评审同步**——§1.4 两缺口全部闭合（批 design v1.2：`auth/next.ts` 件 9 + Q8 边界订正）· T4 补 F3/图标态断言 · T7 补 F1 刷新态 · T9 补净增 32 键对照 · T10 补 F2 提示 + 登记表改「复核」；**v0.1 初稿**：M4b-2 Task 清单 **T1-T10**（认证地基 → API 客户端扩展 → 路由骨架 → 侧栏三组 → TopBar 减法 → `/login` → `/device` → `/dashboard` → i18n 对齐 → 门禁/dogfood/收口），每 Task 含 **Files / Assert（可现场跑）/ Commit**；依据批 design `2026-09-16-m4b2-auth-shell-design.md` **v1.1**（定稿 · 8 维 9.44）与上游主 design **v1.21** §2.3 拆批表；§1.4 登记**两处待补设计缺口**（① `sanitizeNext` 落点未在件清单列明 ② Q8「反向守卫」Task 边界措辞）；10 项行数声明与 i18n 键数**全部实测一致** · file:line 引用**全部回读**）
-> Status: **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ · T6 ✅ · T7 ✅ · T8 ✅ · T9 ✅ · T10 ✅ 2026-09-16** · **批次完成 · 出口五件全绿**（④ 由 CDP 自动断言 14/14 + 用户认可闭合）；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
+> Status: **执行中**（**T1-T10 ✅ 2026-09-16 · 批次完成 · 出口五件全绿**（④ 由 CDP 自动断言 14/14 + 用户认可闭合）· **UI 视觉重做（2026-09-17 用户拍板「本批内升版」）⇒ 追加 T11-T15 ✅ 全绿 · T11 补记（侧栏 14 条形态统一 · P7）✅**（§14 定稿 + 落地 + 断言 37/0 + 门禁 exit 0 + 门户零回归 36/36）；**前置 = M4b-1 出口五件全绿** ✅——批 design **v1.3** 定稿（**8 维 9.44 · 深度档三合一 9.50**）· 批 plan 本件 **v0.3** · 五门禁 exit 0 · dogfood 36/36 + 观感复核 · 整体审计 F1-F8 无未决项）
 > 引用链：本文档 → 批 design `docs/designs/2026-09-16-m4b2-auth-shell-design.md`（§N 逐 Task 引用）→ 上游主 design（跨批不变层）`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**版本以其版本头为准**）→ 规范 `00` §5/§7 · `05` §3/§5/§6 · `07` §3/§4 → M4a design §4.4（视觉 SSOT，引用不复制）
 > 命名约定见 `docs/plans/README.md`
 
@@ -68,6 +68,13 @@ NO JS ERRORS** · **种子复核**（A2 upsert 第 3 次复跑幂等）· **整�
 | C 并入 `api/auth.ts` | 零新件 | `sanitizeNext` 与 API 调用无关；`api/` 层不应含路由语义 |
 
 > ⑵ **「反向守卫」的 Task 边界措辞**（**已闭合 2026-09-16**：批 design 升 **v1.2** 的 §2.1 Q8 行已订正为「T2 含 `sanitizeNext`（反向守卫**消费点**落 T6 `/login`）」。
+
+### 1.5 UI 视觉重做范围（2026-09-17 用户拍板 · 本批内升版）
+
+- **范围**：本批三面（登录页 / 设备授权页 / 应用壳）的**视觉重做**——用户确认「**不另立批**」（批 design §14）。
+- **设计真值**：批 design **§14**（§14.4 落地规格 = 实现唯一依据 · §14.5 验收断言 **29 条** · §14.6 图标映射 14 条 · §14.7 管理看板登记）；体系真值仍引用 `M4a design §4.4`（不复制）。
+- **新增 Task**：**T11-T15**（T1-T10 已随批次完成，不回改）；Task 序列 = 图标/顶栏 → 占位条目 → 登录页 → 设备页 → 门禁+断言+收口。
+- **与既有批次的关系**：**功能契约零变更**（请求形态 / 失败码 / 守卫 / 保码 / 四态 / 门槛全不动）⇒ 出口件 ④ 以 **§14.5 断言脚本重跑 + 用户观感认可**为准。
 
 ## 2. Task 清单
 
@@ -147,7 +154,7 @@ NO JS ERRORS** · **种子复核**（A2 upsert 第 3 次复跑幂等）· **整�
   `i18n/{zh,en}.ts`（`navigation` **+3** 组标题键 + **+3 徽章键**（T4 定案）+ **+1 `logout`**（遗漏补缺）；
   `admin` **+1 `settings`**（遗漏补缺）——**执行期修正**，见落地记录
 - **Assert**:
-  ① **门户组保持现形态**（4 条、**无组标题**、`SidebarMenu` 直挂）——源码零改动（Q3 零回归）
+  ① ~~**门户组保持现形态**（4 条、**无组标题**、`SidebarMenu` 直挂）——源码零改动（Q3 零回归）~~ ⇒ **2026-09-17 用户拍板翻转**：加组标题「门户」+ 全中性底（见 T11 补记二）
   ② 三组用官方标准形态：`SidebarGroup` > `SidebarGroupLabel` + `SidebarGroupContent` > `SidebarMenu`
   ③ 组级与条目级**同取门槛**；**组内无可见条目 ⇒ 整组不渲染**，
      四档实测（未登录 / 1 / 10 / 100）：未登录仅门户组 · 1 档 +个人（4 条）· 10 档 +管理（2 条）·
@@ -289,6 +296,64 @@ NO JS ERRORS** · **种子复核**（A2 upsert 第 3 次复跑幂等）· **整�
   ⑧ **F2 提示（执行前）**：确认 dev `.env` 的 `AUTH_TRUSTED_ORIGINS` 已含 `http://localhost:5173`（`.env.example:36` 为空值，批 design §5.1 F2）
 - **Commit**（按收口内容拆分，一事一提交）:
   `test(web): run m4b-2 gates and auth dogfood` → `docs(m4b2): record evidence and close batch`
+
+### T11 侧栏图标回写 + 顶栏「页面标题区」（UI 重做）✅（2026-09-17 落地）
+
+> **补记（2026-09-17 用户拍板 · 侧栏 14 条条目形态统一）**：用户指出门户组 4 条与三组 10 条显示风格不一致（实测硬差 **5 维**：行高 **51 vs 32** · 图标槽 **22 有衬底 vs 20 透明** · 双行（英文副标） vs 单行 · 宽 **178 vs 162** · 常态字重 **500 vs 400**）⇒ 落地：门户 4 条 **51px 双行 → 32px 单行**（宽 162 · 槽 **22×22** 衬底 · 英文副标**降级 hover tooltip**）+ 三组槽 **20 → 22** 加中性衬底（激活落 `bg-primary`）。**实测**：14 条 `uniqH=[32]` `uniqW=[162]` `uniqSlot=[22x22]` · `em` 数 **0** · 收起态 tooltip = `首页 · Home`；断言 **37 → 38 PASS / 0 FAIL**（新增 **C4b**）。**门户组条目自 M4a 后首次改动**（用户拍板解除「零改动」，范围澄清为结构与文案）——登记见批 design **§14.6 P7** / 主 design **§4 注**。
+
+> **补记二（2026-09-17 用户拍板 · 门户组加组标题 + 14 条全中性底）**：用户口令「1-门户 4 条加组标题『门户』 2-14 条全用中性底」⇒ ① 门户组由裸 `SidebarMenu` 改为 `SidebarGroup > SidebarGroupLabel + SidebarGroupContent > SidebarMenu`（与三组**结构同构**），组标题取新键 **`navigation.groupPortal`**（zh 门户 / en Portal）② 删 `ICON_BY_TYPE` 类型色衬底 ⇒ **常态一律 `bg-muted` · 激活一律 `bg-primary`**（`--tint-*`/`--type-*` token 保留待用）。**实测**：组标题 **4**（门户/个人/管理/超级管理 · 顺序固定）· 14 条 `uniqH=[32]` `uniqW=[162]` `uniqSlot=[22x22]` · **常态衬底种类 = 1**（13 条 · `rgb(241,245,251)`）· 激活 1 条 = `primary`；断言 **38 → 39 PASS / 0 FAIL**（C3 改 4 · 新增 **C4c**）；i18n **222 键 / 11 组**（`navigation` 13 → 14）。**Q3 翻转**已登记四处（批 design §2 现状表 / §2 Q3 / §6.1 矩阵 / §14.4 分组）+ 主 design §4 注。**遗留开口项**：**P8** 收起态图标几何居中（偏右 7px）⬜ 待拍板。
+
+> **补记三（2026-09-17 用户拍板 · 侧栏宽 / 面板圆角对齐官方 · 滚动条回退）**：用户口令「① 保留 ② 保留 ③ 回退」⇒ ① `--sidebar-width`：**204px → 256px**（= 官方 `16rem`；实测条目宽 **214** · 内容区起点 **x=256**）② 撤除 `[&>[data-slot=sidebar-inner]]:rounded-2xl` ⇒ 回**官方 floating** 形态（`rounded-lg` **10px** + `border-sidebar-border` 1px + `shadow-sm` 生效）· **AIH 覆盖点 3 → 2 处** ③ 滚动条 **回退 AIH 6px 细蓝**（`aih-theme.css` 定制保留；不随官方浏览器原生 15px）——理由：属视觉体系项（§4.4 ⑥）。**实测**：`sidebarW=256` · `radius=10px` · `border=1px rgb(227,234,246)` · `boxShadow=0 1px 3px rgba(0,0,0,.1)`（`shadow-sm`）· 矮屏侧栏溢出时滚动条 = **6px**。**断言同步 39 PASS / 0 FAIL**（C1 256 / C2 10px / C4b 214 / C9 x=256）；截图 04/05 重出。**决策依据入档**：与官方 registry（`new-york-v4`）逐字符比对 = 实现体等价（差异仅 RSC 指令 / import 路径 / biome 格式）。
+- **落地**：`SideNav.tsx`（`{text, icon}` + `IconSlot` 槽 · 门户首页 `House` 替字形 `⌂` + 三中心复用 `TypeIcon`）· `TopBar.tsx`（`titleOf()` 最长前缀命中 + 标题/分区块）· 断言 **14 条条目全含 SVG** · 首页无 `⌂` · 顶栏 h=58 含标题区 ✓
+- **设计**：批 design **§14.6**（14 条图标映射表）· **§14.4 C**（顶栏 / 侧栏 / 条目规格）· **§14.6 P1/P2/Q7** 结论
+- **Files**: Modify `apps/web/src/components/ui/SideNav.tsx`（三组条目字段 `{text}` → `{text, icon}` + 渲染 `<span className="flex size-5 shrink-0 items-center justify-center">{icon}</span>`；门户 4 条：**首页 `House`**（替换 `⌂` 字形 `:167`）+ 技能 / MCP / 专家**复用既有 `TypeIcon`**）·
+  Modify `apps/web/src/components/ui/TopBar.tsx`（**页面标题区**：标题 14px/600 + 分区 12px，置于「品牌 + 触发钮」与「语言」之间，Q7）·
+  Modify `apps/web/src/components/ui/SideNav.tsx` 顶部注释（AIH 覆盖点登记）
+- **Assert**:
+  ① 侧栏条目 **14 条全部含 SVG**（`svg` 数 = 条目数）② 门户「首页」`textContent` **不含 `⌂`** ③ 三组图标逐条匹配 §14.6 映射（lucide 类名断言）· 门户三枚 = `TypeIcon` 形状（24×24/1 path · 20×20/3 paths · 24×24/1 path+1 circle）
+  ④ 顶栏 `height = 58` 且含页面标题区（标题 + 分区各 1）⑤ **零新增 i18n 键**（图标与标题区复用既有组键）⑥ **门户零回归** `m4a-dogfood` **36/36 + NO JS ERRORS**
+- **Commit**: `feat(console): add sidebar icons and a topbar page-title slot`
+
+### T12 「管理看板」占位条目（UI 重做）✅（2026-09-17 落地）
+- **落地**：`SideNav.tsx`（「管理」组首条 `Gauge` + `to` 缺省 ⇒ `toast(common.comingSoon)`）· `i18n` `navigation.adminBoard`（zh/en）· **`main.tsx` 未改**（`/admin` 维持既有重定向，实测 ✓）；断言：门槛 `hasRole 10` ✓ · 点击轻提示 + URL 不变 ✓ · 双语键齐 ✓
+- **设计**：批 design **§14.7**（归属 M4b-6 · 本批只落占位）· 主 design **§2.4 U1** · §2.3 对齐要点表 M4b-6 行
+- **Files**: Modify `SideNav.tsx`（「管理」组**首条**加 `{ text: t('navigation', 'adminBoard'), icon: <Gauge /> }`；**`to` 缺省** ⇒ 点击走既有 `toast(t('common','comingSoon'))`，与「系统设置 / 用户管理」同款）·
+  Modify `apps/web/src/i18n/zh.ts` + `en.ts`（`navigation.adminBoard` = 「管理看板」/「Admin Dashboard」）·
+  **不改 `main.tsx`**（`/admin` **维持既有重定向** → `/admin/reviews`；真页面 + 路由归 **M4b-6**）
+- **Assert**:
+  ① `role >= 10` 才渲染（`hasRole` 单点，禁散写阈值）② 点击 → `toast(common.comingSoon)`，**不发生路由跳转**（URL 不变）③ zh/en 双语键齐（双向差集 **0**）④ `navigation` 组 **12 → 13 键** ⇒ 全仓 **135 键 / 净增 44**（与批 design §10 订正一致）⑤ 门户零回归 36/36
+- **Commit**: `feat(console): add the admin-board placeholder entry`
+
+### T13 登录页视觉重写（UI 重做）✅（2026-09-17 落地）
+- **落地**：`Login.tsx` 重写（双栏 42/58 · 无白卡 · 撤 tab + 备用面板 · 无 `AuthLayout` 页头 · 语言切换右上角 · 骨架镜像表单列）· `i18n` `login` **8 → 16 键**；断言 A1-A11 **12 项全过** + 功能契约六项未回归 ✓
+- **设计**：批 design **§14.4 A**（双栏 42/58 · 无白卡 · 撤 tab + 备用面板 · 无 `AuthLayout` 页头 · 语言切换右上角）· **§14.5 A1-A11** · **§2.1 Q9**
+- **Files**: Modify `apps/web/src/pages/Login.tsx`（视觉**重写**；功能契约**不变**：请求形态 JSON / 失败码 inline / 首帧骨架 / 反向守卫 / `next` 保码）·
+  Modify `apps/web/src/i18n/zh.ts` + `en.ts`（`login` 组 **8 → 10 键**：删 `tabLocal` · 增 `subtitle`/`oidcOpen`/`backToForm` · `tabOidc` → `oidcLink` 改名改值）·
+  Modify `apps/web/src/main.tsx`（语言切换挂载点随版式移动）
+- **Assert**: **§14.5 A1-A11 全过**（列宽 336 · 居中 0/0 · 标题 24 居中 · 无「本地账号」· 输入 48/28/`--muted`/`--input` · 按钮 336×42 胶囊 · 间距 22 · 错误 inline `<p role=alert>` · 白卡 0 · **无 `Tabs`** + OAuth 链接可切面板 · **无页头** + 语言切换右上角）+ **功能六项复跑**（T6 原六项断言：独立版式 · 首帧骨架 · 错口令 inline + URL 不变 · 成功链 → `/dashboard` · 保码回跳 · 非法 next 回落）
+- **Commit**: `feat(web): rebuild the login page in the brand-split layout`
+
+### T14 设备页视觉重写 + `AuthLayout` 删件（UI 重做）✅（2026-09-17 落地）
+- **落地**：`Device.tsx`（`DeviceShell` 单列居中 + 品牌小方块 + 语言切换右上角 + 字段档对齐登录页 + `letter-spacing 2.52px`）· **删件** `components/console/AuthLayout.tsx` · `i18n` `device.subtitle`（13 → 14 键）；断言 B1-B5 **8 项全过**（四态 + 保码闭环功能未回归）✓
+- **设计**：批 design **§14.4 B** · **§14.5 B1-B5** · **§2.1 Q10** · §3.2 改造件 9
+- **Files**: Modify `apps/web/src/pages/Device.tsx`（单列居中 · 28×28 品牌小方块 · **无页头** · 语言切换右上角；四态与端点契约不变）·
+  **Delete** `apps/web/src/components/console/AuthLayout.tsx`（Q10 退役）·
+  Modify `main.tsx`（复核无残留 import）
+- **Assert**: ① §14.5 **B1-B5 全过** ② **四态复跑**（输入码 / 已认领 / 已处理 / 错误）+ **保码闭环**（未登录 → `/login?next=%2Fdevice…` → 回跳自动认领）③ `grep -r "AuthLayout" apps/web/src` **零命中** ④ 门禁四连（typecheck / lint / format:check / build）⑤ 门户零回归 36/36
+- **Commit**: `refactor(web): drop AuthLayout and rebuild the device page layout`
+
+### T15 UI 重做门禁 + 断言脚本 + 收口回写 ✅（2026-09-17 落地）
+- **落地**：脚本 `docs/smoke/scripts/m4b2-ui-redo-assertions.ts`（**37 PASS / 0 FAIL**，§14.5 的 29 条 + 8 子项）· 证据 `docs/smoke/2026-09-17-m4b2-ui-redo.md` + 截图 **5 张** · 五门禁 exit 0（`test` **517 pass / 1 skip / 0 fail**）· 门户零回归 **36/36 + chain-smoke PASS** · i18n 实测 **221 键 / 11 组**（本批净增 10）· 两处设计值订正（内容区 `8px 22px` · 图标态 48/50/64）回写批 design ⑤ 原型挂载已从 `main.tsx` 移除（文件本体**待授权删除**）
+- **设计**：批 design **§14.5**（29 条）· §9.2（门禁顺序）· §9.3（dogfood 口径）· §12.2（自检口径）
+- **Files**: Create `docs/smoke/scripts/m4b2-ui-redo-assertions.ts`（29 条 CDP 断言 + 截图留证）· `docs/smoke/2026-09-17-m4b2-ui-redo.md`（硬证据）·
+  **Delete** `apps/web/src/pages/__proto/M4b2UiProto.tsx` + `main.tsx` 的 `__proto` 路由挂载（**原型 DEV-only 一次性件，定稿即删**）·
+  Modify 批 design（§14 定稿 + 版本头）· 本 plan（Status + 落地记录）· 主 design §2.3 登记表（复核 + 回填）· `docs/00` §5
+- **Assert**:
+  ① **五门禁 exit 0** + **零回归**（`CI=true bun run test` 全绿 · 门户 `m4a-dogfood` 36/36 · `m4a-chain-smoke` PASS）
+  ② **§14.5 29 条全 PASS + `NO JS ERRORS`**（脚本输出 + 截图）③ 生产产物零 `M4b-` 字面量（`grep -rl 'M4b-' apps/web/dist/` 零命中）
+  ④ **i18n 实测**：全仓 **135 键 / 9 组**（`login` 10 · `navigation` 13）· 双语双向差集 **0** · 占位符不一致 **0**
+  ⑤ **整体审计（十一维）** 无未决项 ⑥ **文档-代码对齐重评**：批 design ≥9（含深度档）· 主 design §2.3 批件登记表复核回填 ⑦ 原型删除后**全仓 `__proto` 零命中**
+- **Commit**: `test(web): assert the m4b-2 ui redo` → `docs(m4b2): record ui redo evidence and close`
 
 ### 落地记录（执行期回写——实测证据）
 
@@ -709,6 +774,11 @@ NO JS ERRORS** · **种子复核**（A2 upsert 第 3 次复跑幂等）· **整�
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.19 | 2026-09-17 | sunxuewen-rush | **侧栏宽 256 + 面板圆角对齐官方（T11 补记三 · 用户拍板）**——① 宽 204 → **256**（官方 16rem）② 撤圆角覆盖 ⇒ 官方 floating（10px + border + shadow-sm）· AIH 覆盖点 3 → 2 处 ③ 滚动条回退 AIH 6px ④ 实测 `sidebarW=256` `radius=10px` `uniqW=[214]` `x=256` ⑤ 断言 **39 PASS / 0 FAIL**（C1/C2/C4b/C9）⑥ 截图 04/05 重出 |
+| v0.18 | 2026-09-17 | sunxuewen-rush | **门户组加组标题 + 14 条全中性底（T11 补记二 · 用户拍板）**——① 门户组改 `SidebarGroup` 结构 + 组标题（`navigation.groupPortal`）② 删 `ICON_BY_TYPE` ⇒ 常态 `bg-muted` / 激活 `bg-primary` ③ 实测组标题 **4** · 14 条 `uniqH=[32] uniqW=[162] uniqSlot=[22x22]` · 常态衬底种类 **1** ④ 断言 **39 PASS / 0 FAIL**（+C4c）· i18n **222 键** ⑤ 截图 04/05 重出 ⑥ Q3 翻转登记四处 + 主 design v1.42 |
+| v0.17 | 2026-09-17 | sunxuewen-rush | **侧栏条目形态统一（T11 补记 · 用户拍板）**——① 5 维硬差实测（行高 51 vs 32 · 槽 22 衬底 vs 20 透明 · 双行 vs 单行 · 宽 178 vs 162 · 字重 500 vs 400）② 落地 = 官方标准形态 + 副标降级 tooltip + 门户保类型色 / 三组中性底 ③ 14 条 `uniqH=[32] uniqW=[162] uniqSlot=[22x22]` · `em=0` · tooltip `首页 · Home` ④ 断言 **38 PASS / 0 FAIL**（+C4b）· 截图 04/05 重出 ⑤ 门户面改动登记（P7 / 主 design §4）；**本 plan 8 维 9.74** |
+| v0.16 | 2026-09-17 | sunxuewen-rush | **UI 视觉重做落地收口（T11-T15 ✅ 全绿）**——① T11-T15 全部落地（含删件 `AuthLayout.tsx`）② 断言 **37/0** + 五门禁 exit 0（`test` 517/1/0）+ 门户零回归 36/36 · chain-smoke PASS ③ i18n 实测 **221 键 / 11 组**（本批净增 10：`login` 8→16 · `device` 13→14 · `navigation` 12→13）④ 两处设计值订正回写 ⑤ 证据 + 截图 5 张入库；**本 plan 8 维 9.71**|
+| v0.15 | 2026-09-17 | sunxuewen-rush | **UI 视觉重做 Task 立项（T11-T15）+ 本 plan 8 维自检 9.63**——① §1.5 新增「UI 视觉重做范围」（设计真值 = 批 design §14；功能契约零变更；T1-T10 不回改）② §2 追加 **T11**（侧栏图标 14 条 + 首页 `⌂`→`House` + 顶栏页面标题区 Q7）· **T12**（管理看板占位条目 · `navigation.adminBoard` · **不改路由**）· **T13**（登录页视觉重写 · 双栏/无白卡/撤 tab/无 `AuthLayout` · `login` 8 → 10 键）· **T14**（设备页重写 + `AuthLayout` 删件）· **T15**（门禁 + §14.5 29 条断言脚本 + 原型删除 + 收口回写）③ Status 标「UI 重做追加 T11-T15 ⬜，待 §14 定稿口令」④ 依据 = 批 design **v1.20**（自检 9.65 · ⬠Q9/Q10 已闭环）+ 用户 2026-09-17「按推荐来」|
 | v0.14 | 2026-09-16 | sunxuewen-rush | **出口件 ④ 口径变更回写（批次五件全绿）**：① Status → 「批次完成 · 出口五件全绿」
 ② T10 落地记录 ⑤ 行改写：出口件 ④ 由「待用户实机确认」→ **CDP 自动断言 14 PASS / 0 FAIL +
 NO JS ERRORS**（新建 `docs/smoke/scripts/m4b2-acceptance-checklist.ts`；口径变更 = 用户 2026-09-16 授权
