@@ -12,10 +12,10 @@
  * **功能契约零变更**（本页重写只动视觉）：
  * 1. `loading`（`bootstrapAuth` 未返回）→ 官方 `Skeleton` 骨架、**不渲染表单**（Y3：防「表单闪现 →
  *    反向守卫跳走」竞态）；骨架**镜像表单列**（同宽同节奏）⇒ 切态无跳动
- * 2. `authed`（已登录访 `/login`）→ **反向守卫** `<Navigate to={next ?? '/dashboard'} />`（**Q1：`next` 优先**）
+ * 2. `authed`（已登录访 `/login`）→ **反向守卫** `<Navigate to={next ?? '/'} />`（**Q1：`next` 优先** · 无 `next` 落**首页**，2026-09-17 拍板）
  * 3. `anon` → 表单；失败态**全部 inline**（`skipAuthRedirect` ⇒ 401 不退化全局跳转，**错口令 URL 不变**），
  *    文案经 `tErr()` 本地化（07 §4：页面不直读 `code`）
- * 4. 成功链：`invalidateCache()`（全量）→ `refresh()`（真实重取 `/me`）→ 跳 `next ?? '/dashboard'`
+ * 4. 成功链：`invalidateCache()`（全量）→ `refresh()`（真实重取 `/me`）→ 跳 `next ?? '/'`（无 `next` 落首页）
  * 5. OAuth 入口（Q2 = B+）：`<a target="_blank" rel="noreferrer">` 直跳、**不做前置探测**（`GET /authorize`
  *    有写 `oidc_state` cookie 的副作用）；未启用时落独立标签页 JSON 404（可关闭、不破坏本页）
  *
@@ -91,7 +91,10 @@ export function Login() {
   const [altMode, setAltMode] = useState(false);
 
   // `next` 白名单校验（design §4.3 单点 `sanitizeNext`）：非法/缺失 ⇒ `null` ⇒ 回落 `/dashboard`
-  const destination = sanitizeNext(new URLSearchParams(search).get('next')) ?? '/dashboard';
+  // 默认落点 = **首页**（2026-09-17 用户拍板「按推荐」）：`next` 仍**优先**（被拦截后登录回原页），
+  // 无 `next` 时才落 `/`（原为 `/dashboard`）。同一条链同时服务「反向守卫」（已登录访 /login）与
+  // 「登录成功跳转」两处出口 ⇒ 二者行为天然一致。
+  const destination = sanitizeNext(new URLSearchParams(search).get('next')) ?? '/';
 
   // ① 首帧骨架（**不渲染表单**）——骨架镜像表单列（同宽 336 + 同节奏），切态无跳动
   if (state.status === 'loading') {

@@ -498,6 +498,23 @@ if (want('B')) {
 
 /* ═══ C. 应用壳（superadmin 视角：四组齐）═══ */
 if (want('C')) {
+  // C10：登录默认落点（2026-09-17 用户拍板「按推荐」）—— 已登录访 `/login`（无 `next`）
+  // ⇒ 反向守卫回落**首页** `/`（原 `/dashboard`）；`next` 仍优先的路径由 C 块其余断言与 dogfood 覆盖。
+  await nav(`${APP}/login`);
+  await sleep(900);
+  ok(
+    'C10 登录默认落点 = **首页**（无 `next` 时回落 `/`）',
+    ((await evalJs('location.pathname')) as string) === '/',
+    `path=${await evalJs('location.pathname')}`,
+  );
+  // C10b：`next` **仍优先** —— 被拦截后带码回登录页时不得被新默认值劫持（补测，闭环自检 A1/B2 的扣分点）
+  await nav(`${APP}/login?next=/dashboard/tokens`);
+  await sleep(900);
+  ok(
+    'C10b `next` 仍**优先**（`/login?next=/dashboard/tokens` ⇒ 回原页，不被默认落点劫持）',
+    ((await evalJs('location.pathname')) as string) === '/dashboard/tokens',
+    `path=${await evalJs('location.pathname')}`,
+  );
   await nav(`${APP}/dashboard`);
   const shell = (await evalJs(`(() => {
   const sb = document.querySelector('[data-slot="sidebar"]');
