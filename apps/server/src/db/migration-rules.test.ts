@@ -192,10 +192,11 @@ describe('迁移文件级不变量（防手改回归）', () => {
     expect(dropTableAt).toBeGreaterThan(addConstraintAt);
   });
 
-  it('迁移后表数 = 14（design §5.1「现状 12 → 迁后 14」）', async () => {
+  // M4b-4 T15：新增 `asset_star` ⇒ 14 → 15（计数守卫随表结构演进更新；语义不变量不变）
+  it('迁移后表数 = 15（M4b-pre 后 14 + M4b-4 新增 `asset_star`）', async () => {
     const rows = await db.execute<{ count: string }>(sql`
       SELECT count(*)::text AS count FROM information_schema.tables WHERE table_schema = 'public'
     `);
-    expect(Number(rows.rows[0]!.count)).toBe(14);
+    expect(Number(rows.rows[0]!.count)).toBe(15);
   });
 });

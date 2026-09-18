@@ -1,7 +1,8 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批计划
 
 > Date: 2026-09-18
-> Updated: 2026-09-18（**v0.9：抽屉取消 → T8 作废 · T7 改为「直跳详情」**）
+> Updated: 2026-09-18（**v0.10：T15 实现期发现同步** —— F36 形状 SSOT 订正（protocol → web `api/types.ts`）· F37 T4 补并发/级联用例 · **T15 已实现并全绿**）
+> v0.9（2026-09-18）：抽屉取消 → T8 作废 · T7 改为「直跳详情」
 > v0.8（2026-09-18）：star 最小集并入 → 新增 T15/T16（star 服务端先行）
 > v0.7（2026-09-18）：原型评审收口（R1–R23）→ 新增 T12–T14 + T7/T8/T9/T11 口径更新；其后
 > **落档一致性轮**（用户「先检查修改并打分」）修 **P6 散点旧口径 7 处** + **P7 均分自算** ⇒ 本计划 **8 维 9.6**，见 §8.2）
@@ -60,8 +61,8 @@
 | **T11** | 验证收尾：dogfood **G1-G19** + 五门禁 + 证据 + 收尾回填 | 全 | T1-T16 | `docs/smoke/scripts/m4b4-*.ts`（新）· `docs/smoke/2026-09-18-m4b4-personal-b.md`（新） |
 | **T12** | **资产详情页管理区**（改 M4a 已交付页 · 按权限显隐）+ 4 新建件 | web | T5,T9 | `pages/AssetDetail.tsx` · `lib/asset-permissions.ts`（新）· `components/console/AssetAdminCard.tsx`（新）· `components/console/LabelCard.tsx`（新）· `components/console/asset-stats.tsx`（新） |
 | **T13** | `DataTable` **加性** prop `rowActionsHeader?`（可见操作列表头） | web | — | `components/console/DataTable.tsx` |
-| **T14** | **`labels` 形状升级**（协议 + 服务端返结构体 · D5/D7 根治） | server + protocol | T1,T3 | `packages/protocol` · `labels/service.ts` · `http/asset-item.ts` · `http/me.ts` · `http/assets.ts` |
-| **T15** | **star 服务端**（迁移 + 表 + 幂等端点 + 读面 · **执行序最先**） | server + protocol | — | `db/schema/assets.ts` · `drizzle/00xx_*.sql` · `assets/stars.ts`（新）· `http/assets.ts` · `http/asset-item.ts` · `packages/protocol` · `docs/08-data-model.md` |
+| **T14** | **`labels` 形状升级**（服务端返结构体 + **web 响应类型** · D5/D7 根治） | server + web | T1,T3 | `apps/web/src/api/types.ts` · `labels/service.ts` · `http/asset-item.ts` · `http/me.ts` · `http/assets.ts` |
+| **T15** | **star 服务端**（迁移 + 表 + 幂等端点 + 读面 · **执行序最先**） | server | — | `db/schema/assets.ts` · `drizzle/00xx_*.sql` · `assets/stars.ts`（新）· `http/assets.ts` · `http/asset-item.ts` · `packages/protocol` · `docs/08-data-model.md` |
 | **T16** | **star 前端接线**（列表列 / 详情页头卡 / 门户卡） | web | T7,T8,T12,T15 | `api/stars.ts`（新）· `components/market/StarButton.tsx`（新）· `pages/Assets.tsx` · `components/console/AssetDrawer.tsx` · `pages/AssetDetail.tsx` · `components/market/AssetCard.tsx` |
 
 **执行序（依赖链）**：`T1 → T2 → T3 → T4`（服务端闭环，先绿）→ `T9`（键先落，页面才有文案）
@@ -417,7 +418,7 @@
 **目标**：标签随资产返回**结构体**（`{slug,type,displayName,parentId}`，对齐 skillhub `SkillLabelDto`）⇒ 前端零 join；
 顺带闭合 **D5**（前端类型谎言）与 **D7**（门户 chips 空文案）。
 
-1. `packages/protocol`：标签形状类型改写（**协议 = SSOT，先改**）
+1. `apps/web/src/api/types.ts`：标签形状类型改写（**v1.10 订正**：实测资产响应形状**不在** protocol，而在 web `api/types.ts` ⇒ 该处为形状 SSOT）
 2. `labels/service.ts`：新增**批量** `labelsOfAssets(db, assetIds, locale)`（一次 `inArray` join `label_definition` + `label_translation`，**防 N+1**）；单资产 `labelsOfAsset` **保留**
 3. `http/asset-item.ts`：`assetItem()` 增**可选** `labels` 形参（不传 ⇒ 不下发 ⇒ 公开列表面形状零变化）
 4. `http/me.ts`：meta 批注入之外**并列一次批量 labels 查询**
@@ -439,7 +440,7 @@
    / `DELETE`（仅真正删除时 `- 1`）⇒ 返回 `{ starCount, starred }`
 4. 路由（`http/assets.ts`，`requireAuth`）：`PUT` / `DELETE /api/assets/:slug/star`（前置 `loadAssetBySlug` + **`assertAssetReadable`** ⇒ 授权集外 404）
 5. 读面：`assetItem()` 增 `starCount`（读冗余列）与 `starredByMe`（**需登录态**；匿名 ⇒ `false`）⇒ `http/assets.ts` 列表/详情 + `http/me.ts` 三处传入
-6. `packages/protocol`：字段类型（**SSOT 先改**）· `docs/08-data-model.md`：表 + 列（**Q11 A 随批即改**）
+6. `apps/web/src/api/types.ts`：字段类型（**v1.10 订正**：形状 SSOT = web 类型；protocol 零改动）· `docs/08-data-model.md`：表 + 列（**Q11 A 随批即改**；T15 已落）
 7. 测试（新 `http/stars.test.ts`）：幂等（两次 PUT ⇒ 计数 +1）· 两次 DELETE ⇒ 归零 · **匿名 401** · 授权集外 404 · `starredByMe` 三态
 
 **断言**：① 两次 `PUT` ⇒ `starCount` +1 且 `starred=true` ② 两次 `DELETE` ⇒ 回基线 ③ 匿名 `PUT` ⇒ 401 ④ 他人收藏 ⇒ `starredByMe=false` 而计数 +1 ⑤ 非 ACTIVE 且我无权 ⇒ 404 ⑥ 全量测试无新红
@@ -502,6 +503,12 @@ bun install --frozen-lockfile
 | 权威行数表 | （`wc -l` 实测，待回填） |
 | 出口五件 | （①design ②Task ③门禁 ④dogfood/观感 ⑤整体审计，待回填） |
 | 未证项 | （如有，逐条登记） |
+
+### 7.4 T15 实现期发现（v0.10）
+
+- **F36 订正**：批 design §5.1 ⑦/⑧ 的「`packages/protocol` 增字段（协议 = SSOT）」**失真** —— 资产响应形状实际在
+  `apps/web/src/api/types.ts`（协议无此形状）⇒ 本 plan **T14/T15/T16 的 Files 与步骤已同步**（T15 类型列 `server + protocol` → **`server`**）
+- **F37 登记**：T4 补「并发双向写入 / 用户删除级联」用例（T15 已实现 9 用例，覆盖幂等/语义/守位）
 
 ## 8. 自检打分（初稿）
 
@@ -605,6 +612,7 @@ bun install --frozen-lockfile
 
 ## 9. 修订记录
 
+| **v0.10** | 2026-09-18 | sunxuewen-rush | **T15 实现期发现同步** —— ① **F36**：T14/T15/T16 的 Files 与步骤订正（形状 SSOT = `apps/web/src/api/types.ts`，protocol 零改动；T15 类型列改 **`server`**）② **F37**：T4 补并发/级联用例（登记）③ 新增 **§7.4** 记录实现期发现 ④ **T15 已实现并通过**（527 tests / 0 fail · 迁移 0012 落库）—— 本版为**实现期回写** |
 | **v0.9** | 2026-09-18 | sunxuewen-rush | **抽屉取消（用户「简单一点，抽屉不做了，取消，一点预览，直接进入完整详情」）** —— ① **T8 整条作废**（保留编号占位，不重排 ⇒ 零引用错位）② **T7 口径改**：操作列 = `Eye` 图标钮 **`Link` 真链接**直跳 `/assets/:slug`；断言改「`<a href>` + `pathname` + 全站无 sheet 反证」③ 批间门 / 状态行注明 **T8 作废** ④ **§8.4 复核 P11–P13** ⇒ **均分 9.64**（77.1 ÷ 8）⑤ 本版**零实现改动** |
 | **v0.8** | 2026-09-18 | sunxuewen-rush | **star 最小集并入 → 新增 T15/T16（用户「不要单独开 M4-star」→ 确认并入）** —— ① **T15 star 服务端（执行序最先）**：schema + 迁移 + `assets/stars.ts`（同事务幂等计数）+ `PUT`/`DELETE` 端点 + `starCount`/`starredByMe` 读面 + 协议 + `08` 规范 + 新测试文件 ② **T16 star 前端接线**：`api/stars.ts` + `StarButton`（门户/详情共用）+ 列表列 + 抽屉统计 + 门户卡 ③ 批间门 **T1–T16** · 状态行写明**执行序 = T15 最先** ④ §5 造数补 star 行 ⑤ **§8.3 复核 P8–P10 三项处置** ⇒ **均分 9.63**（77.0 ÷ 8）⑥ 本版**零实现改动** |
 | **v0.7** | 2026-09-18 | sunxuewen-rush | **原型评审收口（R1–R23）**（含 §8.2 原型轮复核 P1–P5 + **落档一致性轮 P6–P7** · 8 维重打 **9.6**） —— ① 新增 **T12**（详情页管理区 + 4 新建件：`asset-permissions` / `AssetAdminCard` / `LabelCard` / `asset-stats`）② 新增 **T13**（`DataTable` 加性 prop `rowActionsHeader?`）③ 新增 **T14**（`labels` 结构体化 · Q14 = B · D5/D7 根治）④ **T7** 口径改九列 + 类型去色 + `ScanEye` 图标钮（依赖 T13）⑤ **T8** 改「抽屉 = 纯预览」⑥ **T11** dogfood 改 **G1–G15**（新增管理区 5 档权限矩阵 / 结构体渲染 / star 降级断言）、依赖改 T1–T14 ⑦ 状态仍 **⬜ 未开工** ⑧ 本版**零实现改动** |

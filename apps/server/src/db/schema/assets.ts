@@ -53,6 +53,8 @@ export const asset = pgTable(
     latestVersionId: bigint('latest_version_id', { mode: 'number' }),
     status: text('status').$type<AssetStatus>().notNull().default('ACTIVE'),
     downloadCount: bigint('download_count', { mode: 'number' }).notNull().default(0),
+    /** 收藏热度计数（M4b-4 v1.8 §5.1 ⑧：沿 08 范式「热查询计数冗余在主表 · 事务内自增」；skillhub `skill.star_count` 同构） */
+    starCount: integer('star_count').notNull().default(0),
     createdBy: varchar('created_by', { length: 128 }).references(() => user.id),
     updatedBy: varchar('updated_by', { length: 128 }).references(() => user.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -116,4 +118,25 @@ export const assetFile = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique('uq_asset_file_version_path').on(t.versionId, t.filePath)],
+);
+
+/**
+ * 收藏关系（M4b-4 v1.8 §5.1 ⑧）：**任意登录用户**可收藏（社交动作，不受 `canManageAsset` 约束）。
+ * - `UNIQUE(asset_id, user_id)` = 幂等的**结构保证**（配合 `ON CONFLICT DO NOTHING`，仅真正新增时改计数）
+ * - 双向 `ON DELETE CASCADE`：资产或用户消失 ⇒ 关系随之清理（`asset.star_count` 由应用层同事务维护）
+ * - **不写审计**（与「下载不入审计」同口径）
+ */
+export const assetStar = pgTable(
+  'asset_star',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    assetId: bigint('asset_id', { mode: 'number' })
+      .notNull()
+      .references(() => asset.id, { onDelete: 'cascade' }),
+    userId: varchar('user_id', { length: 128 })
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('uq_asset_star_asset_user').on(t.assetId, t.userId)],
 );

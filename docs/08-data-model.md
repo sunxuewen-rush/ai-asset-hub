@@ -1,9 +1,10 @@
 # 数据模型设计
 
 > Date: 2026-09-04
-> Updated: （**v1.6：M4b-pre 认证整车迁移同步**——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.rol**；**v1.5：M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 **）
+> Updated: （**v1.7：M4b-4 T15 收藏最小集落地**——§5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`**（迁移 0012）· 新增 **§5.35 `asset_star`**（收藏关系：`UNIQUE(asset_id,user_id)` + 双向 `ON DELETE CASCADE`）· 运行库终态 **15 表** = 官方认证 6 + **业务 9**）
+> v1.6（M4b-pre 认证整车迁移同步）——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.rol**；**v1.5：M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 **）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **10 修订记录**。
-> Status: 定稿（M1 已按 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记；M3 已按 v1.4 同步八态/asset_version 五列/review_task WITHDRAWN/读面分治；**M4-pre 已按 v1.5 同步扁平化模型（迁移 0005-0007）；M4b-pre 已按 v1.6 同步认证整车迁移——迁移 0008-0011 实落，运行库终态 14 表 = 官方认证 6 表（user/session/account/verification/device_code/apikey）+ 业务 8 表**）
+> Status: 定稿（M1 已按 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记；M3 已按 v1.4 同步八态/asset_version 五列/review_task WITHDRAWN/读面分治；**M4-pre 已按 v1.5 同步扁平化模型（迁移 0005-0007）；M4b-pre 已按 v1.6 同步认证整车迁移——迁移 0008-0011 实落；**M4b-4 已按 v1.7 同步收藏最小集——迁移 0012 实落，运行库终态 15 表 = 官方认证 6 表（user/session/account/verification/device_code/apikey）+ 业务 9 表**）
 > Scope: AI Asset Hub 表结构蓝图 —— 用户/资产/版本/文件/审核/label/审计（M4-pre：空间域已删除）
 > 设计来源：以企业实战验证的注册中心数据模型为基准（同构继承），按 00-07 规范资产化/中立化
 
@@ -84,6 +85,7 @@ asset                 id · type(skill/mcp/agent) · slug
                       · latest_version_id → asset_version（冗余指针，免 join）
                       · status(ACTIVE/HIDDEN/ARCHIVED)
                       · download_count BIGINT
+                      · star_count INT DEFAULT 0        -- M4b-4 v1.7：收藏热度计数（冗余列）
                       · created_by/created_at/updated_by/updated_at
                       UNIQUE(slug)      -- 01 §3.3 slug 全局跨类型唯一（type 不在唯一键）
                       INDEX(status)
@@ -91,6 +93,8 @@ asset                 id · type(skill/mcp/agent) · slug
 
 - type 只是行属性，不出现在唯一键——**全局范围内** skill 与 mcp 不得同 slug
 - owner 是「主要维护人」；`owner 本人 ∨ role >= 管理` 可管（05 §6.2 / §6.4）
+- **M4b-4 变更**（迁移 0012，2026-09-18）：增 **`star_count INT NOT NULL DEFAULT 0`** ——
+  与 `download_count` 同族的**热度计数**（沿 §3 计数冗余范式：冗余在主表、**事务内自增**）
 - **M4-pre 变更**（迁移 0005/0006/0007）：删 `namespace_id` · 删 `visibility`（可见性维度整体取消，
   资产对外恒公开，读面仅由 `status` 决定）· `UNIQUE(namespace_id, slug)` → `UNIQUE(slug)` ·
   `INDEX(namespace_id, status)` → `INDEX(status)`
@@ -111,6 +115,21 @@ asset_version         id · asset_id → asset · version VARCHAR(64)（semver�
 - `parsed_metadata_json`：元数据投影（01 §3.2 表落库，name/description/searchText/type/summary）
 - `manifest_json`：族协议 manifest 规范化结果（skill frontmatter / mcp servers / agent frontmatter）
 - ZIP 本体存对象存储；DB 只存元数据与文件索引（01 §3.2 派生列原则）
+
+### 5.35 asset_star —— 收藏关系（M4b-4 v1.7）
+
+```sql
+asset_star            id · asset_id → asset · user_id → user（官方表）
+                      · created_at
+                      UNIQUE(asset_id, user_id)   -- 幂等的结构保证
+                      FK: 双向 ON DELETE CASCADE   -- 资产/用户消失 ⇒ 关系随之清理
+```
+
+- **任意登录用户**可收藏（**社交动作**，不受 `canManageAsset` 约束）；未登录 ⇒ 401
+- 计数口径：`asset.star_count` **同事务**内 ±1（`INSERT ... ON CONFLICT DO NOTHING` 命中 ⇒ **不动计数**）
+- **不写审计**（与「下载不入审计」同口径 · M3 R13 先例）· **不限流**（`PUT`/`DELETE` 幂等）
+- 读面：`starCount`（直读冗余列）· `starredByMe`（登录时按关系表判定；**匿名 ⇒ false**）
+- 契约全文 = 批 design `2026-09-18-m4b4-personal-b-design.md` **§5.1 ⑧**
 
 ### 5.3 asset_file —— 文件索引（完整性校验）
 
@@ -206,6 +225,7 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 
 ## 10. 修订记录
 
+| **v1.7** | 2026-09-18 | sunxuewen-rush | **M4b-4 T15 收藏最小集**（批 design v1.8 §5.1 ⑧）：① §5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`** ② 新增 **§5.35 `asset_star`** —— `id · asset_id → asset · user_id → user · created_at`，**`UNIQUE(asset_id,user_id)`**（幂等结构保证）+ **双向 `ON DELETE CASCADE`** ③ 计数范式沿 §3（热查询计数冗余主表、事务内自增；`ON CONFLICT DO NOTHING` 命中不动计数）④ **任意登录用户**可收藏（社交动作，不受 `canManageAsset`）· 不写审计 · 不限流 ⑤ 运行库终态 **14 → 15 表**（官方认证 6 + 业务 9；迁移 **0012**） |
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：用户/空间/资产/版本/文件/治理域表结构 + 版本状态机全序 |

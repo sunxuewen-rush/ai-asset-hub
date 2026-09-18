@@ -104,12 +104,13 @@ describe('用户域收口（design §5.1 时序原则：搬迁与切流同批）
     }
   });
 
-  it('12 条外键全部指向官方 user 表（T4 删 api_token 后：11 重指向 + account/session 各 1，旧表引用 0）', async () => {
+  // M4b-4 T15：`asset_star.user_id` 新增一条 FK ⇒ 12 → 13（语义不变量：全部指向官方 user、旧表引用 0）
+  it('13 条外键全部指向官方 user 表（T4 11 重指向 + account/session 各 1 + M4b-4 `asset_star` 1）', async () => {
     const toUser = await db.execute<{ count: string }>(
       sql`select count(*)::text as count from pg_constraint
           where contype = 'f' and confrelid = 'public."user"'::regclass`,
     );
-    expect(Number(toUser.rows[0]?.count ?? '0')).toBe(12);
+    expect(Number(toUser.rows[0]?.count ?? '0')).toBe(13);
     const stale = await db.execute<{ count: string }>(
       sql`select count(*)::text as count from pg_constraint
           where contype = 'f' and confrelid::regclass::text like '%user_account%'`,

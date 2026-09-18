@@ -17,7 +17,7 @@ docs/
 ├── 05-identity-access.md     用户与权限：认证五层 / LDAP / 会话与凭证 / RBAC 单轴 4 档
 ├── 06-label-system.md        标签分类：label 三表 / 两级树 / 挂载权限
 ├── 07-i18n-conventions.md    UI 语言与本地化 / 错误码契约
-├── 08-data-model.md          数据模型：全表清单（14 表 = 官方认证 6 + 业务 8）/ 版本状态机 / 关键约束
+├── 08-data-model.md          数据模型：全表清单（15 表 = 官方认证 6 + 业务 9；M4b-4 增 asset_star）/ 版本状态机 / 关键约束
 ├── designs/                  ② 设计层：YYYY-MM-DD-<主题>-design.md（决策档案）
 └── plans/                    ③ 计划层：<里程碑>-<主题>.md（实现清单；plan 即任务清单唯一家）
 ```

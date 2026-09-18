@@ -26,6 +26,7 @@ import {
   listViewableAssets,
   loadAssetItemMeta,
 } from '../assets/service.js';
+import { hasStarred, starAsset, starredAssetIds, unstarAsset } from '../assets/stars.js';
 import { compareVersions } from '../assets/version-compare.js';
 import { readVersionFile } from '../assets/version-content.js';
 import { getVersion, listVersions } from '../assets/version-read.js';
@@ -106,9 +107,13 @@ const changelogFieldSchema = z.string().max(4096).optional();
 /** PATCH /:slug/status body（状态治理——05 §6.4 asset:manage） */
 const statusBodySchema = z.object({ status: assetStatusSchema });
 
-/** 序列化响应形状（详情/注册/列表共用；坐标 = 全局唯一裸 `slug`，M4-pre §2.3）。
- * M4a R5/R6：meta（latest 版本投影 + owner 显示名）为可选注入——缺省（注册场景）字段 null。 */
-function assetItem(row: AssetRow, meta?: AssetItemMeta | null) {
+/**
+ * 序列化响应形状（详情/注册/列表共用；坐标 = 全局唯一裸 `slug`，M4-pre §2.3）。
+ * M4a R5/R6：meta（latest 版本投影 + owner 显示名）为可选注入——缺省（注册场景）字段 null。
+ * M4b-4 v1.8 §5.1 ⑧：`starCount` 直读冗余列；`starredByMe` 由调用方注入（**匿名 ⇒ false**，
+ * 列表用 `starredAssetIds` 一次 inArray 防 N+1，详情/写后回读用 `hasStarred`）。
+ */
+function assetItem(row: AssetRow, meta?: AssetItemMeta | null, starredByMe = false) {
   return {
     id: row.id,
     slug: row.slug,
@@ -124,6 +129,10 @@ function assetItem(row: AssetRow, meta?: AssetItemMeta | null) {
     /** R6：owner 显示名（官方 `user.name`——LDAP 建号同步 05 §3.1） */
     ownerDisplayName: meta?.ownerDisplayName ?? null,
     downloadCount: row.downloadCount,
+    /** 收藏热度计数（M4b-4 v1.8：冗余列直读，零额外查询） */
+    starCount: row.starCount,
+    /** 我是否已收藏（匿名 ⇒ false） */
+    starredByMe,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -275,8 +284,14 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     });
     // R5/R6：批注入 latest 版本投影 + owner 显示名（两条 inArray 防 N+1）
     const metas = await loadAssetItemMeta(db, items);
+    // M4b-4 v1.8：我收藏过的资产 id（匿名不发查询；一次 inArray 防 N+1）
+    const starred = await starredAssetIds(
+      db,
+      principal?.userId ?? null,
+      items.map((i) => i.id),
+    );
     return c.json({
-      items: items.map((i) => assetItem(i, metas.get(i.id))),
+      items: items.map((i) => assetItem(i, metas.get(i.id), starred.has(i.id))),
       total,
       limit,
       offset,
@@ -289,6 +304,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   //   （M4-pre：空间归档语义消失，无 namespace_archived 出口）
   //   （M4-pre S3：可见性删除后无 403 出口——ACTIVE 即公开；非 ACTIVE 走上一行 404）
   app.get('/:slug', async (c) => {
+    const principal = c.get('principal') ?? null;
     const slug = c.req.param('slug');
     const row = await loadAssetBySlug(db, slug);
     await assertAssetReadable(c, row); // 读面 403/404 分层（design §7）
@@ -296,7 +312,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const labels = await labelsOfAsset(db, row.id);
     // R5/R6：latest 版本投影 + owner 显示名（详情单行也走批函数——同一语义）
     const metaMap = await loadAssetItemMeta(db, [row]);
-    return c.json({ ...assetItem(row, metaMap.get(row.id)), labels });
+    const starredByMe = await hasStarred(db, principal?.userId ?? null, row.id);
+    return c.json({ ...assetItem(row, metaMap.get(row.id), starredByMe), labels });
   });
 
   // GET /api/assets/{slug}/versions（T14：版本列表——Q1 DRAFT 授权过滤）
@@ -379,6 +396,25 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     return c.json(content);
   });
 
+  // PUT /api/assets/:slug/star（M4b-4 v1.8 §5.1 ⑧：收藏——**任意登录用户**（社交动作，
+  // 不受 canManageAsset 约束）；幂等：已收藏 ⇒ 200 且不重复计数；授权集外沿 assertAssetReadable 404）
+  app.put('/:slug/star', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const row = await loadAssetBySlug(db, c.req.param('slug')!);
+    await assertAssetReadable(c, row);
+    const result = await starAsset(db, row.id, principal.userId);
+    return c.json(result);
+  });
+
+  // DELETE /api/assets/:slug/star（取消收藏——同上述权限与幂等口径）
+  app.delete('/:slug/star', requireAuth(), async (c) => {
+    const principal = c.get('principal')!;
+    const row = await loadAssetBySlug(db, c.req.param('slug')!);
+    await assertAssetReadable(c, row);
+    const result = await unstarAsset(db, row.id, principal.userId);
+    return c.json(result);
+  });
+
   // PATCH /api/assets/:slug/status（T4：状态治理——05 §6.4 asset:manage；
   // owner 下架自己资产 / 管理档治理全站；HIDDEN/ARCHIVED 即从活跃读面消失）
   app.patch('/:slug/status', requireAuth(), async (c) => {
@@ -413,7 +449,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       targetId: String(row.id),
       detail: { from, to: status },
     });
-    return c.json(assetItem(updated!));
+    const starredByMe = await hasStarred(db, principal.userId, updated!.id);
+    return c.json(assetItem(updated!, null, starredByMe));
   });
 
   // DELETE /api/assets/{slug}（T4：资产删除——Q5 纠错非治理；M3 R10 条件升级）
