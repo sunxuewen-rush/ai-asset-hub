@@ -1,7 +1,13 @@
 # M4b 管理后台与认证设计
 
 > Date: 2026-09-10
-> Updated: 2026-09-18（**v1.52：star 最小集并入 M4b-4（用户确认「不要单独开 M4-star」）** ——
+> Updated: 2026-09-18（**v1.53：资产管理抽屉取消（用户「简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）** ——
+> ① **§2.4 U6 整条作废**（保留原文作沿革留痕）：**不做抽屉** ⇒ 列表（U5）「操作」列 = **`Eye` 图标钮真链接**，
+> 点击**直接进入完整详情页**（`/assets/:slug`，与 M4b-3 操作列同款）；**列表 ↔ 详情零中间态** ② §2.3 拆批表 M4b-4 行 /
+> 批件登记表 预期产出物 / §4 路由表行 / §9 数据流 / §12 线框 / §11 归属批 逐处同步（去抽屉、改直跳）③ 件表 **新建 15 → 14**
+> （~~`AssetDrawer.tsx`~~）· i18n 删 6 键（批 design §6.1）；`console/Drawer` **件本身保留**（控制台通用形态，视觉基线 §10.1 不变）
+> ④ 真值落批 design **v1.9**（§4.3 取消 · §11.7 复评 9.69）与批 plan **v0.9**（T8 作废 · T7 改直跳 · 9.64）⑤ 本版零实现改动）
+> v1.52（2026-09-18）：star 最小集并入 M4b-4（用户确认「不要单独开 M4-star」）——
 > ① §2.3 拆批表 **M4b-4 行**改写：批界 = 「个人面 B + **star 最小集**」，**含 1 次迁移 + 2 端点**，交付物补 9 列列表 / 纯预览抽屉 /
 > **资产详情页 owner 管理区** / star 能力 ② **§7.1 端点表新增 2 行**（`PUT`/`DELETE /api/assets/:slug/star` · 权限 = **任意登录用户**（社交动作，
 > 不受 `canManageAsset`）· 幂等 · 授权集外 404）；资产详情行标注 **`labels[]` 元素改结构体**（v1.8） ③ §4 路由表 `/dashboard/assets` 行：
@@ -142,7 +148,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 | **M4b-1** | **地基批：组件归位 + 控制台组件面域** | 手搓展示件 → 官方件 14 处 · 官方件**新落仓 11 件（表列 13 项）** · `components/console/` 6 件 · 跨面 4 件 · 合规清理 4 项 · i18n 骨架 | **零** | — |
 | **M4b-2** | 认证与壳批 | 登录页（官方 `Card`+`Field` 装配 + 常规/OAuth 两 tab；`login-03` demo **不落仓**）· 设备授权页 `/device` · `AuthProvider`（loading/anon/authed）· 401 三分类分流 + 反向守卫 + `sanitizeNext` · 角色判定单点 `auth/roles.ts` · 登出 · `next` 白名单 · SideNav **三组** + 条目级门槛 · 路由骨架（11 条 + `ComingSoon` 占位；`/dashboard` 先落**临时落地页**——与 `ComingSoon` **同一件**、内容由 props 决定，M4b-4 替换为三卡）· 直访守卫 · **用户区（侧栏底部）**· 「系统设置」/「用户管理」占位条目 | **零** | M4b-1 |
 | **M4b-3** | 个人面 A | 我的提交（**类型列 + 资产 + task 状态 + 提交时间 + 拒绝原因**；操作列 **[👁 查看][↩ 撤回]** 图标化，撤回仅 PENDING + 二次确认 · 类型与状态筛选 · 分页）· 我的令牌（**6 列**：名称/Key 掩码/权限范围/创建时间/最后使用/操作（**[✎ 编辑][🗑 删除]** 同色图标）· 创建（明文一次性 + 误关防护）/ 编辑（改名 + 改权限）/ 删除（去红）；只显有效令牌） | **加性**：`ReviewListItem` + **`reviewComment` / `assetType`**（§8 R6-c + v1.7）· **`ApiKeyRow` + `name` / `start` / `tail` / `lastRequest`** · **新增 `PATCH /api/tokens/:id`** · `better-auth` 配 `charactersLength: 12` · 签发写 `metadata.tail`（**零迁移**） | M4b-1/2 |
-| **M4b-4** | 个人面 B + **star 最小集**（**唯一含读面改动**；v1.8 起**含 1 次迁移**） | `GET /api/me/assets`（R6）+ R6-b 授权集扩展 + 测试更新 · 我的资产列表（**9 列**）· 资产管理抽屉（**纯预览**）· **资产详情页 owner 管理区**（管理动作全在此 · 按权限显隐）· **star 最小集**（`asset_star` + `star_count` + 幂等端点 + 读面）· 工作台 landing | **2 处读面 + 1 次迁移 + 2 端点**（§8 R6/R6-b · 批 design §5.1 ⑧） | M4b-1/2 |
+| **M4b-4** | 个人面 B + **star 最小集**（**唯一含读面改动**；v1.8 起**含 1 次迁移**） | `GET /api/me/assets`（R6）+ R6-b 授权集扩展 + 测试更新 · 我的资产列表（**9 列**）· ~~资产管理抽屉~~ **取消（列表操作列直跳详情页）** · **资产详情页 owner 管理区**（管理动作全在此 · 按权限显隐）· **star 最小集**（`asset_star` + `star_count` + 幂等端点 + 读面）· 工作台 landing | **2 处读面 + 1 次迁移 + 2 端点**（§8 R6/R6-b · 批 design §5.1 ⑧） | M4b-1/2 |
 | **M4b-5** | 审核批 | `/admin/reviews` 队列 · `/reviews/:id` 共享详情（分型 manifest 卡 + 文件树 + 预览 + 通过/拒绝/撤回 + 防自审交互） | **零** | M4b-1/2 |
 | **M4b-6** | 治理批 | **资产管理**（全站资产治理列表；侧栏「管理」组新增子项「资产管理」——2026-09-18 用户拍板，见 §2.4 U8）· 标签定义（两级树 CRUD + zh-CN/en 翻译 + 行内上/下移 + 上限提示）· 审计浏览（八维过滤 + `action` 分组下拉 + 日期区间用官方 `Calendar`） | **1 处**（管理档全站资产列表读面——契约待该批对齐时定；本批不改 R6 端点语义） | M4b-1/2 |
 | **M4b-8** | **发布批**（2026-09-18 用户拍板新增 —— R2 翻转） | `/dashboard/publish` 发布页 = **新建资产 + 上传版本页内一步向导**：新建（`slug`/`type`）→ **单 zip** 上传（与 CLI 同一包格式，零服务端改动）· **XHR 进度通道**（不替换 `fetch` 客户端）· 上传落 **`DRAFT`** + **手动「提交审核」**（两步可见可撤回，不做自动提审）· 错误映射（413 超限 / 限流 / zip 校验 `issues` 数组）· **三入口**：侧栏「个人」组「发布」条目 + 顶栏「发布」· 未登录点击 = 轻提示 toast + `/login?next=/dashboard/publish` 回跳 · i18n 新组 `publish`（`07` §3 已预留组名）· **页面原型评审**（R9 的 11 视图不含本页 ⇒ 本批自补） | **零**（注册/上传/提审端点 M2/M3 已交付） | M4b-1/2 |
@@ -171,7 +177,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 |----|------------|----------|------------------------|
 | M4b-2 | `YYYY-MM-DD-m4b2-auth-shell-design.md` | `M4b-2-auth-shell.md` | 登录页两 tab（官方 `Tabs` + `field`）· **设备授权页 `/device`** · `AuthProvider` 三态与首帧不闪 · 401 三分类分流 + 反向守卫 · 角色判定单点 · SideNav **三组** + 组标题 + 条目门槛 · 路由骨架 + `ComingSoon` · 直访守卫与轻提示 · **用户区（侧栏底部）** · 占位条目交互 · **`/login` / `/device` 线框补图** |
 | M4b-3 | `2026-09-16-m4b3-submissions-and-tokens-design.md`（**定稿** · 8 维 **9.81**） | `M4b-3-personal-submissions-and-tokens.md`（**v0.1** · T1-Tn） | 我的提交列集合（**含类型列**）与 **task 状态**文案 · **操作列 [👁 查看][↩ 撤回] 图标化**（v1.6 推翻「整行可点」）· 撤回仅 PENDING + `AlertDialog`（去红）· `reviewComment` + **`assetType`** **加性字段**（服务端 + 用例）· 令牌 **6 列**（含 Key 掩码 `aih_xxx*****xxxx`）/ 创建（明文一次性 + 误关防护）/ 编辑（改名 + 改权限 ⇒ **新增 `PATCH /api/tokens/:id`**）/ 删除（去红）· 表格三态 · 键数净增 **72** |
-| M4b-4 | `YYYY-MM-DD-m4b4-personal-b-design.md` | `M4b-4-me-assets-and-console.md` | **R6 端点契约**与分页 · **R6-b 授权集**与测试更新 · 工作台三卡与角色裁剪 · 我的资产**九列**（显式 `status=ALL`）· 抽屉**纯预览**（描述/标签+-/统计行）· **资产详情页 owner 管理区**（管理动作全在此 · 按权限显隐）· `labels` 结构体（D5/D7 根治）· dogfood 多角色数据准备 |
+| M4b-4 | `YYYY-MM-DD-m4b4-personal-b-design.md` | `M4b-4-me-assets-and-console.md` | **R6 端点契约**与分页 · **R6-b 授权集**与测试更新 · 工作台三卡与角色裁剪 · 我的资产**九列**（显式 `status=ALL`）· ~~抽屉（纯预览）~~ **取消（v1.9：列表直跳详情）** · **资产详情页 owner 管理区**（管理动作全在此 · 按权限显隐）· `labels` 结构体（D5/D7 根治）· dogfood 多角色数据准备 |
 | M4b-5 | `YYYY-MM-DD-m4b5-review-workbench-design.md` | `M4b-5-review-workbench.md` | 队列列集合与状态过滤 · 共享详情路由与权限面 · **分型 manifest 卡（三族）** · 文件树 + 预览（官方 `Dialog`）· 三动作 + 防自审交互 · 拒绝必填原因 · 端点权限与 token scope 交叉验证 |
 | M4b-6 | `YYYY-MM-DD-m4b6-governance-design.md` | `M4b-6-labels-and-audit.md` | **`/admin` 管理看板（2026-09-17 用户拍板归属本批；内容清单待本批对齐时讨论——本表不预设）** · **资产管理（全站资产治理 + 侧栏「管理」组新条目；2026-09-18 用户拍板归属本批——路由路径与页面形态待本批对齐时定）** · 标签两级树 CRUD + 固定 zh-CN/en 翻译 + 行内上/下移（`PUT /order`）+ 上限 100 提示 · 审计八维过滤 + `action` 分组下拉（27 个动作）+ 日期区间（官方 `Calendar`）· 分页 |
 | M4b-8 | `YYYY-MM-DD-m4b8-publish-design.md` | `M4b-8-publish.md` | **发布页信息架构与向导步序**（新建 → 上传 → 提审）· **上传通道与进度**（XHR 通道接线点，不替换 `fetch` 客户端）· **zip 校验错误面**（服务端 `issues` 数组 → 行内错误映射）· **错误矩阵**（413 / 限流 / 400 / 409 slug 冲突）· **三入口与未登录回跳**（`next` 白名单已含 `/dashboard`）· **i18n `publish` 组键表** · **页面原型评审**（补 R9 第 12 视图）· dogfood 含上传真包验证 |
@@ -232,9 +238,13 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 **U5 我的资产**（→ M4b-4）：**集合 = 我名下的资产（`asset.ownerId` = 我本人；含 ACTIVE / HIDDEN / ARCHIVED 全部状态）—— 2026-09-18 用户拍板修正**（原口径「我可管理的集合」含 `role >= 10` 全站，与页面名不符；非 ACTIVE 不进公开列表 ⇒ 本面是 owner 找回并恢复自己隐藏资产的唯一 UI 入口）· 列集合固定 **9 列**（**名称**（名+slug）/ 类型（**无色图标**）/ 状态 / **标签** / 版本 / **下载** / **收藏** / 更新 / 操作（**单个「快速预览」图标钮**）—— 2026-09-18 原型评审收口，原 6 列 + `⋯` 菜单口径**作废**，见批 design §2.1d）·
 类型列 = 类型色小块 + 文案 · **筛选默认「全部」须显式发 `status=ALL`**（防名实不符）·
 `?status=&q=&page=` URL 化（复用 `useMarketQuery`，不新建 hook）· debounce 300ms · 空态两套文案 ·
-⋯ 菜单（打开抽屉 / 恢复(仅非 ACTIVE) / 隐藏或归档 / 标签挂载 / ── / 删除）· `<1100px` 横向滚动不卡片化
+操作列 = **`Eye` 图标钮 · 真链接直跳详情页** · `<1100px` 横向滚动不卡片化（~~`⋯` 菜单~~ 已废）
 
-**U6 资产管理抽屉 = 快速预览**（→ M4b-4；**2026-09-18 原型评审收口改写**）：**纯预览**（工具行（状态徽章 + 「快速预览」定位 + 「完整详情 ↗」）/ 下载·收藏统计行 / 描述 / 标签+-）——~~四段（状态治理 / 标签挂载 / 版本列表 / 危险区）~~ **作废**：管理动作（状态治理 / 版本管理 / 危险区 / 标签+-）**统一归资产详情页 owner 管理区**（`pages/AssetDetail.tsx` 改造 · 按权限显隐，见批 design §4.6）· 原「状态治理 = 按当前状态给动作按钮」口径**并入详情页管理区** ·
+⛔ **U6 已取消（v1.53 · 用户 2026-09-18「我们简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）**：
+**不做抽屉** —— 列表（U5）「操作」列的图标钮 = **`Eye` 真链接**，点击**直接进入完整详情页**（`/assets/:slug`）；
+管理动作全归**详情页管理区**（批 design §4.6）。以下 U6 原文保留作**沿革留痕**（不复述）：
+
+~~**U6 资产管理抽屉 = 快速预览**（→ M4b-4；**2026-09-18 原型评审收口改写**）：**纯预览**（工具行（状态徽章 + 「快速预览」定位 + 「完整详情 ↗」）/ 下载·收藏统计行 / 描述 / 标签+-）——~~四段（状态治理 / 标签挂载 / 版本列表 / 危险区）~~ **作废**：管理动作（状态治理 / 版本管理 / 危险区 / 标签+-）**统一归资产详情页 owner 管理区**（`pages/AssetDetail.tsx` 改造 · 按权限显隐，见批 design §4.6）· 原「状态治理 = 按当前状态给动作按钮」口径**并入详情页管理区** ·
 标签 = `Popover` + `Command` 可搜索（+`cmdk`）+ chips × 移除 + 10 个上限 · 版本列表紧凑 + 懒加载 ·
 危险区常驻但按守卫禁用 · 宽 **560** · 写后局部重取 + Toaster；**三处服务端守卫须在 UI 体现**：
 yank 需 **输入原因**（`reason` 必填）· **owner 不可 yank**（仅 `role ≥ 10`）· 版本删除按状态禁用
@@ -381,7 +391,7 @@ v1.44 前的**旧漂移**，随本版订正）+ **「发布」入口**（2026-09
 |------|---------|------|---------|---------|
 | `/login` | 认证 | 未登录 | 本地/LDAP 登录 · OIDC 入口跳转 | `POST /api/auth/sign-in/aih` · `GET /api/auth/oidc/authorize` |
 | `/dashboard` | 工作台 landing | 任何登录用户 | 三项计数卡 → 跳对应列表（`role < 10` 只发「我的资产」1 个请求） | `GET /api/reviews?status=PENDING&limit=1` · `GET /api/me/assets?status=ALL&limit=1` · `GET /api/audit?limit=5` |
-| `/dashboard/assets` | 我的资产（**我名下的资产**，含全部状态——2026-09-18 修正；管理档全站治理见 §2.4 U8） | 任何登录用户 | 列表（**9 列**）· 点「快速预览」开抽屉 · **管理动作全在资产详情页 owner 管理区**（2026-09-18 原型评审改写）· **收藏 / 取消收藏** | `GET /api/me/assets`（R6 新增）· **`PUT`/`DELETE /api/assets/:slug/star`** · `PATCH /:slug/status` · `PUT`/`DELETE /:slug/labels/:labelSlug` · `DELETE /:slug/versions/:version` · `POST /:slug/versions/:version/yank` · `DELETE /:slug` |
+| `/dashboard/assets` | 我的资产（**我名下的资产**，含全部状态——2026-09-18 修正；管理档全站治理见 §2.4 U8） | 任何登录用户 | 列表（**9 列**）· **点操作列图标钮直跳完整详情页** · **管理动作全在资产详情页 owner 管理区**（2026-09-18 原型评审改写）· **收藏 / 取消收藏** | `GET /api/me/assets`（R6 新增）· **`PUT`/`DELETE /api/assets/:slug/star`** · `PATCH /:slug/status` · `PUT`/`DELETE /:slug/labels/:labelSlug` · `DELETE /:slug/versions/:version` · `POST /:slug/versions/:version/yank` · `DELETE /:slug` |
 | `/dashboard/submissions` | 我的提交 | 任何登录用户 | 看自己的提审 · **撤回**（仅本人/owner/管理档） | `GET /api/reviews/mine` · `POST /api/reviews/:id/withdraw` |
 | `/dashboard/tokens` | 我的令牌 | 任何登录用户 | 创建（明文仅一次）· **编辑（改名 + 改权限）** · 删除 | `GET`/`POST /api/tokens` · **`PATCH`**/`DELETE /api/tokens/:id` |
 | `/dashboard/publish` | 发布（**新建资产 + 上传版本 + 提审**）→ **M4b-8** | 任何登录用户 | 新建资产（`slug`/`type`）· 单 zip 上传（XHR 进度）· 上传后**手动**「提交审核」· 撤回 | `POST /api/assets` · `POST /api/assets/:slug/versions` · `POST /api/assets/:slug/versions/:version/submit` |
@@ -403,7 +413,7 @@ v1.44 前的**旧漂移**，随本版订正）+ **「发布」入口**（2026-09
 /login                        登录（独立版式，不进 AppShell 分组）
 /device                       设备授权确认（独立版式；`?user_code=` 或手输）
 /dashboard                    个人工作台 landing（角色感知卡片——§7.3 编排）
-/dashboard/assets             我的资产：列表 + 状态筛选 + 抽屉
+/dashboard/assets             我的资产：列表 + 状态筛选（点图标 → 详情页）
 /dashboard/submissions        我的提交：列表 + 撤回
 /dashboard/tokens             我的令牌：列表 + 签发 + 吊销
 /dashboard/publish            发布：新建资产 + 单 zip 上传（进度）+ 手动提审（M4b-8）
@@ -479,7 +489,7 @@ src/
 │   ├── FilterBar.tsx          筛选条（状态下拉 + 关键词）
 │   ├── reviews/               ReviewQueue.tsx · ReviewDetail.tsx · ReviewActions.tsx
 │   ├── labels/                LabelTree.tsx · LabelForm.tsx · LabelTranslations.tsx
-│   ├── assets/                AssetAdminTable.tsx · AssetDrawer.tsx · AssetVersionList.tsx
+│   ├── assets/                AssetAdminTable.tsx · AssetVersionList.tsx（~~AssetDrawer.tsx~~ —— v1.53 抽屉取消）
 │   ├── tokens/                TokenTable.tsx · TokenIssueDialog.tsx · TokenRevealDialog.tsx
 │   ├── ComingSoon.tsx         占位页（官方 `Empty` + 中性文案；DEV 下小字标批次号）——承载 9 条占位路由 + `/dashboard` 临时落地页（**同件不同 props**）
 │   └── audit/                 AuditTable.tsx · AuditFilters.tsx · AuditActionSelect.tsx
@@ -653,7 +663,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
   「筛选/搜索 page 回落 1」纪律）
 - 审核详情：单请求（`GET /api/reviews/:id` 已含 manifest + 文件清单）→ 文件点击经既有
   `GET .../versions/:version/files/*` 拉内容进预览对话框（`useApi` 缓存复用）
-- 资产管理：列表请求 + 抽屉内动作后**局部重取**（不整页刷新）；版本列表懒加载
+- 资产管理：列表请求 + **详情页管理区动作后**局部重取（不整页刷新）；版本列表懒加载
 - 审计页：过滤面 8 组全暴露（`action`/`targetType`/`targetId`/`actorId`/`requestId`/`clientIp`/
   `from`/`to`——对标 skillhub admin audit-log 页同款 8 过滤器）；**`action` 用分组下拉**
   （防自由输入拼错），值清单 = 服务端现有 **27** 个（按域前缀分组；2026-09-16 实测）：
@@ -749,7 +759,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 **M4a 换皮落地后以本仓代码为准**。不做三变体 sketch。
 
 ### 10.2 信息架构与交互要点
-> **归属批（2026-09-14 拆批）**：审核详情（核心工作台）→ **M4b-5** · 资产管理抽屉 → **M4b-4** · 标签定义 → **M4b-6** · 个人工作台 → **M4b-4** · 状态语义可视化（`StatusPill` 落件于 M4b-1、各批消费）→ **跨批** · 品牌/语言切换 · 响应式 · 空错态文案 → **跨批**
+> **归属批（2026-09-14 拆批）**：审核详情（核心工作台）→ **M4b-5** · 资产管理动作（**详情页管理区**）→ **M4b-4** · 标签定义 → **M4b-6** · 个人工作台 → **M4b-4** · 状态语义可视化（`StatusPill` 落件于 M4b-1、各批消费）→ **跨批** · 品牌/语言切换 · 响应式 · 空错态文案 → **跨批**
 
 
 - **审核详情**是核心工作台：左主列 = manifest 摘要卡 + 文件树（`ui/FileTree`）+
@@ -1024,6 +1034,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 ## 15. 修订记录
 
+| **v1.53** | 2026-09-18 | sunxuewen-rush | **资产管理抽屉取消（用户「简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）** —— ① **§2.4 U6 整条作废**（⛔ 标注 + 原文保留作沿革留痕）：**不做抽屉** ⇒ 列表（U5）「操作」列 = **`Eye` 图标钮真链接**直跳完整详情页（`/assets/:slug`；与 M4b-3 操作列同款）② 连带同步 6 处：§2.3 拆批表 M4b-4 行 · §2.3 批件登记表预期产出物 · §2.4 U5 操作列描述（~~`⋯` 菜单~~ 已废）· §4 路由表 `/dashboard/assets` 行 · §9 数据流（改为「详情页管理区动作后重取」）· §12 线框 · §11 归属批行 ③ 件表 **新建 15 → 14**（~~`AssetDrawer.tsx`~~）· i18n **删 6 键**（批 design §6.1）④ **`console/Drawer` 件本身保留**（控制台通用形态；视觉基线 §10.1 的 560 宽真值不变）⑤ 真值落批 design **v1.9**（§4.3 取消节 · §11.7 复评 **9.69**）与批 plan **v0.9**（**T8 作废** · T7 改直跳 · **9.64**）⑥ 本版**零实现改动** |
 | **v1.52** | 2026-09-18 | sunxuewen-rush | **star 最小集并入 M4b-4（用户「不要单独开 M4-star，看看放在 M4b 行不行」→ 确认）** —— ① §2.3 拆批表 M4b-4 行改写（批界 = 个人面 B + **star 最小集** · **含 1 次迁移 + 2 端点**；交付物补 9 列列表 / 纯预览抽屉 / **资产详情页 owner 管理区** / star 能力）② **§7.1 端点表 +2 行**（`PUT`/`DELETE /api/assets/:slug/star` · **任何登录用户**（社交动作，不受 `canManageAsset`）· **幂等** · 授权集外 404）· 资产详情行标注 `labels[]` 元素改**结构体** ③ §4 路由表 `/dashboard/assets` 行：关键动作改为「**管理动作全在资产详情页 owner 管理区**」+ 收藏端点 ④ §2.3 ④ star 自「后置（未排期）」**撤出** ⇒ 并入本批；连带 `docs/00` 升 **v1.74** ⑤ 真值落批 design **v1.8**（§5.1 ⑧ star 契约 · 件表 新建 15 / 改造 13+3 · dogfood G15–G19 · 复评 **9.68**）与批 plan **v0.8**（T15/T16 · 执行序 T15 最先）⑥ 本版**零实现改动** |
 | **v1.51a** | 2026-09-18 | sunxuewen-rush | **落档一致性订正（换靶第 3 轮：事实一致性）** —— ① §2.3 批件登记表 **M4b-4 两行**口径更新（`T1-T11`→**T1-T14** · `v0.1`→**v0.7** · 件规格 `新建 9`→**新建 12** · 「我的资产六列」→**九列** · 「抽屉四段」→**纯预览** · 补「详情页 owner 管理区」与「`labels` 结构体」· `G1-G13`→**G1-G15**）② 头部**删除 v1.49 历史行**（头部口径 = 只留最近 1-2 版）③ 依据 = 用户 2026-09-18「先检查修改并打分」 |
 | **v1.51** | 2026-09-18 | sunxuewen-rush | **M4b-4 原型评审收口（R1–R23）→ 主 design 契约同步** —— ① **U5**：列表列集合 **6 → 9 列**（新增 标签/下载/收藏 · 类型列去色 · 操作列 = 「快速预览」图标钮 · **去 `⋯` 菜单**；原 6 列口径作废）② **U6**：抽屉由 **四段**（状态治理/标签挂载/版本列表/危险区）改为 **纯预览**（工具行 + 下载·收藏统计 + 描述 + 标签+-）⇒ **管理动作统一归资产详情页 owner 管理区**（`pages/AssetDetail.tsx` 改造 · §4.6 权限矩阵逐条对真码守卫）③ **侧栏条目更名**：`标签管理` → **`标签定义`**（超管组；`admin.labels` **键名保留**、值变更；7 处含 §4 入口表 / §5.2 路由表 / §12 线框 / §7 能力清单；已收尾批件 **M4b-2 design 不追改**——按「已收尾件不追改」纪律，如实登记）④ **§2.3 ④ star 行更新**：用户同日后续拍板「UI 收尾提交 → 暂停 → **先做 star**」⇒ 建议单独立批 **`M4-star`**、执行序在 **M4b-4 之前**；M4b-4 的列表「收藏」列 / 抽屉收藏统计 / 详情页收藏按钮**依赖该批**（未落地 ⇒ 三处**不渲染**）⑤ 依据 = 批 design **v1.7**（§2.1d 原型评审 R1–R23 · §4.6 管理区规格 · §5.1 ⑦ `labels` 结构体 · §11.4 复评 9.66）⑥ 本版**零实现改动** |

@@ -1,17 +1,18 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批计划
 
 > Date: 2026-09-18
-> Updated: 2026-09-18（**v0.8：star 最小集并入 → 新增 T15/T16（star 服务端先行）**）
+> Updated: 2026-09-18（**v0.9：抽屉取消 → T8 作废 · T7 改为「直跳详情」**）
+> v0.8（2026-09-18）：star 最小集并入 → 新增 T15/T16（star 服务端先行）
 > v0.7（2026-09-18）：原型评审收口（R1–R23）→ 新增 T12–T14 + T7/T8/T9/T11 口径更新；其后
 > **落档一致性轮**（用户「先检查修改并打分」）修 **P6 散点旧口径 7 处** + **P7 均分自算** ⇒ 本计划 **8 维 9.6**，见 §8.2）
 > v0.6（2026-09-18）：UI 评审 5 条全闭（条②③④⑤ 落档）→ T7 ⑨ + T8 ⑪⑫
-> Status: **⬜ 未开工**（**T1–T16** 待执行；**执行序 = T15 最先** —— star 能力先行，再消费面）—— 上游批 design 已**定稿**（8 维 **9.66**，版本以其版本头为准；v1.7 原型评审收口）
+> Status: **⬜ 未开工**（**T1–T16** 待执行，其中 **T8 作废**；**执行序 = T15 最先** —— star 能力先行，再消费面）—— 上游批 design 已**定稿**（8 维 **9.66**，版本以其版本头为准；v1.7 原型评审收口）
 > **换靶复核（用户要求「先检查并打分」）**：3 项新发现已修（分页**换算公式 + 渲染条件** · me 面 schema **上限口径** ·
 > `Drawer` 宽度措辞）；**旧分 9.66 已撤回**（窄口径产物）⇒ 换靶口径下修前 **9.60** / 修后 **9.66**，见 §8.1
 > 上游：批 design `docs/designs/2026-09-18-m4b4-personal-b-design.md`（**定稿**）· 主 design
 > `2026-09-10-m4b-admin-console-and-auth-design.md` §2.3 拆批表与批件登记表 · `docs/00` §5 M4b-4 行
 > 依赖顺序：**M4b-1 ✅ / M4b-2 ✅ 已完成**（两批出口五件全绿）⇒ 本批开工条件已满足
-> **批间门（出口五件）**：① 批 design 8 维 ≥9 ② **T1–T16** 全绿 ③ 五门禁逐项 exit 0 ④ dogfood/观感
+> **批间门（出口五件）**：① 批 design 8 维 ≥9 ② **T1–T16**（**T8 已作废**）全绿 ③ 五门禁逐项 exit 0 ④ dogfood/观感
 > ⑤ **整体审计**（收尾全仓覆盖式扫描：findings 逐条登记 + 处置，不留未决项）
 
 ---
@@ -52,8 +53,8 @@
 | **T4** | 服务端测试：2 处更新 + 三档/四面对照 + 新端点 + 回归锁 | server | T1-T3 | `http/assets.test.ts` · `http/me.test.ts`（新） |
 | **T5** | 前端：api 封装**三件** + `useMarketQuery` 可选 `status` 维度 | web | T3 | `api/me.ts`（新）· `api/audit.ts`（新）· `api/reviews.ts`（加队列函数）· `hooks/useMarketQuery.ts` |
 | **T6** | 工作台三卡 landing | web | T5 | `pages/Dashboard.tsx` |
-| **T7** | 我的资产列表页 + 路由换真页（**九列** · 类型去色 · `ScanEye` 图标钮 · 无菜单） | web | T5,T13 | `pages/Assets.tsx`（新）· `main.tsx` |
-| **T8** | 资产管理抽屉 = **纯预览**（描述 / 标签+- / 统计行 / 完整详情跳转 · 560） | web | T7,T12 | `components/console/AssetDrawer.tsx`（新） |
+| **T7** | 我的资产列表页 + 路由换真页（**九列** · 类型去色 · **`Eye` 图标钮真链接直跳详情** · 无菜单 · **无抽屉**） | web | T5,T13 | `pages/Assets.tsx`（新）· `main.tsx` |
+| **T8** | ~~资产管理抽屉 = 纯预览~~ ⇒ **作废（v0.9 · 用户取消抽屉）** —— 列表操作列改为**真链接直跳详情页**（并入 T7） | web | — | ~~`components/console/AssetDrawer.tsx`（新）~~ |
 | **T9** | i18n：新组 `assets` + `dashboard` / `common` / `errors` | web | — | `i18n/zh.ts` · `i18n/en.ts` |
 | **T10** | 规范同步：`05` §6.4 + `08` §7（**随本批即改**） | 规范 | T2 | `docs/05-identity-access.md` · `docs/08-data-model.md` |
 | **T11** | 验证收尾：dogfood **G1-G19** + 五门禁 + 证据 + 收尾回填 | 全 | T1-T16 | `docs/smoke/scripts/m4b4-*.ts`（新）· `docs/smoke/2026-09-18-m4b4-personal-b.md`（新） |
@@ -61,7 +62,7 @@
 | **T13** | `DataTable` **加性** prop `rowActionsHeader?`（可见操作列表头） | web | — | `components/console/DataTable.tsx` |
 | **T14** | **`labels` 形状升级**（协议 + 服务端返结构体 · D5/D7 根治） | server + protocol | T1,T3 | `packages/protocol` · `labels/service.ts` · `http/asset-item.ts` · `http/me.ts` · `http/assets.ts` |
 | **T15** | **star 服务端**（迁移 + 表 + 幂等端点 + 读面 · **执行序最先**） | server + protocol | — | `db/schema/assets.ts` · `drizzle/00xx_*.sql` · `assets/stars.ts`（新）· `http/assets.ts` · `http/asset-item.ts` · `packages/protocol` · `docs/08-data-model.md` |
-| **T16** | **star 前端接线**（列表列 / 抽屉统计 / 详情页头卡 / 门户卡） | web | T7,T8,T12,T15 | `api/stars.ts`（新）· `components/market/StarButton.tsx`（新）· `pages/Assets.tsx` · `components/console/AssetDrawer.tsx` · `pages/AssetDetail.tsx` · `components/market/AssetCard.tsx` |
+| **T16** | **star 前端接线**（列表列 / 详情页头卡 / 门户卡） | web | T7,T8,T12,T15 | `api/stars.ts`（新）· `components/market/StarButton.tsx`（新）· `pages/Assets.tsx` · `components/console/AssetDrawer.tsx` · `pages/AssetDetail.tsx` · `components/market/AssetCard.tsx` |
 
 **执行序（依赖链）**：`T1 → T2 → T3 → T4`（服务端闭环，先绿）→ `T9`（键先落，页面才有文案）
 → `T5 → T6/T7 → T8` → `T10` → `T11`。**T1/T2 相互独立可并行**；T9 不阻塞服务端。
@@ -267,11 +268,11 @@
 4. 分页：**offset 替换式**（`ui/Pagination` 既有件）—— **双语义换算**（组件吃 `offset`、URL 用 `?page=`）：
    `offset={(page - 1) * limit}` · `onPageChange={(o) => setPage(o / limit + 1)}`（先例 `components/market/CenterPage.tsx:238-240`）；
    ★ **仅 `total > limit` 时渲染**（跨批契约 M4b-3 批 design §4.4.1 口径 —— 否则出「1 / 1」空控件）
-5. `⋯` 菜单：打开抽屉 · 恢复（仅非 ACTIVE）· 隐藏 / 归档 · 标签挂载（**打开抽屉并滚至标签段**）· ── · 删除
+5. ~~`⋯` 菜单~~ ⇒ **作废（v0.7 去菜单 · v0.9 去抽屉）**：列表**无行菜单、无抽屉**；操作列 = `Eye` 图标钮 **真链接直跳** `/assets/:slug`
    —— **按钮集与禁用与抽屉同一矩阵**（Q6 连带）
 6. 空态**两套**（从未有资产 / 筛选无结果）；`< 1100px` ⇒ 容器**横向滚动不卡片化**
 7. `main.tsx`：`/dashboard/assets` 的 `ComingSoon` → 真页 `<Assets />`；**删** `DEV_BATCH['/dashboard/assets']`（`:55`）
-8. 接入 `AssetDrawer`（T8 件）受控 `open`/`onOpenChange`（**状态不进 URL**）
+8. ~~接入 `AssetDrawer`~~ ⇒ **作废（v0.9）**：无抽屉；操作列 `Link` 直跳详情页（无 URL 中间态）
 
 **验收断言**：
 ```
@@ -294,60 +295,19 @@
 
 ---
 
-### T8 · 前端：资产管理抽屉 = **纯预览**（描述 / 标签+- / 统计行 · 宽 560）
+### T8 · ~~前端：资产管理抽屉~~ ⇒ **作废（v0.9）**
 
-**Files**：`apps/web/src/components/console/AssetDrawer.tsx`（**新建**）
-
-**步骤**：
-1. `Drawer`（`Sheet` 封装）—— **宽 560 已由件内固定**（`Drawer.tsx:40`，**无宽度 prop ⇒ 勿改件**）·
-   **必带 `title`/`description`**（硬规则 4）
-2. **打开即并发 2 请求**（Q8 A）：`GET /api/assets/:slug`（状态 + `labels[]`）· `GET /api/assets/:slug/versions?limit=20&offset=0`
-3. **段① 状态治理**：`StatusPill` + **3×2 矩阵** —— ACTIVE→[隐藏][归档] · HIDDEN→[恢复][归档] · ARCHIVED→[恢复][隐藏]；
-   全部 `ConfirmDialog`（`destructive={false}` 去红）⇒ 成功局部重取 + `Toaster`
-4. **段② 标签挂载**：候选 = `GET /api/labels`（匿名公开面）+ `Popover`>`Command` 可搜索；chips × 移除；
-   **× 一律可点**（**Q13 = A**）—— 非超管移除 PRIVILEGED ⇒ 服务端 `label.access_denied` ⇒ **toast 码文案**；
-   **chips ≥ 10 ⇒ 候选禁用 + 说明**（`label.limit_exceeded`）；
-   **chips 文案 = 候选表 join 出的 `displayName`**（join 不到回退 slug —— 详情只返 slug，**条③ P1**）；候选表与详情**同批取**
-5. **段③ 版本管理**：紧凑行（版本号 `mono` · `StatusPill kind="version"` · 创建时间 · 文件数 + 体积 ·
-   changelog **截断一行** + `title` 全文；**`null` ⇒ 弱化色 `—`** —— **条③ R5**）；**可删 4 态** → [删除]；**禁删 3 态** → 禁用 + 说明；
-   **yank 仅 `PUBLISHED` 行**（非该态不占位）· `role < 10` 禁用 + Tooltip · `ConfirmDialog requireReason`；
-   「**加载更多**」**追加式**（首屏 20）
-6. **段④ 危险区**：[删除资产] —— 含 `PUBLISHED` 或 `YANKED` ⇒ 禁用 + 说明（按服务端判定序）；
-   **版本列表未就绪/加载中 ⇒ 保持禁用**（防闪变）；服务端 400 兜底 ⇒ toast 码文案。
-   **判定范围（条③ P3 / D6）**：UI 只依**已加载页**判决 ⇒ **提示性守卫**；分页盲区（第 2 页才有 `PUBLISHED`/`YANKED`）⇒ **服务端 400 兜底**，不加全量查询
-7. **分段三态**（条⑤ P1）：详情失败 ⇒ 整抽屉 `ErrorState` + 重试；详情成功、版本段失败 ⇒ **段内** `ErrorState` + **段内重试**（另一段照常可用）
-8. **写后重取范围**（条⑤ P2）：状态治理 ⇒ `invalidateCache('/api/assets')` + 抽屉内详情重取 · 列表 `retryTick++` · 版本删除 ⇒ **只重取版本段**；三卡计数（异页）**不主动重取**
-9. ~~单点打开抽屉时滚动至标签段（行菜单入口）~~ ⇒ **作废**（v0.7：列表已无行菜单，抽屉默认落在顶部；标签段在描述之下，直接可见）
-
-**验收断言**：
-```
-① typecheck + lint exit 0
-② 打开抽屉 ⇒ **恰好 2 请求**（详情 + 版本列表；CDP 网络断言）
-③ 3×2 矩阵逐态断言按钮集（三态各造一条资产）
-④ 危险区禁用真值：含 PUBLISHED ⇒ 禁用 + 说明；仅 DRAFT ⇒ 可点；**加载中保持禁用**
-⑤ 版本段：PUBLISHED 行**无** [删除] 有 [撤回分发]；DRAFT 行**有** [删除] 无 yank；
-   `role < 10` ⇒ yank **禁用 + Tooltip**；禁删 3 态按钮禁用 + 说明
-⑥ 标签：候选**不含 PRIVILEGED**（超管登录亦不含）；chips ≥ 10 ⇒ 候选禁用 + 说明；
-   移除 PRIVILEGED（构造）⇒ **toast 显示 `label.access_denied` 文案**
-⑦ 写成功 ⇒ **局部重取 + toast**（不整页刷新、不丢筛选与滚动位）
-⑧ 全部 `ConfirmDialog` `destructive=false`（**无红**）；`Drawer` 具备 title/description（无障碍）
-⑨ `⋯` 菜单「标签挂载」⇒ 抽屉打开且**滚至标签段**
-⑩ 门户 `m4a-dogfood.ts` 36/36 + `NO JS ERRORS`
-⑪ chips 文案 = 中文 `displayName`（非 slug；join 不到才回退 slug）；候选表与详情同批取
-⑫ 版本行 `changelog = null` ⇒ 渲染 `—`；**抽屉内快速切换资产 ⇒ 旧请求 abort**（无旧响应覆盖新数据）
-```
-
-⚠️ **注意**：版本段「禁用 vs 不显示」两类**不可混**——**yank = 不占位**（非 PUBLISHED 行不渲染该按钮）；
-**删除 = 占位但禁用**（3 态禁用 + 说明）。方案若反了会让用户误以为「这版没有版本操作」。
-
----
+> **用户 2026-09-18**：「我们简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」。
+> ⇒ **本 Task 整条作废**：不新建 `AssetDrawer.tsx`；列表操作列的图标钮改为**真链接**（`Button asChild` + `Link`）
+> **直跳 `/assets/:slug`**（该改动并入 **T7**）。连带：i18n 键少 6 个（T9 口径）、dogfood G7/G8 改为直跳断言（T11 口径）。
+> 编号**保留占位**（不重排 T9–T16，避免引用错位）。
 
 ### T9 · i18n：新组 `assets` + `dashboard` / `common` / `errors` 补键
 
 **Files**：`apps/web/src/i18n/zh.ts` · `apps/web/src/i18n/en.ts`
 
 **步骤**：按批 design §6 的**逐键表**落码：
-1. 新组 **`assets`**（§6.1 **v1.7 口径全表**：页头 / **9 列** / 筛选 / 空态 3 / **无行菜单** / **抽屉纯预览（描述·标签+-·统计行）** / 标签 / 版本（**含 8 态徽章键**）/ 管理区 / toast）
+1. 新组 **`assets`**（§6.1 **v1.7 口径全表**：页头 / **9 列** / 筛选 / 空态 3 / **无行菜单** / 标签 / 版本（**含 8 态徽章键**）/ 管理区 / toast）
 2. `dashboard` **+8 键**（三卡标题与 CTA · 审计卡列头 · `viewAll`）；**卡标题复用既有 `myAssets`**
 3. `common` **+1**（`loadMore`）；`errors` **+7 码**（6 个资产/标签码 + **`label.access_denied`**）
 4. **不预支** M4b-6 的标签 CRUD 码
@@ -489,7 +449,7 @@
 1. `api/stars.ts`（新）：`starAsset(slug)` / `unstarAsset(slug)`（写后 `invalidateCache`）
 2. `components/market/StarButton.tsx`（新）：门户卡 + 详情页头卡**共用**（已收藏 ⇒ 星形填充 · 未登录 ⇒ toast + `/login?next=`）
 3. `pages/Assets.tsx`：列表「收藏」列接 `asset-stats`（`starCount`）
-4. `components/console/AssetDrawer.tsx`：统计行接 `starCount`
+4. ~~`AssetDrawer` 统计行接 `starCount`~~ ⇒ **作废（v0.9 抽屉取消）**：star 在列表列 + 详情页头卡两处消费
 5. `pages/AssetDetail.tsx` 头卡：`StarButton` 接 `starredByMe` / `starCount`
 6. `components/market/AssetCard.tsx`：门户卡加 `StarButton`
 
@@ -632,8 +592,20 @@ bun install --frozen-lockfile
 可用性 **9.7**（T15/T16 步骤与断言可照做）· 追溯 **9.8** · 反证 **9.4** · 边界 **9.6** · 维护性 **9.5**
 ⇒ **均分 9.63**（9.7+9.7+9.6+9.7+9.8+9.4+9.6+9.5 = 77.0 ÷ 8 = 9.625 ≈ 9.63）
 
+### 8.4 抽屉取消后复核（v0.9 · 2026-09-18 —— **角度 = 承重 Task 退役 / 编号稳定性**）
+
+| # | 严重度 | 位置 | 问题 | 处置 |
+|---|:------:|------|------|------|
+| **P11** | 🟡 | §2 Task 总览 · §3 T8 明细 | 抽屉取消 ⇒ **T8 失去交付物** | ✅ **已作废**（明细节保留为「作废说明」，不删锚点）；**编号保留占位**（不重排 T9–T16 ⇒ 零引用错位） |
+| **P12** | 🟡 | T7 步骤 2 · 断言 | 操作列仍是「开抽屉」语义（`ScanEye` + `setDrawerOpen`） | ✅ **已改**：`Eye` 图标钮 + `Link` 真跳转；断言 = `<a href>` + 点击后 `pathname` + **全站无 `[data-slot="sheet-content"]`** |
+| **P13** | ⚪ | §4 门禁顺序 / §5 造数 / §7 落地记录 | 无变化（抽屉不涉门禁与造数） | ✅ 已核（**零改动**，如实登记） |
+
+**维度复评（v0.9 · 8 维）**：完整性 **9.7** · 准确性 **9.7** · 一致性 **9.7** · 可用性 **9.7** · 追溯 **9.8** ·
+反证 **9.4** · 边界 **9.6** · 维护性 **9.5** ⇒ **均分 9.64**（9.7+9.7+9.7+9.7+9.8+9.4+9.6+9.5 = 77.1 ÷ 8 = 9.6375 ≈ 9.64）
+
 ## 9. 修订记录
 
+| **v0.9** | 2026-09-18 | sunxuewen-rush | **抽屉取消（用户「简单一点，抽屉不做了，取消，一点预览，直接进入完整详情」）** —— ① **T8 整条作废**（保留编号占位，不重排 ⇒ 零引用错位）② **T7 口径改**：操作列 = `Eye` 图标钮 **`Link` 真链接**直跳 `/assets/:slug`；断言改「`<a href>` + `pathname` + 全站无 sheet 反证」③ 批间门 / 状态行注明 **T8 作废** ④ **§8.4 复核 P11–P13** ⇒ **均分 9.64**（77.1 ÷ 8）⑤ 本版**零实现改动** |
 | **v0.8** | 2026-09-18 | sunxuewen-rush | **star 最小集并入 → 新增 T15/T16（用户「不要单独开 M4-star」→ 确认并入）** —— ① **T15 star 服务端（执行序最先）**：schema + 迁移 + `assets/stars.ts`（同事务幂等计数）+ `PUT`/`DELETE` 端点 + `starCount`/`starredByMe` 读面 + 协议 + `08` 规范 + 新测试文件 ② **T16 star 前端接线**：`api/stars.ts` + `StarButton`（门户/详情共用）+ 列表列 + 抽屉统计 + 门户卡 ③ 批间门 **T1–T16** · 状态行写明**执行序 = T15 最先** ④ §5 造数补 star 行 ⑤ **§8.3 复核 P8–P10 三项处置** ⇒ **均分 9.63**（77.0 ÷ 8）⑥ 本版**零实现改动** |
 | **v0.7** | 2026-09-18 | sunxuewen-rush | **原型评审收口（R1–R23）**（含 §8.2 原型轮复核 P1–P5 + **落档一致性轮 P6–P7** · 8 维重打 **9.6**） —— ① 新增 **T12**（详情页管理区 + 4 新建件：`asset-permissions` / `AssetAdminCard` / `LabelCard` / `asset-stats`）② 新增 **T13**（`DataTable` 加性 prop `rowActionsHeader?`）③ 新增 **T14**（`labels` 结构体化 · Q14 = B · D5/D7 根治）④ **T7** 口径改九列 + 类型去色 + `ScanEye` 图标钮（依赖 T13）⑤ **T8** 改「抽屉 = 纯预览」⑥ **T11** dogfood 改 **G1–G15**（新增管理区 5 档权限矩阵 / 结构体渲染 / star 降级断言）、依赖改 T1–T14 ⑦ 状态仍 **⬜ 未开工** ⑧ 本版**零实现改动** |
 | 版本 | 日期 | 作者 | 变更 |

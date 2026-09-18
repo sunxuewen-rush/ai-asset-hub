@@ -1,14 +1,18 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批设计
 
 > Date: 2026-09-18
-> Updated: 2026-09-18（**v1.8：star 最小集并入本批（用户确认「不要单独开 M4-star」）** ——
+> Updated: 2026-09-18（**v1.9：抽屉取消 —— 列表直接进入完整详情**（用户「简单一点，抽屉不做了，取消，一点预览，直接进入完整详情」）——
+> ① §4.3 整节改写为「取消」（作废留痕）· 操作列 = `Eye` 图标钮 **真链接**直跳 `/assets/:slug`（与 M4b-3 同款）② 件表 **新建 15 → 14**（去 `AssetDrawer.tsx`）
+> ③ i18n **删 6 键**（`section.labels` 保留供详情页标签卡）④ dogfood **G7/G8 改写**为「真链接 + `pathname` + 全站无 sheet 反证」⑤ **§4.6 补缺口**：
+> 版本列表沿用 M4a 既有渲染、本批只增行内动作 ⑥ **§11.7 复评 9.69** ⑦ 本版零实现改动）
+> v1.8（2026-09-18）：star 最小集并入本批（用户确认「不要单独开 M4-star」）——
 > ① **§5.1 ⑧ 新增 star 契约**：新表 `asset_star`（`UNIQUE(asset_id,user_id)`）+ `asset.star_count` 冗余列（沿 `08` 范式 · skillhub 双证）+
 > 幂等 `PUT`/`DELETE /api/assets/:slug/star` + 读面 `starCount`/`starredByMe` + 门户卡/详情页入口 · **权限 = 任意登录用户**（社交动作，不受 `canManageAsset`）·
 > **不写审计 · 不限流**；**规范同步 `08` 数据模型** ② 件表 **新建 15 / 改造 13 + 3 文档** ③ **依赖消解**：§2.1d「依赖登记」star 行改「已并入」·
 > **§4.2/§4.3/§4.6「未落地不渲染」降级口径全部作废** ④ dogfood **G15–G19** · 造数补 star 行 ⑤ 本批性质 = 「**个人面 + 资产管理 + star 最小集**」·
 > **含 1 次迁移** ⑥ **§11.6 复评 9.68** ⑦ 本版**零实现改动**）
 > v1.7（2026-09-18）：可点原型评审收口（R1–R23 逐条拍板）—— §2.1d 原型评审记录；**列表 6 → 9 列**（名称/类型/状态/标签/版本/下载/收藏/更新/操作）· **抽屉改纯预览**· 管理动作全部归**资产详情页 owner/管理区（按权限显隐 · §4.6）**· 段名 `标签+-` · 侧栏条目 `标签定义` · 件表 **新建 11 / 改造 11 + 2 文档** · star 依赖登记（用户决定 UI 收尾后先做 star））
-> Status: **定稿**（8 维自检 **9.68 ≥9** ✅ —— **v1.8 star 并入后复评，见 §11.6**；历轮见 §11.3/§11.5；**旧分 9.69 已撤回**：
+> Status: **定稿**（8 维自检 **9.69 ≥9** ✅ —— **v1.9 抽屉取消后复评，见 §11.7**；历轮见 §11.3/§11.5/§11.6；**旧分 9.69 已撤回**：
 > 该分系窄口径产物，换靶口径下修前实测 9.60。累计 findings **13 项**全部闭合：§11.2 八项 + §11.3 五项）
 > Scope: M4b-4（`docs/00` §5 子行 / 主 design §2.3 拆批表）——个人面 B：**工作台 landing**
 > （`/dashboard`）+ **我的资产**（`/dashboard/assets`）+ **资产管理抽屉** + 服务端
@@ -57,7 +61,7 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 
 - **工作台 landing `/dashboard`**：角色感知三卡（待审核 / 我的资产 / 最近审计）+ 按档裁剪请求（U4 · Q1 · Q9）
 - **我的资产 `/dashboard/assets`**：**九列**列表 + 状态筛选（显式 `status=ALL`）+ q 搜索 + 分页（U5 **v1.51 修订** · Q1 · Q2 · §2.1d）
-- **资产管理抽屉 = 快速预览**（宽 560）：描述 / 标签+- / 统计行 / 「完整详情 ↗」（U6 **v1.51 改写** · §2.1d）—— **管理动作全部归资产详情页管理区**（§4.6）
+- ~~**资产管理抽屉**（快速预览）~~ ⇒ **取消（v1.9 · 用户 2026-09-18「简单一点，抽屉不做了」）**：列表**操作列图标钮直接跳转完整详情页**（`/assets/:slug`）—— 列表 ↔ 详情之间**零中间态**；管理动作仍全归**资产详情页管理区**（§4.6）
 - **star 最小集**（**v1.8 并入** · 用户 2026-09-18「不要单独开 M4-star，看看放在 M4b 行不行」→ **确认**）：收藏关系（新表 `asset_star`）+
   热度计数（`asset.star_count` 冗余列 · 沿 `08` 范式 · skillhub 双证）+ 读面（`starCount`/`starredByMe`）+ 端点（幂等 `PUT`/`DELETE`）+
   **门户卡 + 详情页**入口 + 列表/抽屉消费 —— 契约见 **§5.1 ⑧**；**本批由此成为「个人面 + 资产管理 + star 最小集」复合批**
@@ -223,13 +227,14 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 |----|------------|
 | 列表列集合 | 6 列 → **9 列**：`名称 · 类型 · 状态 · 标签 · 版本 · 下载 · 收藏 · 更新 · 操作` |
 | 类型列 | ~~`--type-*` 色块 + 文案~~ → **无色图标（16px）+ 文案**（`TypeIcon` 无 `className` prop ⇒ **外层 `span` 定色**） |
-| 操作列 | ~~`⋯` 下拉菜单~~ → **单个 `ScanEye` 图标钮**（快速预览；文案由 `aria-label`/`title` 承载） |
+| 操作列 | ~~`⋯` 下拉菜单~~ → ~~`ScanEye` 图标钮（快速预览/开抽屉）~~ → **`Eye` 图标钮 · 真链接直跳详情页**（**v1.9 最终**；文案由 `aria-label`/`title` 承载） |
 | 抽屉 | 四段 → **纯预览**：工具行（状态徽章 + 「快速预览」定位 + 「完整详情 ↗」）+ **下载/收藏统计行** + **描述** 段 + **标签+-** 段 |
 | 管理动作 | 抽屉内 → **资产详情页管理区**（§4.6 · **按权限显隐**） |
 | 段名 | `标签挂载` →（`标签增删`）→ **`标签+-`**（沿革留痕，见 R10） |
 | 动词 | `挂载` 退役 → **添加 / 移除**（回归 §6.1 既有键 `label.add`；与 skillhub 对齐） |
 | 侧栏条目 | `标签管理` → **`标签定义`**（`admin.labels` **键名保留**、值变更；3 个消费点一次到位） |
 | 详情页 | 头卡承载 **[下载] [收藏]**（原右栏下载卡移除）；右栏 = 元信息卡（下载/收藏图标**无色**）+ **标签+- 卡（独立）** + **管理卡** |
+| **抽屉** | ~~四段 → 纯预览~~ ⇒ **整体取消（v1.9）**：列表操作列图标钮 = **真链接直跳详情页**（`/assets/:slug`）；件表去 1 件 · i18n 去 6 键 · dogfood G7/G8 改写 |
 | **star** | **并入本批**（v1.8）：~~原「依赖 star 批」~~ ⇒ 收藏能力（表 / 计数 / 端点 / 读面）+ 四处消费（列表列 · 抽屉统计 · 详情页按钮 · 门户卡）**同批交付**（§5.1 ⑧） |
 
 **逐条记录（可追溯）**
@@ -311,7 +316,7 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 
 ## 3. 件与路由规格
 
-### 3.1 新建件（**15** —— 含 star 最小集 3 件 · §2.1d/§5.1 ⑧）
+### 3.1 新建件（**14** —— 含 star 最小集 3 件；~~抽屉件~~ 已取消 · v1.9）
 
 | # | 文件 | 说明 |
 |---|------|------|
@@ -319,7 +324,6 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 | 2 | `apps/server/src/http/asset-item.ts` | **中性序列化器** —— `assetItem()` + `AssetItemMeta` 自 `assets.ts:111` 迁出（**Q4 a2**：不把 `me` 面绑到 `assets.ts` 的私有件上） |
 | 3 | `apps/web/src/api/me.ts` | 前端封装 `GET /api/me/assets`（与 server `http/me.ts` **同构命名**；`api/` 现有 11 件的同族） |
 | 4 | `apps/web/src/pages/Assets.tsx` | **我的资产**列表页（替换 `main.tsx:104-111` 的占位） |
-| 5 | `apps/web/src/components/console/AssetDrawer.tsx` | **资产管理抽屉**（四段 · 560） |
 | 6 | `docs/smoke/scripts/m4b4-seed-assets.ts` | 造数脚本（幂等 upsert；**写库须授权** —— §9.5） |
 | 7 | `docs/smoke/scripts/m4b4-personal-b-dogfood.ts` | dogfood 脚本（多角色 / 多状态 —— §9.3） |
 | 8 | `apps/web/src/api/audit.ts` | 前端封装 `GET /api/audit`（工作台「最近审计」卡用；**M4b-6 审计页复用**）—— **§2.1c 条① P1 追加** |
@@ -404,7 +408,7 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 | **下载** | `asset-stats` 件（`Download` 图标 + `compactCount`）—— **零服务端改动**（`AssetItem.downloadCount` 已在响应） | **`tabular-nums`** · 图标无色 |
 | **收藏** | `asset-stats` 件（`Star` 图标 + `compactCount`，已收藏 ⇒ 填充 warning）—— **含在本批内（v1.8 §5.1 ⑧）**：`asset.star_count` 冗余列直读，零额外查询 | **`tabular-nums`** · 列头 = `col.star`（zh「收藏」/ en「star」，**刻意不对称** R13） |
 | **更新** | `updatedAt`（本地化短格式） | **`tabular-nums`** |
-| **操作** | **单个 `ScanEye` 图标钮**（快速预览 ⇒ 打开抽屉；`aria-label`/`title` = `menu.open` 文案） | 右对齐；**无下拉菜单**（R4/R5） |
+| **操作** | **单个 `Eye` 图标钮 · 真链接直跳详情页**（`/assets/:slug`；`aria-label`/`title` = 「打开详情」——v1.9 抽屉取消后口径；~~ScanEye + 打开抽屉~~）—— 原文：`aria-label`/`title` = `menu.open` 文案） | 右对齐；**无下拉菜单**（R4/R5） |
 
 > 列表**不再承载任何治理动作**（R4/R15/R16）：所有管理动作集中在资产详情页管理区（§4.6）。
 > 列宽变化 ⇒ `< 1100px` 横向滚动阈值不变（图标钮 32px 比原下拉更窄）。
@@ -419,29 +423,19 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 - 载态 = `DataTable` 内置 `Skeleton` 行占位；空态**两套文案**（U5）：① 从未有资产 → `assets.empty.title` + `hint` ② 筛选无结果 → `assets.empty.filtered`
 - `< 1100px` ⇒ 容器**横向滚动**（保留列完整，**不卡片化** —— 控制台列信息密度优先，主 design §5.2）
 
-### 4.3 资产管理抽屉 = **快速预览**（宽 **560** · §2.1d R6–R10/R12/R15）
+### 4.3 ~~资产管理抽屉~~ ⇒ **取消**（v1.9 · 用户 2026-09-18「我们简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）
 
-> **定位**（用户 2026-09-18）：抽屉**不是第二个详情页** —— **完整视图只有资产详情页一处**；抽屉只做
-> 「**快速预览** + **唯一出口『完整详情 ↗』**」。**管理动作一律不在抽屉内**（全部归 §4.6 详情页管理区）。
-
-**打开即 1 请求**：`GET /api/assets/:slug`（状态 + 描述 + 下载/收藏统计 + `labels[]`）—— 原 Q8 A 的「并发 2 请求（+ 版本列表）」随版本段移出而**作废**（纯预览不再需要版本数据）。
-
-| 区 | 内容 |
-|----|------|
-| **工具行** | 左：`StatusPill kind="asset"`（状态 = **信息**，非治理动作）+ 文案「`section.previewHint`（快速预览；完整信息看资产详情页）」；右：**「完整详情 ↗」**（`Button asChild` + `Link` → `/assets/:slug`，`ArrowUpRight` 图标） |
-| **统计行** | `asset-stats` 件：`⇣ compactCount(downloadCount) 次下载 · ★ compactCount(starCount) 收藏`（图标无色；收藏态表达见 R23） |
-| **① 描述** | `asset.description`；为空 ⇒ 弱化色「`assets.desc.empty`（暂无描述）」 |
-| **② 标签+-** | **`LabelCard` 共用件**（与详情页标签卡同件）：已挂 chips（× 移除）+ `Popover`+`Command` 可搜索候选 + `chips ≥ 10 ⇒ 候选禁用 + 说明`；挂/卸**无二次确认**（Q7 ⑤）· 已挂 PRIVILEGED 的 × **一律可点**、非超管点击由服务端抛 `label.access_denied` ⇒ toast 显示码文案（**Q13 = A**） |
-
-**移出项与去向（作废留痕）**：
-- ~~段① 状态治理（3×2 矩阵 + `ConfirmDialog`）~~ ⇒ **详情页管理区**（§4.6）
-- ~~段③ 版本管理（行级删除 / yank / changelog / 加载更多）~~ ⇒ **详情页管理区 + 主列「版本」Tab 行内动作**（§4.6）
-- ~~段④ 危险区（删除资产 + 版本态禁用判定）~~ ⇒ **详情页管理区**（§4.6）
-- 连带作废：`ExpandableVersionList` 式追加加载（Q8 E）· truncate `changelog` 口径（**R5**）· 「已加载页判定删除禁用」口径（**条③ P3 / D6**）· 段②「无确认」与段③「有确认」的对照（**条③ P4**）
-
-**段内状态报告缺口（原登记，现归详情页）**：版本列表项**无 `createdBy`** ⇒ 详情页版本行按 owner/管理档口径渲染可删集（owner 可删集 ⊇ 上传者可删集）；非 owner 上传者属 **Q5 同一夹缝**（登记，不为此加字段）。
-
-
+> **结论**：**不做抽屉**。列表「操作」列的图标钮 = **真链接**，点击**直接进入完整详情页**（`/assets/:slug`）。
+> 收益（如实记账）：少 **1 个新件**（`AssetDrawer.tsx`）· 少一整套抽屉交互态（打开/关闭/请求竞态/无 URL 状态）·
+> 少 **6 个 i18n 键**（`drawer.title` / `section.previewHint` / `desc.*` ×2 / `stat.*` ×2）· 少 **约 4 组 dogfood 断言** ⇒
+> **列表 ↔ 详情零中间态**。
+>
+> **作废留痕（本节历史）**：~~四段抽屉~~（状态治理 / 标签+- / 版本管理 / 危险区）⇒ 管理动作先归详情页管理区（v1.51）⇒
+> ~~纯预览抽屉~~（工具行 + 统计行 + 描述 + 标签+-）⇒ **整体取消（v1.9）**。相关原型评审条目
+> **R6 / R8 / R9 / R10 / R12 / R15** 中与抽屉**形态**有关的部分**随之作废**（其结论——如「管理动作归详情页」「动词统一为添加/移除」——**仍然有效**）。
+>
+> **操作列最终形态**：`Eye` 图标钮（`Button asChild` + `Link`，`aria-label`/`title` = 「打开详情」）——
+> **与 M4b-3「我的提交」操作列同款**（跨页一致）；`ScanEye`（快速浏览语义）随抽屉退役。
 
 ### 4.4 全局交互约定
 
@@ -467,16 +461,11 @@ pages/Dashboard.tsx（改造）
 pages/Assets.tsx（新建）
 └─ PageHeader(title=assets.title)
 └─ FilterBar(status∈{ALL,ACTIVE,HIDDEN,ARCHIVED} · q · placeholder)
-└─ DataTable（9 列 · rowActions=ScanEye 图标钮 + rowActionsHeader="操作" · loading/error/empty/skeleton）
+└─ DataTable（9 列 · rowActions=**`Eye` 真链接图标钮** + rowActionsHeader="操作" · loading/error/empty/skeleton）
 └─ Pagination（?page= ↔ offset 换算）
-└─ AssetDrawer（受控 open/onOpenChange；无 URL 状态）
+└─ （**无抽屉** —— 操作列图标钮 = `Link` 直跳 `/assets/:slug`）
 
-components/console/AssetDrawer.tsx（新建 · 纯预览）
-└─ Drawer（Sheet 封装 · sm:max-w-[560px] · 必带 title）
-   ├─ 工具行：StatusPill + 「快速预览」文案 + [完整详情 ↗]（Link → /assets/:slug）
-   ├─ 统计行：asset-stats（下载 · 收藏）
-   ├─ 段 ① 描述（空 ⇒ 弱化色「暂无描述」）
-   └─ 段 ② 标签+-：LabelCard（chips × + Popover>Command 选择器）
+~~components/console/AssetDrawer.tsx（新建 · 纯预览）~~ ⇒ **取消（v1.9）**：抽屉整体不做；列表直接跳详情页。
 
 pages/AssetDetail.tsx（改造 · M4a 已交付页 —— 唯一完整视图 + 管理区）
 └─ 面包屑 → 头卡（名称 + StatusPill + [下载][收藏] 按钮 + 下载规则小字 + 标签行）
@@ -502,7 +491,7 @@ pages/AssetDetail.tsx（改造 · M4a 已交付页 —— 唯一完整视图 + �
 | 区 | 内容 | 可见性 |
 |----|------|--------|
 | **头卡** | `h1` 名称 + `StatusPill` + **`[下载 vX.Y.Z]`（主按钮）** + **`[收藏 N]`（次级按钮；已收藏 ⇒ 星形填充）** + 下载规则小字（匿名可下载 · 限流 60/分·IP） + 标签行（只读 chips） | 全公开（消费者面） |
-| **主列三 Tab** | 总览 / 文件 / 版本 —— **不改 M4a 既有能力**；仅「版本」Tab **行内新增动作** | 行内动作按权限 |
+| **主列三 Tab** | 总览 / 文件 / 版本 —— **不改 M4a 既有能力**（版本列表的首屏/加载更多/行内容**沿用 M4a 既有渲染**，本批**只增行内动作**） | 行内动作按权限 |
 | **右栏 · 元信息卡** | 作者 / 更新时间 / 下载 / 收藏 —— **图标一律无色**（R18/R19/R23） | 全公开 |
 | **右栏 · 标签+- 卡（独立）** | `LabelCard` 共用件（chips × + 添加标签 + 特权标签按钮） | 按权限（R17） |
 | **右栏 · 管理卡** | `AssetAdminCard`：资产状态 / 版本 / 审核（占位）/ 危险区 | **按权限**（下表） |
@@ -696,6 +685,7 @@ return viewer;
 
 ### 6.1 新建组 `assets`（逐键表 · v1.7 修订口径）
 
+ > v1.9 变更：**删 6 键**（`drawer.title` / `section.previewHint` / `desc.title` / `desc.empty` / `stat.downloads` / `stat.stars`）—— 抽屉取消（§4.3）；`section.labels` 保留供详情页标签卡复用。
 > v1.7 变更（§2.1d）：`col.name` 值改「名称」· **新增 3 列键**（`col.labels` / `col.download` / `col.star`）·
 > `menu.open` → **`action.open`**（列表去菜单）· **删 5 键**（`menu.restore/hide/archive/labels/delete`）·
 > **删 `section.status`**（状态治理段移出抽屉，改由 `admin.statusGroup` 表达）· 段名 `标签+-` ·
@@ -724,13 +714,7 @@ return viewer;
 | `empty.hint` | 通过 CLI 或发布页上传你的第一个资产 | Upload your first asset via the CLI or the publish page |
 | `empty.filtered` | 没有符合条件的资产 | No assets match the filter |
 | `action.open` | **打开详情** | Open details |
-| `drawer.title` | 资产管理 | Manage asset |
-| `section.previewHint` | **快速预览；完整信息看资产详情页** | Quick preview — see the asset page for full details |
-| `desc.title` | **描述** | Description |
-| `desc.empty` | **暂无描述** | No description |
-| `stat.downloads` | **{n} 次下载** | {n} downloads |
-| `stat.stars` | **{n} 收藏** | {n} stars |
-| `section.labels` | **标签+-** | Labels (+/-) |
+| `section.labels` | **标签+-** | Labels (+/-) |（**详情页标签卡复用**；原属抽屉段，v1.9 后仍保留） |
 | `label.add` | 添加标签 | Add label |
 | `label.search` | 搜索标签 | Search labels |
 | `label.empty` | 没有匹配的标签 | No matching labels |
@@ -867,7 +851,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 - `turbo.json` 环境变量声明：**本批不新增**任务依赖 env
 - `db:migrate` 独立步骤先跑（消除多文件 `beforeAll` 并发迁移竞态）；**本批零迁移**但仍跑（守门）
 
-### 9.3 本批 dogfood 分组（新建 `docs/smoke/scripts/m4b4-personal-b-dogfood.ts`）
+### 9.3 本批 dogfood 分组（新建 `docs/smoke/scripts/m4b4-personal-b-dogfood.ts`；v1.9 起 G7/G8 改为「直跳详情」口径）
 
 | # | 断言组 |
 |---|-------|
@@ -877,8 +861,8 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | G4 | 我的资产默认「全部」⇒ **实际请求 URL 含 `status=ALL`**（防名实不符） |
 | G5 | **owner-only 集合**：造数的「他人资产」**不出现**在我的列表 |
 | G6 | **九列**齐 + 状态列值正确（ACTIVE/HIDDEN/ARCHIVED 各一行）+ **类型列无色**（反证：容器内 `[class*="bg-type-"]` 计数 = 0） |
-| G7 | 抽屉**打开即 1 请求**；段集合 = **描述 + 标签+-**（反证：抽屉内无「隐藏/归档/恢复/删除资产/删除版本/撤回分发」按钮 —— 纯预览，R8/R15） |
-| G8 | 抽屉工具行「**完整详情 ↗**」`href` = `/assets/<slug>`（R6） |
+| G7 | **列表操作列 = 真链接**（`<a href="/assets/<slug>">`）；点击后 `location.pathname` = `/assets/<slug>`；**全站无 `[data-slot="sheet-content"]`**（反证：抽屉已取消 · §4.3） |
+| G8 | **详情页为唯一视图**：列表点图标 ⇒ 详情页渲染该资产 `h1`（**无过渡态**）；详情页内**管理动作按权限显隐**（与 G11 合验） |
 | G9 | 标签 chip 文案 = **`displayName`**（结构体渲染；反证：chips 文本 ≠ slug，Q14 = B）· chips ≥ 10 ⇒ 候选禁用 + 说明 |
 | G10 | 列表 star/下载两列数值 = 接口 `downloadCount` / `starCount` —— **star 批落地后启用**（未落地 ⇒ 三处均不渲染，§4.6 降级口径） |
 | G11 | **详情页管理区 5 档权限矩阵**逐档断言：访客 / 登录非 owner（两卡均不渲染）· owner（无 yank / 无特权标签）· 管理档（有 yank）· 超管（+ 特权标签） |
@@ -931,6 +915,12 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 > 批 plan 5 处（T11 行 G/T 区间 · T11 步骤 2 · 步骤① · 落地记录 · §8.2 完整性依据）；主 design 2 处（§2.3 登记表 M4b-4 行
 > 分数/件表/Task 区间 · 头部 v1.51 块的「star 前置」表述压缩为「已被 v1.52 取代」）；证据文件 1 处（star ⬜ 项 ⇒ 依赖消解）+ 其余 2 处（§5 造数、门户零回归口径随件表联动）。
 > **残余命中 3 处均为有意保留**（v1.8 头部对「降级口径作废」的说明 · §11.4 历史维度表 · 批 plan §8 初稿表）。
+>
+> **v1.9 散点扫记录（抽屉退役）**：模式 = `AssetDrawer|ScanEye|开抽屉|抽屉四段|抽屉纯预览`，五份全文。
+> 命中 **9 处需改**，逐处处置：批 design 3 处（§4.2 操作列 cell「`Eye` 真链接直跳」· §4.5 组件树 · §2.1d 净结果表操作列行加「v1.9 最终」标注）·
+> 批 plan 5 处（T16 目标表去「抽屉统计」· **T7 步骤 5 行菜单作废** · **T7 步骤 8 接入抽屉作废** · T9 步骤 1 去抽屉键段 · T16 步骤 4 抽屉统计行作废）·
+> 主 design 1 处（控制台规划树去 `AssetDrawer.tsx`）。**残余命中均为有意保留**：§2.1c/§2.1d 的 R 表（历史过程）、§11.x 历轮维度表、
+> 各文档修订记录、以及 `console/Drawer` **件本身**的视觉/真值条目（件保留、本批不用）。
 
 1. 主 design **§11 i18n 键数**：回填实测值（现状为 M4a 期史实值，§1.2 #11）
 2. 主 design **§2.3 批件登记表**：回填本批 design/plan 实际文件名 + 版本 + 状态 + 出口五件
@@ -950,7 +940,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | server 服务 | `assets/service.ts`（`:30-38` 接口 · `:173-242` 查询）· `assets/version-read.ts`（版本级授权参照）· `assets/manage.ts`（`canManageAsset` 同源）· `labels/service.ts`（`:573` `labelsOfAsset`） |
 | server 测试 | `http/assets.test.ts`（`:418`/`:844-857` 改 · `:442-450`/`:694` 保留）· `http/me.test.ts`（新）· `http/download.test.ts:212` · `http/stats.test.ts`（保留） |
 | web 页面 | `pages/Dashboard.tsx`（改）· `pages/Assets.tsx`（新）· `main.tsx`（路由 + DEV_BATCH） |
-| web 件 | `components/console/AssetDrawer.tsx`（新）· `console/{DataTable,Drawer,ConfirmDialog,StatusPill,FilterBar,PageHeader}`（复用）· `hooks/useMarketQuery.ts`（扩可选参数）· `api/me.ts`（新）· `i18n/zh.ts` + `en.ts` |
+| web 件 | ~~`components/console/AssetDrawer.tsx`（新）~~ **v1.9 取消** · `console/{DataTable,Drawer,ConfirmDialog,StatusPill,FilterBar,PageHeader}`（复用）· `hooks/useMarketQuery.ts`（扩可选参数）· `api/me.ts`（新）· `i18n/zh.ts` + `en.ts` |
 | 脚本 | `docs/smoke/scripts/m4b4-seed-assets.ts`（新）· `m4b4-personal-b-dogfood.ts`（新）· `m4a-dogfood.ts`/`m4a-chain-smoke.ts`/`doc-audit.ts`（回归） |
 
 **文档（引用不复制）**
@@ -1138,8 +1128,40 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | 深度 4 维护性 | **9.5** | 保持（散点纪律见效待观察） |
 | **均分** | **9.68** | 9.7+9.7+9.6+9.7+10+9.5+9.7+9.5 = 77.4 ÷ 8 = **9.675 ≈ 9.68** ⇒ ≥9 **达门** ✅ |
 
+### 11.7 承重件退役后复核（v1.9 · 2026-09-18 —— **角度 = 承重件退役的连锁完整性**）
+
+> 变更来源：用户 2026-09-18「我们简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」。
+> 本轮检验：**一个承重件（抽屉）退役**后，其**五类连锁面**是否全部跟到位 —— 件表 / i18n 键 / dogfood 断言 /
+> 组件树 / 跨文档（主 design 线框 · 批 plan Task）。
+
+| # | 严重度 | 连锁面 | 检验结果 | 处置 |
+|---|:------:|------|---------|------|
+| **F31** | 🟡 | 件表 | 抽屉件在 §3.1 计 1 件（15 → **14**） | ✅ **已改**（并留痕：~~AssetDrawer~~ 已取消） |
+| **F32** | 🟡 | i18n 键表 | **6 键**成为孤儿（`drawer.title` / `section.previewHint` / `desc.*` ×2 / `stat.*` ×2） | ✅ **已删**；`section.labels`（标签+-）**保留**（详情页标签卡复用）并在表内注明 |
+| **F33** | 🟡 | dogfood | G7/G8 是**抽屉专属断言**（打开即 1 请求 / 工具行出口 href） | ✅ **已改写**：G7 = 操作列真链接 + 点击后 `pathname` + **全站无 sheet 反证**；G8 = 详情页为唯一视图 |
+| **F34** | ⚪ | 组件树 | §4.5 仍画 `AssetDrawer` 子树 | ✅ **已改**（改为「无抽屉 · 操作列直跳」） |
+| **F35** | 🔴 | 跨面缺口 | 抽屉退役后，**「版本列表首屏 20 / 加载更多 / 行内容」的原 Q8 E 口径**失去宿主（原属抽屉段③）—— 未声明归属 ⇒ 实现者可能去详情页**重建**该列表 | ✅ **已补**（§4.6 明确：版本 Tab 列表**沿用 M4a 既有渲染、本批只增行内动作**）—— 这是本轮**唯一实质缺口**，靠**追查原口径宿主**发现 |
+
+**反证通过项（留证）**：抽屉退役**未削弱**任何安全口径 —— 危险操作仍**集中**在详情页管理区（对齐主 design §9「危险操作集中确认」）；
+列表**零管理动作**（`grep` 件表与 §4.2 逐列确认）；`star` 契约（§5.1 ⑧）与 `labels` 结构体（§5.1 ⑦）**不受影响**（均为详情面/读面能力）。
+
+**维度复评（v1.9）**
+
+| 维度 | 分数 | 依据 |
+|------|:----:|------|
+| 标准 1 完整性 | **9.7** | 抽屉取消的**五类连锁面**齐（件表/i18n/dogfood/组件树/跨文档）—— 且本轮发现并补了原口径宿主缺口（F35） |
+| 标准 2 准确性 | **9.7** | 原型实测：操作列 = 真链接（`<a>`）· 点击后 `pathname=/assets/<slug>` · 全站无 `[data-slot="sheet-content"]` |
+| 标准 3 一致性 | **9.7** ↑ | 口径收敛为「列表 ↔ 详情零中间态」；作废留痕逐条（四段 → 纯预览 → 取消）；`section.labels` 复用性已注明 |
+| 标准 4 可用性 | **9.7** | 实现面**更小**（少 1 件 + 6 键 + 一套交互态）且边界更硬（点即跳，无中间态语义） |
+| 深度 1 追溯性 | **10** | 变更带用户原话 + 逐面处置 + 实测值 |
+| 深度 2 反证 | **9.5** | 新增反证：退役未削弱安全口径（危险操作仍集中）· 列表零管理动作 |
+| 深度 3 边界/风险 | **9.7** | 新增边界：版本列表规格归 M4a（防重建）· 全站无 sheet 反证 · 假 slug 下详情落 404（原型环境说明） |
+| 深度 4 维护性 | **9.5** | 保持（散点纪律刚见效一周期，未满） |
+| **均分** | **9.69** | 9.7+9.7+9.7+9.7+10+9.5+9.7+9.5 = **77.5 ÷ 8 = 9.6875 ≈ 9.69** ⇒ ≥9 **达门** ✅ |
+
 ## 12. 修订记录
 
+| **v1.9** | 2026-09-18 | sunxuewen-rush | **抽屉取消 —— 列表直接进入完整详情（用户「简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）** —— ① **§4.3 整节改写为「取消」**（作废留痕：四段 → 纯预览 → ~~抽屉~~ **取消**）· 操作列 = `Eye` 图标钮（`Button asChild` + `Link` 直跳 `/assets/:slug`，与 M4b-3 同款）· `ScanEye` 随抽屉退役 ② **件表 新建 15 → 14**（~~`AssetDrawer.tsx`~~）③ **§6.1 删 6 键**（`drawer.title`/`section.previewHint`/`desc.*`×2/`stat.*`×2）· `section.labels` 保留供详情页标签卡 ④ **dogfood G7/G8 改写**（真链接 + `pathname` + **全站无 sheet 反证** / 详情页唯一视图）⑤ §4.5 组件树、§1.3 批界、§2.1d 净结果表同步 ⑥ **§4.6 补缺口**：版本列表**沿用 M4a 既有渲染**、本批只增行内动作（F35）⑦ **§11.7 复评 9.69**（F31–F35 全处置 + 反证 2 条）· 本版**零实现改动** |
 | **v1.8** | 2026-09-18 | sunxuewen-rush | **star 最小集并入本批（用户「不要单独开 M4-star，看看放在 M4b 行不行」→ 确认）** —— ① **§5.1 ⑧ 新增 star 契约**（`asset_star` 表 + `UNIQUE(asset_id,user_id)` · `asset.star_count` 冗余列 · 幂等 `PUT`/`DELETE .../star` · `starCount`/`starredByMe` 读面 · 门户卡+详情页入口 · **权限 = 任意登录用户** · **不写审计 / 不限流** · 计数同事务维护 · `08` 规范同步）② **件表 新建 12 → 15 / 改造 11 → 13 + 3 文档** ③ **依赖消解**：§2.1d star 行改「已并入」· **§4.2/§4.3/§4.6「未落地不渲染」降级口径作废** ④ §1.3 批界补 star 条目 ⇒ 本批 = 「个人面 + 资产管理 + **star 最小集**」复合批 · **含 1 次迁移** ⑤ dogfood **G15–G19** · 门户零回归 **36 → 38** ⑥ §6.4 `market` 补 2 键（`starToast`/`unstarToast`）· §9.5 造数补 star 行 ⑦ **§11.6 复评 9.68**（77.4 ÷ 8 = 9.675）⑧ 本版**零实现改动** |
 | **v1.7a** | 2026-09-18 | sunxuewen-rush | **落档一致性换靶复核（用户「先检查修改并打分」）** —— ① **新增 §11.5**：角度 = 事实一致性，**F26–F30 五项**全修（`DataTable` 行数 133→**139** · **正文散点旧口径 20 处**（批 design 6 + plan 7 + 证据 1 + 主 design 登记表 4 类）· 证据文件 G6/出口② · **均分算错**）② **主 design 补 v1.51a**（§2.3 登记表口径 + 头部删历史行）③ **分数撤回 + 重打**：v1.7 自报 9.66（沿用旧值）与中间值 9.69（算错）**一并撤回** ⇒ **现行 9.66**（8 维表独立推出：一致性 9.7→**9.6**、维护性 9.6→**9.5**）④ **补纪律**：口径变更 = 主口径改写 + **全文散点扫**（写入 §9.7）⑤ 本版**零实现改动** |
 | **v1.7** | 2026-09-18 | sunxuewen-rush | **可点原型评审收口（R1–R23 逐条拍板 · 用户「ui 部分差不多了」）** —— ① **新增 §2.1d 原型评审记录**：两视图原型（`/__proto/m4b4` 列表+抽屉 · `/__proto/m4b4/detail` 详情管理区）· **R1–R23 逐条处置与留痕** · **依赖登记**（star 能力 / M4b-8 发布 / M4b-5 审核 / 详情页改造归属本批）· 顺带发现 4 条（规范 vs 实现「开放协作」冲突 · owner 删版本权限小于管理档 · toast 不渲染环境问题 · skillhub 术语对标 3 处措辞差异） ② **列表 6 → 9 列**（`名称/类型/状态/标签/版本/下载/收藏/更新/操作`；类型列**去色** · 操作列 `ScanEye` 图标钮 · **去 `⋯` 菜单**）③ **抽屉改纯预览**（工具行 + 下载/收藏统计 + 描述 + 标签+-；**状态治理/版本管理/危险区整体移出**）+ 连带作废（`asset-actions.ts` 共享动作集 · `menu.*` 5 键 · Q8 A「并发 2 请求」· Q8 E 追加加载 · 条③ P3/P4/R5） ④ **新增 §4.6 资产详情页管理区**（改 M4a 已交付件）：头卡 [下载][收藏] + 右栏元信息/标签卡/管理卡 · **权限矩阵逐条对服务端真码守卫**（`assertManageable` / `canYank` 仅 ADMIN / 删版本状态门分治）· 5 档显隐 ⑤ **Q14 = B**：§5.1 ⑦ 新增「`labels` 形状升级为结构体」（对齐 skillhub `SkillLabelDto`）⇒ **D5 + D7 同批根治**，并**如实登记「skillhub 列表不返标签 ⇒ 本批为有意扩展」** ⑥ 件表 **新建 12 / 改造 11 + 2 文档**（+`AssetAdminCard`/`LabelCard`/`asset-stats`/`asset-permissions`；`DataTable` 加性 prop `rowActionsHeader?`；`AssetDetail` 改造） ⑦ §6 i18n 键表 v1.7 口径（`action.open` 更名 · 删 6 键 · **补版本 8 态徽章键 = F14 闭合** · 新增 `admin.*`/`desc.*`/`stat.*`）+ 新增 §6.4（`market` 补 4 键） ⑧ §9.3 dogfood **G1–G15**（新增管理区权限矩阵 / 结构体渲染 / star 降级断言） ⑨ **§11.4 原型轮换靶复核**：F15/F21–F25 六项处置 + 反证实证 3 条 ⇒ **复评 9.66 持平**（完整性/反证各升 0.1 · 可用性因 2 项登记下调 0.1） ⑩ 本版**零实现改动** |
