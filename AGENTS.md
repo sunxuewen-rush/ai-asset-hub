@@ -8,25 +8,27 @@ Agent 定义等资产的分发平台，带开放协作审核治理。
 ## 仓库结构
 
 ```
-docs/                 设计与协议文档（见下方「文档体系」）
+docs/                 设计与协议文档（见下方「文档体系」）+ smoke/（证据记录 · 冒烟/断言/体检脚本）
 packages/protocol     资产协议 zod schema（单一事实源，M1 落地）
 apps/                 server / web / cli（M1 落地）
 .github/workflows     CI 流水线（push main + PR：校验门禁，见「测试与 CI 约定」）
 README.md · LICENSE   Apache 2.0
+THIRD-PARTY-NOTICES.md  第三方依赖与许可声明（从实际依赖树实测生成，非手抄）
 ```
 
 ## 文档体系
 
-遵循 `docs/00-product-direction.md` §7 的三层一表架构：
+三层一表（规范 → 设计 → 计划 + 追踪表）。**各层的命名规则与细则不在本文件复述**
+（本节只讲「去哪层找什么」，细则见各层 README —— 遵循「引用不复制」）：
 
-- **规范层** `docs/NN-*.md` —— 系统形态（跨里程碑稳定）：
-  `00` 定位/决定板 · `01` 资产协议总纲 · `02-04` 族协议（skill/mcp/agent）·
-  `05` 用户与权限 · `06` 标签分类 · `07` UI 语言与本地化 · `08` 数据模型
-- **设计层** `docs/designs/YYYY-MM-DD-<主题>-design.md` —— 阶段决策（7 段骨架；仅里程碑内的设计块；任务清单归属 plan 层，design 不复制）
-- **计划层** `docs/plans/<里程碑>-<主题>.md` —— 实现任务清单（含验收断言）
-- **追踪表** —— `00` §5 里程碑状态表（出口标准：design ≥9 自检 + plan Task 全绿 + 代码验证）
+| 层 | 位置 | 承载什么 | 细则 |
+|----|------|----------|------|
+| 规范层 | `docs/NN-*.md` | 系统形态（跨里程碑稳定） | [`docs/README.md`](docs/README.md) |
+| 设计层 | `docs/designs/YYYY-MM-DD-<主题>-design.md` | 阶段决策（任务清单归属 plan 层） | [`docs/designs/README.md`](docs/designs/README.md) |
+| 计划层 | `docs/plans/<里程碑>-<主题>.md` | 实现任务清单（含验收断言） | [`docs/plans/README.md`](docs/plans/README.md) |
+| 追踪表 | `docs/00` §5 | 里程碑状态（**唯一源**） | `docs/00` §7 |
 
-引用链单向：plan → design → 规范 §N。引用不复制，防漂移。
+**引用链单向**：plan → design → 规范 §N。**引用不复制，防漂移** —— 本节即是这条原则的示范。
 
 ## 命令
 
@@ -41,6 +43,8 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 | 迁移 | `bun run db:migrate`（forward-only；drizzle-kit 生成，迁移文件入库） |
 | 种子 | `bun run db:seed`（幂等；设 `SEED_ADMIN_USERNAME`/`SEED_ADMIN_PASSWORD` 建首管理员并直写 `role=SUPER_ADMIN`——M4-pre 后无角色表/权限码/global 空间） |
 | 起本地服务 | `bun run --filter=@ai-asset-hub/server dev`（先按 `.env.example` 建 `.env`：`DATABASE_URL`/`SESSION_SECRET` 必填） |
+| 写格式 | `bun run format`（biome 写入式，覆盖 `**/*.ts|tsx|json`；提交前用 `format:check` 校验，非 `format`） |
+| 冒烟 / 断言 / 体检脚本 | `bun docs/smoke/scripts/<name>.ts`（链路冒烟 `m4a-chain-smoke` · dogfood 截图 `m4a-dogfood` · CDP 断言 · `doc-audit` 文档体检；用法见各脚本头注释） |
 
 注：db 运维脚本（migrate/seed）只需 `DATABASE_URL` 环境变量，不走全量 env。
 
@@ -67,12 +71,15 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
   `**/*.ts|tsx|json`，但 MUST 排除 `apps/server/drizzle/meta/**`（drizzle-kit 生成物：生成物归
   生成器；纳入会让每次 `db:migrate` 后 format:check 周期性翻红）。调整 biome 规则时保持该边界。
 - **CI 顺序 MUST 被本地复现**：`bun install --frozen-lockfile` → `typecheck` → `lint` →
-  `format:check` → `build` → `db:migrate` → `test`（`.github/workflows/ci.yml`，push main + PR）。
+  `format:check` → **`文档体检`**（`bun docs/smoke/scripts/doc-audit.ts`：版本头 ↔ 修订表一致性 ·
+  死路径引用 · 头部长度告警；纯只读不连库）→ `build` → `db:migrate` → `test`
+  （`.github/workflows/ci.yml`，push main + PR）。
 
 ## 协作约定
 
 - Conventional Commits（`feat:` / `fix:` / `docs:` / `chore:` / `refactor:`）
-- 提交前验证：typecheck + lint + format:check + 全量测试绿（顺序与硬规则见「测试与 CI 约定」）。测试是上游契约——不为本地 hack 改弱测试
+- 提交前验证：**跑与 CI 同序的全量校验**（步骤见「测试与 CI 约定」末条；漏跑任一步会在提交后翻红）。
+  测试是上游契约——不为本地 hack 改弱测试
 - 协议变更先改 `packages/protocol` 的 zod schema（docs/01 §6），两端（server + web）
   消费更新后的类型
 - 文档定稿门禁：8 维自检 ≥9（docs/00 §7）后才允许写实现代码
@@ -80,8 +87,11 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
   vs 代码回查（版本头/修订记录/引用/状态同步）+ 8 维重评 ≥9——执行偏离（如 design
   层该写未写）在收尾时暴露并修正，不留给下个里程碑
 - Clean Room：架构可参考他项目，代码必须原创——严禁把 FSL 许可源码
-  （如 Den `ee/`）复制进本仓库
-- 中立开放：文档不得引用任何内部/公司系统，不绑定特定客户端（docs/00 §4）
+  （如 Den `ee/`）复制进本仓库；借鉴只取**设计思路**，对外致谢口径见 `README.md`
+  （用 design reference，**不写 based on / forked from**，避免被读成代码衍生）
+- 中立开放：文档不得引用任何内部/公司系统，不绑定特定客户端（docs/00 §4）。**具体禁三类**：
+  **公司名** · **内部仓编号**（本地工作区编号）· **本机绝对路径**（`/Users/…`）；外部开源项目只写
+  项目名 + 许可。由 `doc-audit.ts` 的「中立性」检查守护（文档与 `apps/*/src` 一并扫）
 - 实现协议字段时以族协议文档（02/03/04）为契约，不凭记忆
 
 ## 操作限制
@@ -101,5 +111,8 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
 > （`docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`）+ `docs/00` §5 子行
 > —— **本文件不复制这些状态**（版本一律以各文档**版本头**为准；防双份维护漂移）。
 
-**当前**：M0 ✅ · M1 ✅ · M2 ✅ · M3 ✅ · M4a ✅ · M4-pre ✅ · M4b-pre ✅ · M4b-1 ✅ · **M4b-2 ✅ 完成（2026-09-16）
-⇒ 下一批 = M4b-3**（M4b-3…7 ⬜：个人面 A/B → 审核面 → 治理面 → **M4b-7 控制台视觉打磨批**）
+**当前（快照 2026-09-18）**：M0 ✅ · M1 ✅ · M2 ✅ · M3 ✅ · M4a ✅ · M4-pre ✅ · M4b-pre ✅ · M4b-1 ✅ ·
+M4b-2 ✅ · M4b-3 ✅ ⇒ 下一批 = **M4b-4**（M4b-4…7 ⬜：个人面 B → 审核面 → 治理面 → **M4b-7 控制台视觉打磨批**）
+
+> 本段是**带日期的快照**，只为一眼可读；**真值一律以 `docs/00` §5 追踪表 + 主 design §2.3 为准**。
+> 快照与真值不一致时，改的是本段、不是追踪表。
