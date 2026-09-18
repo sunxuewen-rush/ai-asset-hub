@@ -40,7 +40,15 @@
 - 门户零回归：`m4a-dogfood` **36 PASS / 0 FAIL**（exit 0）+ `NO JS ERRORS`（网络层 404 log 属 404 态断言预期）
 - 链路：`m4a-chain-smoke` **PASS**
 - 门禁：`typecheck` / `lint` / `format:check` **exit 0**
-- 截图：`docs/smoke/1-home.png` 等 6 张随 dogfood 复跑更新
+- 截图：`docs/smoke/1-home.png` 等 **11 张**随 dogfood 复跑更新（无前缀集，见下方口径）
+
+> **截图口径（2026-09-18 补记）**：`docs/smoke/*.png` 有两套，用途不同、**都进仓**：
+> · **无前缀集**（`1-home` · `2-skills` · `2b-skills-search` · `2c-skills-filter` · `3-skill-detail` ·
+>   `4-skill-files-dialog` · `4b-skill-nested-preview` · `5-skill-versions` · `6-mcp-detail` · `7-locale-en` ·
+>   `8-notfound`，共 **11 张**）= **最新门户快照** —— 跑 `m4a-dogfood.ts`（不设 `SMOKE_SHOT_PREFIX`）即覆盖更新，
+>   提交时**一并带上**（代表当前真机观感）。此前 `2b/2c/4b/7/8` 五张长期未入库，属**漏提交**，已补齐。
+> · **带前缀集**（`s1-*` 11 张 = M4a 期 · `m4b1-*` 11 张 = M4b-1 期）= **里程碑定格证据**，
+>   由 `SMOKE_SHOT_PREFIX=<前缀>` 生成，一经入仓即**不再更新**（历史留证）。
 
 ## 四、自检打分（提交前门禁 · 标准档）
 
