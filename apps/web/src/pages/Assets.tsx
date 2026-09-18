@@ -16,15 +16,16 @@
  */
 
 import type { LegacyColumnDef } from '@tanstack/react-table/legacy';
-import { Download, Eye, Star } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchMyAssets } from '@/api/me';
 import type { AssetItem, AssetStatus } from '@/api/types';
+import { AssetStat } from '@/components/console/asset-stats';
 import { DataTable } from '@/components/console/DataTable';
 import { PageHeader } from '@/components/console/PageHeader';
 import { StatusPill } from '@/components/console/StatusPill';
-import { compactCount, formatDate } from '@/components/market/format';
+import { formatDate } from '@/components/market/format';
 import { Pagination } from '@/components/ui/Pagination';
 import { Button } from '@/components/ui/shadcn/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/shadcn/empty';
@@ -171,22 +172,14 @@ export function Assets() {
         accessorKey: 'downloadCount',
         header: t('assets', 'col.download'),
         cell: ({ row }) => (
-          // R23：列表数值图标一律无色
-          <span className="inline-flex items-center gap-1 tabular-nums text-muted-foreground">
-            <Download className="size-3.5" />
-            {compactCount(row.original.downloadCount)}
-          </span>
+          // R23：列表数值图标一律无色（`asset-stats` 共用件 —— M4b-4 T12 抽件，与详情页元信息卡同件）
+          <AssetStat kind="download" count={row.original.downloadCount} />
         ),
       },
       {
         accessorKey: 'starCount',
         header: t('assets', 'col.star'),
-        cell: ({ row }) => (
-          <span className="inline-flex items-center gap-1 tabular-nums text-muted-foreground">
-            <Star className="size-3.5" />
-            {compactCount(row.original.starCount)}
-          </span>
-        ),
+        cell: ({ row }) => <AssetStat kind="star" count={row.original.starCount} />,
       },
       {
         accessorKey: 'updatedAt',

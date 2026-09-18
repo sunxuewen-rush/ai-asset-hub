@@ -154,6 +154,25 @@ export async function apiPatch<T>(
 }
 
 /**
+ * PUT（JSON）—— M4b-4 T12 加性（**标签挂载**走 PUT，`PUT /api/assets/:slug/labels/:labelSlug`）。
+ *
+ * 与 `apiPatch` 同形并**复用 `doFetch`**：401 分流、错误归一、`Accept-Language` 与
+ * content-type 声明全部继承。成功语义 = **204 无体**（挂载幂等）⇒ 返回 `undefined`。
+ */
+export async function apiPut<T = void>(
+  path: string,
+  body?: unknown,
+  opts: ApiWriteOptions = {},
+): Promise<T> {
+  return doFetch<T>(path, {
+    method: 'PUT',
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: opts.signal,
+    skipAuthRedirect: opts.skipAuthRedirect,
+  });
+}
+
+/**
  * DELETE —— M4b-3 T4 加性（**吊销/删除令牌**）。
  *
  * ⚠️ 服务端吊销成功返回 **204（无响应体）** ⇒ 返回 `undefined`（由 `doFetch` 的空体守卫承担）；

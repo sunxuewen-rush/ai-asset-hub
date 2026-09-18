@@ -1,6 +1,7 @@
 import type { AssetItem } from '../../api/types.js';
 
-/** 千分位/紧凑计数（demo 元数据 ⇣1.3K 形态——≥1000 → X.X K 去尾零；列表脚注/卡片通用） */
+/** 千分位/紧凑计数（demo 元数据 1.3K 形态——≥1000 → X.X K 去尾零；列表列/元信息卡/卡片通用；
+ *  图标侧统一 lucide `Download`/`Star`，见 `console/asset-stats.tsx` —— 2026-09-18） */
 export function compactCount(n: number): string {
   if (n < 1000) return String(n);
   const k = n / 1000;

@@ -1,15 +1,34 @@
+import type { ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import { ApiError } from '../../../api/client.js';
 import { fetchCompare } from '../../../api/compare.js';
-import type { CompareResponse, VersionListItem } from '../../../api/types.js';
+import type { CompareResponse, VersionListItem, VersionStatus } from '../../../api/types.js';
 import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
-import { Badge } from '../../ui/Badge.js';
+import { StatusPill } from '../../console/StatusPill.js';
 import { Spinner } from '../../ui/shadcn/spinner.js';
 import { formatDate } from '../format.js';
 import { DiffNav } from './DiffNav.js';
 import { DiffView } from './DiffView.js';
 import { formatBytes } from './fileTreeNodes.js';
+
+/**
+ * 版本八态 → i18n 键（`08 §7` 状态机；键随 M4b-4 T9 落，本批 T12 消费 —— 用户 2026-09-18 拍板）。
+ *
+ * 修正的**既有缺陷**（非本批引入）：M4a 的行徽章是**3 态映射**（live / YANKED / 其余一律「已发布」）
+ * ⇒ `DRAFT`/`PENDING_REVIEW`/`REJECTED` 等非 latest 行显示错误文案。改用 `StatusPill kind="version"`
+ * （`VERSION_STATUS_VARIANT` = M4b-1 已落映射）后逐态准确。
+ */
+const VERSION_STATUS_KEY = {
+  DRAFT: 'version.status.draft',
+  SCANNING: 'version.status.scanning',
+  SCAN_FAILED: 'version.status.scan_failed',
+  UPLOADED: 'version.status.uploaded',
+  PENDING_REVIEW: 'version.status.pending_review',
+  PUBLISHED: 'version.status.published',
+  REJECTED: 'version.status.rejected',
+  YANKED: 'version.status.yanked',
+} as const satisfies Record<VersionStatus, string>;
 
 interface Pair {
   base: number;
@@ -39,15 +58,23 @@ function initialPair(listLength: number, latestIdx: number): Pair {
  * `--line-*`→`border` · `--brand-3`（青色 ⇄ 箭头，随渐变层废弃）→ `muted-foreground`；
  * 原生 select 用 **`--input`/`--ring` 焦点环**（§4.4 ③ input/select 真值，`ring-[3px] ring-ring/50`）；
  * 非轴值半径**就近向下**归位（12→`rounded-lg`(10) · 11→`rounded-lg`）。逻辑/守卫/滚动锚点零变更。
+ *
+ * **M4b-4 T12 加性**：新增可选 `rowActions` 槽 —— 版本行**右侧动作位**（资产详情页管理区用它挂
+ * 「删除版本 / 撤回分发」）。**不传 ⇒ 不渲染任何额外节点**（门户与其后各消费点零回归）；
+ * 行内容（版本号 / 徽章 / 时间 · 文件数 · 体积）**沿用 M4a 既有渲染**（批 design §4.6 v1.9 F35：
+ * 本批只增行内动作，不改行内容）。
  */
 export function VersionCompare({
   slug,
   versions,
   latestVersion,
+  rowActions,
 }: {
   slug: string;
   versions: readonly VersionListItem[];
   latestVersion: string | null;
+  /** 版本行动作槽（可选 · 加性）；给定 ⇒ 每行右侧渲染该节点 */
+  rowActions?: (version: VersionListItem) => ReactNode;
 }) {
   const { t } = useI18n();
   const list = [...versions]; // 降序（服务端默认——下标小 = 新）
@@ -185,17 +212,24 @@ export function VersionCompare({
               className="mb-1.5 flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-[11px]"
             >
               <span className="font-mono text-[13px] font-bold">v{v.version}</span>
-              <Badge tone={isLive ? 'success' : 'neutral'} mono>
-                {isLive
-                  ? t('market', 'versionLive')
-                  : v.status === 'YANKED'
-                    ? t('market', 'versionYanked')
-                    : t('market', 'versionPublished')}
-              </Badge>
+              {/* 八态徽章（T12 修正：3 态映射 → 逐态准确）；「latest」标记仅在 latest 且已发布时叠加 */}
+              <StatusPill
+                kind="version"
+                status={v.status}
+                mono
+                label={
+                  isLive && v.status === 'PUBLISHED'
+                    ? t('market', 'versionLive')
+                    : t('assets', VERSION_STATUS_KEY[v.status])
+                }
+              />
               <span className="ml-auto font-mono text-[11px] whitespace-nowrap text-muted-foreground tabular-nums">
                 {formatDate(v.createdAt)} · {v.fileCount} {t('market', 'fileUnit')} ·{' '}
                 {formatBytes(v.totalSize)}
               </span>
+              {rowActions ? (
+                <span className="flex shrink-0 items-center gap-1.5">{rowActions(v)}</span>
+              ) : null}
             </div>
           );
         })}
