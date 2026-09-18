@@ -174,7 +174,7 @@ export const en: Dict = {
   admin: {
     reviews: 'Review queue',
     audit: 'Audit log',
-    labels: 'Labels',
+    labels: 'Label definitions',
     users: 'Users',
     settings: 'System settings',
     empty: 'No data',

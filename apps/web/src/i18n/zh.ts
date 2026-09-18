@@ -175,7 +175,7 @@ export const zh = {
   admin: {
     reviews: '审核管理',
     audit: '审计日志',
-    labels: '标签管理',
+    labels: '标签定义',
     users: '用户管理',
     settings: '系统设置',
     empty: '暂无数据',
