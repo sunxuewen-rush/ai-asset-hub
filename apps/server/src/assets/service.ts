@@ -6,6 +6,7 @@
 import { and, count, eq, exists, ilike, inArray, or, type SQL, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
+  type AssetStatus,
   type AssetType,
   asset,
   assetLabel,
@@ -31,6 +32,10 @@ export interface ListAssetsOptions {
   limit: number;
   offset: number;
   type?: AssetType;
+  /** M4b-4 T1（R6）：个人面按 owner 收窄（**恒取会话**，不接受客户端传入）；缺省 ⇒ 不下该条件 */
+  ownerId?: string;
+  /** M4b-4 T1（R6）：状态维度 —— `'ALL'` ⇒ 不加条件；三态 ⇒ 等值；**缺省 ⇒ `ACTIVE`（= 现状行为，零变化）** */
+  status?: AssetStatus | 'ALL';
   /** 全文检索（T12——design §6 R12：slug ILIKE ∪ 版本投影 name/description/searchText——01 §3.2） */
   q?: string;
   /** label 多值 OR（06 §4——命中挂载任一 label 即命中；slug 入参，服务层解 id） */
@@ -174,7 +179,11 @@ export async function listViewableAssets(
   db: Db,
   opts: ListAssetsOptions,
 ): Promise<{ items: AssetRow[]; total: number }> {
-  const conditions: ReturnType<typeof eq>[] = [eq(asset.status, 'ACTIVE')];
+  const conditions: ReturnType<typeof eq>[] = [];
+  // M4b-4 T1：状态维度参数化 —— 缺省 `ACTIVE`（公开面零行为变化）；`'ALL'` 不加条件（个人面含隐藏/归档）
+  const status = opts.status ?? 'ACTIVE';
+  if (status !== 'ALL') conditions.push(eq(asset.status, status));
+  if (opts.ownerId !== undefined) conditions.push(eq(asset.ownerId, opts.ownerId));
   if (opts.type !== undefined) conditions.push(eq(asset.type, opts.type));
 
   // T12 全文检索（design §6 R12）：q 命中 slug 或任一版本的投影字段

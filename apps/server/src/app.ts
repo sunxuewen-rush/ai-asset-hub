@@ -15,6 +15,7 @@ import { createAuditRoutes } from './http/audit.js';
 import { officialSessionMiddleware, rbacContext } from './http/auth-middleware.js';
 import { createAuthRoutes } from './http/auth-routes.js';
 import { createLabelRoutes } from './http/labels.js';
+import { createMeRoutes } from './http/me.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { trustedOriginGuard } from './http/origin-guard.js';
 import { requestContextMiddleware } from './http/request-context.js';
@@ -201,6 +202,8 @@ export function createApp(deps: AppDeps): Hono {
         ),
     }),
   );
+  // M4b-4 T3（R6）：个人面读面 —— 「我名下的资产」
+  app.route('/api/me', createMeRoutes({ db: deps.db }));
   app.route('/api/tokens', createTokenRoutes({ db: deps.db, auth, audit: deps.audit }));
   app.route('/api/reviews', createReviewRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/labels', createLabelRoutes({ db: deps.db, audit: deps.audit }));

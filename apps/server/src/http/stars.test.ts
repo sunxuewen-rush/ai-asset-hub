@@ -187,15 +187,25 @@ describe('star 最小集（M4b-4 §5.1 ⑧）', () => {
       const star = await req('PUT', `/api/assets/${PREFIX}hidden/star`, cookie);
       expect(star.status).toBe(detail.status);
     }
+    // T2 / R6-b 落地后：**owner 本人亦在授权集内**（该面 collect 权限随读面同步扩面）
+    expect((await req('GET', `/api/assets/${PREFIX}hidden`, otherCookie)).status).toBe(404);
+    expect((await req('GET', `/api/assets/${PREFIX}hidden`, ownerCookie)).status).toBe(200);
     expect((await req('PUT', `/api/assets/${PREFIX}hidden/star`, otherCookie)).status).toBe(404);
     expect(
       (await req('PUT', `/api/assets/${PREFIX}hidden/star`, 'aih.session_token=bogus')).status,
     ).toBe(401);
+    // 计数用**增量**断言（避免依赖跨用例残留状态）
+    const before = (
+      (await (await req('GET', `/api/assets/${PREFIX}hidden`, ownerCookie)).json()) as {
+        starCount: number;
+      }
+    ).starCount;
     const superCookie = await cookieFor(superAdmin);
     const ok = await req('PUT', `/api/assets/${PREFIX}hidden/star`, superCookie);
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toEqual({ starCount: 1, starred: true });
+    expect(await ok.json()).toEqual({ starCount: before + 1, starred: true });
     await req('DELETE', `/api/assets/${PREFIX}hidden/star`, superCookie);
+    await req('DELETE', `/api/assets/${PREFIX}hidden/star`, ownerCookie);
   });
 
   it('列表读面：starCount 恒有 · starredByMe 随身份（一次批量查询）', async () => {

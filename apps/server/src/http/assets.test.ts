@@ -415,9 +415,14 @@ describe('GET /api/assets/{slug} 详情（全公开——M4-pre S3 可见性已�
     expect((await getReq('/api/assets/ast-no-such-slug')).status).toBe(404);
   });
 
-  it('HIDDEN 资产：登录用户 404（活跃面不存在）；SUPER_ADMIN 200', async () => {
-    expect((await getReq('/api/assets/ast-hidden', await cookieFor(member))).status).toBe(404);
+  it('HIDDEN 资产：**授权集内可读（M4b-4 T2 / R6-b）** —— owner 200（原 404）· 管理档 200 · 超管 200 · 非 owner 404 · 匿名 404', async () => {
+    // 契约变更：非 ACTIVE 授权集 = owner 本人 ∨ 管理档（主 design §2.1 补充锁定 ⑤ · 批 design §5.1 R6-b）
+    expect((await getReq('/api/assets/ast-hidden', await cookieFor(member))).status).toBe(200);
+    expect((await getReq('/api/assets/ast-hidden', await cookieFor(assetAdmin))).status).toBe(200);
     expect((await getReq('/api/assets/ast-hidden', await cookieFor(superAdmin))).status).toBe(200);
+    expect((await getReq('/api/assets/ast-hidden', await cookieFor(owner2))).status).toBe(404);
+    expect((await getReq('/api/assets/ast-hidden', await cookieFor(outsider))).status).toBe(404);
+    expect((await getReq('/api/assets/ast-hidden')).status).toBe(404);
   });
 
   it('PUBLIC 资产：非 owner 登录用户 200（原空间归档门已删）', async () => {
@@ -851,9 +856,10 @@ describe('管理端点（PATCH status + DELETE——05 §6.4 canManageAsset；S3
     expect(res.status).toBe(200);
     const body = (await res.json()) as { status: string };
     expect(body.status).toBe('HIDDEN');
-    // HIDDEN 后：匿名/登录读面 404（活跃面不存在），owner 亦不可读（详情语义）
+    // HIDDEN 后：匿名 404（活跃面消失）；**授权集内可读、集外 404**（M4b-4 T2 / R6-b——原「owner 亦不可读」已作废）
     expect((await getReq('/api/assets/ast-pub-skill')).status).toBe(404);
-    expect((await getReq('/api/assets/ast-pub-skill', await cookieFor(member))).status).toBe(404);
+    expect((await getReq('/api/assets/ast-pub-skill', await cookieFor(member))).status).toBe(200);
+    expect((await getReq('/api/assets/ast-pub-skill', await cookieFor(outsider))).status).toBe(404);
   });
 
   it('状态治理 owner 恢复 ACTIVE 200', async () => {
@@ -1100,5 +1106,70 @@ describe('版本删除（T15 Q2——DRAFT 撤回/治理判定矩阵）', () => 
   it('已删版本再删 → 404', async () => {
     const res = await jsonRequest('DELETE', delUrl('2.0.0'), undefined, await cookieFor(owner2));
     expect(res.status).toBe(404);
+  });
+});
+
+/** 断言状态并携带 URL（失败时可读 diff——bun 无 message 参数） */
+async function expectStatus(url: string, cookie: string | undefined, want: number): Promise<void> {
+  const res = await getReq(url, cookie);
+  expect({ url, status: res.status }).toEqual({ url, status: want });
+}
+
+describe('R6-b 授权集扩展（M4b-4 T2：非 ACTIVE —— owner 本人 ∨ 管理档 可读）', () => {
+  beforeAll(async () => {
+    // 专用 HIDDEN 资产 + PUBLISHED 版本 + 1 文件（版本读面/文件/下载三面共用）
+    await insertAsset('ast-hidden-v', 'skill', member, 'HIDDEN');
+    const [row] = await db
+      .select({ id: asset.id })
+      .from(asset)
+      .where(eq(asset.slug, 'ast-hidden-v'));
+    // bundle 副本必须存在（download 端点的 bundleMissing 防御：无 bundle ⇒ 400）
+    const bundle = buildZip([{ name: 'SKILL.md', content: '# hidden\n' }]);
+    const [version] = await db
+      .insert(assetVersion)
+      .values({
+        assetId: row!.id,
+        version: '1.0.0',
+        status: 'PUBLISHED',
+        fileCount: 1,
+        totalSize: 9,
+        bundleStorageKey: 'seed/m4b4-hidden-bundle.zip',
+        bundleSha256: createHash('sha256').update(bundle).digest('hex'),
+      })
+      .returning({ id: assetVersion.id });
+    await storage.put('seed/m4b4-hidden-bundle.zip', bundle, { contentType: 'application/zip' });
+    const key = `${row!.id}/${version!.id}/SKILL.md`;
+    const content = Buffer.from('# hidden\n');
+    await storage.put(key, content, { contentType: 'text/markdown' });
+    await db.insert(assetFile).values({
+      versionId: version!.id,
+      filePath: 'SKILL.md',
+      fileSize: content.byteLength,
+      sha256: createHash('sha256').update(content).digest('hex'),
+      storageKey: key,
+    });
+    await db.update(asset).set({ latestVersionId: version!.id }).where(eq(asset.id, row!.id));
+  });
+
+  it('四面对照：授权集内（owner / 管理档 / 超管）200 · 集外（非 owner / 匿名）404 —— 同一守卫单点传导', async () => {
+    const surfaces = [
+      '/api/assets/ast-hidden-v',
+      '/api/assets/ast-hidden-v/versions',
+      '/api/assets/ast-hidden-v/versions/1.0.0/files/SKILL.md',
+      '/api/assets/ast-hidden-v/versions/1.0.0/download',
+    ];
+    for (const url of surfaces) {
+      await expectStatus(url, await cookieFor(member), 200);
+      await expectStatus(url, await cookieFor(assetAdmin), 200);
+      await expectStatus(url, await cookieFor(superAdmin), 200);
+      await expectStatus(url, await cookieFor(outsider), 404);
+      await expectStatus(url, undefined, 404);
+    }
+  });
+
+  it('仅详情面回归：非 ACTIVE 的 404 不泄露存在性（错误码 = asset.not_found，无 403 出口）', async () => {
+    const res = await getReq('/api/assets/ast-hidden-v', await cookieFor(outsider));
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.not_found');
   });
 });

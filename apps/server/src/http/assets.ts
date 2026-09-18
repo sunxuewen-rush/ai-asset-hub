@@ -53,6 +53,7 @@ import { attachLabel, detachLabel, labelSlugSchema, labelsOfAsset } from '../lab
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
 import { canSubmitReview, submitVersion } from '../review/service.js';
 import type { ObjectStorage } from '../storage/types.js';
+import { assetItem } from './asset-item.js';
 import { assertTokenScoped, requireAuth } from './auth-middleware.js';
 
 export interface AssetRoutesDeps {
@@ -107,37 +108,6 @@ const changelogFieldSchema = z.string().max(4096).optional();
 /** PATCH /:slug/status body（状态治理——05 §6.4 asset:manage） */
 const statusBodySchema = z.object({ status: assetStatusSchema });
 
-/**
- * 序列化响应形状（详情/注册/列表共用；坐标 = 全局唯一裸 `slug`，M4-pre §2.3）。
- * M4a R5/R6：meta（latest 版本投影 + owner 显示名）为可选注入——缺省（注册场景）字段 null。
- * M4b-4 v1.8 §5.1 ⑧：`starCount` 直读冗余列；`starredByMe` 由调用方注入（**匿名 ⇒ false**，
- * 列表用 `starredAssetIds` 一次 inArray 防 N+1，详情/写后回读用 `hasStarred`）。
- */
-function assetItem(row: AssetRow, meta?: AssetItemMeta | null, starredByMe = false) {
-  return {
-    id: row.id,
-    slug: row.slug,
-    type: row.type,
-    status: row.status,
-    ownerId: row.ownerId,
-    /** 当前版本指针（M3 起 approve/yank 维护——详情暴露供消费者取 latest） */
-    latestVersionId: row.latestVersionId,
-    /** R5：latest 版本展示投影（latest_version join——批注入防 N+1） */
-    latestVersion: meta?.latestVersion ?? null,
-    latestName: meta?.latestName ?? null,
-    latestDescription: meta?.latestDescription ?? null,
-    /** R6：owner 显示名（官方 `user.name`——LDAP 建号同步 05 §3.1） */
-    ownerDisplayName: meta?.ownerDisplayName ?? null,
-    downloadCount: row.downloadCount,
-    /** 收藏热度计数（M4b-4 v1.8：冗余列直读，零额外查询） */
-    starCount: row.starCount,
-    /** 我是否已收藏（匿名 ⇒ false） */
-    starredByMe,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
 /** viewer 上下文组装（仅登录时查询一次；匿名 → GUEST 档 + 非超管 + 非审核角色） */
 async function viewerContext(c: import('hono').Context): Promise<{
   viewerId: string | null;
@@ -164,8 +134,9 @@ async function viewerContext(c: import('hono').Context): Promise<{
 }
 
 /**
- * 资产读面前置链（detail + versions 端点共用——403/404 分层语义单点，design §7）：
- * SUPER_ADMIN 短路 → 非 ACTIVE 404（活跃面不存在）。
+ * 资产读面前置链（detail + versions + 文件 + 下载 + 预览端点共用——403/404 分层语义单点，design §7）：
+ * SUPER_ADMIN 短路 → **非 ACTIVE：授权集内可读（M4b-4 T2 / R6-b 扩面）**，集外 404。
+ * 授权集 = **owner 本人 ∨ 管理档**（`isPlatformReviewer`）——「管得住的人读得到」，与 `canManageAsset` 同集。
  * M4-pre S3：可见性删除后**无 403 出口**——ACTIVE 即公开可读（含匿名）。
  * 返回 viewer 上下文（授权者身份）。M4-pre：空间归档门随空间删除。
  */
@@ -180,7 +151,9 @@ async function assertAssetReadable(
 }> {
   const viewer = await viewerContext(c);
   if (viewer.isSuperAdmin) return viewer;
-  if (row.status !== 'ACTIVE') throw new AssetError(assetErrorCodes.notFound);
+  // M4b-4 T2（R6-b）：非 ACTIVE 授权集 = owner 本人 ∨ 管理档（匿名 viewerId = null 恒不在集内）
+  const inAuthorizedSet = row.ownerId === viewer.viewerId || viewer.isPlatformReviewer;
+  if (row.status !== 'ACTIVE' && !inAuthorizedSet) throw new AssetError(assetErrorCodes.notFound);
   return viewer;
 }
 
