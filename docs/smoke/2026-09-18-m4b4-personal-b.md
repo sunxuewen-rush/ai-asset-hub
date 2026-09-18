@@ -19,6 +19,7 @@
 | 构建 | `bun run build` | **exit 0** —— `Tasks: 4 successful, 4 total` |
 | 迁移 | `bun run db:migrate` | **exit 0** —— `[db] migrations applied`（本批**零迁移**，仍跑守门） |
 | 测试 | `CI=true bun run test` | **exit 0** —— `server: Ran 551 tests across 51 files`（= 基线 537 + 本批补测 **14**）· `protocol: Ran 27 tests across 6 files` · **0 fail** |
+| **提交链 · CI** | 三个 commit 已推送 `origin/main`（`a918930..f2485aa`）：`e78c200`（T12+T16）· `9973d6b`（T6）· `f2485aa`（测试 + 脚本 + 证据 + 文档）；GitHub Actions run `35366866235` **success**（12 步全 success）| ✅ 本批**已交付** |
 | **覆盖探针**（T11-c 新增维度 · 仓库原无此基建） | `cd apps/server && bun test --coverage src/` | **全仓 95.60% funcs / 96.28% lines**；本批服务端面：`assets/yank.ts` **100/100** · `assets/stars.ts` **100/100** · `http/me.ts` **100/100** · `http/asset-item.ts` **100/100** · `assets/manage.ts` **100/100** · `labels/service.ts` 100/92.62 · **`http/assets.ts` 90.97 → 95.96 lines**（`POST /:slug/versions/:version/yank` 路由 683-713 由 **0 → 覆盖**） |
 
 ## 2. 门户零回归 + 链冒烟（断言③）
