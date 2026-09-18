@@ -1,14 +1,16 @@
 # M2 资产域设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.6：实施收敛——§8.1 规范同步落地 + converge 回查；v1.5：版本读面拒绝语义对齐 skillhub（详情 400 version_not_published 明示——替代 404 隐藏）；v1.4：管理面判定对齐 05 §6.4（状态治理 ADMIN+/owner，非仅超管）；v1.3：读面拒绝语义对标 skillhub 修正（404 防枚举 → 403 明示分层）；v1.2：砍 warnings/confirmWarnings 机制——族协议契约纯 error、root 级布局语义补入；v1.1：grilling Q1-Q5 修复；v1.0：R1-R9 评审拍板落档初稿）
+> Updated: （**v1.6：实施收敛——§8.1 规范同步落地 + converge 回查**；**v1.5：版本读面拒绝语义对齐 skillhub（详情 400 version_not_published 明示——替代 404 隐藏**）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **13 修订记录**。
+> SSOT：实测值与断言数 → `docs/smoke/` 证据文件 · 自检分 → 对应 design 的自检节。
 > Status: 定稿（评审拍板 2026-09-08：R1-R9 锁定 + grilling Q1-Q5 通过；8 维自检 ≥9；v1.6 实施完成收敛——§8.1 规范同步项已全部落地（00 v1.10/01 v1.5/05 v1.6/08 v1.3），代码全量验证绿，converge 重评 ≥9）
 > Scope: M2 资产域（00 §5）——skill/mcp/agent 三类资产坐标注册 + 族协议校验器/解析器 + 版本上传（DRAFT）+ 版本管理 + 空间 OWNER 转让 + 审计补全
 > ⚠ **失效标注（2026-09-11，T26 converge）**：本设计正文中**坐标（`@namespace/slug`）· 可见性（`visibility` /
 > PUBLIC·NAMESPACE_ONLY·PRIVATE）· `nsSlug` 参数 · 空间角色与权限码**相关表述**已随 M4-pre 扁平化重构整体失效**
 > ——现行模型（全局唯一裸 `slug` · 无空间 · 无可见性 · 角色 4 档线性单值）以
 > `2026-09-10-flat-model-refactor-design` 为准。**正文按「史实不改」保留原貌**（历史阶段决策档案）
-> 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）SkillPublishController / ZipPackageExtractor / NamespaceController.transferOwnership / TokenController 源码级核对
+> 对标源：skillhub（Apache-2.0）SkillPublishController / ZipPackageExtractor / NamespaceController.transferOwnership / TokenController 源码级核对
 > 引用链：本文档 → 规范 00 §5/§7 · 01 §2/§3/§5/§6 · 02 §3（skill 包契约）· 03 §3/§5（mcp 包契约）· 04 §3/§4（agent 包契约）· 05 §5/§6 · 06 §5.3 · 08 §5/§7（引用不复制，字段与规则以规范为准）
 
 ## 1. 背景与文档定位
@@ -188,7 +190,7 @@ DRAFT → SCANNING/PUBLISHED 流转、版本下线与已发布资产治理 = M3 
   docs/06-label-system.md §5.3 · docs/07-i18n-conventions.md §4 · docs/08-data-model.md §5/§7
 - 计划层：docs/plans/M2-assets.md（任务清单，实现时引用本文 §N）
 - 前序档案：docs/designs/2026-09-08-m1-platform-foundation-design.md §6.7（M2 对齐项出处）
-- 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）SkillPublishController /
+- 对标源：skillhub（Apache-2.0）SkillPublishController /
   ZipPackageExtractor / NamespaceController / TokenController
 - 代码落点（M2 新建）：apps/server/src/validate/ · apps/server/src/http/{assets,versions}.ts ·
   apps/server/src/assets/（域服务）· apps/server/src/http/namespaces.ts（转让扩展）·
@@ -198,7 +200,7 @@ DRAFT → SCANNING/PUBLISHED 流转、版本下线与已发布资产治理 = M3 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域设计——R1-R9 评审拍板全锁（范围切分/坐标版本语义/校验器架构/解析投影/上传流程/权限细分/转让/审计/端点形态）；对标 21-skillhub 源码（配置化上限/transferOwnership/上传限流吸收） |
+| v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域设计——R1-R9 评审拍板全锁（范围切分/坐标版本语义/校验器架构/解析投影/上传流程/权限细分/转让/审计/端点形态）；对标 skillhub 源码（配置化上限/transferOwnership/上传限流吸收） |
 | v1.1 | 2026-09-08 | sunxuewen-rush | grilling Q1-Q5 修复：版本读面按状态过滤（DRAFT 仅 owner/上传者/空间 ADMIN+，08 §7 可见性补注同步）；DRAFT 上传者可删自己草稿（05 §6.4 补判定同步）；visibility 修改端点（owner/ADMIN+，注册可带）；资产删除端点（仅无 PUBLISHED，纠错非治理）；规范同步项 8.1 |
 | v1.2 | 2026-09-08 | sunxuewen-rush | 校验器契约修正：砍 warnings/confirmWarnings 机制（族协议 02/03/04 纯 error 无 warning 级——skillhub 单根目录提升场景在 AIH root 级契约下不存在，不为空转机制造接口）；补 zip root 级主文件布局与白名单扩展名拒绝语义 |
 | v1.3 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义对标修正（T3 实现期对标 skillhub SkillQueryService）：不可见 404 防枚举 → 403 明示分层（namespace_archived / access_denied 新码，error.namespace.archived / error.skill.access.denied 对齐；明确性优先拍板，权衡 403 泄露存在性已记录）；版本级 DRAFT 读面 Q1 维持，T14 复核 assertPreviewAccessible |

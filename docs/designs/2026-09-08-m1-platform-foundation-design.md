@@ -1,10 +1,12 @@
 # M1 平台底座设计
 
 > Date: 2026-09-08（回溯补档——M1 完成后按体系约定 00 §7 ② 补 design 层足迹；决策本体于 2026-09-07 评审拍板）
-> Updated: 2026-09-15（v1.3：**认证面后继变更指针**（只加指针，不改本节结论）——§5 与 §6.3/§6.5/§6.6 的会话存储 / CSRF / 凭证通道实现形态已列入 **M4b-pre（认证整车迁移）**（`docs/00` §5 追踪表 M4b-pre 行，2026-09-15 拍板前置）；本档作为 M1 阶段决策档案**保留原貌**，迁移后形态以后续批 design 为准（尚未立件——spike 裁定后落地）；v1.2：7 段骨架适配——删任务清单段、M2 对齐项入正文 §6.7；v1.1：追加阶段二决策档案；v1.0：阶段一决策档案初稿）
+> Updated: （**v1.3：认证面后继变更指针**（只加指针，不改本节结论）——§5 与 §6.3/§6.5/§6.6 的会话存储 / CSRF / 凭证通道实现形态已列入 **M4b-pre（认证整车迁移）**（`docs/00` §5 追踪表 M4b-pre 行，2026-09-15 拍板前置）；本档作为 M1 阶段决策档案**保留原貌**，迁移后形态以后续批 design 为准（尚未立件——spike 裁定后落地**；**v1.2：7 段骨架适配——删任务清单段、M2 对齐项入正文 §6.7**）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **11 修订记录**。
+> SSOT：实测值与断言数 → `docs/smoke/` 证据文件 · 自检分 → 对应 design 的自检节。
 > Status: 定稿（决策均已执行验证：M1-platform 27 Task + M1-phase2 38 Task 全绿，2026-09-08 全仓 216 用例）
 > Scope: M1 平台底座（00 §5）两阶段的架构与决策档案——工程基线/数据模型实现形态/认证授权/平台 API 扩展
-> 设计来源：21-skillhub（iflytek/skillhub，Apache-2.0 公开注册中心）源码级对标 S1-S10 吸收；决策与实施记录完整保留于 M1-platform.md / M1-phase2.md（本文件为决策档案，不复制 plan Task 细节）
+> 设计来源：skillhub（Apache-2.0 公开注册中心）源码级对标 S1-S10 吸收；决策与实施记录完整保留于 M1-platform.md / M1-phase2.md（本文件为决策档案，不复制 plan Task 细节）
 > 引用链：本文件 ← docs/plans/M1-platform.md · M1-phase2.md；→ 规范 00 §5/§7 · 01 §2/§6 · 02-04 · 05 · 06 §5.3 · 08
 
 ## 1. 背景与文档定位
@@ -220,7 +222,7 @@ RBAC 判定链（can 实现序）：账号状态 → 平台权限 → SUPER_ADMI
   docs/06-label-system.md §5.3（/api 前缀）· docs/07-i18n-conventions.md §4（错误码）·
   docs/08-data-model.md §2-§9
 - 计划层：docs/plans/M1-platform.md（阶段一执行记录）· docs/plans/M1-phase2.md（阶段二执行记录）
-- 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）认证/命名空间/审计/Token 契约
+- 对标源：skillhub（Apache-2.0）认证/命名空间/审计/Token 契约
   （S1-S10 明细见 M1-phase2 §1.1）
 - 代码落点：apps/server/src/{auth,audit,config,db/schema,http,storage}/ ·
   packages/protocol/src/{slug,type,errors,skill,mcp,agent}

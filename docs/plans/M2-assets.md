@@ -1,7 +1,9 @@
 # M2 资产域实现计划
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.0：初稿——design 定稿后 Task 清单化）
+> Updated: 2026-09-08（**v1.5：实施完成 —— 18 Task 全部实现收官（板块 A-G）** —— server 全量通过 + typecheck 0；收敛与规范同步见 design v1.6）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§4 修订记录**。
+> SSOT：自检分 → 对应 design 的自检节 · 实测值与断言数 → `docs/smoke/` 证据文件 · Task 状态 → 本文件 §2（若适用）。
 > Status: 定稿（design 已定稿 2026-09-08；本 plan 任务清单引用 design §N，评审通过后执行；v1.5 实施完成——18 Task 全部实现、板块 A-G 收官、server 全量 401+ pass + typecheck 0，收敛见 design v1.6）
 > 引用链：本文档 → 设计 docs/designs/2026-09-08-m2-asset-domain-design.md（§N 逐 Task 引用）→ 规范 00 §5 · 01 §2/§3/§5/§6 · 02 §3 · 03 §3/§5 · 04 §3/§4 · 05 §5/§6 · 06 §5.3 · 08 §5/§7（引用不复制，字段契约以规范为准）
 > 命名约定见 docs/plans/README.md

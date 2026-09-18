@@ -1,10 +1,12 @@
 # M3 治理管线设计
 
 > Date: 2026-09-08
-> Updated: 2026-09-08（v1.6：复盘对标修正 label D1-D8；v1.5：converge 修正——§3.5 R6/§9 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板——08 §6 重审递增契约优先于 skillhub 删行简化）；v1.4：T8 实现同步——version_not_yankable/yank_reason_required 补入错误码表（skillhub YankRequest 实证）；v1.3：T5 同步 access_denied；v1.2：Q1-Q3 拍板；v1.1：G8-G10 + 8 维 9.1；v1.0：R1-R15，见修订记录）
+> Updated: （**v1.6：复盘对标修正 label D1-D8**；**v1.5：converge 修正——§3.5 R6/§9 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板——08 §6 重审递增契约优先于 skillhub 删行简化**）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **14 修订记录**。
+> SSOT：实测值与断言数 → `docs/smoke/` 证据文件 · 自检分 → 对应 design 的自检节。
 > Status: 定稿（2026-09-08：R1-R15 + grilling G1-G10/Q1-Q3 + 8 维自检 9.1；v1.3-v1.6 实现同步 + converge 重评 ≥9 + skillhub 对标修正——v1.6）
 > Scope: M3 治理管线（00 §5）——SCANNING→PUBLISHED 六态推进（扫描/审核/发布）+ 已发布资产治理 + 标签管线 + 搜索 + 下载/统计 + API Token scope 过滤
-> 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）skillhub-domain/skillhub-app/skillhub-auth 源码级核对：SkillVersionStatus（八态 enum）· ReviewService / ReviewPortalAppService（提交/审核/撤回）· SkillGovernanceService（yank/withdraw/deleteVersion）· ApiTokenScopeService / RouteSecurityPolicyRegistry（scope 过滤）· 14-skill-lifecycle.md（状态语义参考——**发现文档-代码漂移：withdraw 文档写 PENDING_REVIEW→DRAFT，代码实际 →UPLOADED，以代码为准**）
+> 对标源：skillhub（Apache-2.0）skillhub-domain/skillhub-app/skillhub-auth 源码级核对：SkillVersionStatus（八态 enum）· ReviewService / ReviewPortalAppService（提交/审核/撤回）· SkillGovernanceService（yank/withdraw/deleteVersion）· ApiTokenScopeService / RouteSecurityPolicyRegistry（scope 过滤）· 14-skill-lifecycle.md（状态语义参考——**发现文档-代码漂移：withdraw 文档写 PENDING_REVIEW→DRAFT，代码实际 →UPLOADED，以代码为准**）
 > 引用链：本文档 → 规范 00 §2/§5/§7 · 01 §3/§4/§5 · 05 §5/§6 · 06 §1-§6 · 08 §2/§5/§6/§7/§9（引用不复制，字段与规则以规范为准）
 
 ## 1. 背景与文档定位
@@ -377,14 +379,14 @@ Bearer token ──► tokenAuthMiddleware 读 token.scope
 - 前序档案：docs/designs/2026-09-08-m2-asset-domain-design.md（M2 后置清单/边界）·
   docs/plans/M2-assets.md（后置清单）· docs/designs/2026-09-08-m1-platform-foundation-design.md
   §6.7（scope 挂账 R7）
-- 对标源：21-skillhub（iflytek/skillhub，Apache-2.0）：
+- 对标源：skillhub（Apache-2.0）：
   `server/skillhub-domain/.../domain/skill/SkillVersionStatus.java`（八态 enum）·
   `domain/review/ReviewService.java`（submit 前态/approve/reject）·
   `domain/skill/service/SkillGovernanceService.java`（yank/withdraw/deleteVersion/latest 重算）·
   `skillhub-app/.../service/ReviewPortalAppService.java`（审核队列动作+审计动作名）·
   `server/skillhub-auth/.../token/ApiTokenScopeService.java` + `ApiTokenScopeFilter.java`
   （scope 端点白名单模型——AIH 取 permission 交集最小面，差异见 §8）·
-  `docs/14-skill-lifecycle.md`（语义参考；withdraw 漂移已以代码校正）
+  `skillhub`（Apache-2.0）的 `14-skill-lifecycle.md`（语义参考；withdraw 漂移已以代码校正）
 - 代码落点（M3 新建/扩展）：apps/server/src/review/（域服务：submit/approve/reject/withdraw/
   queue + errors.ts）· apps/server/src/scanner/（SPI + 直通）· apps/server/src/labels/（域服务 +
   errors.ts）· apps/server/src/http/{reviews,labels}.ts（路由组）· apps/server/src/http/assets.ts
@@ -412,7 +414,7 @@ Bearer token ──► tokenAuthMiddleware 读 token.scope
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.6 | 2026-09-08 | sunxuewen-rush | 复盘对标 21-skillhub 源码修正（D1-D8）：§5 label 定义上限 100（definition_limit_exceeded）、翻译整组替换（PUT 语义——删未列 locale）、管理面响应 parentId = 父 slug（LabelDefinitionResponse 同构）、locale 归一与去重预检（_→- 小写/translation.locale_duplicate）；§9 label 码表补全（invalid_parent/access_denied/definition_limit_exceeded/translation.locale_duplicate——复盘发现 2 实现码未回写 + 对标补 2 新码） |
+| v1.6 | 2026-09-08 | sunxuewen-rush | 复盘对标 skillhub 源码修正（D1-D8）：§5 label 定义上限 100（definition_limit_exceeded）、翻译整组替换（PUT 语义——删未列 locale）、管理面响应 parentId = 父 slug（LabelDefinitionResponse 同构）、locale 归一与去重预检（_→- 小写/translation.locale_duplicate）；§9 label 码表补全（invalid_parent/access_denied/definition_limit_exceeded/translation.locale_duplicate——复盘发现 2 实现码未回写 + 对标补 2 新码） |
 | v1.5 | 2026-09-08 | sunxuewen-rush | converge 修正：§3.5 R6 与 §9 接口表 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板方案 A——08 §6 review version 递增契约（历史行 max）优先于 skillhub 删行简化；zod 四态零 DB 迁移；部分唯一索引仍只锁 PENDING；审核历史留档增强——对齐代码 review/service.ts withdrawReview 与 08 §6 v1.4） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | T8 实现同步：asset.version_not_yankable / asset.yank_reason_required 补入 §9 错误码表（yank 非 PUBLISHED 拒 + reason 必填——skillhub YankRequest 实证） |
 | v1.3 | 2026-09-08 | sunxuewen-rush | T5 实现同步：review.access_denied（403——审核详情/队列越权可见；skillhub review.no_permission 源码实证对齐）补入 §9 错误码表 |

@@ -30,7 +30,7 @@ skillhub AccountMerge 同构——OIDC 与本地同 email 双账号是预期行�
 
 ## 1.1 决策对标结论（评审吸收，2026-09-07）
 
-对同构数据来源（21-skillhub，Java/Spring 实战注册中心）源码级核对 R1-R9 后吸收：
+对同构数据来源（skillhub，Java/Spring 实战注册中心）源码级核对 R1-R9 后吸收：
 
 | # | 对标发现 | 处置 |
 |---|---------|------|

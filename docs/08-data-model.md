@@ -1,7 +1,8 @@
 # 数据模型设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-15（v1.6：**M4b-pre 认证整车迁移同步**——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.role` 文本档名、状态落 `user.status`、令牌 scope 迁 `apikey.permissions`）· §8 约束表补官方约束行 · **运行库表数 12 → 14**（迁移 0008-0011 实落）；v1.5：**M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 asset 去 `namespace_id`/`visibility`、`UNIQUE(slug)` + `INDEX(status)`；§6 review_task 去 `namespace_id`；§7 读面授权集改「owner/上传者/管理档/超管」；§8 约束表同步；v1.4：M3 实现同步——§5.2 asset_version 补 yank 三列 + bundle 双列、§6 review_task 补 WITHDRAWN 态（withdraw 保留行——version 递增契约优先）、§7 八态补全（REJECTED/YANKED + latest 维护 + 读面分治落地）；v1.3：§7 版本读面可见性补注（DRAFT 授权集 + 400 明示对齐 skillhub——M2 实现同步）；v1.2：实现状态同步——drizzle schema 全表落地；v1.1 schema 蓝图对齐实战模型增补）
+> Updated: （**v1.6：M4b-pre 认证整车迁移同步**——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.rol**；**v1.5：M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 **）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **10 修订记录**。
 > Status: 定稿（M1 已按 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记；M3 已按 v1.4 同步八态/asset_version 五列/review_task WITHDRAWN/读面分治；**M4-pre 已按 v1.5 同步扁平化模型（迁移 0005-0007）；M4b-pre 已按 v1.6 同步认证整车迁移——迁移 0008-0011 实落，运行库终态 14 表 = 官方认证 6 表（user/session/account/verification/device_code/apikey）+ 业务 8 表**）
 > Scope: AI Asset Hub 表结构蓝图 —— 用户/资产/版本/文件/审核/label/审计（M4-pre：空间域已删除）
 > 设计来源：以企业实战验证的注册中心数据模型为基准（同构继承），按 00-07 规范资产化/中立化
