@@ -36,6 +36,10 @@ export interface AssetItem {
   latestDescription: string | null;
   ownerDisplayName: string | null;
   downloadCount: number;
+  /** 收藏热度计数（M4b-4 v1.8：服务端冗余列直读） */
+  starCount: number;
+  /** 我是否已收藏（匿名 ⇒ false） */
+  starredByMe: boolean;
   createdAt: string;
   updatedAt: string;
   labels: ReadonlyArray<Pick<LabelDto, 'slug' | 'displayName'>>;

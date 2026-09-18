@@ -16,6 +16,12 @@ export interface MarketQuery {
   /** 页码（1-based；?page= ——offset 换算由消费方按 limit 做） */
   page: number;
   setPage: (next: number) => void;
+  /**
+   * 状态维度（M4b-4 T5 加性）：**仅当调用方传 `opts.status` 时存在**。
+   * 门户中心页不传 ⇒ 该维度为 `undefined`、`status` param 不读不写（**零行为变化**）。
+   */
+  status?: string;
+  setStatus?: (next: string) => void;
 }
 
 /**
@@ -23,11 +29,16 @@ export interface MarketQuery {
  * 参数同步——回退/分享还原）。label/page 即时写（点选/翻页即状态）；q 输入 300ms 防抖 +
  * replace 写（防历史垃圾）。外部 URL 变化（回退/前进）→ 草稿与列表参数同步刷新。
  */
-export function useMarketQuery(): MarketQuery {
+export function useMarketQuery(opts?: { status?: { defaultValue: string } }): MarketQuery {
   const [params, setParams] = useSearchParams();
   const urlQ = params.get('q') ?? '';
   const urlLabels = params.getAll('label');
   const urlPage = Math.max(1, Number(params.get('page')) || 1);
+
+  // M4b-4 T5：状态维度（缺省关闭 —— 门户零变化）
+  const statusEnabled = opts?.status !== undefined;
+  const statusDefault = opts?.status?.defaultValue ?? 'ALL';
+  const urlStatus = params.get('status') ?? statusDefault;
 
   const [draft, setDraft] = useState(urlQ);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,6 +95,13 @@ export function useMarketQuery(): MarketQuery {
     commit(dropPage(p));
   }
 
+  function setStatus(next: string) {
+    const p = new URLSearchParams(params);
+    if (next === statusDefault) p.delete('status');
+    else p.set('status', next);
+    commit(dropPage(p));
+  }
+
   function setPage(next: number) {
     const p = new URLSearchParams(params);
     if (next > 1) p.set('page', String(next));
@@ -100,5 +118,6 @@ export function useMarketQuery(): MarketQuery {
     clearLabels,
     page: urlPage,
     setPage,
+    ...(statusEnabled ? { status: urlStatus, setStatus } : {}),
   };
 }

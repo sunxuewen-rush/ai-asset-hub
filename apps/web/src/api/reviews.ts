@@ -71,3 +71,23 @@ export async function fetchMyReviews(
 export async function withdrawReview(taskId: number, opts?: ApiWriteOptions): Promise<void> {
   await apiPost<void>(`/api/reviews/${taskId}/withdraw`, {}, opts);
 }
+
+/**
+ * 审核队列（M4b-4 T5 加性 —— 工作台「待审核」卡；**M4b-5 队列页复用**）。
+ * `GET /api/reviews?status=&limit=&offset=` ⇒ `{ items, total, limit, offset }`（同一 `ReviewListItem` 形状）。
+ * ⚠️ 与 `/mine` 同口径：`status` 省略 = 全部（**不可传 `ALL`**）；服务端对非法值静默忽略。
+ */
+export async function fetchReviewQueue(
+  params: { status?: ReviewStatus; limit?: number; offset?: number } = {},
+  opts?: ApiGetOptions,
+) {
+  const query = new URLSearchParams();
+  if (params.status !== undefined) query.set('status', params.status);
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  return apiGet<{ items: readonly MyReviewItem[]; total: number; limit: number; offset: number }>(
+    `/api/reviews${suffix}`,
+    opts,
+  );
+}
