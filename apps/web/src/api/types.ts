@@ -35,8 +35,13 @@ export interface AssetLabelRef {
   displayName: string;
 }
 
-/** 列表/详情资产项（R5/R6：latest* 投影 + ownerDisplayName——匿名可见面；扁平坐标 = 裸 slug） */
-export interface AssetItem {
+/**
+ * 列表/详情资产项（R5/R6：latest* 投影 + ownerDisplayName——匿名可见面；扁平坐标 = 裸 slug）。
+ *
+ * ⚠️ 刻意用 **type 别名**而非 `interface`（同 `MyReviewItem`）：`DataTable` 的行约束为
+ * `Record<string, unknown>`（TanStack `RowData`），**interface 不带隐式索引签名** ⇒ 不能作为行类型传入。
+ */
+export type AssetItem = {
   id: number;
   slug: string;
   type: AssetType;
@@ -56,7 +61,7 @@ export interface AssetItem {
   updatedAt: string;
   /** M4b-4 T14：已挂标签（**仅详情面与个人面下发**；公开列表面不含 ⇒ 可选） */
   labels?: readonly AssetLabelRef[];
-}
+};
 
 export interface ListEnvelope<T> {
   items: readonly T[];

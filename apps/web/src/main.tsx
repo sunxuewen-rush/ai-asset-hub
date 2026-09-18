@@ -8,8 +8,11 @@ import { AppShell } from '@/components/ui/AppShell';
 import { RoleGuard } from '@/components/ui/RoleGuard';
 import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
+import M4b4DetailProto from '@/pages/__proto/M4b4DetailProto';
+import M4b4Proto from '@/pages/__proto/M4b4Proto';
 // 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
 import { AssetDetail } from '@/pages/AssetDetail';
+import { Assets } from '@/pages/Assets';
 import { Center, type CenterType } from '@/pages/Center';
 import { Dashboard } from '@/pages/Dashboard';
 import { Device } from '@/pages/Device';
@@ -84,7 +87,7 @@ function AppRoutes() {
           <Route path="/login" element={<Login />} />
           <Route path="/device" element={<Device />} />
 
-          {/* ── 一次性原型（DEV-only：M4b-2 UI 视觉方向评审用；定稿后随原型删除）── */}
+          {/* ── 一次性原型（DEV-only：评审用；**物料不进仓** —— 评审结束后随本行一并删除）── */}
 
           {/* ── 应用壳（顶栏 + 侧栏 + 内容区 Outlet）── */}
           <Route element={<AppShell />}>
@@ -95,21 +98,18 @@ function AppRoutes() {
             ))}
             {/* 扁平化坐标：全局唯一裸 slug（M4-pre R5） */}
             <Route path="/assets/:slug" element={<AssetDetail />} />
+            {/* 原型（DEV-only · 物料不进仓）—— 在 AppShell 内：真壳 + 真实内容宽度 */}
+            {import.meta.env.DEV ? <Route path="/__proto/m4b4" element={<M4b4Proto />} /> : null}
+            {import.meta.env.DEV ? (
+              <Route path="/__proto/m4b4/detail" element={<M4b4DetailProto />} />
+            ) : null}
 
             {/* ── 个人段（USER = 1）── */}
             <Route element={<RoleGuard minRole={ROLE.USER} />}>
               {/* 工作台：真页（T8；M4b-4 换三卡） */}
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route
-                path="/dashboard/assets"
-                element={
-                  <ComingSoon
-                    title={t('dashboard', 'myAssets')}
-                    description={t('common', 'comingSoon')}
-                    batch={DEV_BATCH['/dashboard/assets']}
-                  />
-                }
-              />
+              {/* 我的资产：真页（M4b-4 T7；九列 + 状态筛选 + q 搜索 + 直跳详情） */}
+              <Route path="/dashboard/assets" element={<Assets />} />
               {/* 我的提交：真页（M4b-3 T6） */}
               <Route path="/dashboard/submissions" element={<Submissions />} />
               {/* 我的令牌：真页（M4b-3 T7） */}
