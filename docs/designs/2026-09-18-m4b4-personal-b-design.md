@@ -1210,6 +1210,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **F42** | 🟡 | 调用点计数失真 | 「**6** 个调用点」实测 **8**（详情 · 版本列表 · **版本对比** · 版本详情 · 文件 · **star 收藏/取消**（T15 新增）· 下载）—— 原清单漏「版本对比」且未回填 T15 新增 2 处 | ✅ 改 8 + 点名清单（design + plan）|
 | **F43** | 🔴 | **实现缺陷（漏做）** | §6.1 表 **62 键**，实现只落 **59** —— 缺 `toast.versionDeleted` / `toast.versionYanked` / `toast.assetDeleted` | ✅ 补进 zh/en；复核 **62 = 62** ✅（v1.12 后随 F46 补 3 键 ⇒ **现 65**） |
 | **F44** | 🟡 | 类型声明失真 | §5.1 ⑦ 写 `parentId: number \| null`，实现与 skillhub 同形为 **父标签 slug（`string \| null`）** | ✅ 订正（v1.12）|
+| **F47** | 🟡 | 件表缺口（前置件未列） | T7 收尾侦察发现 T12 的两类前置件在 §3 件表**未列**：**`hooks/useViewer`**（会话/档位读取；web 现无此抽象）· **写操作 wrappers** 6 个（`patchAssetStatus`/`deleteAsset`/`deleteVersion`/`yankVersion`/`attachLabel`/`detachLabel`） | ✅ 登记于批 plan T12 注记；**件表随 T12 实现同步（新建 14 → 16）** |
 | **F46** | 🟡 | 复用声明失真 | §6.1 称类型文案「复用 `market` 组既有键」——实测 `market` 组**无逐类型文案键**（仅有 `centerTitle*` 中心页标题与 `statSkill/statMcp` 计数标签）⇒ 实现期新建 `type.skill`/`type.mcp`/`type.agent` | ✅ 补 3 键（zh/en）· §6.1 加行并注明依据；**键数 62 → 65** |
 | **F45** | ⚪ | 引用过期 | §5.1 ⑦ 语种口径指向 `http/labels.ts:66` 内联式 —— T14 已抽为 `requestLocale(c)` 单点 | ✅ 改指新单点（三处共用）|
 
@@ -1219,6 +1220,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 
 ## 12. 修订记录
 
+| **v1.14** | 2026-09-18 | sunxuewen-rush | **T7 收尾侦察落档** —— **F47**（🟡 T12 两类前置件未列：`hooks/useViewer` + 写操作 wrappers 6 个；`AssetDetail.tsx` 现零管理动作 ⇒ 权限单点件须同批落）；件表 **新建 14 → 16** 待 T12 实现时同步；同一轮自查纠错：T7 提交曾误带 `main.tsx` 原型路由 ⇒ 追加清理笔（`3ab0299`）| 
 | **v1.13** | 2026-09-18 | sunxuewen-rush | **T7 实现期订正** —— **F46**（🟡 §6.1 称类型文案「复用 `market` 组既有键」实测不存在 ⇒ 新建 `type.skill`/`type.mcp`/`type.agent` 3 键，**键数 62 → 65**）；§6.1 加 3 行并注明依据 |
 | **v1.12** | 2026-09-18 | sunxuewen-rush | **T14 实现落档（`labels` 结构体）** —— §5.1 ⑦ 三处订正：**F44** `parentId` 类型（`number` → **父标签 slug `string \| null`**，与 skillhub/`listPublicLabels` 同形）· **F45** 语种解析引用改指 **`requestLocale(c)` 单点**（`asset-item.ts`；`labels.ts`/`assets.ts`/`me.ts` 三处共用）· 标注 `displayName` 回退链抽单点（`pickDisplayName`）防漂移；§11.9 增 **T14 均分 9.47**（A3/C8 破坏性形状变更扣分）；**D7 反证实测**：门户 `/assets/smoke-skill` chips 由空白 → 渲染「智能体」（`browser_exec` 实测）；服务端 **537 tests / 0 fail** |
 | **v1.11** | 2026-09-18 | sunxuewen-rush | **逐 Task 收口打分 + 实现期缺陷订正（纪律：每 Task 收尾即自测/打分）** —— 新增 **§11.9**：T1/T2/T3/T4/T5/T9/T10/T13/**T15** 逐 Task 均分（9.42–9.71，T9 最低）；抓出并修复 **F38**（「14 字段」实为 **15**，4 处）· **F41**（§6.4 prose 4 vs 表 6）· **F42**（调用点「6」实测 **8**）· **F43**（🔴 **漏 3 个 i18n 键**：表 62 / 实现 59 ⇒ 补齐后 **62 = 62**；v1.12 再补 F46 三键 ⇒ **65**）；留证：`errors` 28→35 ✓ · 与 `canManageAsset` 同集 ✓ · 门户零 diff ✓ |

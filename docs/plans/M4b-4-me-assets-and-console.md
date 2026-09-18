@@ -385,6 +385,15 @@
 
 ---
 
+> **实现期前置发现（T7 收尾侦察，2026-09-18）** —— 开工 T12 前须先补 **2 类件**（否则权限单点件 = 死代码）：
+> 1. **`hooks/useViewer`（会话/档位读取）缺失** —— web 侧现无 `useSession`/viewer 抽象（`hooks/` 仅 `use-mobile`/`useApi`/`useMarketQuery`；`api/auth.ts` 为 better-auth 客户端）⇒ **按权限显隐的前提件**。
+> 2. **写操作 wrappers 缺失** —— `api/assets.ts` 仅 3 导出（list/detail/params）· `api/labels.ts` 仅 `fetchLabels`
+>    ⇒ 需补 `patchAssetStatus` · `deleteAsset` · `deleteVersion` · `yankVersion` · `attachLabel` · `detachLabel`。
+> 3. `pages/AssetDetail.tsx`（M4a 只读页）**现零管理动作、零权限逻辑** ⇒ `lib/asset-permissions.ts` 必须与
+>    `AssetAdminCard` + 版本行内动作**同批落**（单独落 = 无消费点死件）。
+>
+> ⇒ **T12 件数 = 原 4 新建件 + 上述 2 类补件**（**件表 新建 14 → 16**，实现时同步）。
+
 ### T12 · 前端：**资产详情页管理区**（改 M4a 已交付页 `pages/AssetDetail.tsx`）
 
 **目标**：把「全部管理动作」落到**唯一完整视图**上，**逐动作按服务端守卫显隐**（批 design §4.6）。
