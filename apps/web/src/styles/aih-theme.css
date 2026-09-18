@@ -151,7 +151,8 @@ html[data-base="aih"] {
 /* ── D. 旧层迁移面（T24：原 `tokens.css` / `global.css` 中「Tailwind 不提供」的项） ───────────────
  * 迁移原则 = **保持无层**（不套 `@layer`）：与迁移前**同优先级**（原 `global.css` 亦无层），
  * 零级联变化；套 `@layer base` 反而会让这些声明降级为可被 utilities 覆盖（无此需求）。
- * 规则 = 原 `global.css` 逐条搬（6px 细蓝滚动条 · body 两项 · reduced-motion 全关）；
+ * 规则 = 原 `global.css` 逐条搬（body 两项 · reduced-motion 全关）；
+ * ⚠️ 原列在括号里的「6px 细蓝滚动条」已于 2026-09-17 **删除**（那套 `::-webkit-scrollbar*` 从未生效 —— 见下方滚动条节）。
  * 滚动条四值见上方 `@theme`（design §4.4 ⑥「细滚动条沿用，值迁入 `@theme`」）。
  * 已删项（Tailwind 已承接）：`* { margin/padding/box-sizing }` reset → Preflight；
  * `body` 的 font-family/background/color → Tailwind base + AIH `@theme`/`--background`；
