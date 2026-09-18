@@ -153,7 +153,7 @@ shadcn 官方 Agent Skill（本机 `~/04-ws/00-ui/skills/shadcn`）的 16 条硬
 
 | 变更 | 端点/位置 | 归属批 | 来源 |
 |------|----------|-------|------|
-| 新增「我可管理的资产」读面 | `GET /api/me/assets?status&q&limit&offset` | **M4b-4** | 主 design §7.2 R6 |
+| 新增「**我名下的资产**」读面（2026-09-18 修正为 owner-only） | `GET /api/me/assets?status&q&limit&offset` | **M4b-4** | 主 design §7.2 R6 |
 | 非 ACTIVE 读面授权集扩展 | `assertAssetReadable`（含 `.../versions`/`files`/`download` 族） | **M4b-4** | 主 design §7.2 R6-b |
 | `ReviewListItem` 增 `reviewComment` 字段（列表露拒绝原因） | `review/query.ts` 的 `LIST_SELECT` | **M4b-3** | 2026-09-14 用户拍板 D34（推荐采纳） |
 
