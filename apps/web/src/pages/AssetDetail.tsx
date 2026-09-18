@@ -197,9 +197,9 @@ export function AssetDetail() {
             {detail.latestName ?? detail.slug}
           </h1>
         </div>
-        {detail.labels.length > 0 && (
+        {(detail.labels?.length ?? 0) > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {detail.labels.map((label) => (
+            {detail.labels?.map((label) => (
               <span
                 key={label.slug}
                 className="inline-flex items-center rounded-full bg-secondary px-3 py-[3px] text-[11px] font-medium text-secondary-foreground"

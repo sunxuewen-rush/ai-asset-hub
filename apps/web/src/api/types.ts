@@ -23,6 +23,18 @@ export interface LabelDto {
   displayName: string | null;
 }
 
+/**
+ * 资产已挂标签（**结构体** —— M4b-4 T14 · Q14=B：服务端按请求语种解析好 `displayName`
+ * ⇒ 前端**零 join**；`parentId` 为父标签 slug）。对齐 skillhub `SkillLabelDto`。
+ */
+export interface AssetLabelRef {
+  slug: string;
+  type: string;
+  parentId: string | null;
+  /** 服务端回退链兜底：locale → 主语言 → en → slug ⇒ **永不为空** */
+  displayName: string;
+}
+
 /** 列表/详情资产项（R5/R6：latest* 投影 + ownerDisplayName——匿名可见面；扁平坐标 = 裸 slug） */
 export interface AssetItem {
   id: number;
@@ -42,7 +54,8 @@ export interface AssetItem {
   starredByMe: boolean;
   createdAt: string;
   updatedAt: string;
-  labels: ReadonlyArray<Pick<LabelDto, 'slug' | 'displayName'>>;
+  /** M4b-4 T14：已挂标签（**仅详情面与个人面下发**；公开列表面不含 ⇒ 可选） */
+  labels?: readonly AssetLabelRef[];
 }
 
 export interface ListEnvelope<T> {
