@@ -23,7 +23,14 @@ import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, auditLog, labelDefinition, user } from '../db/schema/index.js';
+import {
+  asset,
+  assetLabel,
+  auditLog,
+  labelDefinition,
+  labelTranslation,
+  user,
+} from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -91,6 +98,13 @@ async function getAssetDetail(slug: string) {
     headers: { host: 'localhost:3000', ...ORIGIN },
   });
 }
+/** M4b-4 T14：带 Accept-Language 的详情读（验证 displayName 语种） */
+async function getAssetDetailLocale(slug: string, locale: string) {
+  return buildApp().request(`/api/assets/${slug}`, {
+    method: 'GET',
+    headers: { host: 'localhost:3000', ...ORIGIN, 'accept-language': locale },
+  });
+}
 
 let seq = 0;
 let assetSlug: string;
@@ -144,8 +158,16 @@ describe('资产挂载 API（06 §3/§5.3 + design §5 R11）', () => {
     await seedLabel(lab);
     const res = await put(`/api/assets/${assetSlug}/labels/${lab}`, await cookieFor(ownerId));
     expect(res.status).toBe(204);
-    const detail = (await (await getAssetDetail(assetSlug)).json()) as { labels: string[] };
-    expect(detail.labels).toContain(lab);
+    // M4b-4 T14（Q14=B）：详情面 labels 升级为**结构体**（含 type/displayName/parentId）
+    const detail = (await (await getAssetDetail(assetSlug)).json()) as {
+      labels: Array<{ slug: string; type: string; displayName: string; parentId: string | null }>;
+    };
+    expect(detail.labels.map((l) => l.slug)).toContain(lab);
+    // 结构体字段实测：type 透传 + displayName 回退链兜底（本 fixture 无翻译 ⇒ 落 slug）
+    const ref = detail.labels.find((l) => l.slug === lab)!;
+    expect(ref.type).toBe('RECOMMENDED');
+    expect(ref.displayName).toBe(lab);
+    expect(ref.parentId).toBeNull();
   });
 
   it('RECOMMENDED：管理档（非 owner）可挂', async () => {
@@ -223,5 +245,40 @@ describe('资产挂载 API（06 §3/§5.3 + design §5 R11）', () => {
     await seedLabel(lab);
     const res = await put(`/api/assets/${assetSlug}/labels/${lab}`, await cookieFor(strangerId));
     expect(res.status).toBe(403);
+  });
+});
+
+describe('T14 · labels 结构体（Q14=B：服务端解析 displayName ⇒ 前端零 join）', () => {
+  it('displayName 随 Accept-Language：zh-CN ⇒ 中文 · en ⇒ 英文 · 未命中 ⇒ en 兜底', async () => {
+    const slug = `${PREFIX}l10n`;
+    const labelId = await seedLabel(slug);
+    await db.insert(labelTranslation).values([
+      { labelId, locale: 'zh', displayName: '智能体' },
+      { labelId, locale: 'en', displayName: 'Agentic' },
+    ]);
+    await put(`/api/assets/${assetSlug}/labels/${slug}`, await cookieFor(ownerId));
+
+    const readName = async (locale: string) => {
+      const body = (await (await getAssetDetailLocale(assetSlug, locale)).json()) as {
+        labels: Array<{ slug: string; type: string; displayName: string; parentId: string | null }>;
+      };
+      return body.labels.find((l) => l.slug === slug)!;
+    };
+
+    // ① 精确命中
+    expect((await readName('zh')).displayName).toBe('智能体');
+    expect((await readName('en')).displayName).toBe('Agentic');
+    // ② 主语言前缀回退（请求 `zh-CN` ⇒ 命中存量 `zh` 翻译）
+    expect((await readName('zh-CN')).displayName).toBe('智能体');
+    // ③ 均未命中 ⇒ `en` 兜底（确定性——不落随机首翻译）
+    expect((await readName('fr-FR')).displayName).toBe('Agentic');
+    // 结构体字段齐（type 透传给前端做「特权标签」判定用）
+    const ref = await readName('en');
+    expect(ref.type).toBe('RECOMMENDED');
+    expect(ref.parentId).toBeNull();
+
+    // 自清理（该定义无 owner 归属 —— 防污染共享测试库的 label 计数类断言）
+    await db.delete(assetLabel).where(eq(assetLabel.labelId, labelId));
+    await db.delete(labelDefinition).where(eq(labelDefinition.id, labelId));
   });
 });

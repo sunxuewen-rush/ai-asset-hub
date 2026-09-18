@@ -13,8 +13,24 @@
  */
 
 import type { AssetItemMeta, AssetRow } from '../assets/service.js';
+import type { PublicLabel } from '../labels/service.js';
 
-export function assetItem(row: AssetRow, meta?: AssetItemMeta | null, starredByMe = false) {
+/**
+ * 请求语种（`Accept-Language` 首段，去 q 权重）——**单点收口**（M4b-4 T14）。
+ * 与公开候选面 `GET /api/labels`（`http/labels.ts`）**同源** ⇒ 同一页面内「已挂标签」与
+ * 「候选标签」语言一致，不出现中英混排。
+ */
+export function requestLocale(c: import('hono').Context): string {
+  return (c.req.header('accept-language') ?? 'en').split(',')[0]!.split(';')[0]!.trim();
+}
+
+export function assetItem(
+  row: AssetRow,
+  meta?: AssetItemMeta | null,
+  starredByMe = false,
+  /** M4b-4 T14：**可选**标签结构体 —— 不传 ⇒ **不下发该字段**（公开列表面形状零变化） */
+  labels?: readonly PublicLabel[],
+) {
   return {
     id: row.id,
     slug: row.slug,
@@ -34,6 +50,8 @@ export function assetItem(row: AssetRow, meta?: AssetItemMeta | null, starredByM
     starCount: row.starCount,
     /** 我是否已收藏（匿名 ⇒ false） */
     starredByMe,
+    /** M4b-4 T14：已挂标签结构体（仅传了才下发；`displayName` 已按请求语种解析） */
+    ...(labels !== undefined ? { labels } : {}),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

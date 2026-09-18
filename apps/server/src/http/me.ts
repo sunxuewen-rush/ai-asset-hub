@@ -15,7 +15,8 @@ import { listViewableAssets, loadAssetItemMeta } from '../assets/service.js';
 import { starredAssetIds } from '../assets/stars.js';
 import type { Db } from '../db/client.js';
 import { assetStatusSchema } from '../db/schema/index.js';
-import { assetItem } from './asset-item.js';
+import { labelsOfAssets } from '../labels/service.js';
+import { assetItem, requestLocale } from './asset-item.js';
 import { requireAuth } from './auth-middleware.js';
 
 /** 与公开面 `listQuerySchema` 对齐（差异 = `status` 维度：本面默认 `'ALL'`） */
@@ -57,8 +58,16 @@ export function createMeRoutes({ db }: MeRoutesDeps): Hono {
       principal.userId,
       items.map((i) => i.id),
     );
+    // M4b-4 T14：并列一次批量 labels（一次 inArray 防 N+1；语种取 Accept-Language）
+    const labelsMap = await labelsOfAssets(
+      db,
+      items.map((i) => i.id),
+      requestLocale(c),
+    );
     return c.json({
-      items: items.map((i) => assetItem(i, metas.get(i.id), starred.has(i.id))),
+      items: items.map((i) =>
+        assetItem(i, metas.get(i.id), starred.has(i.id), labelsMap.get(i.id) ?? []),
+      ),
       total,
       limit,
       offset,

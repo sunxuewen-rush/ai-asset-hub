@@ -380,6 +380,24 @@ export async function reorderLabels(
   });
 }
 
+/**
+ * displayName 回退链（06 §2.3 永不空显示）：locale 精确 → 主语言前缀（`zh-CN` → `zh`）→ `en` → **slug**。
+ * M4b-4 T14：由 `listPublicLabels` 内联逻辑**抽出单点** —— 候选面与「资产已挂标签」面共用，
+ * 防两条路径的回退链漂移。
+ */
+function pickDisplayName(
+  translations: Array<{ locale: string; displayName: string }> | undefined,
+  locale: string,
+  fallback: string,
+): string {
+  const primary = locale.split('-')[0]!;
+  const hit =
+    translations?.find((x) => x.locale === locale) ??
+    translations?.find((x) => x.locale === primary) ??
+    translations?.find((x) => x.locale === 'en');
+  return hit?.displayName ?? fallback;
+}
+
 /** 公开列表（06 §5.1：RECOMMENDED + visible_in_filter；扁平 + parentId slug + displayName 回退） */
 export async function listPublicLabels(db: Db, locale: string): Promise<PublicLabel[]> {
   const defs = await db
@@ -405,17 +423,11 @@ export async function listPublicLabels(db: Db, locale: string): Promise<PublicLa
     // displayName 回退链：请求 locale 精确 → 主语言前缀（zh-CN → zh）→ en → slug
     // （06 §2.3 永不空显示；skillhub LabelLocalizationService 逐字同构——D5：删 t[0] 层，
     //   en 未命中直落 slug——确定性兜底，多语言无 en 时不再显示随机首翻译）
-    const t = translations.get(d.id) ?? [];
-    const primary = locale.split('-')[0]!;
-    const hit =
-      t.find((x) => x.locale === locale) ??
-      t.find((x) => x.locale === primary) ??
-      t.find((x) => x.locale === 'en');
     return {
       slug: d.slug,
       type: d.type,
       parentId: d.parentId === null ? null : (defRows.get(d.parentId) ?? null),
-      displayName: hit?.displayName ?? d.slug,
+      displayName: pickDisplayName(translations.get(d.id), locale, d.slug),
     };
   });
 }
@@ -569,13 +581,67 @@ export async function detachLabel(
   });
 }
 
-/** 资产挂载的 label slug 列表（详情响应——06 §5.3 查询响应；挂载顺序无关——按 label id 稳定序） */
-export async function labelsOfAsset(db: Db, assetId: number): Promise<string[]> {
+/**
+ * 资产已挂标签（**结构体** —— M4b-4 T14 / Q14=B；详情面与个人面列表共用）：
+ * 形状 = `{ slug, type, displayName, parentId }`（对齐 skillhub `SkillLabelDto`）⇒ 前端**零 join**。
+ * 挂载顺序无关（按 `label_definition.id` 稳定序）；`displayName` 语种 = 调用方传入 locale。
+ */
+export async function labelsOfAsset(
+  db: Db,
+  assetId: number,
+  locale: string,
+): Promise<PublicLabel[]> {
+  const byAsset = await labelsOfAssets(db, [assetId], locale);
+  return byAsset.get(assetId) ?? [];
+}
+
+/**
+ * 批量取多资产的已挂标签（M4b-4 T14 —— 列表面**一次 `inArray`**，防 N+1）。
+ * 有界查询：① 挂载关系 join 定义 ② 翻译批 ③ 父级 slug 批（父标签未必挂在同一资产上，
+ * 不能从本批行里取）。
+ */
+export async function labelsOfAssets(
+  db: Db,
+  assetIds: readonly number[],
+  locale: string,
+): Promise<Map<number, PublicLabel[]>> {
+  if (assetIds.length === 0) return new Map();
   const rows = await db
-    .select({ slug: labelDefinition.slug, id: labelDefinition.id })
+    .select({
+      assetId: assetLabel.assetId,
+      id: labelDefinition.id,
+      slug: labelDefinition.slug,
+      type: labelDefinition.type,
+      parentId: labelDefinition.parentId,
+    })
     .from(assetLabel)
     .innerJoin(labelDefinition, eq(assetLabel.labelId, labelDefinition.id))
-    .where(eq(assetLabel.assetId, assetId))
+    .where(inArray(assetLabel.assetId, [...assetIds]))
     .orderBy(labelDefinition.id);
-  return rows.map((r) => r.slug);
+
+  const translations = await translationsOf(db, [...new Set(rows.map((r) => r.id))]);
+  const parentIds = [
+    ...new Set(rows.map((r) => r.parentId).filter((x): x is number => x !== null)),
+  ];
+  const parentRows =
+    parentIds.length > 0
+      ? await db
+          .select({ id: labelDefinition.id, slug: labelDefinition.slug })
+          .from(labelDefinition)
+          .where(inArray(labelDefinition.id, parentIds))
+      : [];
+  const parentSlug = new Map(parentRows.map((p) => [p.id, p.slug]));
+
+  const out = new Map<number, PublicLabel[]>();
+  for (const r of rows) {
+    const list = out.get(r.assetId) ?? [];
+    list.push({
+      slug: r.slug,
+      type: r.type,
+      parentId: r.parentId === null ? null : (parentSlug.get(r.parentId) ?? null),
+      displayName: pickDisplayName(translations.get(r.id), locale, r.slug),
+    });
+    out.set(r.assetId, list);
+  }
+  return out;
 }

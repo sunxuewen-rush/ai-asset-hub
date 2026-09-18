@@ -596,12 +596,14 @@ return viewer;
 > 本批按 **skillhub 真仓做法**一次根治（对标实测：其 `SkillLabelDto = { slug, type, displayName, parentId }`）。
 
 - **形状**（对齐 skillhub）：
-  ```ts
-  labels: Array<{ slug: string; type: 'RECOMMENDED' | 'PRIVILEGED';
-                  displayName: string | null; parentId: number | null }>
+    ```ts
+  // **v1.11 实测订正（F44）**：`parentId` = **父标签 slug（`string | null`）**，非 id ——
+  // 与既有 `listPublicLabels`（`PublicLabel.parentId`）及 skillhub `SkillLabelDto` 同形
+  labels: Array<{ slug: string; type: 'RECOMMENDED' | 'PRIVILEGED'; displayName: string; parentId: string | null }>
   ```
-- **`displayName` 语种口径**：与公开候选面 `GET /api/labels` **同源** —— 取 `Accept-Language` 首段
-  （`http/labels.ts:66` 既有写法）⇒ 同页面内「已挂标签」与「候选标签」**语言一致**（不中英混排）
+- **`displayName` 语种口径**：与公开候选面 `GET /api/labels` **同源** —— 取 `Accept-Language` 首段；
+  **v1.12 实现期收口**：原 `http/labels.ts:66` 内联表达式抽为 **`http/asset-item.ts` `requestLocale(c)`** 单点，
+  由 `labels.ts` / `assets.ts`（详情）/ `me.ts`（个人面）**三处共用** ⇒ 语种解析只有一份实现（防三处漂移）
 - **落点（4 处）**：
   1. `apps/web/src/api/types.ts` —— 标签形状类型改写（**v1.10 订正**：实测资产响应类型**不在** `packages/protocol`，
      而在 web 的 `api/types.ts` ⇒ **该处才是形状 SSOT**；协议层本批**零改动**）
@@ -1193,6 +1195,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **T10** 规范同步 | 文档 15 维 | **9.56** | 反证 9.0（未逐条把规范行与真码守卫对照——只核了「与 canManageAsset 同集」）|
 | **T13** `DataTable` prop | 代码 18 维 | **9.63** | C5 8.5（加性 prop 无单测；两消费点零回归靠既有套件）|
 | **T15** star 服务端 | 代码 18 维 | **9.55** | 保持（§11.7 打分；B2 并发用例缺 · C9 已订正）|
+| **T14** `labels` 结构体 | 代码 18 维 | **9.47** | **A3/C8 9.0**（`string[] → object[]` 属**破坏性形状变更**——仓内消费者 1 处已同步、CLI/protocol 0 命中，外部面未评估）· **B2 9.0**（父标签不挂同资产时 `parentId` 解析批未测）· **C5 9.5**（N+1 无 SQL 计数断言）· **C9 9.5**（F44 已订正）|
 
 **本轮实现期缺陷（全部已修）**
 
@@ -1202,6 +1205,8 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **F41** | ⚪ | 文内自相矛盾 | §6.4 prose「仅补下列 **4** 键」vs 表列 **6** 行 | ✅ prose 改 6 并注明「以表为准」 |
 | **F42** | 🟡 | 调用点计数失真 | 「**6** 个调用点」实测 **8**（详情 · 版本列表 · **版本对比** · 版本详情 · 文件 · **star 收藏/取消**（T15 新增）· 下载）—— 原清单漏「版本对比」且未回填 T15 新增 2 处 | ✅ 改 8 + 点名清单（design + plan）|
 | **F43** | 🔴 | **实现缺陷（漏做）** | §6.1 表 **62 键**，实现只落 **59** —— 缺 `toast.versionDeleted` / `toast.versionYanked` / `toast.assetDeleted` | ✅ 补进 zh/en；复核 **62 = 62** ✅ |
+| **F44** | 🟡 | 类型声明失真 | §5.1 ⑦ 写 `parentId: number \| null`，实现与 skillhub 同形为 **父标签 slug（`string \| null`）** | ✅ 订正（v1.12）|
+| **F45** | ⚪ | 引用过期 | §5.1 ⑦ 语种口径指向 `http/labels.ts:66` 内联式 —— T14 已抽为 `requestLocale(c)` 单点 | ✅ 改指新单点（三处共用）|
 
 **换靶实测通过项（留证）**：`errors` 组 **28 → 35 键**（+7，与 §6.3 声明一致 ✓，先前的 33 是计数法漏了两处非引号键）·
 `canManageAsset` = `owner ∨ role ≥ ADMIN`（`assets/manage.ts:19-20` 真码）⇒「R6-b 与 canManageAsset 同集」声明**成立** ✓ ·
@@ -1209,6 +1214,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 
 ## 12. 修订记录
 
+| **v1.12** | 2026-09-18 | sunxuewen-rush | **T14 实现落档（`labels` 结构体）** —— §5.1 ⑦ 三处订正：**F44** `parentId` 类型（`number` → **父标签 slug `string \| null`**，与 skillhub/`listPublicLabels` 同形）· **F45** 语种解析引用改指 **`requestLocale(c)` 单点**（`asset-item.ts`；`labels.ts`/`assets.ts`/`me.ts` 三处共用）· 标注 `displayName` 回退链抽单点（`pickDisplayName`）防漂移；§11.9 增 **T14 均分 9.47**（A3/C8 破坏性形状变更扣分）；**D7 反证实测**：门户 `/assets/smoke-skill` chips 由空白 → 渲染「智能体」（`browser_exec` 实测）；服务端 **537 tests / 0 fail** |
 | **v1.11** | 2026-09-18 | sunxuewen-rush | **逐 Task 收口打分 + 实现期缺陷订正（纪律：每 Task 收尾即自测/打分）** —— 新增 **§11.9**：T1/T2/T3/T4/T5/T9/T10/T13/**T15** 逐 Task 均分（9.42–9.71，T9 最低）；抓出并修复 **F38**（「14 字段」实为 **15**，4 处）· **F41**（§6.4 prose 4 vs 表 6）· **F42**（调用点「6」实测 **8**）· **F43**（🔴 **漏 3 个 i18n 键**：表 62 / 实现 59 ⇒ 补齐后 **62 = 62**）；留证：`errors` 28→35 ✓ · 与 `canManageAsset` 同集 ✓ · 门户零 diff ✓ |
 | **v1.10** | 2026-09-18 | sunxuewen-rush | **T15 实现期发现订正（设计声明的实测复核）** —— **F36**：§5.1 ⑦/⑧ 与批 plan T14/T15/T16 声称「`packages/protocol` 增字段（协议 = SSOT 先改）」，实测 protocol **无资产响应形状**（`AssetItem` 在 `apps/web/src/api/types.ts:27`）⇒ 两处落点改指 web `api/types.ts`（**形状 SSOT 实际所在**）+ 注明协议层零改动；批 plan 三处 Files/步骤同步（T15 类型列 `server + protocol` → **`server`**）· **F37**：登记「并发双向写入 / 用户删除级联」用例缺口语义归 **T4** · §11.8 复评 **9.69** · 本版**零实现改动**（订正的是文档） |
 | **v1.9** | 2026-09-18 | sunxuewen-rush | **抽屉取消 —— 列表直接进入完整详情（用户「简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）** —— ① **§4.3 整节改写为「取消」**（作废留痕：四段 → 纯预览 → ~~抽屉~~ **取消**）· 操作列 = `Eye` 图标钮（`Button asChild` + `Link` 直跳 `/assets/:slug`，与 M4b-3 同款）· `ScanEye` 随抽屉退役 ② **件表 新建 15 → 14**（~~`AssetDrawer.tsx`~~）③ **§6.1 删 6 键**（`drawer.title`/`section.previewHint`/`desc.*`×2/`stat.*`×2）· `section.labels` 保留供详情页标签卡 ④ **dogfood G7/G8 改写**（真链接 + `pathname` + **全站无 sheet 反证** / 详情页唯一视图）⑤ §4.5 组件树、§1.3 批界、§2.1d 净结果表同步 ⑥ **§4.6 补缺口**：版本列表**沿用 M4a 既有渲染**、本批只增行内动作（F35）⑦ **§11.7 复评 9.69**（F31–F35 全处置 + 反证 2 条）· 本版**零实现改动** |

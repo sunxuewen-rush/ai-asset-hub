@@ -196,7 +196,7 @@ describe('GET /api/me/assets（R6 个人面）', () => {
     expect(body.map((i) => i.slug)).toEqual([`${PREFIX}hid`]);
   });
 
-  it('★ 形状与公开面同构：14 字段齐 + latest*/ownerDisplayName 批注入非 null', async () => {
+  it('★ 形状与公开面同构（+ `labels` 一处差异）：16 字段齐 + latest*/ownerDisplayName 批注入非 null', async () => {
     const { body } = await fetchMine(await signInCookie(auth, ownerA), '?status=ACTIVE');
     const item = body[0]!;
     expect(Object.keys(item).sort()).toEqual(
@@ -204,6 +204,7 @@ describe('GET /api/me/assets（R6 个人面）', () => {
         'createdAt',
         'downloadCount',
         'id',
+        'labels',
         'latestDescription',
         'latestName',
         'latestVersion',
@@ -223,5 +224,7 @@ describe('GET /api/me/assets（R6 个人面）', () => {
     expect(item.ownerDisplayName).toBe(`${PREFIX}owner-a`);
     expect(item.starCount).toBe(0);
     expect(item.starredByMe).toBe(false);
+    // M4b-4 T14：个人面**下发**已挂标签（公开列表面不下发 —— 唯一形状差异）
+    expect(Array.isArray((item as unknown as { labels: unknown[] }).labels)).toBe(true);
   });
 });

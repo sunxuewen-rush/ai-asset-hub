@@ -21,6 +21,7 @@ import {
   translationInputSchema,
   updateLabel,
 } from '../labels/service.js';
+import { requestLocale } from './asset-item.js';
 import { requireAuth } from './auth-middleware.js';
 
 const TRANSLATION = z.object({
@@ -63,7 +64,7 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   // 公开列表（匿名——06 §5.1；displayName 回退 Accept-Language → en → slug）
   app.get('/', async (c) => {
-    const locale = (c.req.header('accept-language') ?? 'en').split(',')[0]!.split(';')[0]!.trim();
+    const locale = requestLocale(c);
     const items = await listPublicLabels(db, locale);
     return c.json(items);
   });

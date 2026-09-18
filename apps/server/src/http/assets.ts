@@ -53,7 +53,7 @@ import { attachLabel, detachLabel, labelSlugSchema, labelsOfAsset } from '../lab
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
 import { canSubmitReview, submitVersion } from '../review/service.js';
 import type { ObjectStorage } from '../storage/types.js';
-import { assetItem } from './asset-item.js';
+import { assetItem, requestLocale } from './asset-item.js';
 import { assertTokenScoped, requireAuth } from './auth-middleware.js';
 
 export interface AssetRoutesDeps {
@@ -281,12 +281,13 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const slug = c.req.param('slug');
     const row = await loadAssetBySlug(db, slug);
     await assertAssetReadable(c, row); // 读面 403/404 分层（design §7）
-    // 详情补 labels[]（06 §5.3——挂载 slug 列表；列表项不含）
-    const labels = await labelsOfAsset(db, row.id);
+    // M4b-4 T14：详情面 labels = **结构体**（含 type/displayName/parentId；语种取 Accept-Language）
+    // ⇒ 修复 D7（门户 chips 因服务端只返 slug 而显示空白）
+    const labels = await labelsOfAsset(db, row.id, requestLocale(c));
     // R5/R6：latest 版本投影 + owner 显示名（详情单行也走批函数——同一语义）
     const metaMap = await loadAssetItemMeta(db, [row]);
     const starredByMe = await hasStarred(db, principal?.userId ?? null, row.id);
-    return c.json({ ...assetItem(row, metaMap.get(row.id), starredByMe), labels });
+    return c.json(assetItem(row, metaMap.get(row.id), starredByMe, labels));
   });
 
   // GET /api/assets/{slug}/versions（T14：版本列表——Q1 DRAFT 授权过滤）
