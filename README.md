@@ -27,6 +27,25 @@ AI Asset Hub 填补空白：**多类型资产（原生 type 设计）· TS 全�
 | 安装即用 | CLI 一条命令安装到 agent 技能目录 / MCP 配置 / agent 角色目录 |
 | 治理与安全 | 报告/隐藏/归档 + 安全扫描扩展点 + 全链路审计 |
 
+## 快速开始
+
+![门户首屏](docs/smoke/1-home.png)
+
+**运行环境**：Bun ≥ 1.3.14 · Node ≥ 22 · Docker（PostgreSQL 17）。
+
+```bash
+git clone https://github.com/sunxuewen-rush/ai-asset-hub.git && cd ai-asset-hub
+docker compose up -d db                      # PostgreSQL（宿主端口 5433）
+bun install
+bun run db:migrate                           # forward-only 迁移
+SEED_ADMIN_USERNAME=admin SEED_ADMIN_PASSWORD=你的口令 bun run db:seed
+bun run --filter=@ai-asset-hub/server dev    # API  :3000
+bun run --filter=@ai-asset-hub/web dev       # 门户 :5173（另开一个终端）
+```
+
+服务起来后：门户 <http://localhost:5173> · API <http://localhost:3000>。
+> CLI（`install` / `publish` / `search` / `auth`）目前是**最小占位**，计划在 M5 生长。
+
 ## 技术栈
 
 TypeScript 全栈（前端 React 19 + Vite，后端 Hono + Drizzle + PostgreSQL，协议校验 zod），单仓库。
@@ -38,6 +57,23 @@ M4-pre ✅ 扁平化重构（4 档角色 / 全局唯一裸 slug / 无空间域 /
 M4b-pre ✅ 认证整车迁移 · M4b-1 ✅ 控制台地基 · M4b-2 ✅ 认证与壳 · M4b-3 ✅ 个人面 A（提交与令牌）。
 下一步：M4b-4 个人面 B。里程碑追踪见 [`docs/00`](docs/00-product-direction.md) §5；
 文档体系说明见 [`docs/README.md`](docs/README.md)。
+
+## 目录结构
+
+```text
+docs/                 设计与协议文档（三层一表：规范 / 设计 / 计划 + 追踪表）+ smoke/（证据与校验脚本）
+packages/protocol     资产协议 zod schema（单一事实源，前后端共用）
+apps/                 server（Hono + Drizzle）· web（React + Vite）· cli（占位，见 M5）
+.github/workflows     CI：typecheck → lint → format:check → 文档体检 → build → 迁移 → 测试
+```
+
+更细的仓库约定见 [`AGENTS.md`](./AGENTS.md)；文档体系入口见 [`docs/README.md`](docs/README.md)。
+
+## 贡献
+
+欢迎提交 Issue 与 PR。开发约定、门禁与命令见 [`AGENTS.md`](./AGENTS.md)；
+文档与里程碑口径见 [`docs/00`](docs/00-product-direction.md) §5/§7。
+人类贡献者指南 `CONTRIBUTING.md` 计划在 **M6（开源发布）** 补齐，在此之前 AGENTS.md 的协作约定同样适用。
 
 ## 致谢与开源合规
 
