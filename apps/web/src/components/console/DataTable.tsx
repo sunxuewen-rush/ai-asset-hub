@@ -54,6 +54,7 @@ export function DataTable<TData extends RowDataLike>({
   skeletonRows = 5,
   rowActions,
   rowActionsLabel,
+  rowActionsHeader,
 }: {
   /** 列定义（TanStack `LegacyColumnDef`——`accessorKey`/`header`/`cell` 与官方 recipe 同形） */
   columns: Array<LegacyColumnDef<TData, unknown>>;
@@ -66,10 +67,15 @@ export function DataTable<TData extends RowDataLike>({
   /** 空态文案（i18n 由调用方传入） */
   emptyMessage: string;
   skeletonRows?: number;
-  /** 行内动作槽：给定则**追加一列**（表头留空 + `sr-only` 标签），单元格右对齐 */
+  /** 行内动作槽：给定则**追加一列**（`rowActionsHeader` 缺省时表头留空 + `sr-only` 标签） */
   rowActions?: (row: TData) => ReactNode;
   /** 动作列的无障碍表头名（`rowActions` 存在时必填） */
   rowActionsLabel?: string;
+  /**
+   * 动作列的**可见**表头文案（缺省 `undefined` ⇒ 维持「表头留空 + `sr-only`」既有形态 ——
+   * 加性可选 prop，不传零行为变化；调色板页类需要可见「操作」表头时传入）。
+   */
+  rowActionsHeader?: string;
 }) {
   const table = useLegacyTable({
     data: data as TData[],
@@ -108,7 +114,7 @@ export function DataTable<TData extends RowDataLike>({
             ))}
             {rowActions ? (
               <TableHead className="text-right">
-                <span className="sr-only">{rowActionsLabel}</span>
+                {rowActionsHeader ?? <span className="sr-only">{rowActionsLabel}</span>}
               </TableHead>
             ) : null}
           </TableRow>
