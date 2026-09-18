@@ -1,7 +1,8 @@
 # 数据模型设计
 
 > Date: 2026-09-04
-> Updated: （**v1.7：M4b-4 T15 收藏最小集落地**——§5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`**（迁移 0012）· 新增 **§5.35 `asset_star`**（收藏关系：`UNIQUE(asset_id,user_id)` + 双向 `ON DELETE CASCADE`）· 运行库终态 **15 表** = 官方认证 6 + **业务 9**）
+> Updated: （**v1.8：M4b-4 T10 规范同步** —— §7 补「资产级非 ACTIVE 授权集」注记（owner/管理档/超管 · 六面同一守卫 · 集外 404）+ 状态运营语义补实（`HIDDEN` 临时下架可恢复 · `ARCHIVED` 长期退役）
+> v1.7（M4b-4 T15 收藏最小集落地）——§5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`**（迁移 0012）· 新增 **§5.35 `asset_star`**（收藏关系：`UNIQUE(asset_id,user_id)` + 双向 `ON DELETE CASCADE`）· 运行库终态 **15 表** = 官方认证 6 + **业务 9**）
 > v1.6（M4b-pre 认证整车迁移同步）——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.rol**；**v1.5：M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 **）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **10 修订记录**。
 > Status: 定稿（M1 已按 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记；M3 已按 v1.4 同步八态/asset_version 五列/review_task WITHDRAWN/读面分治；**M4-pre 已按 v1.5 同步扁平化模型（迁移 0005-0007）；M4b-pre 已按 v1.6 同步认证整车迁移——迁移 0008-0011 实落；**M4b-4 已按 v1.7 同步收藏最小集——迁移 0012 实落，运行库终态 15 表 = 官方认证 6 表（user/session/account/verification/device_code/apikey）+ 业务 9 表**）
@@ -190,6 +191,10 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 - 资产状态独立于版本：`ACTIVE/HIDDEN/ARCHIVED`（隐藏/归档作用于资产整体，不作用于单版本）
 
 **版本读面可见性（M2 补注 → M3 八态显式分治 → M4-pre 同步，2026-09-10）**：
+
+**资产级非 ACTIVE 授权集（M4b-4 T10 补注，2026-09-18）**：`asset.status ≠ ACTIVE` 时，**资产读面**（详情/版本列表/版本详情/文件/下载/预览六面**同一守卫**）授权集 = **owner 本人 · 管理档（`role ≥ 10`）· 超管**；集外（含匿名与其他登录用户）同 **404**（不泄露存在性，无 403 出口）。
+
+**状态运营语义（M4b-4 T10 补实）**：`HIDDEN` = **临时下架 / 可恢复**（owner 治理动作，随时 `→ ACTIVE`）· `ARCHIVED` = **长期退役 / 停止维护**（保留读面与留档，恢复**非**常规动作）—— 本批详情页管理区「恢复」按钮的**判据依据**（`HIDDEN` 显示恢复；`ARCHIVED` 亦提供恢复但语义为「重新启用」，文案统一 `action.restore`）。
 `PUBLISHED` 公开（资产无可见性维度——`ACTIVE` 即公开，含匿名）；`YANKED` 曾公开留档（详情公开可读禁下载）；
 未公开族（DRAFT/SCANNING/SCAN_FAILED/UPLOADED/PENDING_REVIEW/REJECTED）仅资产 owner / 版本上传者本人 /
 管理档（`role >= ADMIN`）/ SUPER_ADMIN 可见——列表过滤 + 详情无预览权 → 400
@@ -225,6 +230,7 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 
 ## 10. 修订记录
 
+| **v1.8** | 2026-09-18 | sunxuewen-rush | **M4b-4 T10 规范同步（Q11 A 随批即改）**：① §7 补 **「资产级非 ACTIVE 授权集」**注记——`status ≠ ACTIVE` 时六面（详情/版本列表/版本详情/文件/下载/预览）**同一守卫**，授权集 = **owner 本人 · 管理档 · 超管**，集外 404（无 403）② §7 补 **状态运营语义**：`HIDDEN` = 临时下架/可恢复 · `ARCHIVED` = 长期退役/停止维护（详情页「恢复」动作判据）③ 与 `05` §6.4 v1.10 对齐 |
 | **v1.7** | 2026-09-18 | sunxuewen-rush | **M4b-4 T15 收藏最小集**（批 design v1.8 §5.1 ⑧）：① §5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`** ② 新增 **§5.35 `asset_star`** —— `id · asset_id → asset · user_id → user · created_at`，**`UNIQUE(asset_id,user_id)`**（幂等结构保证）+ **双向 `ON DELETE CASCADE`** ③ 计数范式沿 §3（热查询计数冗余主表、事务内自增；`ON CONFLICT DO NOTHING` 命中不动计数）④ **任意登录用户**可收藏（社交动作，不受 `canManageAsset`）· 不写审计 · 不限流 ⑤ 运行库终态 **14 → 15 表**（官方认证 6 + 业务 9；迁移 **0012**） |
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
