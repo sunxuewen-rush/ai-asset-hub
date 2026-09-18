@@ -1,7 +1,14 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批设计
 
 > Date: 2026-09-18
-> Updated: 2026-09-18（**v1.10：T15 实现期发现订正** —— F36「协议 = SSOT」失真：资产响应形状实际在 `apps/web/src/api/types.ts`（protocol 无此形状）⇒ §5.1 ⑦/⑧ 落点订正 + 批 plan 三处同步；F37 登记测试缺口归 T4 · §11.8 复评 **9.69** · 零实现改动）
+> Updated: 2026-09-18（**v1.21：验收期 UI 调整轮（T11-d）** —— 用户逐条拍板三条：① 门户卡下载图标与详情页一致（退役 `⇣` → lucide `Download`）② **去掉卡片版本号** ③ 卡片星标**改纯展示**（与下载同件同款）+ 位置移到下载右侧 · 连带：`StarButton` 收敛为**单一形态**（撤 `compact`/`form`）· 收藏交互唯一入口 = 详情页 · 卡片改**覆盖层 Link**（整卡可点）· dogfood **G14b（+2）+ G18 改口径** ⇒ **60 PASS / 0 FAIL** · 新增 **F67** 并同步 §3.1 件 15 / G14 / G18 / F59)
+> v1.20（2026-09-18）：**T11-c 覆盖补测轮** —— 用户追问「自测完成并做过 coverage 了么？」自查发现**审计维度缺「覆盖探针」**（F65）+ 实测暴露 **yank 路由层整段零覆盖**且本批 T12 已接其 UI 入口（F66）⇒ ① 新增 `apps/server/src/http/yank-route.test.ts`（**14 例**：鉴权 4 档 / reason 边界 / 状态门 / 坐标 404 / 形态守卫 / token scope 正反）② dogfood 增 **G12b**（真点击撤回分发 ⇒ 状态翻转 + 下载 400 + 重复 400）③ 实测：**全仓 95.60/96.28** · `http/assets.ts` **90.97 → 95.96 lines** · 测试 **537 → 551** · dogfood **53 → 58** ④ **F65/F66 登记**（web 包零测试基建 ⇒ 归 M4b-7/另立项）· 证据 §1/§3/§5/§6 A5/§10 同步)
+> v1.19（2026-09-18）：**T8 作废散点订正（文档面）** —— 用户追问「文档也都对应修改了么？」自查发现 v1.9 的散点扫**只清主口径、漏清活口径**：**14 处**仍按「有抽屉」写（**首轮 8**：批 plan 7 + 主 design 1；**换靶精修谓词再挖 6**：本文件 5 + 主 design 1）⇒ 逐处订正（批 plan **v0.16** / 主 design **v1.55** / **本文件 v1.19**）· **F64 登记**（审计只查关键字不判语义 = 盲区，脚本补「活口径谓词」）· **口径撤回**：T11 收尾「整体审计无未决项」为关键字口径产物 ⇒ 改判「关键字残留 0 · 语义散点 14 处已订正」· 文档 15 维自检 **9.22**)
+> v1.18（2026-09-18）：**T11 收尾回填（执行期）** —— ① **F50 订正**：未消费键原登记「5」⇒ **实测 12 键**（审计扫描）② 件表计数回填：**新建 16 / 改造 19 + 3 文档**（§3.1 +`hooks/useViewer`；§3.2 +wrappers 3 文件 + `apiPut` + `VersionCompare` + `Assets`）③ **§9.7 收尾回填记录**（六项逐条执行）④ 证据 = `docs/smoke/2026-09-18-m4b4-personal-b.md`（五门禁 / G1–G19 = **53 PASS / 0 FAIL** / 门户 36/36 / chain-smoke PASS / 权威行数表 / 整体审计）⑤ **本批交付完成**（T11 为末件）)
+> v1.17（2026-09-18）：**T6 工作台三卡落地（实现期回写）** —— 过渡形态（`ComingSoon` + 按档入口）→ **三卡 landing**：角色裁剪（`role ≥ 10` 三卡三请求 / 否则单卡单请求）+ 每卡独立三态与重试 + 零值照常显示「0」；**卡形态取「内容即 `<Link>`」而非设计字面的「覆盖层」**（覆盖层会吞掉每卡重试按钮的点击 —— 发现 **F61**）；§11.9 增 **T6 均分 9.43** · 发现 **F61–F63** · 认证态断言归 T11 dogfood）
+> v1.16（2026-09-18）：**T16 star 前端接线落地（实现期回写）** —— 新建 `api/stars.ts` + `components/market/StarButton.tsx`（详情页头卡「收藏 N」+ 门户卡紧凑「★ N」两形态）；**门户卡 DOM 结构调整**（`<Link>` 收窄到主体、页脚留链接外 —— 防按钮嵌 `<a>`，F58）；匿名路径实测（零写请求 + 跳登录 + toast）· 门户 dogfood 复跑 **36/36** · §11.9 增 **T16 均分 9.41** · 发现 **F58–F60**）
+> v1.15（2026-09-18）：**T12 详情页管理区落地（实现期回写）** —— 交付面 = 头卡 [下载] + 右栏三卡（元信息 / 标签卡 / 管理卡，按权限显隐）+ 版本 Tab 行内动作（删除 / 撤回分发）+ 配套 6 件；**件表口径变化**（新建 15 → **16**（`hooks/useViewer`）· 改造 13 → **19**（`api/assets|versions|labels|client` + `VersionCompare` 加性 `rowActions` + `Assets` 共用件回改）—— **计数回填见 §9.7 ⑥（T11 收尾）**）；**实现期发现 F48–F57**（含 en 3 值中文泄漏修正 · i18n assets 组 **65 → 79** · 版本徽章 3 → 8 态）· §11.9 增 **T12 均分 9.43**）
+> v1.10（2026-09-18）：**T15 实现期发现订正** —— F36「协议 = SSOT」失真：资产响应形状实际在 `apps/web/src/api/types.ts`（protocol 无此形状）⇒ §5.1 ⑦/⑧ 落点订正 + 批 plan 三处同步；F37 登记测试缺口归 T4 · §11.8 复评 **9.69** · 零实现改动）
 > v1.9（2026-09-18）：抽屉取消 —— 列表直接进入完整详情（用户「简单一点，抽屉不做了，取消，一点预览，直接进入完整详情」）——
 > ① §4.3 整节改写为「取消」（作废留痕）· 操作列 = `Eye` 图标钮 **真链接**直跳 `/assets/:slug`（与 M4b-3 同款）② 件表 **新建 15 → 14**（去 `AssetDrawer.tsx`）
 > ③ i18n **删 6 键**（`section.labels` 保留供详情页标签卡）④ dogfood **G7/G8 改写**为「真链接 + `pathname` + 全站无 sheet 反证」⑤ **§4.6 补缺口**：
@@ -287,7 +294,7 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 |------|---------------|---------|
 | U4 工作台三卡 | §2.4 **U4** | 直接实施（三卡集合 / 整卡链接 / 单卡三态 / 待审核数 = 队列 total） |
 | U5 我的资产（**owner-only · 含全部状态**） | §2.4 **U5**（v1.51 修订） | 集合语义与**九列**集合；列表面 ≠ 可见范围（§2.1 R6-a） |
-| U6 资产管理抽屉 = **快速预览**（560） | §2.4 **U6**（v1.51 改写） | 纯预览段集合（描述 / 标签+- / 统计行）+ **管理动作归详情页管理区**（§4.6 · 逐动作按真码守卫显隐） |
+| ~~U6 资产管理抽屉 = 快速预览（560）~~ ⇒ **作废（v1.9 · 用户取消抽屉）** | §2.4 **U6**（v1.51 改写 → **v1.53 取消**） | **无依赖**（抽屉整件取消）；管理动作归**详情页管理区**（§4.6 · 逐动作按真码守卫显隐） |
 | 入口显隐 | §4 表 + 显隐组合锚点 | 本批**零入口改动**（两页均已在「个人」组，任何登录用户可见） |
 | 路由 | §5.1 / §5.2 | 两路由**已存在**（`/dashboard` 真页过渡形态 · `/dashboard/assets` 占位），本批只换实现 |
 | 端点契约 | §7.1 表 | 标签公开列表 / 资产详情 / 版本列表 / 状态治理 / 版本删除 / yank / 资产删除 / 标签挂卸 —— **逐行照抄，零新契约** |
@@ -317,7 +324,7 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 
 ## 3. 件与路由规格
 
-### 3.1 新建件（**14** —— 含 star 最小集 3 件；~~抽屉件~~ 已取消 · v1.9）
+### 3.1 新建件（**16** —— 含 star 最小集 3 件 + T12 前置补件；~~抽屉件~~ 已取消 · v1.9；**计数回填见 §9.7 ⑥**）
 
 | # | 文件 | 说明 |
 |---|------|------|
@@ -330,15 +337,16 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 | 8 | `apps/web/src/api/audit.ts` | 前端封装 `GET /api/audit`（工作台「最近审计」卡用；**M4b-6 审计页复用**）—— **§2.1c 条① P1 追加** |
 | 9 | `apps/web/src/components/console/AssetAdminCard.tsx` | **详情页管理区卡**（§4.6）：按权限显隐的动作组（资产状态 / 版本 / 审核占位 / 危险区）—— **§2.1d R16** |
 | 10 | `apps/web/src/components/console/LabelCard.tsx` | **标签卡 / 标签段共用件**（chips × + `Popover`+`Command` 选择器 + 上限禁用）—— 抽屉「标签+-」段与详情页标签卡**同一件**，防两处漂移（**R9 / R17**） |
-| 11 | `apps/web/src/components/console/asset-stats.tsx` | **下载/收藏展示小件**（图标 + `compactCount` · 图标**一律无色** · 收藏态表达可开关）—— 列表列 / 抽屉统计行 / 详情页元信息卡**三处共用**（**R11 / R12 / R18 / R19 / R23**） |
+| 11 | `apps/web/src/components/console/asset-stats.tsx` | **下载/收藏展示小件**（图标 + `compactCount` · 图标**一律无色** · 收藏态表达可开关）—— 列表列 / 详情页元信息卡**两处共用**（~~抽屉统计行~~ 随抽屉取消 · v1.19）（**R11 / R12 / R18 / R19 / R23**） |
 | 12 | `apps/server/src/assets/stars.ts` | **star 服务**：`starAsset` / `unstarAsset`（**同事务内维护 `asset.star_count` 冗余列**；幂等：已在 ⇒ 不重复计数）—— **v1.8 star 最小集** |
 | 13 | `apps/server/drizzle/00xx_*.sql`（**生成物**） | **迁移**：新表 `asset_star`（`UNIQUE(asset_id, user_id)` + 双向 FK `ON DELETE CASCADE`）+ `asset.star_count integer NOT NULL DEFAULT 0` —— **本批唯一一次迁移**（drizzle-kit 生成，文件入库；`meta/**` 纳入 format 排除清单既有口径） |
 | 14 | `apps/web/src/api/stars.ts` | 前端封装 `PUT / DELETE /api/assets/:slug/star`（与 `api/me.ts` 同族命名） |
-| 15 | `apps/web/src/components/market/StarButton.tsx` | **收藏按钮共用件**（门户卡 + 详情页头卡共用 · 已收藏 ⇒ 星形填充 · 未登录 ⇒ 跳登录提示）—— 与 `asset-stats`（展示件）分工：**本件负责动作** |
+| 15 | `apps/web/src/components/market/StarButton.tsx` | **收藏按钮共用件**（**详情页头卡** —— 2026-09-18 起门户卡改**纯展示**，见 **F67**；已收藏 ⇒ 星形填充 · 未登录 ⇒ 跳登录提示）—— 与 `asset-stats`（展示件）分工：**本件负责动作** |
+| 16 | `apps/web/src/hooks/useViewer.ts` | **观看者（会话 + 档位）读取**：`useAuth()` 的只读包装（零新增请求）+ 派生档门（`canManageAll` / `isSuperAdmin`）—— **T12 前置件**（F47）；上表 `—` 行的 `lib/asset-permissions.ts` 计入本表 |
 | — | `apps/web/src/lib/asset-permissions.ts` | **前端权限判定单点**（`canManage` / `canYank` / `canPrivileged` / 可删版本态集 —— **逐条对齐服务端真码守卫**，矩阵见 §4.6）—— **R16** |
 | — | ~~`components/console/asset-actions.ts`~~ | **作废**（R4：列表无 `⋯` 菜单 ⇒ 无「列表与抽屉同矩阵」需求 ⇒ 无双写漂移风险） |
 
-### 3.2 改造件（**13** 代码 + 3 文档 —— 增量见 §5.1 ⑧ star）
+### 3.2 改造件（**19** 代码 + 3 文档 —— 增量见 §5.1 ⑧ star 与 §9.7 ⑥ 计数回填）
 
 | # | 文件 | 改造内容 |
 |---|------|---------|
@@ -358,6 +366,11 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 
 | 14 | `apps/web/src/components/market/AssetCard.tsx`（M4a 已交付件） | 门户资产卡增 **`StarButton`**（消费者面入口之一）—— **v1.8** |
 | 15 | `apps/server/src/assets/service.ts` · `http/assets.ts` | star 读面：列表/详情响应带 `starCount`（**读 `asset.star_count` 冗余列 ⇒ 零额外查询**）与 `starredByMe`（登录态；匿名 ⇒ `false`）；star 端点挂载 —— **v1.8** |
+
+| 16 | `apps/web/src/api/assets.ts` · `api/versions.ts` · `api/labels.ts` | **写操作 wrappers 6 个**（`patchAssetStatus` / `deleteAsset` / `deleteVersion` / `yankVersion` / `attachLabel` / `detachLabel`）—— **T12 前置件**（F47）|
+| 17 | `apps/web/src/api/client.ts` | 加性补 **`apiPut`**（原仅 get/post/patch/delete；标签挂载端点为 `PUT`）—— **F57** |
+| 18 | `apps/web/src/components/market/detail/VersionCompare.tsx` | 加性可选 prop **`rowActions?`**（版本行右侧动作位；不传 ⇒ 零变化）+ **版本徽章 3 态 → 8 态 `StatusPill`**（修正既有缺陷，用户 2026-09-18 拍板）—— **F48** |
+| 19 | `apps/web/src/pages/Assets.tsx` | 下载/收藏列改用共用件 **`asset-stats`**（原为内联实现）—— **F49** |
 
 > 附注：侧栏条目更名「标签定义」= **i18n 值变更**（`admin.labels` 键名保留；zh/en 各 1 行，已在改造件 #8 覆盖，**不新增文件**）；3 个消费点（`SideNav` / `TopBar` / `main.tsx` 占位标题）随键值一次到位。
 
@@ -638,7 +651,7 @@ return viewer;
   资产可见性仍走既有 `assertAssetReadable`（授权集外 ⇒ **404**，不泄露存在性）
 - **审计**：**不写审计**（与「下载不入审计」同口径，R13 先例）· **不限流**（`PUT`/`DELETE` 幂等，无放大写入）
 - **读面（三处 · 同一形状）**：`assetItem()` 增 **`starCount: number`**（所有面：公开列表 / 详情 / me 列表）·
-  **`starredByMe: boolean`**（需登录态；**匿名 ⇒ `false`**）⇒ 列表「收藏」列 / 抽屉统计行 / 详情页头卡按钮**三处共用**
+  **`starredByMe: boolean`**（需登录态；**匿名 ⇒ `false`**）⇒ 列表「收藏」列 / 详情页头卡按钮**两处消费**（~~抽屉统计行~~ 随抽屉取消 · v1.19）
 - **计数维护**：`star_count` 在**同事务内** ±1（先尝试 INSERT `ON CONFLICT DO NOTHING` ⇒ 仅真正新增/删除时改计数）
 - **未登录**：`401` ⇒ 前端 toast `market.starLoginRequired` + 跳 `/login?next=<当前页>`（原型已演示该交互）
 - **响应类型**：`apps/web/src/api/types.ts` 增 `starCount: number` / `starredByMe: boolean`
@@ -831,8 +844,8 @@ return viewer;
 | 面 | 变动 |
 |----|------|
 | `/dashboard` | 过渡形态（`ComingSoon` 内容槽）→ **三卡 landing**：三张计数/列表卡 + 卡内 CTA + 审计卡 5 行（`role ≥ 10` 才渲染后两卡） |
-| `/dashboard/assets` | 占位页 → **真页**：**九列**列表 + 状态筛选 + q 搜索 + 分页（**无行菜单**；操作列 = 单个「快速预览」图标钮） |
-| 新件 | **资产管理抽屉 = 快速预览**（右侧 `Sheet` · 宽 **560** · 描述 / 标签+- / 统计行 / 「完整详情 ↗」）· **资产详情页管理区**（改 M4a 页 · §4.6） |
+| `/dashboard/assets` | 占位页 → **真页**：**九列**列表 + 状态筛选 + q 搜索 + 分页（**无行菜单**；操作列 = 单个 `Eye`「打开详情」图标钮 · `Button asChild` + `Link` 真链接直跳 `/assets/:slug`） |
+| 新件 | ~~资产管理抽屉 = 快速预览（右侧 `Sheet` · 宽 560）~~ ⇒ **取消（v1.9）** · **资产详情页管理区**（改 M4a 页 · §4.6）—— 管理动作**全部**归此面（入口 = 列表操作列 `Eye` 真链接） |
 | 入口与导航 | **零变动**（两条目已在「个人」组；本批不新增入口、不改显隐） |
 | 视觉 | **零新 token、零新依赖** —— 全部消费 M4a §4.4（SSOT）+ 主 design §10.1 控制台特有值（表格密度 **40** / 抽屉宽 **560**，均已落值） |
 | 空 / 载 / 错态 | 列表：骨架行 + **两套空态文案**；三卡：**每卡独立三态 + 独立重试**；抽屉：段内载态（危险区在版本列表就绪前**保持禁用**） |
@@ -876,11 +889,11 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | G11 | **详情页管理区 5 档权限矩阵**逐档断言：访客 / 登录非 owner（两卡均不渲染）· owner（无 yank / 无特权标签）· 管理档（有 yank）· 超管（+ 特权标签） |
 | G12 | 详情页版本 Tab 行内动作：**owner 视图「删除」仅 2 态、管理档 4 态**；yank 仅 `PUBLISHED` 行且仅管理档（真码守卫对照） |
 | G13 | 筛选 / 搜索变更 ⇒ `page` **回落 1** + URL 同步（`?status=&q=&page=`） |
-| G14 | 门户零回归 **38/38**（+2 = 门户卡收藏按钮 · 详情页收藏入口 —— §9.1 口径随 v1.8 追加） |
+| G14 | 门户零回归 **36/36**（`m4a-dogfood` 实跑基线）· **门户卡星标 = 纯展示**（两枚同款 stat：下载 + 收藏 · 卡内无 `button[aria-pressed]`）· 详情页收藏入口存在 —— 口径随 v1.8 追加、**2026-09-18 随 F67 更新**（见 **G14b**） |
 | G15 | **star 幂等**：同一资产连点两次收藏 ⇒ `starCount` 只 +1（`starred` 恒 true）；取消两次同理只 −1 回基线 |
 | G16 | **`starredByMe` 语义**：匿名 / 未收藏 ⇒ `false`；本人收藏后 ⇒ `true`；**他人**收藏同一资产 ⇒ 我的 `starredByMe` 仍 `false`（计数 +1） |
-| G17 | **star 读面三处一致**：列表「收藏」列 = 抽屉统计行 = 详情页头卡按钮数字（同一 `star_count`） |
-| G18 | **未登录**点「收藏」⇒ **不发写请求**，走 toast + `/login?next=`（§5.1 ⑧） |
+| G17 | **star 读面一致**（**两处 UI + 接口**）：列表「收藏」列 = 详情页头卡按钮数字 = 接口 `starCount`（~~抽屉统计行~~ 随抽屉取消 · v1.19） |
+| G18 | **未登录**点「收藏」⇒ **不发写请求**，走 toast + `/login?next=`（§5.1 ⑧）—— 入口 = **详情页头卡**（2026-09-18 门户卡改纯展示后，F67）|
 | G19 | 全场景 **`NO JS ERRORS`** |
 
 ### 9.4 出口件 ④（本批验收清单）
@@ -924,6 +937,8 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 > 分数/件表/Task 区间 · 头部 v1.51 块的「star 前置」表述压缩为「已被 v1.52 取代」）；证据文件 1 处（star ⬜ 项 ⇒ 依赖消解）+ 其余 2 处（§5 造数、门户零回归口径随件表联动）。
 > **残余命中 3 处均为有意保留**（v1.8 头部对「降级口径作废」的说明 · §11.4 历史维度表 · 批 plan §8 初稿表）。
 >
+> **执行期收尾回填记录（2026-09-18 · T11）**：本节 ①–⑥ 逐条执行 —— ① 主 design §11 **键数实测回填**（**323 键 / 12 组**）② 主 design §2.3 登记表本批行 → **✅ 五件已执行** ③ `docs/00` §5 M4b-4 行 → **✅** ④ 本文档 §6 键表总数（`assets` **79** / `errors` **35**）⑤ **D2/D3 订正**（§12 线框去「含2隐藏」· §7.3 引用改与 U4 一致）⑥ **件表计数回写**（新建 **16** / 改造 **19** + 3 文档 —— §3.1/§3.2 已同步）。证据 = `docs/smoke/2026-09-18-m4b4-personal-b.md`。
+
 > **v1.9 散点扫记录（抽屉退役）**：模式 = `AssetDrawer|ScanEye|开抽屉|抽屉四段|抽屉纯预览`，五份全文。
 > 命中 **9 处需改**，逐处处置：批 design 3 处（§4.2 操作列 cell「`Eye` 真链接直跳」· §4.5 组件树 · §2.1d 净结果表操作列行加「v1.9 最终」标注）·
 > 批 plan 5 处（T16 目标表去「抽屉统计」· **T7 步骤 5 行菜单作废** · **T7 步骤 8 接入抽屉作废** · T9 步骤 1 去抽屉键段 · T16 步骤 4 抽屉统计行作废）·
@@ -1199,6 +1214,9 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **T13** `DataTable` prop | 代码 18 维 | **9.63** | C5 8.5（加性 prop 无单测；两消费点零回归靠既有套件）|
 | **T15** star 服务端 | 代码 18 维 | **9.55** | 保持（§11.7 打分；B2 并发用例缺 · C9 已订正）|
 | **T7** 我的资产列表页 | 代码 18 维 | **9.46** | **A1 9.0**（**未做认证态 E2E**：9 列/筛选/分页未在真会话实测——路由级已验证匿名重定向 + 0 JS 错误；完整 dogfood 归 **T11**）· **B2 9.0**（分页边界与 q 防抖竞态未 E2E）· **C5 8.5**（新页无自动化测试——web 包无测试基建）· C9 9.5（F46 已订正）|
+| **T6** 工作台三卡 landing | 代码 18 维 | **9.43** | **A1 9.0**（**认证态 3 卡/请求数断言未跑**——需造数，归 T11 G2/G3；匿名归位已实测）· **B2 9.0**（空/零值/单卡态未 E2E）· **C5 8.5**（web 包无测试基建）· C8 9.5（过渡形态被替换，路由零改动）|
+| **T16** star 前端接线 | 代码 18 维 | **9.41** | **A1 9.0**（未登录路径 CDP 实测 ✓；**登录态写路径/幂等未跑**——需造数）· **B2 9.0**（连点竞态未测）· **C8 9.3**（`AssetCard` DOM 结构调整 = 门户面改动，已复跑 dogfood 36/36）· **C5 8.5**（web 包无测试基建）|
+| **T12** 详情页管理区 | 代码 18 维 | **9.43** | **A1 9.0**（认证四档 E2E 未跑——需造数，归 T11 G11/G12；匿名面 CDP 实测通过）· **B2 9.0**（并发与「上传者例外」面未测）· **C5 8.5**（web 包无测试基建 ⇒ 新行为无自动化测试——沿 T5/T7/T13 同款）· C9 9.3（批文档回填本轮回写）|
 | **T14** `labels` 结构体 | 代码 18 维 | **9.47** | **A3/C8 9.0**（`string[] → object[]` 属**破坏性形状变更**——仓内消费者 1 处已同步、CLI/protocol 0 命中，外部面未评估）· **B2 9.0**（父标签不挂同资产时 `parentId` 解析批未测）· **C5 9.5**（N+1 无 SQL 计数断言）· **C9 9.5**（F44 已订正）|
 
 **本轮实现期缺陷（全部已修）**
@@ -1214,12 +1232,44 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **F46** | 🟡 | 复用声明失真 | §6.1 称类型文案「复用 `market` 组既有键」——实测 `market` 组**无逐类型文案键**（仅有 `centerTitle*` 中心页标题与 `statSkill/statMcp` 计数标签）⇒ 实现期新建 `type.skill`/`type.mcp`/`type.agent` | ✅ 补 3 键（zh/en）· §6.1 加行并注明依据；**键数 62 → 65** |
 | **F45** | ⚪ | 引用过期 | §5.1 ⑦ 语种口径指向 `http/labels.ts:66` 内联式 —— T14 已抽为 `requestLocale(c)` 单点 | ✅ 改指新单点（三处共用）|
 
+**T12 实现期发现（2026-09-18 · 逐条处置）**
+
+| # | 严重度 | 位置 | 发现 | 处置 |
+|---|:---:|------|------|------|
+| **F48** | 🟡 | §3.2 件表 | 版本行内动作的**唯一可行落点**是 M4a 已交付件 `components/market/detail/VersionCompare.tsx`（§3.2 未列；全仓唯一消费者 = `AssetDetail.tsx`）| ✅ **加性可选 prop `rowActions?`**（不传 ⇒ 零变化）；改造件 **+1**，计数随 §9.7 ⑥ 回填 |
+| **F49** | ⚪ | §3.1 件 11 | `asset-stats` 原设**三处**共用；抽屉取消后 = **列表列 + 详情元信息卡** 两处，且列表原为 T7 **内联**实现 | ✅ **抽件 + 回改 `pages/Assets.tsx`**（纯重构，零行为变化）|
+| **F50** | 🟡 | §6.1 | Q1 拍「不渲染」后，「禁用 + 说明」族键 + **已取消抽屉的段键**成**死键** —— **T11 审计扫描实测 12 键**：`version.deleteDisabled` · `version.yankDisabled` · `admin.noPermission` · `status.current` · `section.labels` · `market.versionPublished` · `market.versionYanked` · `version.col.version` · `version.col.status` · `version.col.created` · `version.col.files` · `version.empty`（`label.privileged` 经 Q2 已消费）| ✅ **登记**（不静默删键；分归「禁用+说明」族 2 键 / 抽屉版本段 5 键 / 同义二选一 2 键 ⇒ M4b-6·M4b-7 触碰时收敛）。**口径订正**：原登记「5 键」为估数，实测 **12 键**（A1）|
+| **F51** | 🟡 | 批 plan §7.5 | 计划表把 **T7 / T14** 记为 ⬜ 待做，而本 design §11.9 已给分（9.46 / 9.47）| ✅ 本轮订正（plan v0.12）|
+| **F52** | ⚪ | 批 plan 头部 / §8 | plan 仍引 design「8 维 **9.66**」，design 版本头现行 **9.69** | ✅ 改为「以版本头为准（现行 **9.69**）」|
+| **F53** | 🟡 | §4.6 标签卡 | **「特权标签」按钮本批不可功能化**：候选源 `GET /api/labels` **恒不含 PRIVILEGED**（§2.1 Q7 ①）⇒ 无数据可挂 | ✅ **禁用占位**（新键 `label.privilegedTitle`）+ `title` 复用 `label.privileged`；真入口归 **M4b-6**；**tooltip 复用属实现期判断**（如实登记）|
+| **F54** | 🔴 | §6 i18n 键表 | 键表**未列**详情页管理区的确认框文案与新增按钮文案 ⇒ 不补则 `ConfirmDialog`（title/description 类型必填）无法落码 | ✅ **补 14 键**（`confirm.submit/assetTitle/versionTitle/desc.*6/yankReasonLabel/yankReasonPlaceholder` + `label.remove` + `label.privilegedTitle` + `admin.publishNewVersion`）；assets 组 **65 → 79** |
+| **F55** | 🟡 | `i18n/en.ts`（T9 落码缺陷）| **3 个 en 值是中文**：`admin.versionGroup`「版本」· `version.col.version`「版本」· `version.col.status`「状态」—— T9 的双语断言只查**键集差集**、不查**值** ⇒ 漏网 | ✅ 修正为 Versions / Version / Status |
+| **F56** | ⚪ | 批 plan T12 件表 | 写「版本（发布新版本占位 **+ yank**）」，但管理卡内**无版本对象** ⇒ 盲按钮 = 死件 | ✅ **yank 仅落版本行内动作**（`PUBLISHED` 行）；与字面偏离，按可实现性判定并登记 |
+| **F57** | ⚪ | `api/client.ts` | 仅 get/post/patch/delete，**无 PUT 动词**，而标签挂载端点为 `PUT /:slug/labels/:labelSlug` | ✅ 加性补 **`apiPut`**（同形复用 `doFetch`）|
+| **F61** | 🟡 | §4.1 | **卡形态偏离设计字面**：设计要求「整卡 `<Link>` **覆盖层**」，但覆盖层会吞掉「每卡独立重试」按钮的点击（断言 ④ 要求独立重试）⇒ 实现取 **「内容即 `<Link>`」**：正常态整卡可点、错误态就地可重试、零嵌套 `<a>` | ✅ 落地并登记（形态差异属实现期判定）|
+| **F62** | ⚪ | §4.1 | §4.1 只写「`PageHeader` 标题复用 `dashboard.title`」，未提副述；原过渡件的欢迎语 `dashboard.welcome` 与 `Q17 state.notice` 链路若不保留即成为死键/行为回退 | ✅ **保留**：欢迎语作 `PageHeader.description`；`state.notice` 消费逻辑原样保留（`dashboard.welcome` 键因此仍有消费者）|
+| **F63** | ⚪ | §4.1 · §2.1c 条① P4 | 「`loading` 期间整块骨架、不按默认态渲染」的落地口径：**会话未就绪（`useViewer().loading`）不发任何业务请求 + 整块 `Skeleton`** —— 否则会先按「非管理档」渲染 1 卡再切 3 卡（首帧闪烁）且请求数断言不可稳定 | ✅ 落地并登记 |
+| **F67** | 🟡 | 验收期 UI 三连（用户逐条拍板） | ① 门户卡**下载图标**原为文本字形 `⇣`（与详情页 lucide `Download` 不一致）② 卡片带**版本号**（信息冗余）③ 卡片星标为**可交互按钮**且尺寸/颜色/字体与下载不一致（`size-4` + 按钮底色 vs `size-3.5` + muted）| ✅ **全部落地**：① 换 `AssetStat`（与元信息卡/列表列同件）② 去掉版本号 ③ 星标改 `AssetStat kind="star"` **纯展示**（与下载同件同款：font 11px · color `#64748b` · icon 14×14 · gap 4px 实测一致）+ 位置移至下载右侧 · **连带**：`StarButton` 形态收敛为单一形态（撤 `compact`/`form`，避免死代码）· 收藏交互唯一入口 = **详情页头卡** · 卡片结构因无交互元素而改为**覆盖层 Link**（整卡可点含页脚）· dogfood 更新（G18 改指详情页 + 新增 **G14b** 两条）⇒ **60 PASS / 0 FAIL** |
+| **F65** | 🟡 | §9.5 整体审计**维度表** | **审计缺「覆盖探针」维度**（skill 明列的换靶角度未用）—— T11 收尾据此判「全绿」，直到用户追问「做过 coverage 了么」才实测 | ✅ 已补：维度入档（证据 §1/§5）+ 命令可复跑（`cd apps/server && bun test --coverage src/`）|
+| **F66** | 🟡 | 覆盖实测（T11-c） | ① **`POST /:slug/versions/:version/yank` 路由层整段零覆盖**（`http/assets.ts:683-713`；服务层 `assets/yank.ts` 本就 100%）—— 该端点 2026-09-08（M4a 期）引入，本批 **T12 把它接成「撤回分发」唯一 UI 入口** ⇒ 缺口落在本批依赖面上 ② **web 包零测试基建** ⇒ 本批 14 个前端新/改文件单测覆盖 = 0 | ✅ ① 已补 `apps/server/src/http/yank-route.test.ts`（14 例）+ dogfood **G12b**（真点击端到端）⇒ `http/assets.ts` lines **90.97 → 95.96** ② **登记**归 **M4b-7 / 另立项**（vitest+RTL 独立一笔）|
+| **F64** | 🟡 | §9.5 整体审计口径 | **作废件残留审计只查关键字、不判语义**（T11 收尾据此判「残留 0」）⇒ T8 作废后**活口径散点 14 处**被漏扫 —— **首轮 8 处**（批 plan §1 目标表 #2/#3 · §1 缺口段 · §2-T16 行（依赖 `T8` + 件列 `AssetDrawer.tsx`）· T7 步骤 · T12 件表 ×2；主 design §9/§12 段）· **换靶精修谓词再挖 6 处**（本文件 §2.1d 依赖表 U6 行 · §3.1 件 11 · §5.1 ⑧ · §9.2 ×2；主 design §2.4 U5 行）| ✅ **已订正**（批 plan **v0.16** · 主 design **v1.55**）+ `m4b4-audit-scan.sh` **加「活口径谓词」**（命中行不含 作废/取消/~~/修订记录 标记 ⇒ 报警）· 证据文件 §5 **口径撤回**（「无未决项」→「关键字残留 0 · 语义散点 8 处已订正」）|
+| **F58** | 🟡 | §3.2 改造件 14 | **门户卡 DOM 结构调整**：原 `<Link>` 包整卡，收藏按钮会落进 `<a>` 内（HTML 禁 interactive content 后代，且点击被导航吞掉）⇒ `<Link>` **收窄到「头像 + 标题 + 描述」主体**、页脚（作者行 + 收藏钮）留链接外 | ✅ 落地并登记；代价 = 整卡点击区少页脚一行；门户 dogfood **36/36** 复跑通过 |
+| **F59** | ⚪ | §5.1 ⑧ · §4.6 | 收藏按钮**两形态**（设计只说「门户卡 + 详情页共用」）：详情页 = `[收藏 N]`（文字 + 数字，R20 原型口径）· 门户卡 = 紧凑 `★ N`（无文字，`aria-label`/`title` 承载） | ✅ 实现期判定（`compact` prop）→ **2026-09-18 收敛为单一形态**：门户卡改**纯展示**（`AssetStat kind="star"`）后 `compact`/`form` 变体已撤，本件只服务详情页头卡（**F67**）|
+| **F60** | 🟡 | §9.3 G15 | G15「同一资产连点两次收藏 ⇒ 计数只 +1」**语义歧义**：UI 为**切换**（已收藏 ⇒ 再点 = 取消）⇒ 连点两次 = 收藏后取消，计数回基线 | ⚠️ **登记**：G15 幂等断言以 **API 两次 `PUT`** 形式落地（T11 脚本），**不得**以「UI 连点两次」判 G15，否则误红 |
+
 **换靶实测通过项（留证）**：`errors` 组 **28 → 35 键**（+7，与 §6.3 声明一致 ✓，先前的 33 是计数法漏了两处非引号键）·
 `canManageAsset` = `owner ∨ role ≥ ADMIN`（`assets/manage.ts:19-20` 真码）⇒「R6-b 与 canManageAsset 同集」声明**成立** ✓ ·
 门户 `components/market/CenterPage.*` **零 diff**（`useMarketQuery` 加性维度未触达）✓ · `assets` 组键数 **62 = design 表 62** ✓
 
 ## 12. 修订记录
 
+| **v1.21** | 2026-09-18 | sunxuewen-rush | **验收期 UI 调整轮（T11-d · 代码 18 维 9.59）** —— ① 门户卡下载图标 → `AssetStat`（与详情页/列表列同件）· 退役 `⇣` 字形 ② **去卡片版本号** ③ 星标 → `AssetStat kind="star"` **纯展示**（与下载实测同款：font 11px · color `#64748b` · icon 14×14 · gap 4px），位置 = 下载右侧；**交互只留详情页** ④ 连带收敛：`StarButton` 撤 `compact`/`form`（单一形态 · 避免死代码）；卡片改**覆盖层 Link**（整卡可点含页脚 · 无嵌套 interactive content 顾虑）⑤ dogfood：**G18 改指详情页** + 新增 **G14b**（纯展示反证 + 点击穿透）⇒ **60 PASS / 0 FAIL** · 总用例 **551** 不变 ⑥ **F67 登记** + §3.1 件 15 / G14 / G18 / F59 同步 |
+| **v1.20** | 2026-09-18 | sunxuewen-rush | **T11-c 覆盖补测轮（代码 18 维 9.64）** —— ① **F65 登记**：整体审计**缺「覆盖探针」维度**（skill 明列换靶角度未用，T11 据此判全绿 ⇒ 口径缺口）② **F66 登记 + 已闭**：`POST /:slug/versions/:version/yank` **路由层整段零覆盖**（`http/assets.ts:683-713`；服务层本就 100%；本批 T12 首接 UI 入口）⇒ 新增 **`apps/server/src/http/yank-route.test.ts` 14 例** + dogfood **G12b** 真点击端到端；**web 包零测试基建**（14 个前端文件覆盖 0）⇒ 归 **M4b-7 / 另立项** ③ 实测：全仓 **95.60/96.28** · `http/assets.ts` **90.97 → 95.96** · 测试 **537 → 551** · dogfood **53 → 58** ④ 补测期自身两缺陷留痕：清理链序（`asset_version.asset_id` FK **无 onDelete** ⇒ 必须先删版本）+ 对话框探测器（官方 `AlertDialog` 而非 `Dialog`）⑤ 证据 §1/§3/§4/§5/§6 A5/§8/§10 同步 |
+| **v1.19** | 2026-09-18 | sunxuewen-rush | **T8 作废散点订正（文档面 · 文档 15 维 9.22）** —— ① 订正 **14 处**活口径（首轮 8 + **换靶精修谓词再挖 6**）：**本文件 5 处**（§2.1d 依赖表 U6 行标作废 · §3.1 件 11「三处共用」→ 两处 · §5.1 ⑧ star 消费「三处」→ 两处 · §9.2 交付物表资产页行「快速预览」→ `Eye`「打开详情」· §9.2 新件行抽屉划掉）+ **主 design 1 处**（§2.4 U5 操作列「快速预览」）+ **批 plan 7 处**：批 plan §1 目标表 #2（操作列「快速预览」→ `Eye`「打开详情」）/ #3（抽屉行标**作废**）· §1 缺口段（去「抽屉」）· §2-T16 行（**去 `T8` 依赖 + `AssetDrawer.tsx` 件列**）· T7 步骤（「与抽屉同一矩阵」→「与详情页管理区同一矩阵」）· T12 件表（LabelCard 去「与抽屉段同件」；asset-stats **三处 → 两处共用**）；主 design §9/§12 段 ② **F64 登记**（审计关键字口径盲区 → 脚本补「活口径谓词」）③ **口径撤回**：T11「整体审计无未决项」→「关键字残留 0 · 语义散点 8 处已订正」④ 证据文件 §5/§6 同步 ⑤ 无代码改动 |
+| **v1.18** | 2026-09-18 | sunxuewen-rush | **T11 收尾回填（执行期 · 本批末件）** —— ① **F50 订正**：未消费 i18n 键原登记 5 ⇒ **审计扫描实测 12 键**（含已取消抽屉的 `version.col.*` 5 键 + `market.version*` 2 键）② **件表计数回填**：**新建 16 / 改造 19 + 3 文档**（§3.1 增 `hooks/useViewer` 行；§3.2 增 wrappers 3 文件 / `api/client.ts` `apiPut` / `VersionCompare` / `Assets` 四行）③ **§9.7 收尾回填记录**（六项逐条执行）· **§5.3 段落无改动**（服务端测试面本批零变化）④ **交付面实测**：五门禁 **8 步全 exit 0**（`test` 537 pass / 0 fail）· G1–G19 **53 PASS / 0 FAIL / NO JS ERRORS** · 门户零回归 **36/36** + chain-smoke **PASS** · i18n **323 键 / 12 组**（en 值级泄漏 0）· 权威行数表（证据 §7）⑤ 证据 = `docs/smoke/2026-09-18-m4b4-personal-b.md`（含截图 6 张）|
+| **v1.17** | 2026-09-18 | sunxuewen-rush | **T6 工作台三卡落地（实现期回写）** —— ① `pages/Dashboard.tsx` 过渡形态 → **三卡 landing**：`PageHeader`（`dashboard.title` + 欢迎语副述）+ 3 列栅格（`< 1100px` 收敛 1 列）· 待审核（`/api/reviews?status=PENDING&limit=1` → `total` → `/admin/reviews`）· 我的资产（`/api/me/assets?status=ALL&limit=1` → `total` → `/dashboard/assets`）· 最近审计（`/api/audit?limit=5`，列头 = 时间/动作/对象，**不含操作人** → `/admin/audit`）② 请求裁剪：`role ≥ 10` 三请求 / `role < 10` 一请求（**会话未就绪零业务请求** —— F63）· 每卡独立三态 + 独立重试 · 零值显示「0」· 403 就地 `ErrorState`③ 形态：内容即 `<Link>`（非覆盖层 —— F61）· CTA 为非 anchor 样式化 `<span aria-hidden>`（零嵌套 `<a>`）· 审计卡行内空态复用 `dashboard.empty`④ 发现 **F61–F63** ⑤ 本轮已实测：`bun run typecheck/lint/format:check/build` 全 exit 0 · `doc-audit` 64 PASS · 匿名 G1 归位（两路由保码）⑥ **认证态断言（G2/G3/G11/G12/G15–G17）归 T11 dogfood**（写库须授权，登记）⑦ §11.9 增 **T6 均分 9.43** |
+| **v1.16** | 2026-09-18 | sunxuewen-rush | **T16 star 前端接线落地（实现期回写）** —— ① 新建 `apps/web/src/api/stars.ts`（`starAsset`/`unstarAsset`，写后 `invalidateCache('/api/assets')` —— 收敛在封装层，理由：star 计数出现在三处读面，页面级逐一失效易漏）· `components/market/StarButton.tsx`（两形态：详情页 `[收藏 N]` / 门户卡紧凑 `★ N`；未登录 ⇒ toast + `/login?next=` **不发写请求**；`loading` 期不渲染防首帧闪烁）② 接线两处：`pages/AssetDetail` 头卡（与下载成对，R20）· `components/market/AssetCard` 页脚（**DOM 结构调整**，F58）③ 列表「收藏」列 = 只读 `asset-stats`（T12 已落，无按钮）④ 实测：匿名点击 **零 `/star` 请求** + toast「登录后可收藏」 + 跳 `/login?next=%2Fskills`；门户 dogfood **36/36 + NO JS ERRORS**（AssetCard 改动后复跑）· 认证态写路径与幂等归 T11 ⑤ 发现 **F58–F60** ⑥ §11.9 增 **T16 均分 9.41** |
+| **v1.15** | 2026-09-18 | sunxuewen-rush | **T12 详情页管理区落地（实现期回写）** —— ① 交付：头卡（名称 + `StatusPill` + `[下载]` + 只读标签行）· 右栏三卡（元信息 / `LabelCard` / `AssetAdminCard`，**按权限显隐**——无权限与整卡无动作均**不渲染**）· 版本 Tab 行内动作（删除：owner 2 态 / 管理档 4 态；yank：仅管理档且仅 `PUBLISHED` 行）+ 共用件 `asset-stats` ② 新建 6 件：`hooks/useViewer` · `lib/asset-permissions`（判定单点，逐条注服务端 `file:line`）· `asset-stats` · `LabelCard` · `AssetAdminCard` + 6 个写 wrappers（`api/assets|versions|labels`）+ `apiPut`（F57）③ 改造：`pages/AssetDetail`（头卡两栏 + 右栏三卡 + 行内动作 + 确认框）· `VersionCompare` 加性 `rowActions?`（F48）· `pages/Assets` 共用件回改（F49）· i18n **+14 键**（F54）④ **既有缺陷修正**：版本行徽章 3 态 → **8 态 `StatusPill`**（用户 2026-09-18 拍板；`DRAFT`/`PENDING_REVIEW`/`REJECTED` 原误显「已发布」）· en 3 值中文泄漏（F55）⑤ 发现 **F48–F57** ⑥ 验证：web typecheck/lint/format:check/build ✓ · 门户 `m4a-dogfood` **36/36 + NO JS ERRORS** ✓ · 匿名详情页 CDP 实测 ✓ · **认证四档归 T11 G11/G12** ⑦ §11.9 增 **T12 均分 9.43** |
 | **v1.14** | 2026-09-18 | sunxuewen-rush | **T7 收尾侦察落档** —— **F47**（🟡 T12 两类前置件未列：`hooks/useViewer` + 写操作 wrappers 6 个；`AssetDetail.tsx` 现零管理动作 ⇒ 权限单点件须同批落）；件表 **新建 14 → 16** 待 T12 实现时同步；同一轮自查纠错：T7 提交曾误带 `main.tsx` 原型路由 ⇒ 追加清理笔（`3ab0299`）| 
 | **v1.13** | 2026-09-18 | sunxuewen-rush | **T7 实现期订正** —— **F46**（🟡 §6.1 称类型文案「复用 `market` 组既有键」实测不存在 ⇒ 新建 `type.skill`/`type.mcp`/`type.agent` 3 键，**键数 62 → 65**）；§6.1 加 3 行并注明依据 |
 | **v1.12** | 2026-09-18 | sunxuewen-rush | **T14 实现落档（`labels` 结构体）** —— §5.1 ⑦ 三处订正：**F44** `parentId` 类型（`number` → **父标签 slug `string \| null`**，与 skillhub/`listPublicLabels` 同形）· **F45** 语种解析引用改指 **`requestLocale(c)` 单点**（`asset-item.ts`；`labels.ts`/`assets.ts`/`me.ts` 三处共用）· 标注 `displayName` 回退链抽单点（`pickDisplayName`）防漂移；§11.9 增 **T14 均分 9.47**（A3/C8 破坏性形状变更扣分）；**D7 反证实测**：门户 `/assets/smoke-skill` chips 由空白 → 渲染「智能体」（`browser_exec` 实测）；服务端 **537 tests / 0 fail** |

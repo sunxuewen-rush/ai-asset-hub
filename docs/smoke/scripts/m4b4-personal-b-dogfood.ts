@@ -1,0 +1,825 @@
+/**
+ * M4b-4 个人面 B · 本批 dogfood（**G1–G19** · 批 plan T11 断言① · 批 design §9.3）
+ *
+ * 覆盖：工作台三卡（角色裁剪 / 请求数 / 独立三态）· 我的资产（九列 / 显式 status=ALL / owner-only 集合 /
+ *       直跳详情）· 详情页管理区（**5 档权限矩阵** / 版本行内动作 2 态 vs 4 态 / yank）·
+ *       标签结构体渲染 · star 全链（幂等 / starredByMe / 三处一致 / 未登录拦截）· 跨页未登录归位
+ *
+ * 前置：dev 三件在线（`:3000` API / `:5173` web / `:9222` Edge CDP）
+ *       + 造数已跑：`SMOKE_M4B2_PASSWORD=… bun --env-file=apps/server/.env docs/smoke/scripts/m4b4-seed-assets.ts`
+ *
+ * 运行（口令不入仓）：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b4-personal-b-dogfood.ts`
+ *   可选：`SMOKE_SHOT_PREFIX=<前缀>`（截图前缀，缺省 `m4b4-`）
+ *
+ * ⚠️ **G12b 会改库**（T12 覆盖补测 · 2026-09-18）：管理档**真点一次**「撤回分发」会把
+ *    `m4b4-seed-skill` 的 `1.0.0` 置为 `YANKED` ⇒ **重跑本脚本前必须先重跑 seed 脚本复位**
+ *    （`bun --env-file=apps/server/.env docs/smoke/scripts/m4b4-seed-assets.ts`，幂等）。
+ *    正确顺序：**seed → dogfood**（脚本尾部的 `07-detail-yank-done.png` 即撤回后状态）。
+ *
+ * ⚠️ 执行期踩坑（两处，均为脚本自身，已在实现期修掉 —— 留痕防复现）：
+ *   ① **必须新建 tab**（`PUT /json/new`）：复用既有 tab 会命中历史遗留的僵死/节流页 ⇒ CDP 稳定超时
+ *   ② **请求统计必须排除 Vite 模块请求**：dev server 把 `apps/web/src/api/*.ts` 以 `/api/<name>.ts`
+ *      路径提供 ⇒ 宽松 `includes('/api/reviews')` / `includes('/star')` 会把**源码模块**计入业务请求
+ *      （实测：`/api/stars.ts` 被误判为「未登录发了收藏写请求」）⇒ 一律用「端点正则 + 非 `.ts`」判定
+ *
+ * ⚠️ G15 口径（F60 登记）：**幂等以 API 两次 `PUT` 判**，不以 UI 连点两次判
+ *    —— UI 的收藏按钮是**切换**语义（连点两次 = 收藏后取消），那是正确行为、不是幂等失败。
+ */
+import { appendFileSync, writeFileSync } from 'node:fs';
+
+const DBG = 'http://127.0.0.1:9222';
+const APP = 'http://localhost:5173';
+const SHOT = process.env.SMOKE_SHOT_PREFIX ?? 'm4b4-';
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const PW = process.env.SMOKE_M4B2_PASSWORD;
+const USER = process.env.SMOKE_USERNAME ?? 'm4b2_user'; // owner（role=user）
+const MGR = 'm4b2_mgr'; // 管理档（admin）
+const SUPER = 'm4b2_super'; // 超管（superadmin）
+const OUTSIDER = 'm4b4_outsider'; // 登录非 owner（role=user）
+const SLUG = 'm4b4-seed-skill';
+const OTHER_SLUG = 'm4b4-seed-other';
+
+const PROGRESS = process.env.SMOKE_LOG ?? '/tmp/m4b4-dogfood-progress.log';
+try {
+  writeFileSync(PROGRESS, '');
+} catch {}
+
+let pass = 0;
+let fail = 0;
+const ok = (name: string, cond: boolean, extra = '') => {
+  const line = `${cond ? 'PASS' : 'FAIL'} ${name}${extra ? `  ${extra}` : ''}`;
+  if (cond) pass++;
+  else fail++;
+  console.log(line);
+  try {
+    appendFileSync(PROGRESS, `${line}\n`);
+  } catch {}
+};
+/** 宽容解析（DOM 快照缺失时返回 null，不让整脚本崩在 JSON.parse） */
+function parseOrNull<T>(raw: unknown): T | null {
+  if (typeof raw !== 'string') return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+if (!PW) {
+  console.error('SMOKE_M4B2_PASSWORD is required（口令不入仓）');
+  process.exit(1);
+}
+
+/* ── CDP 基础设施（沿用 M4b-2/M4b-3 脚本口径 + 本批两条踩坑修正） ── */
+const target = (await (await fetch(`${DBG}/json/new?about:blank`, { method: 'PUT' })).json()) as {
+  webSocketDebuggerUrl?: string;
+};
+if (!target?.webSocketDebuggerUrl) {
+  throw new Error('无法新建 tab —— Edge CDP(:9222) 是否在线？（启动命令见本文件头）');
+}
+const ws = new WebSocket(target.webSocketDebuggerUrl);
+await new Promise((r) => ws.addEventListener('open', r));
+
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+const jsErrors: string[] = [];
+/** 网络记录（`Network.requestWillBeSent`）—— 请求数断言与「未登录不发写请求」反证都用它 */
+const netLog: Array<{ method: string; url: string }> = [];
+ws.addEventListener('message', (ev) => {
+  const msg = JSON.parse(String(ev.data));
+  if (msg.id && pending.has(msg.id)) {
+    pending.get(msg.id)?.(msg);
+    pending.delete(msg.id);
+    return;
+  }
+  if (msg.method === 'Network.requestWillBeSent') {
+    netLog.push({
+      method: msg.params?.request?.method ?? '?',
+      url: msg.params?.request?.url ?? '',
+    });
+    return;
+  }
+  if (msg.method === 'Runtime.exceptionThrown') {
+    jsErrors.push(
+      String(msg.params?.exceptionDetails?.exception?.description ?? 'exception').slice(0, 200),
+    );
+  }
+  if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') {
+    jsErrors.push(
+      msg.params.args
+        .map((a: any) => String(a.value ?? a.description ?? ''))
+        .join(' ')
+        .slice(0, 200),
+    );
+  }
+});
+
+let timeouts = 0;
+const send = (m: string, p?: unknown) =>
+  new Promise<any>((res) => {
+    const n = ++seq;
+    const timer = setTimeout(() => {
+      if (pending.has(n)) {
+        pending.delete(n);
+        timeouts++;
+        console.log(`  · CDP 超时：${m}（累计 ${timeouts}）`);
+        res({ __timeout: true });
+      }
+    }, 12000);
+    pending.set(n, (msg: any) => {
+      clearTimeout(timer);
+      res(msg);
+    });
+    ws.send(JSON.stringify({ id: n, method: m, params: p }));
+  });
+
+const evalJs = async (e: string): Promise<any> => {
+  const r = await send('Runtime.evaluate', {
+    expression: e,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  if (r.result?.exceptionDetails) return undefined;
+  return r.result?.result?.value;
+};
+const nav = async (url: string, wait = 2400) => {
+  await send('Page.navigate', { url });
+  await sleep(wait);
+};
+const shot = async (name: string) => {
+  const r = await send('Page.captureScreenshot', { format: 'png' });
+  if (r.result?.data)
+    writeFileSync(`docs/smoke/${SHOT}${name}.png`, Buffer.from(r.result.data, 'base64'));
+};
+/** 真指针点击（元素级） */
+async function realClickExpr(expr: string) {
+  const box = (await evalJs(`(() => {
+    const el = (${expr});
+    if (!el) return null;
+    el.scrollIntoView({ block: 'center' });
+    const r = el.getBoundingClientRect();
+    return JSON.stringify({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+  })()`)) as string | null;
+  if (!box) return false;
+  const { x, y } = JSON.parse(box) as { x: number; y: number };
+  const c = { x: Math.round(x), y: Math.round(y), button: 'left', clickCount: 1 };
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...c });
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...c });
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...c });
+  await sleep(150);
+  return true;
+}
+/** 真键盘输入（React 受控输入：真 key 事件） */
+async function realType(text: string) {
+  for (const ch of text) {
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: ch,
+      text: ch,
+      unmodifiedText: ch,
+    });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch });
+    await sleep(15);
+  }
+}
+/** 输入：真键盘为主；DOM 值不符则用原生 setter + input 事件兜底；返回是否就位 */
+async function ensureInput(sel: string, value: string): Promise<boolean> {
+  await realClickExpr(`document.querySelector(${JSON.stringify(sel)})`);
+  await realType(value);
+  await sleep(250);
+  let v = (await evalJs(`document.querySelector(${JSON.stringify(sel)})?.value ?? null`)) as
+    | string
+    | null;
+  if (v !== value) {
+    await evalJs(
+      `(() => { const i = document.querySelector(${JSON.stringify(sel)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(value)}); i.dispatchEvent(new Event('input', { bubbles: true })); return i.value; })()`,
+    );
+    await sleep(250);
+    v = (await evalJs(`document.querySelector(${JSON.stringify(sel)})?.value ?? null`)) as
+      | string
+      | null;
+  }
+  return v === value;
+}
+
+const CONTENT = `document.querySelector('[data-slot="sidebar-inset"]')`;
+/** 收藏按钮（**按 title 前缀精确命中**——`sidebar-inset` 里还有 TopBar 的语言切换钮也带 `aria-pressed`，直取首个会误命中） */
+const STAR_BTN = `[...(${CONTENT}).querySelectorAll('button[aria-pressed]')].find((b) => /^(收藏|已收藏)/.test(b.getAttribute('title') ?? ''))`;
+/** 标签卡（容器：chips 的禁用态计数须限定在此卡内，避免命中页面上其它 `aria-disabled` 元素） */
+const LABEL_CARD = `[...(${CONTENT}).querySelectorAll('[data-slot="card"]')].find((el) => el.innerText.includes('标签+-'))`;
+/** 卡片链接（工作台三卡 = 卡片内 anchor；侧栏不在 `sidebar-inset` 内 ⇒ 不串扰） */
+const cardLinks = `JSON.stringify([...(${CONTENT}).querySelectorAll('[data-slot="card"] a[href]')].map((a) => a.getAttribute('href')))`;
+/** 业务请求判定：**端点正则**（排除壳层 `me`/`stats`，也排除 Vite 的 `/api/*.ts` 模块请求 —— 见文件头坑②） */
+const BIZ_RE = /\/api\/(me\/assets|reviews|audit)(\?|$)/;
+const bizSince = (from: number) =>
+  netLog.slice(from).filter((r) => r.method === 'GET' && BIZ_RE.test(r.url));
+/** 收藏**写**请求（`PUT`/`DELETE .../star` 精确端点；`.ts` 模块不算） */
+const starWrites = (from: number) =>
+  netLog
+    .slice(from)
+    .filter((r) => r.method !== 'GET' && /\/api\/assets\/[^/]+\/star(\?|$)/.test(r.url));
+
+await send('Page.enable');
+await send('Runtime.enable');
+await send('Network.enable');
+// 视口：桌面 1440×1000（真指针点击需要目标落在视口内）
+await send('Emulation.setDeviceMetricsOverride', {
+  width: 1440,
+  height: 1000,
+  deviceScaleFactor: 1,
+  mobile: false,
+});
+await sleep(300);
+
+/** 登录（清 cookie → /login → 真键盘输入（带 setter 兜底）→ 提交 → 复核 `/api/auth/me`） */
+async function loginAs(username: string): Promise<boolean> {
+  await send('Network.clearBrowserCookies');
+  await sleep(250);
+  await nav(`${APP}/login`, 2400);
+  const filledUser = await ensureInput('#login-username', username);
+  const filledPw = await ensureInput('#login-password', PW!);
+  const diag = (await evalJs(
+    `JSON.stringify({ u: document.querySelector('#login-username')?.value ?? null, pLen: document.querySelector('#login-password')?.value.length ?? -1, disabled: document.querySelector('form button[type="submit"]')?.disabled ?? null })`,
+  )) as string;
+  await realClickExpr(`document.querySelector('form button[type="submit"]')`);
+  await sleep(2800);
+  const me = (await evalJs(
+    `fetch('/api/auth/me').then((r) => r.status + ':' + (r.ok ? 'ok' : 'anon'))`,
+  )) as string;
+  if (me !== '200:ok') {
+    console.log(
+      `  · 登录失败诊断（${username}）：filled=${filledUser}/${filledPw} · ${diag} · me=${me}`,
+    );
+  }
+  return me === '200:ok';
+}
+async function logout() {
+  await send('Network.clearBrowserCookies');
+  await sleep(250);
+  await nav(`${APP}/`, 2000);
+}
+/** 必须登录：失败即中止（后续断言全部依赖会话，继续跑只会刷屏假红） */
+async function mustLogin(username: string): Promise<void> {
+  const okLogin = await loginAs(username);
+  ok(`前置：以 ${username} 登录`, okLogin);
+  if (!okLogin) {
+    console.log('❌ 登录失败 —— 中止（先修会话再跑断言）');
+    process.exit(1);
+  }
+}
+
+/* ═══════════════ G1 · 未登录归位（保码） ═══════════════ */
+await logout();
+for (const path of ['/dashboard', '/dashboard/assets']) {
+  await nav(`${APP}${path}`, 2400);
+  const loc = (await evalJs(
+    `JSON.stringify({ p: location.pathname, s: location.search })`,
+  )) as string;
+  const parsed = parseOrNull<{ p: string; s: string }>(loc);
+  ok(
+    `G1 未登录直访 ${path} ⇒ /login 且保 next`,
+    parsed?.p === '/login' && decodeURIComponent(parsed?.s ?? '').includes(path),
+    loc,
+  );
+}
+
+/* ═══════════════ G18 · 未登录点收藏 ⇒ 零写请求 + 跳登录（**详情页头卡入口**
+   —— 2026-09-18 起门户卡的星标为纯展示，收藏交互唯一入口 = 详情页） ═══════════════ */
+{
+  const from = netLog.length;
+  await nav(`${APP}/assets/${SLUG}`, 3200);
+  const clicked = await realClickExpr(
+    `(() => [...document.querySelectorAll('button[aria-pressed]')].find((b) => (b.getAttribute('title') ?? '').startsWith('收藏')))()`,
+  );
+  await sleep(1600);
+  const writes = starWrites(from);
+  const loc = (await evalJs(`location.pathname + location.search`)) as string;
+  ok(
+    'G18 未登录点详情页「收藏」⇒ 不发写请求 + 跳 /login?next=（回指详情页）',
+    clicked &&
+      writes.length === 0 &&
+      loc.startsWith('/login') &&
+      decodeURIComponent(loc).includes(`/assets/${SLUG}`),
+    `star 写请求 ${writes.length} 条 · ${loc}`,
+  );
+}
+
+/* ═══════════════ G14b · 门户卡星标 = **纯展示**（与下载同款 · 不响应点击）
+   —— 用户 2026-09-18「卡片上的星标只用显示就好了，不用响应点击。类似于元信息」 ═══════════════ */
+{
+  await nav(`${APP}/skills`, 3000);
+  const probe = (await evalJs(`(() => {
+    const h3 = [...document.querySelectorAll('h3')].find((h) => (h.innerText || '').trim().length > 0);
+    const card = h3 && h3.closest('[data-slot="card"]');
+    if (!card) return null;
+    const stats = [...card.querySelectorAll('span.tabular-nums')];
+    const m = (el) => { const s = getComputedStyle(el); const svg = el.querySelector('svg');
+      const b = svg.getBoundingClientRect();
+      return { font: s.fontSize, color: s.color, icon: Math.round(b.width) }; };
+    return JSON.stringify({
+      buttons: card.querySelectorAll('button[aria-pressed]').length,
+      statCount: stats.length,
+      same: stats.length === 2 && JSON.stringify(m(stats[0])) === JSON.stringify(m(stats[1])),
+      detail: stats.length === 2 ? JSON.stringify([m(stats[0]), m(stats[1])]) : null,
+    });
+  })()`)) as string | null;
+  const p = parseOrNull<{ buttons: number; statCount: number; same: boolean; detail: string }>(
+    probe,
+  );
+  ok(
+    'G14b-1 门户卡星标为纯展示（卡内无 button[aria-pressed] · 两枚同款 stat：下载 + 收藏）',
+    !!p && p.buttons === 0 && p.statCount === 2 && p.same,
+    probe ?? 'no-card',
+  );
+  ok(
+    'G14b-2 点击卡片星标处 ⇒ 穿透到整卡热区（进入详情页，非收藏动作）',
+    (await (async () => {
+      // 用本脚本的 `realClickExpr`（内部按元素中心派发真鼠标事件）
+      // 锚点与 G14b-1 一致：**含 `h3` 的卡**才是资产卡（`/skills` 首卡可能是筛选/页头卡）
+      const clicked = await realClickExpr(
+        `(() => { const h3 = [...document.querySelectorAll('h3')].find((h) => (h.innerText || '').trim().length > 0); const c = h3 && h3.closest('[data-slot="card"]'); return c ? [...c.querySelectorAll('span.tabular-nums')].pop() : null; })()`,
+      );
+      await sleep(1800);
+      const path = (await evalJs(`location.pathname`)) as string;
+      return clicked && path.startsWith('/assets/');
+    })()) === true,
+  );
+}
+
+/* ═══════════════ G2 · role<10 工作台：1 卡 + 1 请求 ═══════════════ */
+await mustLogin(USER);
+{
+  const from = netLog.length;
+  await nav(`${APP}/dashboard`, 3000);
+  const cards = (await evalJs(cardLinks)) as string;
+  const biz = bizSince(from);
+  ok('G2 role=1 工作台：只渲染 1 卡（我的资产）', cards === '["/dashboard/assets"]', cards);
+  ok(
+    'G2 role=1 工作台：页面自身业务请求 = 1',
+    biz.length === 1 && biz[0]!.url.includes('/api/me/assets'),
+    `${biz.length} 条：${biz.map((b) => b.url.replace(/^https?:\/\/[^/]+/, '')).join(' | ')}`,
+  );
+  await shot('01-dashboard-user');
+}
+
+/* ═══════════════ G3 · role≥10 工作台：3 卡 + 3 请求 + 审计 5 行 ═══════════════ */
+await mustLogin(MGR);
+{
+  const from = netLog.length;
+  await nav(`${APP}/dashboard`, 3400);
+  const cards = (await evalJs(cardLinks)) as string;
+  const biz = bizSince(from);
+  ok(
+    'G3 role=10 工作台：3 卡（待审核 / 我的资产 / 最近审计）',
+    cards === '["/admin/reviews","/dashboard/assets","/admin/audit"]',
+    cards,
+  );
+  ok('G3 role=10 工作台：页面自身业务请求 = 3', biz.length === 3, `${biz.length} 条`);
+  const audit = parseOrNull<{ rows: number; heads: string[]; text: string }>(
+    await evalJs(`(() => {
+      const c = ${CONTENT};
+      if (!c) return null;
+      const card = [...c.querySelectorAll('[data-slot="card"]')].find((el) => el.innerText.includes('最近审计'));
+      if (!card) return null;
+      return JSON.stringify({
+        rows: card.querySelectorAll('tbody tr').length,
+        heads: [...card.querySelectorAll('thead th')].map((th) => th.innerText.trim()),
+        text: card.innerText,
+      });
+    })()`),
+  );
+  ok('G3 审计卡 5 行', audit?.rows === 5, `rows=${audit?.rows ?? 'n/a'}`);
+  ok(
+    'G3 审计卡列头 = 时间/动作/对象 且不含操作人',
+    audit?.heads.join(',') === '时间,动作,对象' && !(audit?.text ?? '').includes('操作人'),
+    audit?.heads.join(','),
+  );
+  await shot('02-dashboard-admin');
+}
+
+/* ═══════════════ G4/G5/G6/G9/G10/G7 · 我的资产列表（owner） ═══════════════ */
+await mustLogin(USER);
+{
+  const from = netLog.length;
+  await nav(`${APP}/dashboard/assets`, 3400);
+  const reqs = bizSince(from).map((r) => r.url.replace(/^https?:\/\/[^/]+/, ''));
+  ok(
+    'G4 默认「全部」⇒ 实际请求含 status=ALL',
+    reqs.some((u) => u.includes('/api/me/assets') && u.includes('status=ALL')),
+    reqs.join(' | '),
+  );
+  const snap = parseOrNull<{
+    heads: string[];
+    rows: number;
+    body: string;
+    typeColorBlocks: number;
+    chips: string[];
+    hrefs: string[];
+  }>(
+    await evalJs(`(() => {
+      const c = ${CONTENT};
+      if (!c) return null;
+      return JSON.stringify({
+        heads: [...c.querySelectorAll('thead th')].map((th) => th.innerText.trim()),
+        rows: c.querySelectorAll('tbody tr').length,
+        body: c.innerText,
+        typeColorBlocks: c.querySelectorAll('[class*="bg-type-"]').length,
+        chips: [...c.querySelectorAll('tbody tr span')]
+          .filter((s) => (s.getAttribute('class') ?? '').includes('rounded-full'))
+          .map((s) => s.innerText.trim()),
+        hrefs: [...c.querySelectorAll('tbody tr a[href^="/assets/"]')].map((a) => a.getAttribute('href')),
+      });
+    })()`),
+  );
+  ok(
+    'G6 九列表头齐',
+    snap?.heads.join(',') === '名称,类型,状态,标签,版本,下载,收藏,更新,操作',
+    snap?.heads.join(',') ?? 'n/a',
+  );
+  ok(
+    'G6 三态各一行（ACTIVE/HIDDEN/ARCHIVED）',
+    snap?.rows === 3 &&
+      snap.body.includes('活跃') &&
+      snap.body.includes('已隐藏') &&
+      snap.body.includes('已归档'),
+    `rows=${snap?.rows ?? 'n/a'}`,
+  );
+  ok(
+    'G6 类型列无色（反证：无 bg-type-* 色块）',
+    snap?.typeColorBlocks === 0,
+    `色块 ${snap?.typeColorBlocks ?? 'n/a'}`,
+  );
+  ok(
+    'G5 owner-only 集合：他人资产不出现',
+    !(snap?.body ?? 'x').includes(OTHER_SLUG),
+    `含 other=${(snap?.body ?? '').includes(OTHER_SLUG)}`,
+  );
+  ok(
+    'G9 标签 chip 文案 = displayName（≠ slug）',
+    !!snap?.chips.includes('特权示例') && !snap.chips.some((c) => c.includes('m4b4-seed-')),
+    snap?.chips.slice(0, 6).join(' / ') ?? 'n/a',
+  );
+  ok(
+    'G7 操作列 = 真链接 <a href="/assets/<slug>">',
+    !!snap?.hrefs.includes(`/assets/${SLUG}`),
+    snap?.hrefs.join(',') ?? 'n/a',
+  );
+
+  // G10：列表 下载/收藏 数值 = 接口值
+  const api = parseOrNull<{ star: number; dl: number }>(
+    await evalJs(
+      `fetch('/api/me/assets?status=ALL&limit=20').then((r) => r.json()).then((d) => {
+         const it = d.items.find((i) => i.slug === '${SLUG}');
+         return JSON.stringify({ star: it ? it.starCount : null, dl: it ? it.downloadCount : null });
+       })`,
+    ),
+  );
+  const rowText = (await evalJs(`(() => {
+    const c = ${CONTENT};
+    if (!c) return null;
+    const tr = [...c.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('${SLUG}'));
+    return tr ? tr.innerText.replace(/\\n/g, ' ') : null;
+  })()`)) as string | null;
+  ok(
+    'G10 列表 下载/收藏 数值 = 接口值',
+    !!rowText &&
+      api?.dl !== null &&
+      api?.star !== null &&
+      rowText.includes(String(api?.dl)) &&
+      rowText.includes(String(api?.star)),
+    `接口 dl=${api?.dl} star=${api?.star} · 行=${(rowText ?? '').slice(0, 120)}`,
+  );
+  await shot('03-my-assets');
+}
+
+/* ═══════════════ G13 · 筛选/搜索 ⇒ page 回落 1 ═══════════════ */
+{
+  await nav(`${APP}/dashboard/assets?page=2`, 2600);
+  await realClickExpr(`document.querySelector('#assets-status-filter')`);
+  await sleep(700);
+  await realClickExpr(
+    `(() => [...document.querySelectorAll('[role="option"]')].find((o) => o.innerText.trim() === '已隐藏'))()`,
+  );
+  await sleep(1600);
+  const afterStatus = (await evalJs(`location.pathname + location.search`)) as string;
+  const rows = (await evalJs(
+    `(() => { const c = ${CONTENT}; return c ? c.querySelectorAll('tbody tr').length : -1; })()`,
+  )) as number;
+  ok(
+    'G13 切状态筛选 ⇒ URL 含 status=HIDDEN 且 page 删除',
+    afterStatus.includes('status=HIDDEN') && !afterStatus.includes('page='),
+    afterStatus,
+  );
+  ok('G13 筛选后行集合收窄（HIDDEN 仅 1 行）', rows === 1, `rows=${rows}`);
+  await nav(`${APP}/dashboard/assets?page=2`, 2600);
+  await realClickExpr(`(() => ${CONTENT}.querySelector('input[aria-label]'))()`);
+  await realType('m4b4');
+  await sleep(1400);
+  const afterQ = (await evalJs(`location.pathname + location.search`)) as string;
+  ok('G13 q 搜索写 URL（300ms 防抖后）', afterQ.includes('q=m4b4'), afterQ);
+}
+
+/* ═══════════════ G7/G8/G11/G12 · 详情页（五档） ═══════════════ */
+type DetailSnap = {
+  h1: string | null;
+  hasStatusGroup: boolean;
+  hasLabelCard: boolean;
+  hasPrivilegedBtn: boolean;
+  privilegedChipLocked: number;
+  downloadHref: string | null;
+  starBtn: string | null;
+};
+const detailSnapshot = `(() => {
+  const c = ${CONTENT};
+  if (!c) return null;
+  const star = ${STAR_BTN};
+  const labelCard = ${LABEL_CARD};
+  return JSON.stringify({
+    h1: c.querySelector('h1') ? c.querySelector('h1').innerText : null,
+    hasStatusGroup: c.innerText.includes('资产状态'),
+    hasLabelCard: c.innerText.includes('标签+-'),
+    hasPrivilegedBtn: [...c.querySelectorAll('button')].some((b) => b.innerText.trim() === '特权标签'),
+    privilegedChipLocked: labelCard ? labelCard.querySelectorAll('span[aria-disabled="true"]').length : -1,
+    downloadHref: c.querySelector('a[href*="/download"]') ? c.querySelector('a[href*="/download"]').getAttribute('href') : null,
+    starBtn: star ? star.getAttribute('aria-label') : null,
+  });
+})()`;
+const snapDetail = async (): Promise<DetailSnap | null> =>
+  parseOrNull<DetailSnap>(await evalJs(detailSnapshot));
+/** 打开版本 Tab（官方 `Tabs` 激活在 mousedown 路径上 —— 必须真指针） */
+async function openVersionsTab() {
+  await realClickExpr(
+    `(() => [...document.querySelectorAll('[role="tab"]')].find((t) => t.innerText.trim() === '版本'))()`,
+  );
+  await sleep(1900);
+}
+/** 版本 Tab 行内动作快照 */
+const snapVersionActions = async (): Promise<{ del: number; yank: number } | null> =>
+  parseOrNull<{ del: number; yank: number }>(
+    await evalJs(`(() => {
+      const c = ${CONTENT};
+      if (!c) return null;
+      const btns = [...c.querySelectorAll('button')].map((b) => b.innerText.trim());
+      return JSON.stringify({ del: btns.filter((t) => t === '删除').length, yank: btns.filter((t) => t === '撤回分发').length });
+    })()`),
+  );
+
+// ① 访客
+await logout();
+await nav(`${APP}/assets/${SLUG}`, 3000);
+let snap = await snapDetail();
+ok(
+  'G7 直跳后 pathname = /assets/<slug>',
+  (await evalJs(`location.pathname`)) === `/assets/${SLUG}`,
+);
+ok(
+  'G7 全站无 sheet-content（反证：抽屉已取消）',
+  (await evalJs(`document.querySelectorAll('[data-slot="sheet-content"]').length === 0`)) === true,
+);
+ok('G8 详情页为唯一视图（h1 渲染该资产）', !!snap?.h1, snap?.h1 ?? '');
+ok(
+  'G11① 访客：管理区/标签卡均不渲染',
+  !!snap && !snap.hasStatusGroup && !snap.hasLabelCard,
+  JSON.stringify(snap),
+);
+ok('G14(anon) 详情页收藏入口存在', !!snap?.starBtn, snap?.starBtn ?? '');
+ok('G8 匿名可下载（受控链 <a href=…/download>）', !!snap?.downloadHref, snap?.downloadHref ?? '');
+await openVersionsTab();
+let va = await snapVersionActions();
+ok('G12 访客：版本行零动作', va?.del === 0 && va?.yank === 0, JSON.stringify(va));
+
+// ② 登录非 owner
+await mustLogin(OUTSIDER);
+await nav(`${APP}/assets/${SLUG}`, 3000);
+snap = await snapDetail();
+ok(
+  'G11② 登录非 owner：管理区/标签卡均不渲染',
+  !!snap && !snap.hasStatusGroup && !snap.hasLabelCard,
+  JSON.stringify(snap),
+);
+
+// ③ owner
+await mustLogin(USER);
+await nav(`${APP}/assets/${SLUG}`, 3200);
+snap = await snapDetail();
+ok(
+  'G11③ owner：管理区 + 标签卡均渲染',
+  !!snap?.hasStatusGroup && !!snap?.hasLabelCard,
+  JSON.stringify(snap),
+);
+ok('G11③ owner：无「特权标签」按钮', snap?.hasPrivilegedBtn === false);
+ok(
+  'G11/Q2 owner：PRIVILEGED chip 的 × 禁用（非超管）',
+  (snap?.privilegedChipLocked ?? 0) >= 1,
+  `locked=${snap?.privilegedChipLocked ?? 'n/a'}`,
+);
+await openVersionsTab();
+va = await snapVersionActions();
+ok(
+  'G12 owner：删除仅 2 态行（DRAFT 1 行）、无撤回分发',
+  va?.del === 1 && va?.yank === 0,
+  JSON.stringify(va),
+);
+await shot('04-detail-owner');
+
+// ④ 管理档
+await mustLogin(MGR);
+await nav(`${APP}/assets/${SLUG}`, 3200);
+snap = await snapDetail();
+ok(
+  'G11④ 管理档：管理区渲染 + 无「特权标签」',
+  !!snap?.hasStatusGroup && snap?.hasPrivilegedBtn === false,
+  JSON.stringify(snap),
+);
+await openVersionsTab();
+va = await snapVersionActions();
+ok(
+  'G12 管理档：删除 4 态行（3 行）+ 撤回分发（PUBLISHED 行）',
+  va?.del === 3 && va?.yank === 1,
+  JSON.stringify(va),
+);
+await shot('05-detail-manager');
+
+/* ═══════════════ G12b · 撤回分发「UI → 端点」端到端（T12 覆盖补测） ═══════════════
+ * 为什么补：G12 只验了按钮**渲染与权限门**；yank 端点此前零覆盖（路由层），
+ * 单测补了（`apps/server/src/http/yank-route.test.ts`），这里补**真点击**那一段。
+ * ⚠️ 本段会**改库**（`${SLUG}` 的 1.0.0 → YANKED）⇒ 重跑前先重跑 seed 脚本复位。 */
+{
+  const before = (await evalJs(
+    `fetch('/api/assets/${SLUG}/versions?limit=20').then((r) => r.json()).then((d) => {
+       const v = d.items.find((i) => i.version === '1.0.0');
+       return JSON.stringify({ status: v ? v.status : null });
+     })`,
+  )) as string;
+  const clicked = await realClickExpr(
+    `(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '撤回分发'))()`,
+  );
+  await sleep(900);
+  const dialogOpen = (await evalJs(
+    // 官方 `AlertDialog`（非 Dialog）⇒ 认 `role="alertdialog"` / `data-slot="alert-dialog-content"`
+    `document.querySelectorAll('[role="alertdialog"], [data-slot="alert-dialog-content"]').length > 0`,
+  )) as boolean;
+  const reasonFilled = await ensureInput('textarea', 'dogfood G12b · 撤回分发端到端');
+  const submitted = await realClickExpr(
+    `(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '确认'))()`,
+  );
+  await sleep(2200);
+
+  const after = (await evalJs(
+    `fetch('/api/assets/${SLUG}/versions?limit=20').then((r) => r.json()).then((d) => {
+       const v = d.items.find((i) => i.version === '1.0.0');
+       return JSON.stringify({ status: v ? v.status : null });
+     })`,
+  )) as string;
+  const parsedBefore = parseOrNull<{ status: string }>(before);
+  const parsedAfter = parseOrNull<{ status: string }>(after);
+  ok(
+    'G12b-1 管理档点「撤回分发」⇒ 确认框打开 + 填原因 + 提交',
+    clicked && dialogOpen && reasonFilled && submitted,
+    `click=${clicked} dialog=${dialogOpen} reason=${reasonFilled} submit=${submitted}`,
+  );
+  ok(
+    'G12b-2 端点真被调用：版本 1.0.0 PUBLISHED → YANKED',
+    parsedBefore?.status === 'PUBLISHED' && parsedAfter?.status === 'YANKED',
+    `${parsedBefore?.status} → ${parsedAfter?.status}`,
+  );
+  const yankGone = (await evalJs(
+    `[...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === '撤回分发').length === 0`,
+  )) as boolean;
+  ok('G12b-3 行内「撤回分发」入口消失（非 PUBLISHED 不再可撤 · 无重复入口）', yankGone);
+  const dl = (await evalJs(
+    `fetch('/api/assets/${SLUG}/versions/1.0.0/download').then(async (r) => JSON.stringify({ status: r.status, code: (await r.json().catch(() => ({}))).code }))`,
+  )) as string;
+  const dlParsed = parseOrNull<{ status: number; code: string }>(dl);
+  ok(
+    'G12b-4 已撤回版本下载 ⇒ 400 asset.version_yanked（状态门真生效）',
+    dlParsed?.status === 400 && dlParsed?.code === 'asset.version_yanked',
+    dl,
+  );
+  const again = (await evalJs(
+    `fetch('/api/assets/${SLUG}/versions/1.0.0/yank', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reason: 'G12b re-run' }) }).then(async (r) => JSON.stringify({ status: r.status, code: (await r.json().catch(() => ({}))).code }))`,
+  )) as string;
+  const againParsed = parseOrNull<{ status: number; code: string }>(again);
+  ok(
+    'G12b-5 重复撤回 ⇒ 400 asset.version_not_yankable（明示非幂等契约）',
+    againParsed?.status === 400 && againParsed?.code === 'asset.version_not_yankable',
+    again,
+  );
+  await shot('07-detail-yank-done');
+}
+
+// ⑤ 超管
+await mustLogin(SUPER);
+await nav(`${APP}/assets/${SLUG}`, 3200);
+snap = await snapDetail();
+ok('G11⑤ 超管：有「特权标签」按钮', snap?.hasPrivilegedBtn === true, JSON.stringify(snap));
+ok(
+  'G11/Q2 超管：PRIVILEGED chip 的 × 可点（无禁用标记）',
+  snap?.privilegedChipLocked === 0,
+  `locked=${snap?.privilegedChipLocked ?? 'n/a'}`,
+);
+await shot('06-detail-super');
+
+/* ═══════════════ G15/G16 · star 幂等与 starredByMe 语义（API 级，F60 口径） ═══════════════ */
+await mustLogin(USER);
+{
+  const base = (await evalJs(
+    `fetch('/api/assets/${SLUG}').then((r) => r.json()).then((d) => d.starCount)`,
+  )) as number;
+  const p1 = parseOrNull<{ starCount: number; starred: boolean }>(
+    await evalJs(
+      `fetch('/api/assets/${SLUG}/star', { method: 'PUT' }).then((r) => r.json()).then((d) => JSON.stringify(d))`,
+    ),
+  );
+  const p2 = parseOrNull<{ starCount: number; starred: boolean }>(
+    await evalJs(
+      `fetch('/api/assets/${SLUG}/star', { method: 'PUT' }).then((r) => r.json()).then((d) => JSON.stringify(d))`,
+    ),
+  );
+  ok(
+    'G15 两次 PUT ⇒ 计数只 +1 且 starred=true',
+    p1?.starCount === base + 1 && p2?.starCount === base + 1 && p2?.starred === true,
+    `base=${base} → ${p1?.starCount} → ${p2?.starCount}`,
+  );
+  ok('G16 本人收藏后 starredByMe=true', p2?.starred === true);
+  const d1 = parseOrNull<{ starCount: number }>(
+    await evalJs(
+      `fetch('/api/assets/${SLUG}/star', { method: 'DELETE' }).then((r) => r.json()).then((d) => JSON.stringify(d))`,
+    ),
+  );
+  const d2 = parseOrNull<{ starCount: number; starred: boolean }>(
+    await evalJs(
+      `fetch('/api/assets/${SLUG}/star', { method: 'DELETE' }).then((r) => r.json()).then((d) => JSON.stringify(d))`,
+    ),
+  );
+  ok(
+    'G15 两次 DELETE ⇒ 回基线',
+    d1?.starCount === base && d2?.starCount === base && d2?.starred === false,
+    `${d1?.starCount} → ${d2?.starCount}（基线 ${base}）`,
+  );
+  const detail = (await evalJs(
+    `fetch('/api/assets/${SLUG}').then((r) => r.json()).then((d) => JSON.stringify({ s: d.starCount, me: d.starredByMe }))`,
+  )) as string;
+  const parsed = parseOrNull<{ s: number; me: boolean }>(detail);
+  ok(
+    'G16 他人（种子）已收藏 ⇒ 我的 starredByMe 仍 false 且计数回基线',
+    parsed?.me === false && parsed?.s === base,
+    detail,
+  );
+  const mine = (await evalJs(
+    `fetch('/api/assets/${OTHER_SLUG}').then((r) => r.json()).then((d) => JSON.stringify({ s: d.starCount, me: d.starredByMe }))`,
+  )) as string;
+  const mineParsed = parseOrNull<{ s: number; me: boolean }>(mine);
+  ok('G16 我收藏的资产 ⇒ starredByMe=true', mineParsed?.me === true && mineParsed?.s === 1, mine);
+  await logout();
+  await nav(`${APP}/assets/${SLUG}`, 2600);
+  const anonStar = (await evalJs(
+    `fetch('/api/assets/${SLUG}').then((r) => r.json()).then((d) => JSON.stringify({ me: d.starredByMe }))`,
+  )) as string;
+  ok(
+    'G16 匿名 ⇒ starredByMe=false',
+    parseOrNull<{ me: boolean }>(anonStar)?.me === false,
+    anonStar,
+  );
+}
+
+/* ═══════════════ G17 · star 读面一致（列表列 = 详情头卡 = 接口） ═══════════════ */
+await mustLogin(USER);
+{
+  await nav(`${APP}/dashboard/assets`, 3400);
+  const listStar = (await evalJs(`(() => {
+    const c = ${CONTENT};
+    if (!c) return null;
+    const tr = [...c.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('${SLUG}'));
+    if (!tr) return null;
+    const tds = [...tr.querySelectorAll('td')];
+    return tds.length >= 9 ? tds[6].innerText.trim() : null;
+  })()`)) as string | null;
+  const api = (await evalJs(
+    `fetch('/api/assets/${SLUG}').then((r) => r.json()).then((d) => d.starCount)`,
+  )) as number;
+  await nav(`${APP}/assets/${SLUG}`, 2800);
+  const headStar = (await evalJs(`(() => {
+    const c = ${CONTENT};
+    if (!c) return null;
+    const b = ${STAR_BTN};
+    return b ? (b.getAttribute('aria-label') ?? '') : null;
+  })()`)) as string | null;
+  ok(
+    'G17 star 读面三处一致（列表列 = 详情头卡 = 接口）',
+    listStar !== null &&
+      headStar !== null &&
+      listStar.includes(String(api)) &&
+      headStar.includes(String(api)),
+    `列表=${listStar} · 头卡=${headStar} · 接口=${api}`,
+  );
+}
+
+/* ═══════════════ G19 · 无 JS 错误 ═══════════════ */
+ok('G19 全程 NO JS ERRORS', jsErrors.length === 0, jsErrors.slice(0, 3).join(' ¶ '));
+
+console.log(
+  `\n${fail === 0 && timeouts === 0 ? '✅' : '❌'} M4b-4 dogfood: PASS ${pass} · FAIL ${fail} · CDP 超时 ${timeouts}`,
+);
+process.exit(fail === 0 && timeouts === 0 ? 0 : 1);
