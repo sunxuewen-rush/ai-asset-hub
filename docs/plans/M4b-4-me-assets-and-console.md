@@ -1,16 +1,17 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批计划
 
 > Date: 2026-09-18
-> Updated: 2026-09-18（**v0.7：原型评审收口（R1–R23）→ 新增 T12–T14 + T7/T8/T9/T11 口径更新**；其后
+> Updated: 2026-09-18（**v0.8：star 最小集并入 → 新增 T15/T16（star 服务端先行）**）
+> v0.7（2026-09-18）：原型评审收口（R1–R23）→ 新增 T12–T14 + T7/T8/T9/T11 口径更新；其后
 > **落档一致性轮**（用户「先检查修改并打分」）修 **P6 散点旧口径 7 处** + **P7 均分自算** ⇒ 本计划 **8 维 9.6**，见 §8.2）
 > v0.6（2026-09-18）：UI 评审 5 条全闭（条②③④⑤ 落档）→ T7 ⑨ + T8 ⑪⑫
-> Status: **⬜ 未开工**（**T1–T14** 待执行）—— 上游批 design 已**定稿**（8 维 **9.66**，版本以其版本头为准；v1.7 原型评审收口）
+> Status: **⬜ 未开工**（**T1–T16** 待执行；**执行序 = T15 最先** —— star 能力先行，再消费面）—— 上游批 design 已**定稿**（8 维 **9.66**，版本以其版本头为准；v1.7 原型评审收口）
 > **换靶复核（用户要求「先检查并打分」）**：3 项新发现已修（分页**换算公式 + 渲染条件** · me 面 schema **上限口径** ·
 > `Drawer` 宽度措辞）；**旧分 9.66 已撤回**（窄口径产物）⇒ 换靶口径下修前 **9.60** / 修后 **9.66**，见 §8.1
 > 上游：批 design `docs/designs/2026-09-18-m4b4-personal-b-design.md`（**定稿**）· 主 design
 > `2026-09-10-m4b-admin-console-and-auth-design.md` §2.3 拆批表与批件登记表 · `docs/00` §5 M4b-4 行
 > 依赖顺序：**M4b-1 ✅ / M4b-2 ✅ 已完成**（两批出口五件全绿）⇒ 本批开工条件已满足
-> **批间门（出口五件）**：① 批 design 8 维 ≥9 ② **T1–T14** 全绿 ③ 五门禁逐项 exit 0 ④ dogfood/观感
+> **批间门（出口五件）**：① 批 design 8 维 ≥9 ② **T1–T16** 全绿 ③ 五门禁逐项 exit 0 ④ dogfood/观感
 > ⑤ **整体审计**（收尾全仓覆盖式扫描：findings 逐条登记 + 处置，不留未决项）
 
 ---
@@ -55,10 +56,12 @@
 | **T8** | 资产管理抽屉 = **纯预览**（描述 / 标签+- / 统计行 / 完整详情跳转 · 560） | web | T7,T12 | `components/console/AssetDrawer.tsx`（新） |
 | **T9** | i18n：新组 `assets` + `dashboard` / `common` / `errors` | web | — | `i18n/zh.ts` · `i18n/en.ts` |
 | **T10** | 规范同步：`05` §6.4 + `08` §7（**随本批即改**） | 规范 | T2 | `docs/05-identity-access.md` · `docs/08-data-model.md` |
-| **T11** | 验证收尾：dogfood **G1-G15** + 五门禁 + 证据 + 收尾回填 | 全 | T1-T14 | `docs/smoke/scripts/m4b4-*.ts`（新）· `docs/smoke/2026-09-18-m4b4-personal-b.md`（新） |
+| **T11** | 验证收尾：dogfood **G1-G19** + 五门禁 + 证据 + 收尾回填 | 全 | T1-T16 | `docs/smoke/scripts/m4b4-*.ts`（新）· `docs/smoke/2026-09-18-m4b4-personal-b.md`（新） |
 | **T12** | **资产详情页管理区**（改 M4a 已交付页 · 按权限显隐）+ 4 新建件 | web | T5,T9 | `pages/AssetDetail.tsx` · `lib/asset-permissions.ts`（新）· `components/console/AssetAdminCard.tsx`（新）· `components/console/LabelCard.tsx`（新）· `components/console/asset-stats.tsx`（新） |
 | **T13** | `DataTable` **加性** prop `rowActionsHeader?`（可见操作列表头） | web | — | `components/console/DataTable.tsx` |
 | **T14** | **`labels` 形状升级**（协议 + 服务端返结构体 · D5/D7 根治） | server + protocol | T1,T3 | `packages/protocol` · `labels/service.ts` · `http/asset-item.ts` · `http/me.ts` · `http/assets.ts` |
+| **T15** | **star 服务端**（迁移 + 表 + 幂等端点 + 读面 · **执行序最先**） | server + protocol | — | `db/schema/assets.ts` · `drizzle/00xx_*.sql` · `assets/stars.ts`（新）· `http/assets.ts` · `http/asset-item.ts` · `packages/protocol` · `docs/08-data-model.md` |
+| **T16** | **star 前端接线**（列表列 / 抽屉统计 / 详情页头卡 / 门户卡） | web | T7,T8,T12,T15 | `api/stars.ts`（新）· `components/market/StarButton.tsx`（新）· `pages/Assets.tsx` · `components/console/AssetDrawer.tsx` · `pages/AssetDetail.tsx` · `components/market/AssetCard.tsx` |
 
 **执行序（依赖链）**：`T1 → T2 → T3 → T4`（服务端闭环，先绿）→ `T9`（键先落，页面才有文案）
 → `T5 → T6/T7 → T8` → `T10` → `T11`。**T1/T2 相互独立可并行**；T9 不阻塞服务端。
@@ -397,7 +400,7 @@
 **步骤**：
 1. **造数**（**写库须用户授权**；口令从 env 读，仓库不落）：3 角色 + owner 三态资产 + **他人 ACTIVE 资产** +
    含 `PUBLISHED` / 仅 `DRAFT` 的版本 + 标签挂载（批 design §9.5）
-2. **dogfood G1–G15** 全组（清单见批 design §9.3；登录态传入方式沿用既有脚本）
+2. **dogfood G1–G19** 全组（清单见批 design §9.3；登录态传入方式沿用既有脚本）
 3. **五门禁**（同 CI 序，见 §4）+ 门户零回归 + chain-smoke
 4. **证据文件**（含**权威行数表**：后续行数一律 `wc -l` 实测）
 5. **收尾回填**（批 design §9.7）：主 design §11 键数实测 · 主 design §2.3 登记表本批行 ·
@@ -406,7 +409,7 @@
 
 **验收断言**：
 ```
-① `bun docs/smoke/scripts/m4b4-personal-b-dogfood.ts` ⇒ **G1-G15 全绿 + NO JS ERRORS**
+① `bun docs/smoke/scripts/m4b4-personal-b-dogfood.ts` ⇒ **G1-G19 全绿 + NO JS ERRORS**
 ② 五门禁逐项 **exit 0**（install --frozen-lockfile → typecheck → lint → format:check → doc-audit → build
    → db:migrate → CI=true bun run test；`test` **0 fail**，用例数 ≥ 基线 + 新增）
 ③ 门户零回归：`m4a-dogfood.ts` **36/36** · `m4a-chain-smoke.ts` **PASS**
@@ -465,6 +468,33 @@
 **断言**
 ① 列表标签 chip 文案 = `displayName`（≠ slug）② 详情面 `labels[]` 为对象数组且含 `type`/`parentId` ③ 中文 `Accept-Language` ⇒ 「智能体」，`en` ⇒ 「Agentic」④ 批量查询**无 N+1**（SQL 计数断言）⑤ 门户详情 chips **不再空白**（D7 反证）⑥ 公开列表面响应形状（`assetItem` 14 字段）**零变化**
 
+### T15 · 服务端 + 协议：**star 最小集**（**执行序最先** —— 能力先行）
+
+**目标**：收藏关系 + 热度计数 + 读面 + 幂等端点（契约见批 design **§5.1 ⑧**）。
+
+1. `db/schema/assets.ts`：新表 `assetStar`（`assetId`/`userId` 双向 FK `ON DELETE CASCADE` · `createdAt` · **`UNIQUE(assetId,userId)`**）
+   + `asset` 增 `starCount: integer('star_count').notNull().default(0)`
+2. `bun run db:migrate` 生成迁移（**生成物入库**；`meta/**` 沿既有 format 排除口径）
+3. `assets/stars.ts`（新）：`starAsset` / `unstarAsset` —— **同事务**内 `INSERT ... ON CONFLICT DO NOTHING`（仅真正新增时 `star_count + 1`）
+   / `DELETE`（仅真正删除时 `- 1`）⇒ 返回 `{ starCount, starred }`
+4. 路由（`http/assets.ts`，`requireAuth`）：`PUT` / `DELETE /api/assets/:slug/star`（前置 `loadAssetBySlug` + **`assertAssetReadable`** ⇒ 授权集外 404）
+5. 读面：`assetItem()` 增 `starCount`（读冗余列）与 `starredByMe`（**需登录态**；匿名 ⇒ `false`）⇒ `http/assets.ts` 列表/详情 + `http/me.ts` 三处传入
+6. `packages/protocol`：字段类型（**SSOT 先改**）· `docs/08-data-model.md`：表 + 列（**Q11 A 随批即改**）
+7. 测试（新 `http/stars.test.ts`）：幂等（两次 PUT ⇒ 计数 +1）· 两次 DELETE ⇒ 归零 · **匿名 401** · 授权集外 404 · `starredByMe` 三态
+
+**断言**：① 两次 `PUT` ⇒ `starCount` +1 且 `starred=true` ② 两次 `DELETE` ⇒ 回基线 ③ 匿名 `PUT` ⇒ 401 ④ 他人收藏 ⇒ `starredByMe=false` 而计数 +1 ⑤ 非 ACTIVE 且我无权 ⇒ 404 ⑥ 全量测试无新红
+
+### T16 · 前端：**star 接线**（四处消费 · T15 之后）
+
+1. `api/stars.ts`（新）：`starAsset(slug)` / `unstarAsset(slug)`（写后 `invalidateCache`）
+2. `components/market/StarButton.tsx`（新）：门户卡 + 详情页头卡**共用**（已收藏 ⇒ 星形填充 · 未登录 ⇒ toast + `/login?next=`）
+3. `pages/Assets.tsx`：列表「收藏」列接 `asset-stats`（`starCount`）
+4. `components/console/AssetDrawer.tsx`：统计行接 `starCount`
+5. `pages/AssetDetail.tsx` 头卡：`StarButton` 接 `starredByMe` / `starCount`
+6. `components/market/AssetCard.tsx`：门户卡加 `StarButton`
+
+**断言**：① 三处数字一致（G17）② 未登录点击 ⇒ **不发写请求** + 跳转（G18）③ 幂等（连点两次 ⇒ +1，G15）④ 门户零回归 **38/38**
+
 ## 4. 门禁与冒烟顺序（复现 CI · **硬规则**）
 
 ```
@@ -483,6 +513,7 @@ bun install --frozen-lockfile
 ## 5. 造数需求（**写库需用户授权**）
 
 见批 design §9.5（6 类数据）；脚本 `docs/smoke/scripts/m4b4-seed-assets.ts`（**幂等 upsert · 可重放**）。
+**star 造数（v0.8 追加）**：他人收藏 owner 资产 1 次 + owner 自己收藏 1 条 ⇒ 覆盖 G15/G16/G17。
 **档位需求（v0.7 追加 · T12/G11 依赖）**：`owner 本人` / `管理档（role 10）` / `超管（role 100）` / **匿名** 四档账号
 —— 详情页管理区**逐档断言**需要三档已登录账号（口令走 env，仓库不落）。
 要求：口令从 **env** 读（`SMOKE_*_PASSWORD` 惯例）；**仓库内不落任何口令 / 连接串**；首次写库**先取授权**。
@@ -506,7 +537,7 @@ bun install --frozen-lockfile
 |----|------|
 | 提交链 | （各 Task 提交号，待回填） |
 | 门禁 | （各门禁 exit 码 + `test` 用例数，待回填） |
-| dogfood | （**G1-G15** 结果 + `NO JS ERRORS`，待回填） |
+| dogfood | （**G1-G19** 结果 + `NO JS ERRORS`，待回填） |
 | i18n 键数 | （**脚本实测**，待回填 —— 禁预估值） |
 | 权威行数表 | （`wc -l` 实测，待回填） |
 | 出口五件 | （①design ②Task ③门禁 ④dogfood/观感 ⑤整体审计，待回填） |
@@ -577,7 +608,7 @@ bun install --frozen-lockfile
 
 | 维度 | 分数 | 依据（含本轮变动） |
 |------|:----:|------|
-| 标准 1 完整性 | **9.7** | T1–T14 与批 design 件表一一对应（服务端 4 · web 7 · 规范 1 · 收尾 1） |
+| 标准 1 完整性 | **9.7** | T1–T16 与批 design 件表一一对应（服务端 5 + star 2 · web 8 · 规范 1 · 收尾 1 —— **v0.8 star 并入后**） |
 | 标准 2 准确性 | **9.6** | 行数 / `file:line` 实测；本轮发现 1 类散点（P6）已修 |
 | 标准 3 一致性 | **9.6** ↓ | **本轮暴露**：T7/T8/T9/T11 与 §1 目标表**共 7 处**仍写旧口径（六列 / 四段 / 行菜单 / G1–G13）⇒ 已修，如实下调 9.7 → 9.6 |
 | 标准 4 可用性 | **9.6** ↓ | T7 步骤 1 曾写「六列（类型色块）」⇒ 实现者会照抄旧形态（已修）；仍 2 项待拍板 + **star 依赖**（3 处 UI 断言需 star 批落地后才可跑） |
@@ -589,8 +620,21 @@ bun install --frozen-lockfile
 
 > ⚠️ 分数**不预填为已证值**：实现期以实际断言结果为准（批 design §9.7 收尾回填口径）。
 
+### 8.3 star 并入后复核（v0.8 · 2026-09-18 —— **角度 = 需求变更的容量吸收 / 执行序**）
+
+| # | 严重度 | 位置 | 问题 | 处置 |
+|---|:------:|------|------|------|
+| **P8** | 🔴 | §2 Task 总览 | star 并入后**计划侧无 Task**（批 design v1.8 已加 §5.1 ⑧ 契约 + 件表 3 新件 / 2 改造） | ✅ **已补 T15（服务端·最先）+ T16（前端接线）**，依赖链写明 |
+| **P9** | 🟡 | 全局 | **执行序**：用户意图「先做 star」在并入后必须由 **Task 顺序**承载（不再有前置批） | ✅ **已写明**：首批动作 = **T15** → T13 → T9 → T12/T7/T8 → T16 → T1–T4/T14（服务端原计划）… |
+| **P10** | ⚪ | §5 造数 / §4 门禁 / 头部 | 造数、批间门、状态行仍是并入前口径 | ✅ **已改**（star 造数行 / T1–T16 / 执行序说明） |
+
+**维度复评（v0.8 · 8 维）**：完整性 **9.7**（T1–T16 ↔ 批 design 件表一一对应）· 准确性 **9.7** · 一致性 **9.6**（保持）·
+可用性 **9.7**（T15/T16 步骤与断言可照做）· 追溯 **9.8** · 反证 **9.4** · 边界 **9.6** · 维护性 **9.5**
+⇒ **均分 9.63**（9.7+9.7+9.6+9.7+9.8+9.4+9.6+9.5 = 77.0 ÷ 8 = 9.625 ≈ 9.63）
+
 ## 9. 修订记录
 
+| **v0.8** | 2026-09-18 | sunxuewen-rush | **star 最小集并入 → 新增 T15/T16（用户「不要单独开 M4-star」→ 确认并入）** —— ① **T15 star 服务端（执行序最先）**：schema + 迁移 + `assets/stars.ts`（同事务幂等计数）+ `PUT`/`DELETE` 端点 + `starCount`/`starredByMe` 读面 + 协议 + `08` 规范 + 新测试文件 ② **T16 star 前端接线**：`api/stars.ts` + `StarButton`（门户/详情共用）+ 列表列 + 抽屉统计 + 门户卡 ③ 批间门 **T1–T16** · 状态行写明**执行序 = T15 最先** ④ §5 造数补 star 行 ⑤ **§8.3 复核 P8–P10 三项处置** ⇒ **均分 9.63**（77.0 ÷ 8）⑥ 本版**零实现改动** |
 | **v0.7** | 2026-09-18 | sunxuewen-rush | **原型评审收口（R1–R23）**（含 §8.2 原型轮复核 P1–P5 + **落档一致性轮 P6–P7** · 8 维重打 **9.6**） —— ① 新增 **T12**（详情页管理区 + 4 新建件：`asset-permissions` / `AssetAdminCard` / `LabelCard` / `asset-stats`）② 新增 **T13**（`DataTable` 加性 prop `rowActionsHeader?`）③ 新增 **T14**（`labels` 结构体化 · Q14 = B · D5/D7 根治）④ **T7** 口径改九列 + 类型去色 + `ScanEye` 图标钮（依赖 T13）⑤ **T8** 改「抽屉 = 纯预览」⑥ **T11** dogfood 改 **G1–G15**（新增管理区 5 档权限矩阵 / 结构体渲染 / star 降级断言）、依赖改 T1–T14 ⑦ 状态仍 **⬜ 未开工** ⑧ 本版**零实现改动** |
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
