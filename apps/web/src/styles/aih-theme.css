@@ -132,7 +132,7 @@ html[data-base="aih"] {
   /* 页面底：极轻蓝渐变（`background-attachment: fixed` 随视口不随滚动） */
   --gradient-page: linear-gradient(180deg, #f8faff 0%, #eff4ff 100%);
   /* 状态渐变（M4b-3 批 design D12 v1.14，用户拍板落本层）：review task「已驳回」徽章 =
-   * 实底蓝→紫 + 白字（对标 21-skillhub 品牌渐变 #6A6DFF → #B85EFF，与「已通过」实底绿同构）。
+   * 实底蓝→紫 + 白字（对标 skillhub 品牌渐变 #6A6DFF → #B85EFF，与「已通过」实底绿同构）。
    * 唯一消费点 = `badge` 的 `rejected` variant（`bg-[image:var(--gradient-rejected)]`）——
    * 组件侧禁裸渐变字面量、禁 `--color-*` 映射（渐变值塞 `background-color` 不成立）。 */
   --gradient-rejected: linear-gradient(96deg, #6a6dff 0%, #b85eff 100%);

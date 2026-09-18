@@ -13,7 +13,7 @@ type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
  * 版本八态（08 §7）：`PUBLISHED` = success · `UPLOADED` / `PENDING_REVIEW` = warning ·
  * `SCAN_FAILED` / `REJECTED` = destructive · `YANKED` = secondary · `DRAFT` / `SCANNING` = secondary（中性）
  *
- * 八态口径 **2026-09-14 用户拍板定死**（主 design §10.1 …以版本头为准，对标 21-skillhub）：
+ * 八态口径 **2026-09-14 用户拍板定死**（主 design §10.1 …以版本头为准，对标 skillhub）：
  * `UPLOADED` = warning（skillhub 列表页同档「待处置」）· `YANKED` = secondary 灰
  * （与 skillhub 详情页 `VersionStatusBadge` 及门户侧 `VersionCompare` 实况一致）。
  */

@@ -19,7 +19,7 @@ const badgeVariants = cva(
         warning: 'bg-warning text-warning-foreground [a&]:hover:bg-warning/90',
         /**
          * 状态渐变补丁（M4b-3 批 design D12 / §3.2#7，v1.14，用户拍板）：review task「已驳回」徽章
-         * —— 实底**蓝→紫渐变 + 白字**（与 `success` 实底绿 + 白字**同构**，**去红**，对标 21-skillhub
+         * —— 实底**蓝→紫渐变 + 白字**（与 `success` 实底绿 + 白字**同构**，**去红**，对标 skillhub
          * `--brand-gradient`）。渐变**值**只住 `aih-theme.css` C 层（`--gradient-rejected`），此处仅
          * **引用** token；**不注册** `@theme --color-*` 映射（渐变值塞 `background-color` 不成立 ⇒ 注册即静默失效）。
          */
