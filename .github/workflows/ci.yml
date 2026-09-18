@@ -56,6 +56,11 @@ jobs:
       - name: format:check
         run: bun run format:check
 
+      # 文档体检（doc-audit）：版本头 ↔ 修订记录表一致性 / 死路径引用 / 头部长度告警
+      # 纯只读、无外部依赖（不连库）⇒ 紧跟 format:check，早失败早暴露
+      - name: 文档体检
+        run: bun docs/smoke/scripts/doc-audit.ts
+
       - name: build
         run: bun run build
 
