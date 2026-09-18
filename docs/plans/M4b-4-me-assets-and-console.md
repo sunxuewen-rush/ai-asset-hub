@@ -89,7 +89,7 @@
 ```
 ① `bun run --filter=@ai-asset-hub/server typecheck` exit 0
 ② 零行为变化：`bun test apps/server/src/http/assets.test.ts` 全绿（**未改测试的前提下**）
-③ `git diff` 中 `assetItem` 的 14 字段名与顺序**零变化**（逐字段比对迁出前后）
+③ `git diff` 中 `assetItem` 的字段名与顺序**零变化**（逐字段比对迁出前后；**实测 15 字段**——13 基础 + `starCount` + `starredByMe`，2026-09-18 复核）
 ④ 参数化实测：`status:'ALL'` ⇒ 返回含 HIDDEN/ARCHIVED；缺省 ⇒ 仅 ACTIVE；`ownerId` ⇒ 只含该 owner 的资产
 ```
 
@@ -113,7 +113,7 @@
    ```
 
 2. **不动**授权集外的 404 语义（`asset.not_found` —— 不泄露存在性，主 design §7.1）
-3. 复核 **6 个调用点**自动受益：详情 `:294` · 版本列表 `:308` · 版本详情 `:332` · 文件 `:351` · 下载 `:371` · 预览 `:778`
+3. 复核调用点自动受益（**实测 8 处**，2026-09-18：详情 · 版本列表 · 版本对比 · 版本详情 · 文件 · `PUT/DELETE .../star`（T15 新增）· 下载）
 4. **不加**「版本上传者本人」（Q5 A）
 
 **验收断言**：
@@ -149,7 +149,7 @@
 ```
 ① `bun run --filter=@ai-asset-hub/server typecheck` exit 0
 ② `GET /api/me/assets` 带会话 ⇒ 200 `{items,total,limit,offset}`；**未登录 ⇒ 401**
-③ ★ 每行 **14 字段齐**且 `latestVersion` / `latestName` / `ownerDisplayName` **非 null**（证明批注入已接）
+③ ★ 每行 **15 字段齐**（实测：13 基础 + `starCount`/`starredByMe`）且 `latestVersion` / `latestName` / `ownerDisplayName` **非 null**（证明批注入已接）
 ④ owner-only：造一条他人资产 ⇒ **不出现在**响应
 ⑤ `status=ALL` 含三态；缺省（不传 status）⇒ **含三态**（默认 `ALL`）；`status=HIDDEN` ⇒ 只含 HIDDEN
 ⑥ `status=bogus` ⇒ 400 `request.invalid`
@@ -610,8 +610,21 @@ bun install --frozen-lockfile
 **维度复评（v0.9 · 8 维）**：完整性 **9.7** · 准确性 **9.7** · 一致性 **9.7** · 可用性 **9.7** · 追溯 **9.8** ·
 反证 **9.4** · 边界 **9.6** · 维护性 **9.5** ⇒ **均分 9.64**（9.7+9.7+9.7+9.7+9.8+9.4+9.6+9.5 = 77.1 ÷ 8 = 9.6375 ≈ 9.64）
 
+### 7.5 逐 Task 自检打分（2026-09-18 起 · 每 Task 收尾即做）
+
+> 用户明确纪律：**每个 Task 做完即自测 + 自检打分**（不留到批收尾）。逐 Task 均分与扣分依据见
+> 批 design **§11.9**（同表维护，避免双份）。
+
+| Task | 状态 | 均分 | 门禁 |
+|------|:---:|:--:|------|
+| T1 / T2 / T3 / T4（服务端读面） | ✅ 已实现 | 9.58 / 9.71 / 9.70 / 9.65 | typecheck ✓ · 536 tests / 0 fail ✓ |
+| T5（api + hook）· T9（i18n）· T10（规范）· T13（prop） | ✅ 已实现 | 9.62 / **9.42** / 9.56 / 9.63 | typecheck ✓ · doc-audit 64/0 ✓ |
+| T15（star 服务端） | ✅ 已实现 | 9.55 | 迁移 0012 落库 ✓ · stars.test 9/9 ✓ |
+| T6 / T7 / T11 / T12 / T14 / T16 | ⬜ 待做 | — | — |
+
 ## 9. 修订记录
 
+| **v0.11** | 2026-09-18 | sunxuewen-rush | **逐 Task 收口打分落地（新纪律）** —— 新增 **§7.5**（每 Task 收尾即自测 + 打分）；T1–T5/T9/T10/T13/T15 均分 9.42–9.71（明细见批 design §11.9）；本轮修 **F38/F41/F42/F43**（含 🔴 漏 3 键）—— 本版为**实现期回写** |
 | **v0.10** | 2026-09-18 | sunxuewen-rush | **T15 实现期发现同步** —— ① **F36**：T14/T15/T16 的 Files 与步骤订正（形状 SSOT = `apps/web/src/api/types.ts`，protocol 零改动；T15 类型列改 **`server`**）② **F37**：T4 补并发/级联用例（登记）③ 新增 **§7.4** 记录实现期发现 ④ **T15 已实现并通过**（527 tests / 0 fail · 迁移 0012 落库）—— 本版为**实现期回写** |
 | **v0.9** | 2026-09-18 | sunxuewen-rush | **抽屉取消（用户「简单一点，抽屉不做了，取消，一点预览，直接进入完整详情」）** —— ① **T8 整条作废**（保留编号占位，不重排 ⇒ 零引用错位）② **T7 口径改**：操作列 = `Eye` 图标钮 **`Link` 真链接**直跳 `/assets/:slug`；断言改「`<a href>` + `pathname` + 全站无 sheet 反证」③ 批间门 / 状态行注明 **T8 作废** ④ **§8.4 复核 P11–P13** ⇒ **均分 9.64**（77.1 ÷ 8）⑤ 本版**零实现改动** |
 | **v0.8** | 2026-09-18 | sunxuewen-rush | **star 最小集并入 → 新增 T15/T16（用户「不要单独开 M4-star」→ 确认并入）** —— ① **T15 star 服务端（执行序最先）**：schema + 迁移 + `assets/stars.ts`（同事务幂等计数）+ `PUT`/`DELETE` 端点 + `starCount`/`starredByMe` 读面 + 协议 + `08` 规范 + 新测试文件 ② **T16 star 前端接线**：`api/stars.ts` + `StarButton`（门户/详情共用）+ 列表列 + 抽屉统计 + 门户卡 ③ 批间门 **T1–T16** · 状态行写明**执行序 = T15 最先** ④ §5 造数补 star 行 ⑤ **§8.3 复核 P8–P10 三项处置** ⇒ **均分 9.63**（77.0 ÷ 8）⑥ 本版**零实现改动** |
