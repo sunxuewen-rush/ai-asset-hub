@@ -4,6 +4,10 @@ import type { AssetItem, AssetListResponse, AssetStatus, AssetType } from './typ
 
 export interface AssetListParams {
   q?: string;
+  /** 排序档位（T11-f：`newest`(默认)/`downloads`/`stars`/`name`/`author`）—— 透传，本层不做默认判定 */
+  sort?: string;
+  /** 方向覆盖（T11-f）：缺省 ⇒ 服务端按档位固有方向 */
+  dir?: 'asc' | 'desc';
   /** 多值 = OR（服务端 label 多值语义） */
   labels?: readonly string[];
   type?: AssetType;

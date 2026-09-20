@@ -22,14 +22,33 @@ export interface MarketQuery {
    */
   status?: string;
   setStatus?: (next: string) => void;
+  /**
+   * 排序档位（M4b-4 T11-f 加性）：**仅当调用方传 `opts.sort` 时存在**。
+   * 门户三页传 `{ defaultValue: 'newest' }`；默认档 ⇒ **删参数**（干净 URL）。
+   */
+  sort?: string;
+  /**
+   * 写档位：`nextDir` 省略 ⇒ **删 `dir`**（回落档位固有方向 —— chips 用法）；
+   * 给定 ⇒ 同时写 `dir`（列头用法：首点该列 = `desc` —— design §4.7.2/§4.7.3 两态）。
+   */
+  setSort?: (next: string, nextDir?: SortDir) => void;
+  /** 方向覆盖（T11-f）：**仅由列表列头写入**；`undefined` ⇒ 档位固有方向（design §4.7.2） */
+  dir?: SortDir;
+  setDir?: (next?: SortDir) => void;
 }
+
+/** 排序方向（T11-f）：与服务端 `ASSET_SORT_DIRS` 同值域 */
+export type SortDir = 'asc' | 'desc';
 
 /**
  * 市场查询 URL 状态 hook（design §7：搜索防抖 300ms 写 URL；?q/?label（多值 OR）/?page ↔
  * 参数同步——回退/分享还原）。label/page 即时写（点选/翻页即状态）；q 输入 300ms 防抖 +
  * replace 写（防历史垃圾）。外部 URL 变化（回退/前进）→ 草稿与列表参数同步刷新。
  */
-export function useMarketQuery(opts?: { status?: { defaultValue: string } }): MarketQuery {
+export function useMarketQuery(opts?: {
+  status?: { defaultValue: string };
+  sort?: { defaultValue: string };
+}): MarketQuery {
   const [params, setParams] = useSearchParams();
   const urlQ = params.get('q') ?? '';
   const urlLabels = params.getAll('label');
@@ -39,6 +58,13 @@ export function useMarketQuery(opts?: { status?: { defaultValue: string } }): Ma
   const statusEnabled = opts?.status !== undefined;
   const statusDefault = opts?.status?.defaultValue ?? 'ALL';
   const urlStatus = params.get('status') ?? statusDefault;
+
+  // M4b-4 T11-f：排序维度（缺省关闭 —— 未传 opts.sort 的调用方零变化）
+  const sortEnabled = opts?.sort !== undefined;
+  const sortDefault = opts?.sort?.defaultValue ?? 'newest';
+  const urlSort = params.get('sort') ?? sortDefault;
+  const rawDir = params.get('dir');
+  const urlDir: SortDir | undefined = rawDir === 'asc' || rawDir === 'desc' ? rawDir : undefined;
 
   const [draft, setDraft] = useState(urlQ);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,6 +128,27 @@ export function useMarketQuery(opts?: { status?: { defaultValue: string } }): Ma
     commit(dropPage(p));
   }
 
+  /**
+   * 换排序档位（T11-f）：写 `?sort=`（默认档删除）+ **清 `dir`**（防「名称 + desc」这类
+   * 跨控件方向残留 —— design §4.7.2 方向模型）+ **回第 1 页**（design §4.7.1 #9）。
+   */
+  function setSort(next: string, nextDir?: SortDir) {
+    const p = new URLSearchParams(params);
+    if (next === sortDefault) p.delete('sort');
+    else p.set('sort', next);
+    if (nextDir) p.set('dir', nextDir);
+    else p.delete('dir');
+    commit(dropPage(p));
+  }
+
+  /** 列头方向覆盖（T11-f）：`undefined` ⇒ 删 `dir`（回落档位固有方向）；同样回第 1 页 */
+  function setDir(next?: SortDir) {
+    const p = new URLSearchParams(params);
+    if (next) p.set('dir', next);
+    else p.delete('dir');
+    commit(dropPage(p));
+  }
+
   function setPage(next: number) {
     const p = new URLSearchParams(params);
     if (next > 1) p.set('page', String(next));
@@ -119,5 +166,6 @@ export function useMarketQuery(opts?: { status?: { defaultValue: string } }): Ma
     page: urlPage,
     setPage,
     ...(statusEnabled ? { status: urlStatus, setStatus } : {}),
+    ...(sortEnabled ? { sort: urlSort, setSort, dir: urlDir, setDir } : {}),
   };
 }

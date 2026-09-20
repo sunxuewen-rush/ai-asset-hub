@@ -13,12 +13,21 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/shadcn/input-group';
+import { Label } from '@/components/ui/shadcn/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/shadcn/select';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../../api/assets.js';
 import { fetchStats } from '../../api/stats.js';
 import type { AssetType } from '../../api/types.js';
 import { useApi } from '../../hooks/useApi.js';
+import type { SortDir } from '../../hooks/useMarketQuery.js';
 import { useMarketQuery } from '../../hooks/useMarketQuery.js';
 import { useI18n } from '../../i18n/I18nProvider.js';
 import { EmptyState } from '../ui/EmptyState.js';
@@ -26,7 +35,14 @@ import { ErrorState } from '../ui/ErrorState.js';
 import { Pagination } from '../ui/Pagination.js';
 import { TypeIcon } from '../ui/TypeIcon.js';
 import { AssetCard, AssetGrid } from './AssetCard.js';
-import { AssetList, AssetListLoading, AssetListRow } from './AssetList.js';
+import {
+  AssetList,
+  AssetListLoading,
+  AssetListRow,
+  COLUMN_SORT,
+  type SortColumn,
+  type SortKey,
+} from './AssetList.js';
 import { FilterStrip } from './FilterStrip.js';
 
 const PAGE_SIZE = 20;
@@ -91,6 +107,24 @@ const META: Record<
 };
 
 /**
+ * 排序档位（T11-f · design §4.7.5 与服务端 `ASSET_SORT_VALUES` 同值域）。
+ * 顺序 = `Select` 选项序（默认档「最新」在首）；`MarketKey` 之外另用字面键表 ⇒ 与 `t()` 的键联合对齐。
+ */
+const SORT_OPTIONS = ['newest', 'downloads', 'stars', 'name', 'author'] as const;
+/** 档位白名单守卫（T11-f）：URL 值归一 —— 非法 ⇒ 回落默认档（与服务端「静默回落」同口径） */
+function isSortKey(value: string | undefined): value is SortKey {
+  return value !== undefined && (SORT_OPTIONS as readonly string[]).includes(value);
+}
+
+const SORT_LABEL_KEYS = {
+  newest: 'sortNewest',
+  downloads: 'sortDownloads',
+  stars: 'sortStars',
+  name: 'sortName',
+  author: 'sortAuthor',
+} as const;
+
+/**
  * 类型 icon tile 底色（§4.4 ② 类型色补丁 `--type-*` → `@theme` 映射；**查表替代旧
  * `styles[type]` 动态类名**——Tailwind 静态扫描不到拼接类，动态取值一律走查表）。
  */
@@ -140,7 +174,14 @@ const TYPE_EYEBROW: Record<AssetType, string> = {
  */
 export function CenterPage({ type }: { type: AssetType }) {
   const { t } = useI18n();
-  const { q, setQ, committedQ, labels, toggleLabel, clearLabels, page, setPage } = useMarketQuery();
+  const query = useMarketQuery({ sort: { defaultValue: 'newest' } });
+  const { q, setQ, committedQ, labels, toggleLabel, clearLabels, page, setPage } = query;
+  /**
+   * 排序档位 / 方向（T11-f）：URL 值经**白名单归一** ⇒ 非法值回落 `newest`
+   * （与服务端「静默回落」同口径 —— design §4.7.1 #4；防「URL 写 bogus 而服务端排 newest」的观感错位）。
+   */
+  const sort: SortKey = isSortKey(query.sort) ? query.sort : 'newest';
+  const dir = query.dir;
   const { data: stats } = useApi((signal) => fetchStats({ signal }), []);
   const [retryTick, setRetryTick] = useState(0);
   const [view, setView] = useState<ViewMode>('grid');
@@ -171,10 +212,12 @@ export function CenterPage({ type }: { type: AssetType }) {
           labels: labels.length > 0 ? labels : undefined,
           limit: PAGE_SIZE,
           offset: (page - 1) * PAGE_SIZE,
+          sort,
+          dir,
         },
         { signal },
       ),
-    [type, committedQ, labelsKey, page, retryTick],
+    [type, committedQ, labelsKey, page, retryTick, sort, dir],
   );
 
   const meta = META[type];
@@ -192,6 +235,22 @@ export function CenterPage({ type }: { type: AssetType }) {
   function handlePageChange(nextOffset: number) {
     setPage(Math.floor(nextOffset / PAGE_SIZE) + 1);
     window.scrollTo({ top: 0 });
+  }
+
+  /**
+   * 列头可点排序（T11-f · 两态）：**方向判定在 `AssetList`**（该件持有 `DEFAULT_DIR` 与当前有效方向
+   * ⇒ 单一事实源），本处只把结果落 URL —— 点**同列** ⇒ 写 `dir` 反向（`setDir`）；点**异列** ⇒
+   * `setSort(列, 'desc')`（**首点降序**，官方配方 `toggleSorting(false)` 同口径）。两者内部均回第 1 页。
+   * 回默认档 = 点工具条 chips「最新」（列头无「最新」列可比）。
+   *
+   * **F84 订正**：v1.23 原写「点异列 ⇒ 该列固有方向」，与 §4.7.3 断言「点名称列 ⇒ 首点 `descending`」矛盾。
+   */
+  function handleHeaderSort(column: SortColumn, nextDir: SortDir) {
+    // ★ 列 → 档（`COLUMN_SORT` 单一事实源）：`updated` 列落的是 `?sort=newest` —— 直写列名会产出
+    //   `?sort=updated`（服务端白名单外 ⇒ 静默回落 newest，但 `dir` 仍生效 ⇒ 序与档位脱钩）
+    const key: SortKey = COLUMN_SORT[column];
+    if (key === sort) query.setDir?.(nextDir);
+    else query.setSort?.(key, nextDir);
   }
 
   return (
@@ -239,7 +298,29 @@ export function CenterPage({ type }: { type: AssetType }) {
               ? t('market', 'filteredCount', { n: list?.total ?? 0 })
               : t('market', meta.total, { n: list?.total ?? 0 })}
           </span>
-          <span className="ml-auto text-xs text-muted-foreground">{t('market', 'sortRecent')}</span>
+          {/* 排序 **Select**（T11-f · **2026-09-20 用户拍板「方案 B」** —— 线框四案对比后选官方 `Select`）：
+              ① 官方件（`ui/shadcn/select.tsx` · `size="sm"` = 32px ⇒ 与搜索钮/视图钮**同高**）
+              ② 位置 = 计数行内 **搜索钮左侧**、`ml-auto` 贴右 · **不新增行**（两视图共用同一 `sort` 状态）
+              ③ 形态沿控制台「我的资产」页 `#assets-status-filter` 先例：`Label` + `SelectTrigger#id`
+              ④ 取代原静态文本「排序：最近更新」（v1.23 退役键 `sortRecent`）与 v1.25 的 chips 版
+              ⇒ 换档点击成本 1 → 2 次，换得常驻宽度 274px → 160px（design §4.7.2 v1.27）。
+              ⚠️ 宽度 = **160px**（沿控制台 `#assets-status-filter` 同宽先例）：EN 下最长选项 `Most downloads`
+              文本宽 **106px** ⇒ 104px 触发器会**截断**（实测 `scrollWidth 106 > clientWidth 54`），160px 容得下。 */}
+          <Select value={sort} onValueChange={(next) => query.setSort?.(next)}>
+            <Label htmlFor="market-sort" className="ml-auto text-muted-foreground">
+              {t('market', 'sortLabel')}
+            </Label>
+            <SelectTrigger id="market-sort" size="sm" className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {t('market', SORT_LABEL_KEYS[option])}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {/* 折叠搜索触发钮（T11-e）：官方 `Button`（ghost · icon-sm）—— 位置在视图切换钮**左侧**，
               与 ClawHub 同位；`aria-expanded` 由官方 `CollapsibleTrigger` 自动给出 */}
           <CollapsibleTrigger asChild>
@@ -335,7 +416,7 @@ export function CenterPage({ type }: { type: AssetType }) {
               ))}
             </AssetGrid>
           ) : (
-            <AssetList>
+            <AssetList sortKey={sort} dir={dir} onSortChange={handleHeaderSort}>
               {list.items.map((item) => (
                 <AssetListRow key={item.id} item={item} />
               ))}
