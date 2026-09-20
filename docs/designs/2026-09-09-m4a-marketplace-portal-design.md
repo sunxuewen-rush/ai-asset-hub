@@ -1,6 +1,14 @@
 # M4a 市场门户设计
 
 > Date: 2026-09-09
+> Updated: 2026-09-20（**v0.37：T11-i B″ 观感收尾**（用户「只做 B」+「侧边栏搜索图标的颜色要浅一些」）—— 面板**页面条目加 `→` 前缀**（lucide `ArrowRight` · 兜底行不加）· 触发器放大镜取 `text-muted-foreground`（原 = 继承 `--foreground`）· §8.13 ②/③/⑤/⑦ 原地补注 · 断言 `m4a-dogfood` **60/0**）
+> Updated: 2026-09-20（**v0.36：侧栏搜索定稿「框样触发器 → 命令面板」（T11-i 的 B″）** —— 用户复审后拍板「还是官方站的对话框更适合一些」（**A 案**）：入口做成**看起来像常驻输入框的按钮**（shadcn 官方站同款配方）⇒ 点击 / `⌘K` 开官方 `CommandDialog`；v0.35 的一体形态（官方 `Combobox`）与其依赖 `@base-ui/react` **一并退役**（依赖归零 · notices 回 **33 件**）· §8.13 重写（v0.36）· i18n **347 键**（`pages` 复回）· 断言 `m4a-dogfood` **57/0**（B″ 六条）· 本批 **91/0** 零回归)
+> Updated: 2026-09-20（**v0.35：侧栏搜索改「一体」形态（T11-i 的 B′）** —— 用户 2026-09-20 拍板「就按 Combobox 方案来」⇒ 侧栏由「条目 → `CommandDialog` **弹窗**」改为 **常驻输入框 + 紧邻下拉**（官方 `Combobox` · Base UI 原语 · **新增依赖 `@base-ui/react@1.8.0`（MIT）**）；**弹窗形态整体退役**（`ui/CommandPalette.tsx` 删）· 侧栏条目 **15 → 14** · i18n **347 → 346**（`pages` 键退役）· §8.13 重写（含 3 处 vendoring 偏离登记）· 件 = 新建 2（`ui/SidebarSearch.tsx` · `shadcn/combobox.tsx`）/ 删 1 · 断言 `m4a-dogfood` **57/0**（B 段 6 条重写 + T11-h 探针作用域修复）)
+> Updated: 2026-09-20（**v0.34：T11-i 观感微调**（用户 2026-09-20）—— 顶栏小搜索 **靠右 · 语言切换左侧**（原 = 标题右侧）· 宽 **固定 `w-[320px]`**（原弹性）· 放大镜 **`strokeWidth=4`**（加粗一倍）—— §8.12 ②/④/⑥ 与两套断言同步）
+> Updated: 2026-09-20（**v0.33：侧栏命令面板（`⌘K` 跳转 / 命令）** —— 用户拍板「sidebar 放命令面板搜索 / header 放小的搜索」⇒ 新 **§8.13**（侧栏入口 **14 → 15** · 官方 `CommandDialog` · 导航清单上提 `ui/navItems.ts` 单一事实源 · 角色过滤 · 兜底行跳 `/search?q=` · i18n **5 枚**定名 · 线框）· 与 §8.12 同笔 **T11-i**）
+> Updated: 2026-09-20（**v0.32：全资产搜索（公共搜索件 + `/search` 结果页）** —— 用户拍板 A1/B1/C3 +「Hero 对齐」⇒ 新 **§8.12**（件契约 · 结果页 · 顶栏接入 · 线框）· 语义边界 = **顶栏跨类型 / 资产页本类型** · **Hero 提交目标改 `/search?q=`**（原 `/skills?q=` 作废）· 零后端改动）
+> Updated: 2026-09-20（**v0.31：首页搜索点亮判据扩为「聚焦 或 有输入」** —— 用户拍板「鼠标一点击输入的地方、焦点在的时候就变」；**可提交性不变**（点亮 ≠ 可提交）· 规格见 **§8.11** · 断言 `m4a-dogfood` **T11-h ×8 ⇒ 46/0** · **F95**）
+> Updated: 2026-09-20（**v0.30：首页搜索两态（形态对齐 · T11-h）** —— 空态 `ghost` + 主色描边 + `aria-disabled`（点击/回车无反应）⇄ 有输入 `default` 实底主色 + 白图标 + 提交 `/skills?q=`；规格见 **§8.10**）
 > Updated: （**v0.29：首页 hero 三处调整（用户 2026-09-17 逐条拍板）**—— ① **整个 hero 去卡**（拍板 B）：`market/Hero.tsx` 的 `<Card>`（官方件：白底 + border + `rounded-xl` + `shadow-sm`）→ `<div>` ⇒ 标题「AI X Hub」与副标 / 搜索行 / 统计条**全部直接落在页面底色上**（`body` 的 `--gradient-page`）；撑满（`flex-1`）/ 居中 / 内距（`px-10 py-12`）/ rise **；**v0.28：门户 dogfood「中心计数」断言去数据依赖**）—— 原断言硬编码「共 3 个技能」⇒ 任何新增 skill 资产（如 M4b-3 造数）都会误报失败（AGENTS.md：测试只依赖自己造的数据）⇒ 改为**与 `/api/stats` 的技能数对账**（该闭包在 Node **）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **12 修订记录**。
 > SSOT：实测值与断言数 → `docs/smoke/` 证据文件 · 自检分 → 对应 design 的自检节。
@@ -568,6 +576,217 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 **回归 / 门禁**：门户 dogfood **36 PASS / 0 FAIL** + `NO JS ERRORS` · `m4a-chain-smoke` **PASS** · `typecheck`/`lint`/`format:check` **exit 0**。
 **截图**：`docs/smoke/1-home.png` 等 6 张随 dogfood 复跑更新（首屏形态即本条①-④的视觉证据）。
 
+### 8.10 v0.30（2026-09-20）：首页搜索**两态**（形态对齐 · **T11-h**）
+
+> 用户 2026-09-20 拍板：「**只做形态对齐**」·「空态**没反应**」·「只改首页搜索，门户几页不修改」。
+> 立项与口径 = 批 design **M4b-4 §4.8**（引用不复制）· 断言 = `docs/smoke/scripts/m4a-dogfood.ts` **T11-h ×4**（**v0.31 扩为 ×8** —— 见 §8.11）· 证据 = `docs/smoke/2026-09-18-m4b4-personal-b.md` **§14.10**。
+
+| # | 项 | 规格（定值） |
+|---|----|--------------|
+| ① | 空态（空 / 纯空白） | 右钮 `variant="ghost"` + 图标 `text-primary`（**主色描边放大镜**）+ `aria-disabled="true"` + `cursor-default`；底色透明 |
+| ② | 有输入 | 右钮 `variant="default"`（官方自带 `bg-primary` + `text-primary-foreground` ⇒ **实底主色 + 白图标**）+ 可提交 |
+| ③ | 圆角 | 按钮 `rounded-full`，与容器（`h-11 rounded-full`）同心 |
+| ④ | 空输入行为 | 点击 / 回车**一律无反应**（`onSubmit` 守卫 `if (!q) return`）—— 原「空回车 ⇒ `/skills`」口径**作废** |
+| ⑤ | 不可用态实现 | **`aria-disabled` + 提交守卫**，不用原生 `disabled`：官方 `Button` 自带 `disabled:opacity-50` 会把图标淡成半透明（与参考形态「仍是满蓝」不符），要保住满蓝须 class 覆写，而本仓 `cn`（npm `cn`）的冲突合并行为**未验证** ⇒ 不赌覆写。行为由守卫保证，语义由 `aria-disabled` 保证 |
+| ⑥ | 色值 | 走 token `--primary`（`#1447E6`）—— **不抄参考站的品牌色**（`#1673F7` 仅作形态参照） |
+
+**边界（登记）**：中文输入法**组合期**（composition）字符会即时点亮按钮（未做 composition 抑制）—— 与参考形态同款，暂不处理；
+**不动**：门户三页折叠搜索（`CenterPage`）· 控制台筛选框 · 顶部壳层。
+
+---
+
+### 8.11 v0.31（2026-09-20）：首页搜索**点亮判据**扩为「聚焦 或 有输入」（**T11-h v0.25**）
+
+> 用户 2026-09-20 追加拍板：「现在是输入内容后才变，**要改成鼠标一点击输入的地方、焦点在的时候就变**。」
+> 本版 = §8.10 的**判据扩展**（形态 / 色值 / 圆角 / 边界全不变），规格定值如下。
+
+| # | 项 | 规格（定值） |
+|---|----|--------------|
+| ① | 点亮判据 | `lit = focused \|\| hasQuery` —— `focused` 由 input `onFocus` / `onBlur` 维护（鼠标点入 / Tab 进入 / 官方 `InputGroupAddon` 代聚焦同路径）|
+| ② | 未点亮视觉 | 同 §8.10 ①（`variant="ghost"` 底透明 + 图标 `text-primary` 主色描边 + `cursor-default`）|
+| ③ | 点亮视觉 | 同 §8.10 ②（`variant="default"` 实底主色 + 图标主色前景 = 白）——**聚焦空态与有输入外观一致** |
+| ④ | 可提交性 | **只看「有输入」**：`aria-disabled` 仍随 `hasQuery`、`onSubmit` 守卫仍 `if (!q) return` ⇒ **点亮 ≠ 可提交**（聚焦空态虽满蓝，点击 / 回车依旧无反应）|
+| ⑤ | 实现路径 | 官方 `InputGroupButton` 的 `variant` 两态切换（**零 class 覆写**）；不用 `:focus-within` + class 覆写（不赌 `cn` 冲突合并）|
+| ⑥ | 失焦 | 复位 `ghost`（不清空输入；有输入时仍点亮 —— ③ 与「有输入」取或）|
+
+**实测（1440×900 · CDP 真指针）**：未聚焦空态 `ghost` / 透明 / 描边主色 · **真指针点入 input ⇒ `default` + 实底 `oklch(0.488 0.243 264.376)` + 图标转白，`aria-disabled` 仍 `true`，URL 不变** · 真指针点标题失焦 ⇒ 复位 `ghost` · 有输入点击 ⇒ `/skills?q=rag`。
+**回归 / 门禁**：`m4a-dogfood` **46 PASS / 0 FAIL**（T11-h ×8）· `NO JS ERRORS` · web `typecheck` / `lint` / `format:check` exit 0。
+**证据**：`docs/smoke/m4b4-29-home-search-idle.png`（未聚焦）· `m4b4-30-home-search-focus.png`（聚焦空态）· `m4b4-31-home-search-typed.png`（有输入）；像素复核见证据文档 §14.10。
+**⚠ F95**：后台 tab 里 `element.focus()` 会设上 `activeElement` 却**不派发 `focus` 事件** ⇒ React `onFocus` 不触发（探针假红）⇒ **判定聚焦类交互必须用真指针**（`clickReal`）。与 **F94**（过渡不推进）同属「后台 tab 副作用」家族，成因不同。
+
+### 8.12 v0.32（2026-09-20）：**全资产搜索**（公共搜索件 + `/search` 结果页 · **T11-i**）
+
+> 用户 2026-09-20 拍板：**A1**（顶栏常驻小搜索框）· **B1**（抽公共搜索件）· **C3**（资产页搜索保留）·
+> **语义边界**：「顶栏上是**所有资产**都搜索的快速通道，各个资产页的搜索**只搜各个资产类型的**」·「**Hero 对齐**」。
+> 立项与口径 = 批 design **M4b-4 §4.9**（引用不复制）· 断言 = 两套 dogfood（见批 plan §3 T11-i）。
+
+**① 语义边界（用户口径）**：顶栏 = **全资产快速通道（跨类型）**；门户三页折叠搜索 = **只搜本类型**
+⇒ 两者**不重复**（T11-e「删页头搜索去重复入口」的理由**不适用**于本条）。
+
+**② 公共件契约**（**新建** `apps/web/src/components/search/AssetSearch.tsx`）
+
+| prop | 类型 | 定值 / 说明 |
+|------|------|-------------|
+| `size` | `'lg' \| 'sm'` | `lg` = 首页（`h-11` 胶囊 · 外框 `max-w-[900px]`）· `sm` = 顶栏（`h-9` · 外框**由调用方定宽**：现 = 固定 `w-[320px]`，2026-09-20 由「弹性 `max-w-[320px]`」改）|
+| `placeholder` | `string` | 由调用方传 i18n（顶栏复用现键 `market.searchPlaceholder` = 「搜索技能、MCP、Agent…」—— 该键文案**本即跨类型**）|
+| `onSubmit` | `(q: string) => void` | **落地由调用方决定**（首页与顶栏均跳 `/search?q=`）|
+| `className` | `string?` | 仅用于**外框**定位 / 限宽；**不覆官方件色值 / 尺寸** |
+
+**行为（一份，两处共用）**：空 / 纯空白 ⇒ **不提交**（无反应）· **聚焦 或 有输入** ⇒ 点亮（v0.25 判据）·
+回车 / 点右钮 ⇒ 提交 · 按钮圆角与容器同心 · 内含官方 `InputGroup` + `InputGroupButton`（**零 class 覆写**）。
+
+**③ `/search` 结果页**（新路由 `/search` · **不入侧栏 IA** · **零后端改动**）
+
+| 项 | 规格（定值） |
+|----|--------------|
+| URL | `?q=` 关键词 · `?type=`（`all`(默认)/`skill`/`mcp`/`agent`）· `?sort=&dir=`（复用 T11-f 五档白名单）· `?page=` |
+| 数据 | `fetchAssetList({ q, type: type === 'all' ? undefined : type, sort, dir, limit, offset })` —— `type` 本就可选（`api/assets.ts:13`）|
+| 页头 | 标题「搜索结果」+ 计数（`q` 命中数 · 复用 `market.filteredCount` 口径）|
+| 类型 chips | 官方 `ToggleGroup`（`type="single"` · `variant="outline"` · `size="sm"` · `spacing={0}`）四档：**全部 / 技能 / MCP / 专家**（沿门户视图切换先例 · **零新件**）|
+| 工具条 | 计数行 + 官方 `Select` 排序（沿门户配方 · `id="search-sort"` · `w-[160px]`）+ 视图切换 `ToggleGroup`（网格 / 列表，同门户）|
+| 列表 | 复用 `AssetGrid` + `AssetCard`（网格）· `AssetList` + `AssetListRow`（列表）· `Pagination`（**仅 `total > 20`** 渲染 —— 沿门户口径）|
+| 空态 | `q` 为空 ⇒ 引导文案（新键）· 无结果 ⇒ 现有 `EmptyState`（`market.noResult`）|
+| **不做** | **页内第二个搜索框**（与顶栏重复 —— T11-e 已因重复删过页头搜索；要改词直接用顶栏框）· 输入即搜 / 下拉建议 · ⌘K 面板（登记后续）|
+
+**常量上提**：`SORT_OPTIONS` / `SORT_LABEL_KEYS` / `isSortKey` / `PAGE_SIZE` 自 `CenterPage.tsx:48,113,115,119`
+**上提**为 `apps/web/src/components/market/sortOptions.ts` ⇒ 门户**零行为变化**（改 import · 断言守）。
+
+**③-b i18n 键（定名 · 实现期照抄零二次决策）**
+
+| 键（`market` 组） | zh | en | 用途 |
+|-------------------|----|----|------|
+| `searchAllTitle` | 搜索结果 | Search results | 结果页页头标题 |
+| `searchAllCount` | 共 {n} 个结果 | {n} results | 结果计数 |
+| `searchAllHint` | 输入关键词，搜索全部资产 | Type a keyword to search all assets | `q` 为空时的空态引导 |
+| `typeAll` | 全部 | All | 类型 chips 第 1 档 |
+| `typeSkill` | 技能 | Skill | 类型 chips 第 2 档 |
+| `typeMcp` | MCP | MCP | 类型 chips 第 3 档 |
+| `typeAgent` | 专家 | Agent | 类型 chips 第 4 档 |
+
+**复用既有键（不新增）**：顶栏 / 首页占位符 = `market.searchPlaceholder`（「搜索技能、MCP、Agent…」—— 本即跨类型）· 无结果 = `market.noResult` · 提交钮 aria = `market.searchBtn`。
+**顶栏标题区**：`/search` **不进** `TopBar.titleOf()` —— 页头已显示标题与关键词，进了就是同信息两处（用户口径：界面忌信息冗余）。
+
+**③-c 公共件内部（定值）**：`<form onSubmit>`（守卫 `if (!q) return`）· 输入框 `aria-label` = 该处 `placeholder` · 右钮 `type="submit"` + `aria-label={t('market','searchBtn')}` · 容器 `lg` = `InputGroup h-11 rounded-full` / `sm` = `InputGroup h-9 rounded-full`（两档均胶囊 · 与各自容器同心）。
+
+**④ 顶栏接入**：位置 = **靠右 · 语言切换器左侧**（`ml-auto` 组内 —— 2026-09-20 用户观感调整，原 = 页面标题 `<h1>` 右侧）· 宽 **固定 `w-[320px]`** · `size="sm"` · 放大镜 **`strokeWidth=4`**（2026-09-20 用户「加粗一倍」· 原 lucide 默认 2 · **本件一处生效两处同观感**）· `<lg`（1024px）**隐藏**（不做图标钮展开）·
+回车提交 `/search?q=` · **提交后保留输入**。顶栏构成 **4 → 5 件**（规格引用 = 主 design §4 顶栏行）。
+
+**⑤ Hero 对齐（行为变更）**：Hero 提交目标由 `/skills?q=` **改 `/search?q=`** —— §8.10 ① / §8.11 ④ 的
+「提交 `/skills?q=`」口径**作废**，以本版为准。理由：同一关键词在**首页**与**顶栏**必须给**同一结果集**。
+
+**⑥ 线框**
+
+```text
+① 顶栏（全站 · 除 /login /device）· sm 档
+┌ 58px ─────────────────────────────────────────────────────────────────────┐
+│ [☰] │ 技能中心                      [ 🔍 搜索技能、MCP、Agent… (▷) ] 中文│EN │
+└───────────────────────────────────────────────────────────────────────────┘
+                              └── w-[320px] · h-9 · 靠右（语言切换左侧） ──┘
+                                 ◀ 放大镜 stroke 4 · 聚焦/有输入 ⇒ 右钮点亮 ▶
+                       ◀ <lg（1024）整条隐藏 ⇒ 顶栏回落为 4 件 ▶
+
+② /search?q=rag（结果页 · 默认全类型）
+┌───────────────────────────────────────────────────────────────────────────┐
+│ 搜索结果「rag」                                            共 12 个结果      │
+│ [全部] 技能  MCP  专家                        排序 [最新 ▾]   [▦][☰]       │
+│ ┌────────┐ ┌────────┐ ┌────────┐                                          │
+│ │ 资产卡  │ │ 资产卡  │ │ 资产卡  │  ← 门户同款卡 · 可切列表视图             │
+│ └────────┘ └────────┘ └────────┘                                          │
+│                        ‹ 1 / 2 ›   ← 仅 total > 20 时出现                  │
+└───────────────────────────────────────────────────────────────────────────┘
+
+③ 语义分界（用户口径）
+   顶栏搜索          ⇒ /search?q=   ⇒ 跨类型（技能 + MCP + 专家）
+   /skills 折叠搜索  ⇒ ?q=（同页）  ⇒ 只搜技能（/mcps · /agents 同理）
+```
+
+**⑦ 否决登记（本笔 · 用户 2026-09-20 未选）**
+
+| 方案 | 否决理由 |
+|------|----------|
+| ⌘K 命令面板（官方 `CommandDialog` · 底层 cmdk `1.1.1`） | **实测订正**：cmdk **已在用**（`console/LabelCard.tsx:146` 的 Popover 标签选择器）· **面板外壳 `CommandDialog` 尚无消费者**（白捡）。否决理由：多一步交互 + **可发现性差**（门户匿名访客不会知道 ⌘K）；要「搜资产」得新接口（破「不动后端」）；要做「跳转 / 动作」得再定一份命令清单 ⇒ **登记后续**（顶栏常驻框已满足「快速通道」诉求）|
+| 输入即搜 / 下拉建议 | 需新接口 + 键盘导航 + 空结果态 ⇒ 本笔排不进；且与 Hero 既有「输入 → 回车 → 结果页」模型不一致 |
+| 复用 `/skills` 加 `?type=all` | 与用户拍板的「资产页只搜本类型」**语义冲突**（URL 是 `/skills` 却列 MCP = 观感错位）|
+| 结果页再放一个页内搜索框 | 与顶栏框**同页重复** ⇒ 用户 T11-e 已因「重复入口」删过页头搜索，不重蹈 |
+
+**⑧ 边界 / 不动**：门户三页折叠搜索**保留** · 控制台筛选框**零改动** · 侧栏 IA 不动 · 匿名可用（读面既有）·
+窄屏**隐藏**（不展开）· 顶部壳层其余件不动 · 零后端改动、零迁移。
+
+### 8.13 v0.36（2026-09-20）：侧栏**框样触发器 → 命令面板**（`⌘K` 跳转 / 命令 · **T11-i 的 B″ 部分**）
+
+> 形态三稿（同日）：**v0.33** 侧栏条目 + 官方 `CommandDialog` 弹窗 ⇒ **v0.35** 改「常驻输入框 + 紧邻下拉」
+> 一体形态（官方 `Combobox` · Base UI 原语 · 新增依赖）⇒ **v0.36 用户复审后拍板「还是官方站的对话框更适合一些」**，
+> 回到对话框，但**入口做成"看起来像常驻输入框的按钮"**（= **A 案**）。**一体形态与其依赖 `@base-ui/react` 一并退役**。
+> 立项 = 批 design **§4.9**；形态依据 = **shadcn 官方站实测配方**（见 ②）。
+
+**① 分工（不变）**：**顶栏** = 搜**资产**（打字 → `/search?q=`，见 §8.12）；**侧栏** = 跳**页面 / 命令**（`⌘K`）。
+
+**② 触发器规格（`SideNav` · **官方站同款**）**
+
+| 项 | 定值 |
+|----|------|
+| 位置 | `SidebarHeader`（品牌块）**正下方**、门户组**之前**（独立块 · 无组标题）；收起态（48px）只留图标钮 |
+| 形态 | **看起来像常驻输入框的按钮** —— 依据 = shadcn 官方站实测：`button[data-slot=dialog-trigger]` + `bg-muted` + `border-none` + `shadow-none` + `justify-start` + 内嵌 `⌘K` |
+| 实测（本仓） | 高 **32px** · 宽 224（= 侧栏内容宽）· 底色 `--muted` `#f1f5fb` · 边 **0px** · 圆角 **10px** · 文案「搜索页面或输入以跳转…」+ 右侧 `⌘K` 徽标 · 放大镜 `strokeWidth=4` + 色 = `text-muted-foreground`（**v0.37**：2026-09-20 用户「侧边栏搜索图标的颜色要浅一些」· 原 = 无 className ⇒ 继承按钮 `--foreground` `#0f172a`，比同块文案更深）⇒ 与文案 / `⌘K` 徽标**三处同色** `#64748b`（实测） |
+| 语义 | `<button aria-haspopup="dialog">`（非 `NavLink`）· `tooltip` = 「搜索…」（`searchEntry`）|
+| 入口 | 点触发器 **或** `⌘K` / `Ctrl+K`（监听挂**壳层一处** `AppShell` · 与侧栏 `⌘B` 同族）|
+
+**③ 面板规格（官方 `CommandDialog` · 底层 cmdk `1.1.1`）**
+
+| 项 | 定值 |
+|----|------|
+| 内容 | ① 主列表「**页面**」= `ui/navItems.ts` 的 `buildNav`（与侧栏**同源** · 不复制第三份路由表）× 按角色过滤 ② 输入非空时末尾追加**兜底行**「在全部资产里搜「{q}」」⇒ `Enter` 跳 `/search?q=`（与 §8.12 串联 · 零后端）|
+| 门槛 | 复用侧栏口径（`state === 'authed'` / `hasRole` 档位）⇒ **未登录只列门户 4 条**（实测 · 不泄露管理面）|
+| 键盘 | `Esc` 关 / 点遮罩关 / 选中后关 · 内建过滤匹配「中文标签 + 路由路径」（实测输入 `token` 命中「访问令牌」`/dashboard/tokens`）|
+| 条目形态 | **页面**条目带 `→` 前缀（lucide `ArrowRight`）—— 尺寸 / 色值**全走官方 `CommandItem` 内建规则**（`[&_svg:not([class*=size-])]:size-4` + `[&_svg:not([class*=text-])]:text-muted-foreground` ⇒ 本仓**零 className 覆盖**）；**兜底行不带**（它是「搜索」语义，不是跳转）· **v0.37**（2026-09-20 用户拍板「只做 B」）|
+| **不做** | 面板内直接列**资产结果**（要打接口 ⇒ 登记后续）· 危险动作（登出 / 发布）不进面板 |
+
+**④ 依赖与 i18n（**零新增依赖** · **347 键 / 12 组**）**
+
+- **依赖**：v0.35 引入的 `@base-ui/react` **已撤除**（不再有消费点）· `THIRD-PARTY-NOTICES.md` 回到 vendored
+  shadcn **33 件**（实测重生成）。
+- **i18n**：`searchEntry`（触发器 tooltip / 面板标题）· `palettePlaceholder`（触发器文案 + 面板占位）·
+  `pages`（面板分组标题）· `paletteEmpty`（空态）· `paletteSearchAssets`（兜底行）⇒ **347 键 / 12 组**
+  （measure 实测 zh=en=347）。
+
+**⑤ 线框**
+
+```text
+侧栏 256（展开态）                          侧栏 48（收起态）
+┌────────────────────────────┐             ┌────┐
+│ ■ AI X Hub                 │             │ ■  │
+│ [🔍 搜索页面或输入以跳转… ⌘K] │ ← 框样钮    │ 🔍 │ ← 图标钮（点 = 开面板）
+│ ⌂ 首页                     │             │ ⌂  │
+│ ✦ 技能中心                 │             └────┘
+└────────────────────────────┘
+            ↓ 点击 / ⌘K
+┌──────────── 遮罩（居中浮层 · 官方 CommandDialog）────────────┐
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ 搜索页面或输入以跳转…                               │  │
+│  ├───────────────────────────────────────────────────┤  │
+│  │ 页面                                               │  │
+│  │  → 首页 · → 技能中心 · → MCP 中心 · → 专家中心      │  │
+│  │ 在全部资产里搜「pdf」                               │  │ ← 兜底行
+│  └───────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────┘
+```
+
+条目形态（**v0.37**）：面板内**每条页面条目** = `→` + 页面名 · 条目按**角色**追加（个人 / 管理组，见 ③ 门槛）·
+**兜底行**「在全部资产里搜「{q}」」**无箭头**（搜索语义 ≠ 跳转）。
+
+**⑥ 边界 / 不动**：门户组与三组条目**零改动**（触发器是独立块 · **侧栏条目数不变 14**）· 侧栏 `⌘B` 不变 ·
+顶栏（§8.12）不变（用户 2026-09-20 明确「顶栏不再改了」）· 窄屏侧栏走抽屉 ⇒ 触发器在抽屉内可达 ·
+**零后端改动、零迁移**。
+
+**⑦ 否决登记（本笔）**
+
+| 方案 | 否决理由 |
+|------|----------|
+| 「常驻输入框 + 紧邻下拉」一体形态（v0.35） | 用户复审后拍板「**还是官方站的对话框更适合一些**」⇒ 已退役（含其依赖 `@base-ui/react`）|
+| 侧栏纯条目式入口（v0.33 原样：图标 + 「搜索…」） | 可点击感弱（不像输入框）⇒ 改**框样按钮**（官方站同款做法），兼顾"看得见"与"对话框"|
+| 面板内直接列**资产结果** | 需打接口 ⇒ 破「不动后端」；用兜底行跳结果页满足诉求 |
+| 照搬官方站**底部操作提示栏**（`↵ Go to Page` / `⌘C pnpm dlx …`）+ nova 档**容器几何**（圆角 12 · 4px 外环 · 条目 36 带边框）—— **v0.37** | 用户 2026-09-20 看过官方站截图 + 两版对照小样后**拍板「只做 B」**：底栏右半是**组件库专有动作**（复制安装命令），我方无对应物；容器几何属官方站**自身站点皮肤**（我仓 vendored `new-york` 档默认即现状）⇒ 只取「条目前缀箭头」一项 |
+
 ## 9. 线框图（v0.3-v0.7；示意数据非设计硬值）
 
 首页（**纯 hero 落地页**——v0.18b：**hero 卡撑满一屏**（撑满由壳承担：`main` + 页 `flex-1`；实测 826px
@@ -689,8 +908,8 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 | v0.6 | 2026-09-09 | sunxuewen-rush | 8 维自检修复：G6→R7（stats 聚合端点）；Avatar 色板入档；资产卡正式结构命名一步到位 |
 | v0.7 | 2026-09-09 | sunxuewen-rush | 详情页内容体验定稿：总览=skill.md markdown 正文（README 后置翻转）；文件树折叠+预览对话框；版本行级对比（skillhub+GitHub 细节）；G7→R8（单文件内容端点）、G8→R9（compare hunks 端点）双契约 §5.2；依赖破例 +react-markdown/remark-gfm（diff 零库，服务端 hunks）；组件树 detail 群 + FileTree/FilePreviewDialog/MarkdownRenderer ui 化；§5.3 两波编排修正；线框 §9 更新 |
 | v0.8 | 2026-09-09 | sunxuewen-rush | claude-design 环节补走（流程完整性）：首页 polish 增量回写——类型入口卡 icon 左置 44px + 真实计数（R7 typeCounts）；最新发布竖排行式（类型点 + 坐标 mono + ⇣下载/作者——R5/R6 数据源）；氛围光斑收敛 alpha≤0.1；字体栈 MiSans 中文优先；动效 posture 规范（rise stagger 0.5s ≤0.2 / hover lift -3px / reduced-motion 关）；数字 tabular-nums。slop 自检 3.5→1.5 实证留档 |
-| **v0.10** | 2026-09-11 | sunxuewen-rush | **AIH blue 基色层（用户拍板）**：① **事实**：官方 7 个 base color（Neutral/Stone/Zinc/Mauve/Olive/Mist/Taupe）全为中性/暖中性，**无蓝调**（实测）→ 需求「更多蓝」在官方 preset 里无旋钮 ② **决策**：**自建 AIH blue 基色层**（15 值：淡蓝底 `#f8faff` / 泛蓝边 `#e3eaf6` / 白卡不变 / accent `#eaf1fd` / 侧栏 `#f6f9ff` / focus ring `#3b82f6` / 墨色 `#0f172a`），与官方 neutral 逐项对照入档；Theme 层仍用**官方 blue preset 原值**（`#1447e6`）→ §4.4 ① 重构为**两层结构**（基色层 + 主题层）③ **解耦纪律**：AIH 层独立成文件、官方生成块**之后** import（防 `shadcn apply` 覆盖 + 保覆盖顺序；含覆盖 theme 层 `--secondary`），**组件源码零改动**——沙箱对照已验证（`:5199` 官方↔AIH 一键切换、tsc 零错、build 绿）④ **暗色档明确不做**（同轮拍板：不做亮/暗切换；`.dark` 段保留备用、UI 不开口）⑤ 官方依据补录：shadcn 文档「Adding New Tokens」= 我们补丁层做法的官方标准姿势（② 新增两条纪律 bullet）⑥ §4.4 ⑦ 映射表目标值更新（`--bg`→#f8faff / `--line-*`→#e3eaf6+#3b82f6 / `--text-2·3`→#64748b）· §8 阶段 0 基色层落位 · 头部 Updated 同步 ⑦ 备注：**值基线定死，落地后按真站点观感微调**（用户 2026-09-11） |
 | **v0.9** | 2026-09-11 | sunxuewen-rush | **视觉体系切换（用户拍板）——shadcn 蓝科技落地**：① **气质级变更**：v0.3 起的「蓝色科技风 + 毛玻璃 + 品牌渐变」整体废弃（毛玻璃/渐变/光斑/蓝色投影/hover 位移/遮罩 blur/半像素字阶全清）→ 纯白底 + `#e5e5e5` 细边 + 单一 primary 蓝 `#1447e6` + 极轻阴影 ② **§4.4 重写为全站视觉真值 SSOT**：语义色 token 全规格（含出处行号）+ **AIH token 补丁表**（`--success`/`--warning`/类型色——shadcn 官方仅 destructive，2026-09-11 拍板登记）+ 组件真值表 + 圆角轴 + 字阶收敛（实测定义 23 档 / 实用 19 档 → 9 档）+ **token 映射表**（旧 `tokens.css` → 新，迁移照抄）③ 类型色处理：**保留三类型色相、渐变改实底**（依用户「拒玻璃/渐变」偏好），头像 8 色板同步去渐变 ④ **语义修正**：diff 内容色（GitHub 系 #1a7f37/#cf222e）**不并入** UI 语义色（`--destructive` #e7000b）——分工不同 ⑤ §4.1 依赖换栈（Tailwind v4 + shadcn CLI + `cn` 等 6 包）+ **四个 CLI 坑**（禁写 base / tw-animate-css 自补 / 批量 add 带 --overwrite / 禁手抄源码）+ 双栈共存期边界 ⑥ §8 新增 **阶段 0 探针切片**（基建 + 共享壳 4 件 + 首页 5 件；出口 = 用户三判「气质/密度/类型色」）；**顺序翻转**：原 2026-09-10 拍板「先控制台面」→ 本次「先门户」——理由：共享壳（AppShell/TopBar/SideNav）为门户与控制台共用，先换壳可消除 M4b 混搭期；且门户的类型色/卡片/hero 是 shadcn 体系里最难落的一块（前置解决），M4b 亦可在已实证体系上生长 ⑦ §10 引用（+shadcn/ui 与 00-ui 真值源、流程 +shadcn-ui-project）/ §11（token 无规范层归属；**登记发现：本文件 17 处 `@ns`/`PUBLIC` 旧模型残留（§1/§3/§5.1-5.3/§8/§9）需按 M4-pre 回写**——处置：阶段 0 收尾同轮回写，用户 2026-09-11 定）/ §12 同步 ⑧ 技术可行性实证：沙箱 spike（CLI 4.21.0 + tailwind 4.3.3 + vite 6.4.3，22 组件，tsc 零错 + build 绿），**浏览器观感由用户人工确认**（沙箱无法亲验渲染） |
+| **v0.10** | 2026-09-11 | sunxuewen-rush | **AIH blue 基色层（用户拍板）**：① **事实**：官方 7 个 base color（Neutral/Stone/Zinc/Mauve/Olive/Mist/Taupe）全为中性/暖中性，**无蓝调**（实测）→ 需求「更多蓝」在官方 preset 里无旋钮 ② **决策**：**自建 AIH blue 基色层**（15 值：淡蓝底 `#f8faff` / 泛蓝边 `#e3eaf6` / 白卡不变 / accent `#eaf1fd` / 侧栏 `#f6f9ff` / focus ring `#3b82f6` / 墨色 `#0f172a`），与官方 neutral 逐项对照入档；Theme 层仍用**官方 blue preset 原值**（`#1447e6`）→ §4.4 ① 重构为**两层结构**（基色层 + 主题层）③ **解耦纪律**：AIH 层独立成文件、官方生成块**之后** import（防 `shadcn apply` 覆盖 + 保覆盖顺序；含覆盖 theme 层 `--secondary`），**组件源码零改动**——沙箱对照已验证（`:5199` 官方↔AIH 一键切换、tsc 零错、build 绿）④ **暗色档明确不做**（同轮拍板：不做亮/暗切换；`.dark` 段保留备用、UI 不开口）⑤ 官方依据补录：shadcn 文档「Adding New Tokens」= 我们补丁层做法的官方标准姿势（② 新增两条纪律 bullet）⑥ §4.4 ⑦ 映射表目标值更新（`--bg`→#f8faff / `--line-*`→#e3eaf6+#3b82f6 / `--text-2·3`→#64748b）· §8 阶段 0 基色层落位 · 头部 Updated 同步 ⑦ 备注：**值基线定死，落地后按真站点观感微调**（用户 2026-09-11） |
 | **v0.11** | 2026-09-11 | sunxuewen-rush | **阶段 0 实施回写（计划 T1-T7 落地）**：① **坑清单 4 → 6 条**——⑤ CLI 生成物按自身风格生成（双引号/无分号），与本仓 biome 冲突 → 装完必跑 `format` + `check --write`，且官方源码命中本仓 recommended 规则（`noDocumentCookie`/`useExhaustiveDependencies`/a11y×3）→ 根 `biome.json` 加**仅作用 `components/ui/shadcn/**` 的规则例外**（保与 registry 一致，升级 diff 干净；不手改官方源码）；⑥ **无层声明压过一切层内声明**（CSS Cascade Layers）——旧 `tokens.css`/`global.css` 无 `@layer` ⇒ 其 `* { margin/padding }` reset 与 `body { background/font/color }` 压掉**全部 Tailwind 工具类**（实测 `main` padding 计算值 `0px`）→ 旧层**降级为「只保留 Tailwind 不提供的项」**（reset 交 Preflight、body 三属性交 Tailwind base）② §4.1 双栈共存期补**降级纪律**（换皮期内旧层不得再引入与工具类同属性的无层声明）③ **实测登记**：T4 后 `main` padding `0px→16px 22px 36px`、`body` 底色 `rgb(244,248,255)→rgb(248,250,255)`（=AIH 淡蓝底），产物含 `html[data-base=aih]` 基色块 + `--success` + Preflight + 工具类；T5 顶栏（58px / 白底 / `#e3eaf6` 下边 / 品牌实底 primary / 无 `backdrop-filter`）、T6 侧栏（204px / `#f6f9ff` / 激活 `#eaf1fd` / 5 条目）、T7 语言控件（2 钮 / `aria-pressed` / `localStorage aih.uiLang` 持久化 + 重载复现）④ **报告面**：单入口与浏览器观感仍由用户人工确认（本轮沙箱真浏览器已可读渲染与计算值，但**观感**不作实现侧断言）⑤ 登记项：plan T6 断言的「<900px 图标态」在旧实现中不存在（`SideNav.module.css` 零 `@media`）→ 按结构零变更不补；语言控件形态**保 pill**（2026-09-11 用户拍板；plan T7 原措辞 DropdownMenu 与「纯视觉变更」纪律冲突，以纪律为准） |
 | **v0.12** | 2026-09-11 | sunxuewen-rush | **侧栏收起/展开 —— 接入 shadcn `Sidebar` 原语（用户拍板「做，按推荐」）**：① **需求**：用户 2026-09-11 提出「点一下收起、再点一下展开」；核实 **shadcn 原生支持**（`apps/web/src/components/ui/shadcn/sidebar.tsx` 696 行已于 T2 落仓；`collapsible="icon"\|"offcanvas"\|"none"` + `SidebarProvider/SidebarTrigger/SidebarRail/useSidebar` + cookie `sidebar_state` 7 天 + `⌘B`/`Ctrl+B` + 移动端 Sheet）② **拍板四项**（用户「按推荐」）：档位 = **`icon`**（收起保留图标轨，导航不消失）· 展开宽 **保持 204px**（覆盖 `--sidebar-width`，不引入额外汇度变化）· 触发钮 = **顶栏左端**（品牌字前）+ `⌘B`/`Ctrl+B` · 移动端 **要** Sheet 抽屉 ③ **性质**：结构 + 行为变更（非纯视觉）——`SidebarProvider` 包裹 AppShell、侧栏内容重构为 `SidebarMenu*`、`useLocation` 判定激活（替代 NavLink 渲染函数）；因共享壳正在换皮、M4b 控制台要复用同壳，作**阶段 0 增补** ④ §3 应用壳行 / §4.4 ③ sidebar 行 / §8 板块 2 同步 ⑤ **AIH 覆盖清单**（4 处，均入 §4.4 ③）：展开宽 204px · 图标态 48px · 面板圆角 2xl(18px)（覆盖 floating 的 lg 10px）· 定位 `top-[58px] bottom-0`（留在 58px 顶栏之下，保「顶栏通用」）⑥ 导航条目 / 路由 / 计数逻辑**零变更** |
 | **v0.13** | 2026-09-11 | sunxuewen-rush | **阶段 0 板块 C（T8-T12 首页换皮）落地回写**：① 六件重写（`Hero`/`Home`/`TypeEntryCard`/`AssetCard`/`AssetAvatar`/`Pagination`）+ 删 6 个 `.module.css` + 新增 dev-only `ReviewControls`（出口后删）② `aih-theme.css` 增 `--animate-rise` 与 keyframes（原住 `global.css`，收尾删旧层后由 AIH 层自持）③ **实测审计**：令牌 15 项逐值命中 §4.4；hero 光斑/渐变归零（`::before/::after` 均 none）；搜索框按 shadcn 真值 **36px**；tile 44/13/#2563eb；卡 r14 + 白底；头像实底；分页 h32；三态齐；评审控件**不进生产包** ④ **坑⑥ 第二实例（实测驱动）**：旧 `tokens.css` `:root` 的 `--ava-1..8` 渐变**静默压过** AIH 实底值（头像仍渐变）→ 处置 = 从旧层**删除** `--ava-*`/`--tint-*` 并立「同名变量只住一层」纪律（§4.1 坑⑥ 已扩写）⑤ 包体 JS 474.6 → 563.6 kB（卡/头像/分页换 shadcn 原语；**已知风险③ 大包体**累积，阶段 1 评估 code-split） |
@@ -707,6 +926,14 @@ Map<url, data> 简单缓存，防重复 G7 请求）；对比对非法自动调�
 | **v0.24** | 2026-09-11 | sunxuewen-rush | **整体审计（T17-T26）修正 + 登记**（用户 2026-09-11 批准处置）：① **两处自产数字缺陷修正**（声明 → 实测）——阶段 1 `.module.css` 删除数 **12 → 16**（实测：base 存量 16 → HEAD 0；逐 Task 删除 2+2+3+7+1+1 = 16；阶段 0 另删 10 ⇒ 生命周期 26；轨迹 16→14→12→9→2→1→0）· §4.4 ⑦ 覆盖口径 **「44 项旧 token」→「旧层 `tokens.css` 93 个自定义属性 / 表 15 行 / 29 个 token 名」**（非注释行消费者 0；例外三项均非旧层消费：滚动条 4 项按 §4.4 ⑥ 迁入、`--font-sans`/`--font-mono` 由官方层 `index.css` 重新定义）② **§4.4 ⑦ 注 + §8 同步修正** ③ 审计发现另 5 项（空态调用点未归一 / 4 个多余 export / i18n 死键 `market.download` / 9px 装饰字形（旧层原值忠实迁移）/ chip 类串跨 4 文件重复）→ 登记 plan §3 表 20-24 ④ **审计结论：代码 9.62 / 文档 9.53**（均 ≥9；扣分主因即 ①②） |
 | **v0.25** | 2026-09-14 | sunxuewen-rush | **门户侧状态映射表述订正（随 M4b 八态映射闭合）**：§4.4 「状态语义映射」行原写门户侧 YANKED 徽章为 `destructive`，**与代码实况不符**——`VersionCompare.tsx:188` `<Badge tone={isLive ? 'success' : 'neutral'}>`（tone 只由「是否 latest」决定，YANKED 仅换文案）⇒ 真值 `neutral` 灰。订正为本值，并与 M4b 主 design v1.7（`UPLOADED` = warning · `YANKED` = secondary）口径对齐 |
 | **v0.26** | 2026-09-16 | sunxuewen-rush | **§4.4 ②bis 渐变白名单增第 4 个 token（M4b-3 批回写）**：`--gradient-rejected`（`linear-gradient(96deg, #6a6dff 0%, #b85eff 100%)`，review task「已驳回」= 实底蓝→紫 + 白字，**去红**，对标 skillhub 品牌渐变）① 表 +1 行 · 白名单 3 → **4** · ②bis「三处」→ **四处** ② 性质 = **真值注册表增量回写**（非决策变更）：留 3 会在 M4b-3 收尾审计暴露为假声明；依据 = M4b-3 批 design §3.2#7 声明的落点 + 用户 2026-09-16 拍板 **A**）③ 消费姿势与本表既有 3 个一致（任意值 `bg-[image:var(--…)]`，**不注册 `@theme` 映射**）；**值仍只住 `aih-theme.css`** |
-| **v0.29** | 2026-09-17 | sunxuewen-rush | **首页 hero 三处调整（用户 2026-09-17 逐条拍板）**——① **去卡**（拍板 B）：`<Card>` → `<div>`，内容**落底**（`--gradient-page`）· 撑满/居中/内距/动画不变 ② **搜索行改官方 `InputGroup`**（拍板 ①）⇒ **M4b-1 §6.2 D′「输入框内按钮改 `InputGroup`」落地**（原「并列」豁免作废）③ **胶囊化 + 单放大镜**：`rounded-full` · `h-11` 44px · 左 addon 撤除、放大镜**仅一次**且落**右侧**当提交钮（`icon-sm` 32×32 `ghost` `type=submit` `aria-label`=「搜索」）—— 依据 Google 两范式（首页「左提示+右异语义」vs 结果页「左不放·右侧即提交」）④ 底色保持**透明**（拍板 A）⑤ 实测：44px / `calc(infinity*1px)` / 框内 svg=1 / addon=1 / 按钮 32×32 / 无 `[data-slot=card]` / hero 842 ⑥ dogfood **36/0** + chain-smoke PASS + 门禁 exit 0 ⑦ 截图 6 张更新 ⑧ 节 §8.9 |
-| **v0.28** | 2026-09-16 | sunxuewen-rush | **门户 dogfood「中心计数」断言去数据依赖**（硬编码 3 → 与 `/api/stats` 对账）⇒ 36/36 复跑通过。**执行期事故（诚实记录）**：一次脚本改写（Python 链式赋值误用）曾把 `m4a-dogfood.ts` 写坏 ⇒ `git checkout` 从已提交版本恢复后重施（无内容丢失；详见 M4b-3 证据 §7 #3） |
 | **v0.27** | 2026-09-16 | sunxuewen-rush | **中心页分页补条件 + dogfood 假 PASS 断言修正**（来源 = M4b-3 T6 自检的「既有断言有效性抽检」换靶）① `components/market/CenterPage.tsx`：`Pagination` 补 `list.total > PAGE_SIZE` 条件（此前无条件 ⇒ 3 资产也渲染「1 / 1 · 每页 20」；`Pagination` 组件仅在 `total <= 0` 自隐）② `docs/smoke/scripts/m4a-dogfood.ts`：「资产数 < limit ⇒ 无分页控件」断言原用 `nav[aria-label*="分页"]`（**永不匹配**英文 `aria-label="pagination"`）⇒ **假 PASS**；改为官方真值选择器 + 非空洞条件（同页真实卡已渲染）③ 实证：改前 —— 分页控件在页却判「缺席」（假 PASS 复现）；改后 —— 中心页卡在、分页 0 个；同选择器在 M4b-3 我的提交页 `total=25` 场景命中 1 个（**非空洞反证**）；dogfood **36/36 + NO JS ERRORS** |
+| **v0.28** | 2026-09-16 | sunxuewen-rush | **门户 dogfood「中心计数」断言去数据依赖**（硬编码 3 → 与 `/api/stats` 对账）⇒ 36/36 复跑通过。**执行期事故（诚实记录）**：一次脚本改写（Python 链式赋值误用）曾把 `m4a-dogfood.ts` 写坏 ⇒ `git checkout` 从已提交版本恢复后重施（无内容丢失；详见 M4b-3 证据 §7 #3） |
+| **v0.29** | 2026-09-17 | sunxuewen-rush | **首页 hero 三处调整（用户 2026-09-17 逐条拍板）**——① **去卡**（拍板 B）：`<Card>` → `<div>`，内容**落底**（`--gradient-page`）· 撑满/居中/内距/动画不变 ② **搜索行改官方 `InputGroup`**（拍板 ①）⇒ **M4b-1 §6.2 D′「输入框内按钮改 `InputGroup`」落地**（原「并列」豁免作废）③ **胶囊化 + 单放大镜**：`rounded-full` · `h-11` 44px · 左 addon 撤除、放大镜**仅一次**且落**右侧**当提交钮（`icon-sm` 32×32 `ghost` `type=submit` `aria-label`=「搜索」）—— 依据 Google 两范式（首页「左提示+右异语义」vs 结果页「左不放·右侧即提交」）④ 底色保持**透明**（拍板 A）⑤ 实测：44px / `calc(infinity*1px)` / 框内 svg=1 / addon=1 / 按钮 32×32 / 无 `[data-slot=card]` / hero 842 ⑥ dogfood **36/0** + chain-smoke PASS + 门禁 exit 0 ⑦ 截图 6 张更新 ⑧ 节 §8.9 |
+| **v0.30** | 2026-09-20 | sunxuewen-rush | **首页搜索两态（形态对齐 · T11-h）** —— 用户拍板「只做形态对齐 / 空态没反应 / 只改首页搜索」① 空态：`ghost` 底 + **主色描边** + `aria-disabled`（点击/回车无反应）· 底透明 ② 有输入：`default` **实底主色 + 白图标** + 提交 `/skills?q=` ③ 空输入**不再跳 `/skills`**（原口径作废）④ 不可用态用 `aria-disabled` + 提交守卫（不用原生 `disabled` —— 官方 `disabled:opacity-50` 会把图标淡成半透明；保满蓝须 class 覆写，而本仓 `cn` 冲突合并行为未验证）⑤ 规格表 = **§8.10** · 断言 `m4a-dogfood` **+4 ⇒ 42/0** · **F94**（探针读 CSS 过渡中间态自伤）⑥ 门户三页与控制台**零改动** |
+| **v0.31** | 2026-09-20 | sunxuewen-rush | **首页搜索点亮判据扩为「聚焦 或 有输入」（T11-h v0.25）** —— 用户拍板「鼠标一点击输入的地方、焦点在的时候就变」① 新增 **§8.11**（判据表 ①-⑥：`lit = focused \|\| hasQuery` · **可提交性仍只看输入** · 失焦复位）② **可提交性与视觉点亮解耦**（聚焦空态满蓝但点击/回车无反应）③ 实现 = 官方件 `variant` 两态切换，**零 class 覆写** ④ 断言 `m4a-dogfood` **T11-h ×8 ⇒ 46/0**（真指针四态）⑤ **F95**（后台 tab `element.focus()` 不派发 `focus` 事件 ⇒ 探针假红；判定聚焦类交互必用真指针）|
+| **v0.32** | 2026-09-20 | sunxuewen-rush | **全资产搜索（T11-i）** —— 用户拍板 A1（顶栏常驻小框）+ B1（抽公共件）+ C3（资产页搜索保留）+ 语义边界 +「Hero 对齐」① 新增 **§8.12**：公共件 `AssetSearch`（`size`/`placeholder`/`onSubmit`/`className` · 行为一份 · 官方 `InputGroup`）② `/search` 结果页规格（`?q` · `?type=all|skill|mcp|agent` · `?sort&dir` · `?page` · 类型 chips 用官方 `ToggleGroup` · 复用门户列表/排序/视图/分页件）③ **Hero 提交目标改 `/search?q=`**（原 `/skills?q=` 作废）④ 常量上提 `sortOptions.ts`（门户零行为变化）⑤ **零后端改动**（`type` 本就可选）|
+| **v0.33** | 2026-09-20 | sunxuewen-rush | **侧栏命令面板（`⌘K` 跳转 / 命令 · T11-i 的 B 部分）** —— 用户拍板「sidebar 放命令面板搜索 / header 放小的搜索」① 新增 **§8.13**（入口规格 · 面板规格 · i18n **5 枚**定名 · 线框 · 否决登记）② 侧栏条目 **14 → 15**（品牌块正下方 · 独立块**无组标题** · 收起态只留图标钮 · 语义 `<button aria-haspopup="dialog">`）③ **导航清单单一事实源**：`entries` + `navGroups`（含 gate）上提 `ui/navItems.ts` ⇒ 面板与侧栏**同源消费**（避免第三份路由副本）④ 面板 = 官方 `CommandDialog`（页面跳转**按角色过滤** + 兜底行跳 `/search?q=`）· **不做**面板内资产结果 / 危险动作 ⑤ **零后端改动** |
+| **v0.34** | 2026-09-20 | sunxuewen-rush | **T11-i 观感微调（用户 2026-09-20）**：顶栏小搜索 ① **靠右、置于语言切换器左侧**（原 = 页面标题右侧）② 宽度 **固定 `w-[320px]`**（原弹性 `max-w-[320px]`）③ 放大镜 **`strokeWidth=4`**（「加粗一倍」· 原 lucide 默认 2）—— §8.12 ④/⑥ 线框与件契约同步；实测 `w=320` · `rightHalf=true` · `leftOfSwitcher=true` · `gapToSwitcher=11` · `stroke=4`（**A/B 对照：圆内白墨 141 → 334 像素 = 2.37×**）· `m4a-dogfood` **57/0** |
+| **v0.35** | 2026-09-20 | sunxuewen-rush | **侧栏搜索改「一体」形态（T11-i 的 B′ · 用户拍板「就按 Combobox 方案来」）**① 侧栏由「条目 → `CommandDialog` 弹窗」改为 **常驻输入框 + 紧邻下拉**（官方 `Combobox` · Base UI 原语）② **弹窗形态整体退役**（`ui/CommandPalette.tsx` 删 · 条目 **15 → 14**）③ **新增依赖 `@base-ui/react@1.8.0`（MIT）** + vendoring 偏离 3 处登记 ④ i18n **347 → 346**（`pages` 键退役）⑤ §8.13 重写（规格 / 面板内容 / 依赖 / i18n / 线框 / 否决登记）⑥ 断言 `m4a-dogfood` **57/0**（B 段 6 条重写 + 作用域修复）|
+| **v0.36** | 2026-09-20 | sunxuewen-rush | **侧栏搜索定稿「框样触发器 → 命令面板」（T11-i B″ · 用户拍板「还是官方站的对话框更适合一些」）** ① 入口 = **框样按钮**（shadcn 官方站同款配方 · 高 32 · `bg-muted` · 无边框 · 内嵌 `⌘K`）⇒ 点击开官方 `CommandDialog` ② v0.35 的一体形态与依赖 `@base-ui/react` **退役**（notices 回 33 件 · 依赖归零）③ i18n **347 键**（`pages` 复回）④ §8.13 重写（v0.36）⑤ 断言 `m4a-dogfood` **57/0** · 本批 **91/0** |
+| **v0.37** | 2026-09-20 | sunxuewen-rush | **T11-i B″ 观感收尾（用户「只做 B」+「侧边栏搜索图标的颜色要浅一些」）** ① **页面条目加 `→` 前缀**（lucide `ArrowRight` · 尺寸 / 色值走官方 `CommandItem` 内建规则 ⇒ **零 className 覆盖**）· **兜底行不加**（搜索语义 ≠ 跳转）② 触发器放大镜改 **`text-muted-foreground`**（原 = 继承 `--foreground` `#0f172a`）⇒ 与文案 / `⌘K` 徽标**三处同色** ③ §8.13 ②/③/⑤/⑦ 原地补注（定值表 + 线框 + 否决登记）④ 断言 `m4a-dogfood` **60/0**（+3：触发器取色 / 条目箭头 / 兜底行无箭头）· 本批 **91/0** 零回归 |

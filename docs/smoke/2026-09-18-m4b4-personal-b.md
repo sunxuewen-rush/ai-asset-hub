@@ -139,7 +139,7 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | ① | 批 design 8 维 ≥9 | ✅ **定稿 9.69**（v1.10）+ **执行期 converge 重评见 §9** |
 | ② | **T1–T16**（**T8 已作废**）Task 全绿 | ✅ 15/15（逐 Task 均分 **9.41–9.71**；本轮 T12 9.43 / T16 9.41 / T6 9.43） |
 | ③ | 五门禁逐项 exit 0 | ✅ §1（8 步全绿） |
-| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ⬜ **用户实机观感**（§11）；**现行 = G1–G22 = 90 PASS / 0 FAIL**（T11-f · §14.2；T11-e 时点 **G1–G21 = 77** · §13.2）|
+| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ✅ **用户实机观感**（2026-09-20「观感 ok」—— 排序控件 / 可点列头 / 「更新」列）；**现行 = G1–G22 = 91 PASS / 0 FAIL**（T11-f · §14.2；T11-e 时点 **G1–G21 = 77** · §13.2）|
 | ⑤ | 整体审计 | ✅ §5 —— **关键字残留 0**；**语义散点 14 处已订正**（F64 · 口径已撤回，见 §5 / §6 A4 · **换靶第二轮** 补抓 6 处）；4 条登记留存均写明归属 |
 
 ## 9. 文档-代码对齐重评（converge）
@@ -156,6 +156,26 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | 主 design ↔ 实现 | §2.3 登记表 · §11 键数 · D2/D3 线框订正 | ⬜ **本轮回填**（见 commit 说明；收尾回填项 §9.7 ①-⑥ 逐条执行） |
 
 **converge 8 维重评（执行期口径）**：批 design 8 维 **9.69**（v1.10 口径不变；本轮新增 F48–F63 已全部处置，无未决项）· 批 plan 8 维 **9.66**（v0.14 口径；口径变更后已做全文散点扫，见 §5）。
+
+### 9.5 T11-f / T11-g 收口轮 converge（2026-09-20 · **换靶角度 = 「活口径 vs 历史留痕」**）
+
+**方法**：改一处数字后，逐文档 grep 旧值反查 **「当值处」**（§ / Status / 表格 / 任务明细）；**修订记录行一律保留**
+（历史留痕，不算陈旧）。批 design 自身当值处已干净（§4.7.3 与 §9.3 均为「实测 14 条」）。
+
+| # | 位置 | 陈旧值 | 现真值 |
+|---|------|--------|--------|
+| 1 | 批 plan §3 f4（标题 + 步骤 1 + 断言①） | `G22 ×13` · 合计 **90** | `G22 ×14` · 合计 **91** |
+| 2 | 批 plan §7.5 T11-f 行 | `G22 ×13` · dogfood **90/0** | `G22 ×14` · **91/0** |
+| 3 | 批 plan Status 行 | 「T11-f 已立项 —— 实现中」·「提交待用户口令」 | 「T11-f 全绿落地 + T11-g 全绿」·「已提交推送」 |
+| 4 | `docs/00` §5 M4b-4 行 + 头部 | **90 PASS** · **3 图** · v1.28 · 头部 v1.76（修订表已有 v1.77） | **91** · **5 图** · v1.29 + T11-g · 头部补至 v1.78 |
+| 5 | 证据 §10 出口件 ④ 行 | 现行 **90 PASS** ＋⬜ 用户实机观感 | **91 PASS** ＋✅ 观感（用户 2026-09-20「观感 ok」） |
+
+**出口五件终态（本批 M4b-4）**：① 批 design 8 维 **9.69 ≥9**（自身当值处无陈旧，复评维持）② **T1–T16 全绿**
+（T8 作废）+ **T11-f / T11-g 全绿** ③ 五门禁 exit 0（`CI=true bun run test --force` **562 pass / 0 fail**；
+⚠️ 真跑 vs 缓存回放口径见 **F92**）④ dogfood **91/0** + **观感已由用户确认** ⑤ 整体审计 = 本轮（**F93**：5 处活口径
+已订正；关键字残留 0；语义散点历史轮次已清）。
+
+**CI**：三笔推送 `72e48db` → `434043b` → `ced0d6a`；run **`35499952284`** = **success**（12 步全 success）。
 
 ## 10. 未证项 / 登记项（诚实清单）
 
@@ -349,10 +369,12 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | `apps/web/src/components/market/CenterPage.tsx` | **442**（`Select` + `handleHeaderSort`；**实测**）|
 | `apps/web/src/i18n/zh.ts` / `en.ts` | **391 / 386**（+`sortLabel`/`sortNewest`…/`colUpdated`；**实测**）|
 | `docs/smoke/scripts/m4b4-personal-b-dogfood.ts` | **1518**（T11-g 分段守卫 + 会话复用 + 分段警示；**实测** — 1507 → 1511 → **1518** 三次订正，F88 同类自查：**行数一律落笔前重测**）|
-| `docs/smoke/scripts/m4a-dogfood.ts` | **552**（**F88 实测订正**：先估 553）|
+| `docs/smoke/scripts/m4a-dogfood.ts` | **856**（T11-i ×11 断言后实测：552 → 663 → **856**）|
+| `apps/web/src/components/market/Hero.tsx`（**跨批** · M4a 交付物） | **166**（两态 + v0.25 聚焦判据；**实测**）|
 
 新增证据图 **5 张**（v1.27 命名对齐内容）：`docs/smoke/m4b4-24-sort-select.png`（默认 Select 收起态）· `m4b4-25-sort-bogus-fallback.png` · `m4b4-26-sort-header-desc.png` · `m4b4-27-sort-grid-preserved.png` · `m4b4-28-sort-updated-column.png`（「更新」列 ⟺ 最新档）。
 > ⚠️ 脚本每次运行都会重写 §12/§13 时点的旧图 ⇒ 本笔收尾**已把已跟踪旧图恢复为各节时点态**（`git checkout`），故它们**不入本笔 diff**；本笔只新增上述 4 张。
+> ⚠️（**v1.32 追加**）T11-h v0.25 收尾同法处理：`2-skills` / `2b-skills-search` / `2c-skills-filter` / `7-locale-en` 四张**已恢复时点态**；**仅 `1-home.png` 保留新态** —— 首页搜索形态确实变更（右钮两态 + 聚焦判据）⇒ 该图新态即当前真值。
 
 ### 14.9 验证效率实测（T11-g · 2026-09-20）
 
@@ -377,9 +399,192 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 - 已知边界：**会话复用的失败回落分支未实测**（只跑过命中路径 —— 见批 design §11.9 T11-g 行 A1 扣分）；
   `docs/` 脚本不在 turbo lint 图内（**F91**）。
 
+### 14.10 T11-h 首页搜索形态对齐（2026-09-20 实跑）
+
+| 项 | ① 空态·未聚焦 | ② 聚焦·空输入（**v0.25**） | ③ 有输入（`rag`） |
+|----|------|------|----------------|
+| `data-variant` | `ghost` | `default` | `default` |
+| `aria-disabled` | `true`（点击/回车无反应） | **`true`（点亮但不可提交）** | 移除 |
+| 按钮底色 | `rgba(0, 0, 0, 0)`（透明） | **`oklch(0.488 0.243 264.376)`** = `--primary` 实底 | 同 ② |
+| 图标色 | `oklch(0.488 0.243 264.376)`（主色描边） | `oklch(0.97 0.014 254.604)`（主色前景 = 白） | 同 ② |
+| 圆角 / 尺寸 | `3.35544e+07px`（全胶囊）/ 32×32 · 容器高 **44** | 同左 | 同左 |
+| 触发 / 结果 | — | **真指针点入 input** ⇒ 点亮（`URL` 不变） | 点击 ⇒ `/skills?q=rag` |
+
+- **判据（v0.25）**：`lit = focused || hasQuery` —— **点亮 = 聚焦 或 有输入**；**可提交只看输入** ⇒ 点亮 ⟷ 可提交**解耦**
+- **断言**：`m4a-dogfood` **46 PASS / 0 FAIL**（基线 38 + **T11-h ×8**）· 实现 50s 全跑 · `NO JS ERRORS`
+- ⚠️（**v1.33 追加**）该数值已被 **T11-i** 推进为 **57 PASS / 0 FAIL**（+11 条）—— 见 **§14.11**
+- **证据图 3 张**：`docs/smoke/m4b4-29-home-search-idle.png`（空态·未聚焦）· `m4b4-30-home-search-focus.png`（聚焦·空输入）· `m4b4-31-home-search-typed.png`（有输入）
+  · **像素复核**（Pillow，右钮区）：未聚焦图近主色 **0%**（仅描边 161px）· 聚焦 / 有输入两张各 **2794 px** 精确 `(20,71,230)` = `#1447E6`
+- ⚠️ **F95**：判定**聚焦类交互必须用真指针** —— 后台 tab 里 `element.focus()` 会设上 `activeElement` 却**不派发 `focus` 事件**（探针同一份输出里 `activeElement === input` 为真而 `data-variant` 仍 `ghost`）⇒ React `onFocus` 不触发 ⇒ 假红；换 **CDP 真指针**（`clickReal`）即成立。与 **F94**（过渡不推进）同属「后台 tab 副作用」家族、成因不同
+- ⚠️ **F94**：读「类切换后的计算样式」必须先 `transition:none`（本笔实测：hidden tab 里过渡不推进 ⇒ 读到起点值 `oklab(0 0 0 / 0)` 而误判实底未生效）
+- **范围**：只改首页 —— 门户三页折叠搜索与控制台筛选框零改动
+
+### 14.11 T11-i 全资产搜索 + 侧栏命令面板（2026-09-20 实跑）
+
+> ⚠️ **本节 B 部分（侧栏命令面板 · `CommandDialog` 弹窗）已于同日被 **B′ 一体形态**取代** —— 现行实现与实测见 **§14.12**；A 部分（顶栏小搜索 + `/search` 结果页 + 抽公共件）**仍为现行**（下述 i18n **347 键** 与 **B 5 枚** 的记述属当时口径，现行 = **346 键**）。
+
+**A 顶栏小搜索 + `/search` 跨类型结果页**
+
+| 项 | 实测 |
+|----|------|
+| 顶栏搜索框 | `sm` 档 **h=36** · 宽 **固定 320** · 占位符「搜索技能、MCP、Agent…」· 提交钮在框内右侧 |
+| 顶栏位置（**2026-09-20 观感调整后**）| **靠右**：`box.left=1008 > header 中线 848`（`rightHalf=true`）· **在语言切换器左侧**：`箱右 1328 ≤ 切换钮左 1339`（`gapToSwitcher=11`）|
+| 放大镜 `stroke` | **4**（lucide 默认 2 ⇒「加粗一倍」）· **A/B 对照**（同一裁切框 · 运行时改回 2 再拍）：圆内白墨 **141 → 334** 像素 = **2.37×** |
+| 顶栏提交「m4a」 | URL **`/search?q=m4a`** · 输入**保留**（顶栏常驻）|
+| 窄屏行为 | **900px** 视口 ⇒ 顶栏搜索 `display: none`；1440px ⇒ `block` |
+| `/search` 页形态 | 标题「搜索结果」· 计数「共 25 个结果」· 类型 chips **全部 / 技能 / MCP / 专家** · 排序 `#search-sort` · 首屏卡片 **20** |
+| 类型 chips | 切「技能」⇒ `?q=seed&type=skill` · 卡片 **20 → 3**（**反证 `all` 档 = 跨类型**）|
+| 首页 Hero 提交 | 「seed」⇒ **`/search?q=seed`**（原 `/skills?q=` 口径**作废**）|
+
+**B 侧栏命令面板**（官方 `CommandDialog`）
+
+| 项 | 实测 |
+|----|------|
+| 侧栏入口 | 文案「搜索…」+ 徽标「⌘K」· `aria-haspopup="dialog"` · 位于品牌块正下方（门户组之前）|
+| 点入口 | 面板 `data-state=open` · 分组「页面」· 条目 **首页 / 技能中心 / MCP 中心 / 专家中心**（**未登录 = 恰 4 条** ⇒ 角色过滤生效）|
+| `Esc` | 面板关闭且**节点卸载**（`[role=dialog] === null`）|
+| `⌘K` / `Ctrl+K` | 面板打开（壳层一处监听）|
+| 兜底行 | 输入「seed」⇒ 末行「**在全部资产里搜「seed」**」⇒ 回车跳 **`/search?q=seed`** |
+
+**断言 / 数据**
+
+- `m4a-dogfood`（门户）：**57 PASS / 0 FAIL**（基线 46 + T11-i **11 条**）· 73s · `NO JS ERRORS`
+- 本批 dogfood：**91 PASS / 0 FAIL**（**零回归**）· 179s
+- i18n **347 键 / 12 组**（335 → **+12**：A 7 枚 + B 5 枚）· 双向差集 0 · **en 值级泄漏 0**
+- 证据图 3 张：`m4b4-32-topbar-search.png`（顶栏聚焦点亮）· `m4b4-33-search-all-page.png`（跨类型结果页）· `m4b4-34-command-palette.png`（面板 + 兜底行）
+- ⚠️ **旧图策略**：本笔**只保留 `1-home.png`**（主体 = 首页搜索形态，确随本笔变更）；其余 **24 张**被 dogfood 复跑重写的旧图**已恢复为各笔时点态**（顶栏虽新增搜索件，但旧图是**各笔留痕**，不随壳层变更重刷 —— 与 T11-f/T11-h 同法）
+- **零后端改动 / 零迁移**（`type` 本就可选）
+
+**本笔新发现（F98 / F99 / F100）**
+
+- **F98**：**后台 tab 里 SPA 路由切换的 DOM 不提交** —— URL 已变而页面内容仍是旧路由（`Page.bringToFront` 激活后立刻正常）；与 **F94**（过渡不推进）/ **F95**（focus 不派发）同族 ⇒ 凡断言「导航后的页面内容」须先激活 tab；只断言 URL 不受影响。
+- **F99**：**壳层新增件与页面级选择器撞车** —— 顶栏搜索件带 `aria-label="搜索"`（与门户折叠搜索触发钮同名）· `[data-slot="input-group"]` · `input[aria-label]`，且**顶栏在 `sidebar-inset` 内** ⇒ 本批 dogfood 原 `CONTENT` 级查找命中顶栏 ⇒ **G13 + G21 共 5 条断言失败**；新增 **`PAGE` 作用域**（`[data-slot="sidebar-inset"] > div` · 排除顶栏）后 **91/0 全绿**。
+- **F100**：**修订表版本序（F96/F97 同族 · 第三例 · 本笔自伤后自修）** —— ① **M4a §12** 的「降序尾块 + 升序表头」自相矛盾 ⇒ 改为**全表升序**，并修正表内 **`v0.10`/`v0.9` 颠倒**（**字典序陷阱**：字面比较会误判 `v0.9 > v0.10`，须按**数值**）② **批 design §12 · 批 plan §9**：本笔插入锚点低了一行（`v1.35` 落到 `v1.31` 之下 · `v0.34` 落到 `v0.30` 之下）⇒ 一行移位归位；复核四表**内部自洽**（违规 **0 处**）③ 本笔新增行的**局部归位**也修了 docs/00（`v1.79` → `v1.78` 之下）
+- **F100-b（未修 · 待拍板）**：**docs/00 §8 修订表方向混用**（82 行 · **39 处违规**）⇒ 建议统一「**降序 · 最新在上**」（与主 design / 批 design / 批 plan 一致），需重排 82 行，属**独立文档整理笔**；拟议的 `doc-audit`「修订表完整性」检查须**按文档配置方向**（否则 docs/00 长期假红）
+### 14.12 T11-i B′ 侧栏一体搜索（2026-09-20 实跑 · 形态 = 官方 `Combobox` · Base UI 原语）
+
+> ⚠️ **本节（B′ 一体形态）为同日试稿，已被 **B″** 取代** —— 用户复审后拍板「还是官方站的对话框更适合一些」⇒ 现行形态 = **框样触发器 → 官方 `CommandDialog`**，见 **§14.13**；其依赖 `@base-ui/react` 已撤除、i18n 回 **347 键**（本节所述的 346 键属当时口径）。
+
+**门禁（实跑）**：`m4a-dogfood` **57 PASS / 0 FAIL**（B 段 6 条重写 · 含「无 `dialog` / 无 `cmdk`」回归锁）·
+本批 dogfood **91 PASS / 0 FAIL**（壳层改动**零回归**）· web `typecheck` / `biome` 绿。
+
+**行为真值（CDP 真指针 + 真按键 · 视口 1440×900）**
+
+| 项 | 实测 |
+|----|------|
+| 输入框 | `input[role=combobox]` · 占位「搜索页面或输入以跳转…」· 高 **32px** · 右侧 `⌘K` 徽标 · **`[role=dialog]` = 0 / `[cmdk-root]` = 0**（弹窗形态确已退役）|
+| 点入 | `aria-expanded` false → **true** · `aria-controls` = `_r_1_`（目标节点存在）|
+| 面板几何 | 与输入框容器**同宽 236 = 236** · `gap 6px`（`sideOffset=6`）· 左对齐（Base UI 包含块换算带来**恒 3px** 偏移 · 观感不可辨）|
+| 条目 | 匿名 **4 条**（门户组：首页 / 技能中心 / MCP 中心 / 专家中心 · 含路由路径）· 组标题「门户」|
+| 登录态（真登录 `m4b2_user` · role=1） | 组标题 = **门户 + 个人** · **8 条**（+ 个人工作台 / 我的资产 / 我的提交 / 访问令牌）· **无管理面** ✓ |
+| 输入 `seed` | 页面 0 命中 ⇒ 空态「没有匹配的页面」+ 兜底行「在全部资产里搜「seed」」· `autoHighlight` 落在兜底行 |
+| `Enter` | 跳 `/search?q=seed` ✓ · **输入框清空**（`value === ''`）· 面板收起 |
+| `⌘K` | **焦点进框**（`document.activeElement` = 该 input）+ 展开 ✓（真按键 `modifiers=4`）|
+| `Esc` | `aria-expanded=false`（面板节点保留但隐藏 —— 官方 `data-closed`）|
+
+**依赖与偏离**：`@base-ui/react@1.8.0`（**MIT** · +8 包 · 仅 `apps/web`）· vendored `shadcn/combobox.tsx` **308 行** ·
+偏离 **3 处**（件头登记：import 路径 / 图标件换 lucide / `ComboboxContent` 增 `width` 变体）。
+
+**i18n**：**346 键 / 12 组**（`pages` 键退役 · zh=en=346 · 双向差集 0 · `m4b4-measure.ts` 实测）。
+
+**权威行数（`m4b4-measure.ts` 实测 · `wc -l` 口径）**：`ui/SidebarSearch.tsx` **289** · `ui/shadcn/combobox.tsx` **308** ·
+`ui/SideNav.tsx` **265**（换件后）· `ui/navItems.tsx` **133** · `ui/TopBar.tsx` **109** · `m4a-dogfood.ts` **962** · 本批 dogfood **1528**。
+
+**证据图**：`docs/smoke/m4b4-34-sidebar-search-open.png`（展开态）· `m4b4-35-sidebar-search-fallback.png`（兜底行）。
+（**作废**：`m4b4-34-command-palette.png` —— 弹窗形态退役后该图不再对应现行实现，待删。）
+
+**本轮缺陷（明细见批 design §4.7.6）**：**F101**（Base UI 选中把条目 value 写回输入框 ⇒ 改「不控 `inputValue` + `key` 重挂载」）·
+**F102**（壳层新件抢探针 ⇒ T11-h 三条假红 · **F99 同族第三例** ⇒ `PAGE` 作用域）·
+**F103**（`w-(--anchor-width)` 简写在 Tailwind 4.3.3 不生成 ⇒ 面板塌成内容宽 154px ⇒ 改任意值类）·
+**F104**（**视口须在导航前设定**，否则 React 按移动端挂载、侧栏不渲染）。
+
+**观感待看（人工）**：浮层压住下方导航列表（正常浮层行为 · clawhub 同）· 下拉是否显示路由路径（现显示）· 面板底部键盘提示行（现无 · 小样有）。
+
+
+### 14.13 T11-i B″ 侧栏搜索定稿（2026-09-20 实跑 · 框样触发器 → 官方 `CommandDialog`）
+
+**形态（A 案 · 用户复审拍板）**：侧栏入口 = **看起来像常驻输入框的按钮** —— 依据 = **shadcn 官方站同款实测配方**
+（`button[data-slot=dialog-trigger]` · `bg-muted` · `border-none` · `shadow-none` · `justify-start` + 内嵌 `⌘K`）⇒ 点击 / `⌘K` 开官方 `CommandDialog`。
+
+**触发器实测（CDP · 1440×900 真指针）**
+
+| 项 | 实测 |
+|----|------|
+| 几何/样式 | 高 **32px** · 宽 **224**（= 侧栏内容宽）· 底色 `rgb(241, 245, 251)`（`--muted`）· 边 **0px** · 圆角 **10px** |
+| 内容 | 放大镜（`strokeWidth=4`）+ 文案「搜索页面或输入以跳转…」+ 右侧 `⌘K` 徽标（`data-slot=sidebar-menu-button` · `aria-haspopup="dialog"`）|
+| 点击前 | `[role=dialog]` 计数 = **0**（入口不是常驻面板）|
+| 点击后 | `role=dialog` 出现 · `data-state=open` · `[cmdk-input]` 存在 · 条目 **4 条**（匿名：首页 / 技能中心 / MCP 中心 / 专家中心）· 组标题「页面」|
+
+**断言（`m4a-dogfood` · 全部 PASS）**
+
+```
+B″-① 侧栏触发器（框样 · 占位文案 + 快捷键徽标 + aria-haspopup=dialog）  :: {"ok":true,"text":"搜索页面或输入以跳转…|⌘K","kbd":true}
+B″-② 点触发器 ⇒ CommandDialog 打开（data-state=open）· 门户 4 条 · 未登录不加管理面 :: {"state":"open","items":[4 条],"heading":["页面"]} anon=true
+B″-③ Esc ⇒ 面板关闭
+B″-④ ⌘K/Ctrl+K ⇒ 面板打开
+B″-⑤ 兜底行出现（「在全部资产里搜「seed」」）  :: ["在全部资产里搜「seed」"]
+B″-⑥ 兜底行回车 ⇒ 跳 /search?q=seed
+```
+
+**回退账（同日 B′ → B″ · 实测核对）**：删件 **2**（`ui/SidebarSearch.tsx` · `ui/shadcn/combobox.tsx`）· 撤依赖 **1**
+（`@base-ui/react` · 实测 `apps/web/package.json` 无 `@base-ui` 残留）· 恢复件 **1**（`ui/CommandPalette.tsx` **120** 行）·
+i18n **346 → 347 键 / 12 组**（`pages` 复回 · measure 实测 zh=en=347）· `THIRD-PARTY-NOTICES.md` vendored shadcn **33 件**
+（实测重生成）。
+
+**门禁（实跑）**：`m4a-dogfood` **57 PASS / 0 FAIL** · 本批 dogfood **91 PASS / 0 FAIL**（零回归）·
+web typecheck / biome 绿 · 后续 CI 同序八步见本轮报告。
+
+**权威行数（`m4b4-measure.ts` 实测 · `wc -l` 口径）**：`ui/CommandPalette.tsx` **120** · `ui/SideNav.tsx` **293** ·
+`ui/AppShell.tsx` **99** · `ui/navItems.tsx` **133** · `i18n/zh.ts` **405** · `m4a-dogfood.ts` **904** · 本批 dogfood **1528**。
+
+**缺陷登记**：**F103 / F104 保留**（Tailwind 变量简写不生成 / 视口须先设 —— 工具链与探针事实，与形态无关）；
+**F101 / F102 同日撤回**（对象 = B′ 一体形态，已退役）—— F102 的 `PAGE` 作用域修复**保留在脚本中**（防御性 · 复跑通过）。
+
+**证据图**：`docs/smoke/m4b4-34-command-palette.png`（框样触发器 + 打开的命令面板 · 重拍）。
+**作废（待删）**：`m4b4-34-sidebar-search-open.png` · `m4b4-35-sidebar-search-fallback.png`（B′ 试稿图）。
+
+
+### 14.14 T11-i B″ 观感收尾（2026-09-20 实跑 · 用户「只做 B」+「侧边栏搜索图标的颜色要浅一些」）
+
+**触发**：用户把 **shadcn 官方文档站命令面板截图**放入仓库根（未跟踪文件 `dialog` · PNG 1104×900 · 无扩展名）
+⇒ 核官方仓实现：`apps/v4/components/command-menu.tsx` **642 行**（实测下载核对）—— 该面板是**站点应用层**自行拼装，
+注册表 `command` 件（我仓 vendored = 官方 `new-york-v4` 档，逐字比对差异 **41 行且全为 biome 格式 + import 路径**）
+**无 footer 槽位**；底栏右侧那半 = `⌘C pnpm dlx shadcn@latest add <comp>`（组件库专有动作，我方无对应物）。
+
+**决策过程**：出 **5 屏对照小样**（取数全为实测 · 见 §14.14 附注）⇒ 用户**拍板「只做 B」**：仅取**条目前缀箭头**一项；
+官方站的**底栏提示栏**与 nova 档**容器几何**未采纳（登记 M4a §8.13 ⑦）。
+
+| 项 | 定值（实测真值） |
+|----|------------------|
+| 条目形态 | **页面**条目 = `→` + 页面名（lucide `ArrowRight`）· 尺寸 **16px** · 色 `rgb(100, 116, 139)`（= `--muted-foreground`）· `stroke-width=2`；**4 条各 1 枚**（跨条目一致）|
+| 尺寸 / 色来源 | **官方 `CommandItem` 内建规则**：`[&_svg:not([class*=size-])]:size-4` + `[&_svg:not([class*=text-])]:text-muted-foreground` ⇒ 本仓**零 className 覆盖** |
+| 兜底行 | 「在全部资产里搜「rag」」**无 `svg`**（`querySelector('svg') === null`）—— 搜索语义 ≠ 跳转 |
+| 触发器放大镜 | `--foreground` `rgb(15, 23, 42)` → **`--muted-foreground` `rgb(100, 116, 139)`**；与同块文案、`⌘K` 徽标**三处同色**（逐个 `getComputedStyle(...).color` 实测）· `stroke-width=4` 不变（T11-i 既有口径）|
+
+**断言（+3 ⇒ `m4a-dogfood` 60 PASS / 0 FAIL）**：① 触发器取色 = `--muted-foreground` 且 ≠ `--foreground`
+（**取色对照 = 临时探针元素解 token**，不写死 hex ⇒ 换肤后仍成立）② 页面条目 4 条**各 1 枚** 16px svg 且同色
+③ 兜底行**无** svg。本批 dogfood **91 PASS / 0 FAIL** 零回归（复跑）。
+
+**复核发现（本轮自查）**：
+- **F105 · 注释腐化**：`docs/smoke/scripts/m4a-dogfood.ts` 的 `PAGE` 作用域注释仍称壳层件为 **`SidebarSearch`**
+  （该件已随 B″ 回退**退役**）⇒ 改述为「顶栏全资产搜索件（常驻）」+ 历史注记（**注释里的已删对象须同步**）。
+- **F106 · 文档行数陈旧**：批 design §4.9「落地记录」5 处行数与该轮后续改动脱节 ——
+  `AssetSearch` **79 → 81** · `CommandPalette` **116 → 128** · `TopBar` **108 → 109** · `SideNav` **291 → 293** ·
+  `AppShell` **98 → 99**（全部 `m4b4-measure.ts` 实测回填）。**纪律**：件被再次触碰时，回扫**所有引用其行数的活口径**。
+
+**行数（`m4b4-measure.ts` 实测 · `wc -l` 口径）**：`ui/CommandPalette.tsx` **128**（**+8**：import 1 + JSX 3 + 注释 4）·
+`ui/SideNav.tsx` **293**（单行改 · 计数不变）· `m4a-dogfood.ts` **975**（904 → +71：3 条断言 + 注释订正 + biome 格式化换行）·
+i18n **347 键 / 12 组**（**本笔零改动**）· `THIRD-PARTY-NOTICES.md` 仍 **33 件**（**零新依赖**）。
+
+**门禁**：八步 CI 同序见本轮报告（typecheck / lint / format:check / doc-audit / build / db:migrate / `CI=true test --force`）·
+`m4a-dogfood` **60/0** · 本批 dogfood **91/0**。
+
+**证据图**：`docs/smoke/m4b4-34-command-palette.png`（重拍 · 含条目箭头与浅色触发器图标）·
+`m4b4-32-topbar-search.png` / `m4b4-33-search-all-page.png` 随壳层变更由 dogfood 复跑重拍。
+
 ### 14.8 未决 / 待用户拍板
 
 - **观感**（须人眼）：① **排序控件形态已定**（用户线框四案对比后拍板官方 `Select`）② 待看余项 = 列头按钮与表头左对齐（官方 `Button` 自带内距）· 方向图标尺寸 · 排序 `Select` 与搜索/视图钮的视觉重量平衡
 - **登记后续**（非目标 · 见批 design §4.7.2）：控制台「我的资产」UI 排序（`DataTable` legacy 面加性接法已实证可行）· 排序索引（`download_count`/`star_count` 无索引）· 名称 `COLLATE`（中文 collation 按 code point 序）· 排序**记忆**
 - **F86 关联**：`test --coverage` 全量口径会跑 `dist/**`；建议后续清 `dist` 或加 ignore（归测试基建，与 F66 同族）
-- **提交**：本笔实现 + 文档 + 证据 + **5 张新图**待**用户口令**后提交
+- **提交**：✅ **已提交推送 3 笔**（`72e48db` `feat(server)` → `434043b` `feat(web)` → `ced0d6a` `test(docs)`）· CI run **`35499952284`** = **success**（12 步全 success）；收口审计的活口径订正（**F93**）随第 4 笔 `docs(m4b4)` 落地

@@ -153,7 +153,7 @@ M4b-pre（认证整车迁移）2026-09-15 收口后，服务端认证面已全�
 | `/reviews/:id` | `RoleGuard` | `ROLE.USER`（1） | 提交人可达（撤回入口）；**不进 `/admin` 段** |
 | `/admin` + `/admin/*` | `RoleGuard`（**布局路由**，一条包 4 条） | `ROLE.ADMIN`（10） | 档位不足 → `/dashboard` + `location.state.notice` |
 | `/login` · `/device` | **无守卫** | — | 独立版式；`/login` 由**反向守卫**处理（§4.3） |
-| 门户 5 条（`/` `/skills` `/mcps` `/agents` `/assets/:slug`） | **无守卫** | — | 公开读面（零回归） |
+| 门户 **原 5 条**（`/` `/skills` `/mcps` `/agents` `/assets/:slug`）⇒ **T11-i（2026-09-20）起 6 条**：+ `/search`（全资产搜索结果页 · 规格见 M4a design §8.12） | **无守卫** | — | 公开读面（零回归） |
 
 - **嵌套顺序**：`/admin` 的 `<Navigate to="/admin/reviews" />` **放在守卫内**——未达档先被弹回 `/dashboard`，不白跳一层
 

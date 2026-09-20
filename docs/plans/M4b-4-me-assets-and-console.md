@@ -1,7 +1,16 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批计划
 
 > Date: 2026-09-18
-> Updated: 2026-09-20（**v0.28：T11-g 验证效率：dogfood 分段执行（`SMOKE_ONLY`）+ 会话复用** —— ① §2 增 **T11-g 行** + 步序 ② §3 新增 **T11-g 明细**（g1–g3 · 各带验收断言）③ §4 补「脚本 env 不走 turbo」（**F91**）④ §7 落地记录 dogfood **91/0** + 真登录 **9→4** ⑤ §7.5 增 **T11-g 行（代码 18 维 9.49）** ⑥ §7.6 追加 **F90/F91** ⑦ 实测：段选 **45.6s** / 全跑 **2m59s** / 全跑 91 PASS 零变化**）
+> Updated: 2026-09-20（**v0.37：T11-i B″ 观感收尾**（用户「只做 B」+「侧栏搜索图标要浅一些」）—— 面板条目加 `→` 前缀 · 触发器放大镜取 `--muted-foreground` · §3 补落地记录 · §7.5 增行 · 断言 `m4a-dogfood` **60/0**）
+> Updated: 2026-09-20（**v0.36：T11-i B″ 定稿 —— 侧栏搜索回到官方对话框**（用户复审拍板「还是官方站的对话框更适合一些」）—— 入口 = **框样触发器**（像输入框的按钮 · shadcn 官方站同款配方）⇒ 点击 / `⌘K` 开官方 `CommandDialog`；**B′ 一体形态与其依赖 `@base-ui/react` 整体退役**（依赖归零 · notices 回 33 件 · i18n 回 **347 键**）· §2 件表行改写 · §3 补定稿落地记录 · §7.5 增行（代码 **9.48** / 文档 **9.45**）· `m4a-dogfood` **57/0**（B″ 六条）· 本批 **91/0** 零回归）
+> Updated: 2026-09-20（**v0.35：T11-i B′ —— 侧栏搜索改「一体」形态**（用户拍板「就按 Combobox 方案来」）—— B 部分由「侧栏条目 → `CommandDialog` 弹窗」改为 **常驻输入框 + 紧邻下拉**（官方 `Combobox` · Base UI 原语 · **新增依赖 `@base-ui/react@1.8.0`**）· **弹窗形态退役**（件删 1）· 侧栏条目 **15 → 14** · i18n **347 → 346** · §2 件表行改写 · §3 补 B′ 落地记录 · §7.5 增行（代码 **9.40** / 文档 **9.41**）· `m4a-dogfood` **57/0**（B 段 6 条重写）· 本批 **91/0** 零回归）
+> Updated: 2026-09-20（**v0.34：T11-i 观感微调回填**（用户 2026-09-20）—— 顶栏小搜索 **靠右 · 语言切换左侧** · **固定 `w-[320px]`** · 放大镜 **`strokeWidth=4`**；§3 T11-i 断言 A-① 收紧；实测 `m4a-dogfood` **57/0**）
+> Updated: 2026-09-20（**v0.33：T11-i 落地记录**（A 顶栏小搜索 + `/search` + 抽件 · B 侧栏命令面板）—— §3 补**落地记录** + §7.5 增 T11-i 行（**9.52**）· 实测 `m4a-dogfood` **57/0** · 本批 **91/0** · i18n **347 键**）
+> Updated: 2026-09-20（**v0.32：T11-i 搜索与跳转立项**（**A** 顶栏快速通道 + `/search` 结果页 + 搜索件抽取 · **B** 侧栏 `⌘K` 命令面板）—— §2 件表增 T11-i（**新建 5 / 改造 6**）· §3 增 T11-i（步骤 + **A 七条 + B 七条断言**）· 规格落 M4a §8.12 + §8.13）
+> Updated: 2026-09-20（**v0.31：T11-h v0.25 —— 点亮判据扩为「聚焦 或 有输入」**（用户拍板「鼠标一点击输入的地方、焦点在的时候就变」）· §2 件表 · §3 验证（**46/0**）· §7.5 重打 **9.51**（同分不同构成）· **F95** · 规格落 M4a §8.11）
+> Updated: 2026-09-20（**v0.30：T11-h 首页搜索形态对齐（只改首页 · 两态 + 空输入无反应）—— §2/§3 增 T11-h · §7.5 增打分行 + **F94** · 规格落 M4a §8.10；`m4a-dogfood` **42/0****）
+> v0.29（2026-09-20）：M4b-4 收口审计（converge）：活口径 3 处订正（§3 f4 · §7.5 · Status）+ **F93** 登记 + 落地记录补提交链与 CI（run `35499952284` success）；**零实现改动****
+> v0.28（2026-09-20）：T11-g 验证效率：dogfood 分段执行（`SMOKE_ONLY`）+ 会话复用** —— ① §2 增 **T11-g 行** + 步序 ② §3 新增 **T11-g 明细**（g1–g3 · 各带验收断言）③ §4 补「脚本 env 不走 turbo」（**F91**）④ §7 落地记录 dogfood **91/0** + 真登录 **9→4** ⑤ §7.5 增 **T11-g 行（代码 18 维 9.49）** ⑥ §7.6 追加 **F90/F91** ⑦ 实测：段选 **45.6s** / 全跑 **2m59s** / 全跑 91 PASS 零变化**
 > v0.27（2026-09-20）：列表加「更新」列（⟷「最新」档）+ 修 F89** —— ① §3 f2 步骤 4 订正（六列 / 五列可点 / `COLUMN_SORT`）② §7.6 追加 **F89** ③ §7.5 f2 **9.40 → 9.46** ④ dogfood **+G22-6c** ⇒ **91/0**
 > v0.26（2026-09-20）：**T11-f 排序控件形态定稿 = 官方 `Select`（用户拍板「方案 B」）** —— ① §3 f2 步骤 3 订正（chips → `Select`）② §7.6 追加 **F87**（104px 定宽在 EN 下截断 ⇒ 160px）③ §7.5 f2 **9.37 → 9.40** ④ 断言随形态同步（G22 仍 **90/0** · `m4a-dogfood` **38/0**））
 > v0.25（2026-09-20）：**T11-f 收口（f3/f4 全绿）** —— ① §7.6 追加 **F85/F86** ② §7.5 T11-f 行 = **f1 9.35 · f2 9.37 · f3 9.46 · f4 9.47** ③ 证据回填 §14（门禁 / G22×13 / 覆盖 / 行数 / 3 图）④ 本批 dogfood **90/0** · `m4a-dogfood` **38/0**）
@@ -25,7 +34,7 @@
 > v0.7（2026-09-18）：原型评审收口（R1–R23）→ 新增 T12–T14 + T7/T8/T9/T11 口径更新；其后
 > **落档一致性轮**（用户「先检查修改并打分」）修 **P6 散点旧口径 7 处** + **P7 均分自算** ⇒ 本计划 **8 维 9.6**，见 §8.2）
 > v0.6（2026-09-18）：UI 评审 5 条全闭（条②③④⑤ 落档）→ T7 ⑨ + T8 ⑪⑫
-> Status: **✅ 全绿（2026-09-18）**（**T1–T16** 全绿 · **T8 作废**；T11 收尾已完成：造数 + G1–G19 **53 PASS / 0 FAIL** + 五门禁 exit 0 + 证据回填；**v0.20 验收期第二笔 T11-e 已实现**（G20/G21 新增 ⇒ **77 PASS / 0 FAIL**）· 文档回写完成 · **提交待用户口令**）；**v0.21 验收期第三笔 T11-f（资产排序）已立项（2026-09-20）—— 实现中**（含服务端 `sort` 契约变更 · 零迁移））；其中 **T8 作废**；**执行序 = T15 最先** —— star 能力先行，再消费面）—— 上游批 design 已**定稿**（8 维**以批 design 版本头为准**（现行 **9.69**）；v1.7 原型评审收口）
+> Status: **✅ 全绿（2026-09-18）**（**T1–T16** 全绿 · **T8 作废**；T11 收尾已完成：造数 + G1–G19 **53 PASS / 0 FAIL** + 五门禁 exit 0 + 证据回填；**v0.20 验收期第二笔 T11-e 已实现**（G20/G21 新增 ⇒ **77 PASS / 0 FAIL**）· 文档回写完成 · **已提交推送**（`39d1b21` · `9219069`））；**验收期第三笔 T11-f（资产排序）2026-09-20 全绿落地**（`f1 9.35 · f2 9.46 · f3 9.46 · f4 9.47` · 服务端 `sort`/`dir` 契约变更 · 零迁移）· **T11-g（验证效率）全绿**（代码 18 维 `9.49`）· **三笔已提交推送**（`72e48db` / `434043b` / `ced0d6a`））；其中 **T8 作废**；**执行序 = T15 最先** —— star 能力先行，再消费面）—— 上游批 design 已**定稿**（8 维**以批 design 版本头为准**（现行 **9.69**）；v1.7 原型评审收口）
 > **换靶复核（用户要求「先检查并打分」）**：3 项新发现已修（分页**换算公式 + 渲染条件** · me 面 schema **上限口径** ·
 > `Drawer` 宽度措辞）；**旧分 9.66 已撤回**（窄口径产物）⇒ 换靶口径下修前 **9.60** / 修后 **9.66**，见 §8.1
 > 上游：批 design `docs/designs/2026-09-18-m4b4-personal-b-design.md`（**定稿**）· 主 design
@@ -84,6 +93,8 @@
 | **T16** | **star 前端接线**（列表列 / 详情页头卡 / 门户卡） | web | T7,T12,T15 | `api/stars.ts`（新）· `components/market/StarButton.tsx`（新）· `pages/Assets.tsx` · `pages/AssetDetail.tsx` · `components/market/AssetCard.tsx`（~~`components/console/AssetDrawer.tsx`~~ 随 T8 作废移除 · v0.16） |
 | **T11-f** | 验收期第三笔：**资产排序**（服务端 `sort` 白名单 + 门户 `Select` / 列头可点） | server + web | — | `assets/service.ts` · `http/assets.ts` · `http/me.ts` · `hooks/useMarketQuery.ts` · `api/assets.ts` · `components/market/CenterPage.tsx` · `components/market/AssetList.tsx` · `i18n/zh.ts` · `i18n/en.ts` |
 | **T11-g** | 验证效率：dogfood **分段执行**（`SMOKE_ONLY`）+ **会话复用**（免重复登录） | 工具 | — | `docs/smoke/scripts/m4b4-personal-b-dogfood.ts`（头部 + 结构：段守卫 / 探针上提 / 登录复用）|
+| **T11-i** | **搜索与跳转**（**A** 顶栏常驻小搜索框 + `/search` 跨类型结果页 + 首页搜索抽公共件 · **B″ 侧栏框样触发器 → 官方命令面板**（`⌘K`）） | web | — | **A 新建 3**：`components/search/AssetSearch.tsx` · `pages/Search.tsx` · `components/market/sortOptions.ts`（常量上提）· **A 改造 4**：`ui/TopBar.tsx` · `market/Hero.tsx`（提交目标改 `/search?q=`）· `market/CenterPage.tsx`（改 import）· `main.tsx`（+1 路由）· **B″ 终态件**：`ui/CommandPalette.tsx`（官方 `CommandDialog`）· `ui/navItems.tsx`（导航清单上提 · 单一事实源）· `ui/SideNav.tsx`（**框样触发器** · 侧栏条目仍 14）· `ui/AppShell.tsx`（挂面板 + `⌘K` 监听）· **依赖 ±0**（B′ 曾引入的 `@base-ui/react` 已随同日回退撤除）· i18n（A 7 + B″ 5 枚 ⇒ **347 键**）· 两套 dogfood 断言 |
+| **T11-h** | 首页搜索**形态对齐**（**点亮判据 = 聚焦 或 有输入**：空态主色描边不可用 ⇄ 点亮实底主色 + 提交；焦点在即亮） | web | — | `components/market/Hero.tsx`（两态 + **v0.25 聚焦判据** + 空输入守卫 + 沿革 v0.25）· `docs/smoke/scripts/m4a-dogfood.ts`（**+8 断言**）|
 
 **执行序（依赖链）**：`T1 → T2 → T3 → T4`（服务端闭环，先绿）→ `T9`（键先落，页面才有文案）
 → `T5 → T6/T7 → T8` → `T10` → `T11`。**T1/T2 相互独立可并行**；T9 不阻塞服务端。
@@ -519,14 +530,14 @@
 
 **f3 断言 / 门禁**：① `m4b4-measure.ts` 输出行数 ↔ 文档逐项一致 ② i18n 实测 = 文档 ③ `doc-audit` **64 PASS / 0 FAIL** · `format:check` exit 0
 
-**f4 · 验证（G22 ×13 + 双面回归 + 五门禁 + 证据）**
+**f4 · 验证（G22 ×14 + 双面回归 + 五门禁 + 证据）**
 
-1. 本批 dogfood 追加 **G22 ×13**（口径 = 批 design §4.7.3；含匿名可用 / 深链 / `me` 面零影响反证）
+1. 本批 dogfood 追加 **G22 ×14**（口径 = 批 design §4.7.3；含匿名可用 / 深链 / `me` 面零影响反证 / 点「更新」列 ⟺「最新」档 = G22-6c）
 2. `m4a-dogfood` 全量复跑（**零回归 38/38**）
 3. 五门禁按 §4 顺序跑全；**覆盖探针不降**（`http/assets.ts` 基线 95.96）
 4. 证据回填 `docs/smoke/2026-09-18-m4b4-personal-b.md` §13 + 截图（预期值一律**实测回填**）
 
-**f4 断言 / 门禁**：① G22 全绿（本批合计 **90** = 77 + G22×13，**实测**）② `m4a` **38/0** ③ 五门禁逐项 exit 0 · `test` 无新红 ④ 证据文档无占位符
+**f4 断言 / 门禁**：① G22 全绿（本批合计 **91** = 77 + G22×14，**实测**）② `m4a` **38/0** ③ 五门禁逐项 exit 0 · `test` 无新红 ④ 证据文档无占位符
 
 ---
 
@@ -561,6 +572,72 @@
 
 ⚠️ **注意**：分段是**迭代期**口径 —— **提交前 / 收口必须不带 `SMOKE_ONLY` 全跑**（脚本头部已写明）；
 **攒批口径**：纯文案 / 文档改动不跑本脚本，交互 / 样式改动只跑相关段，多层改动攒到收口一次全跑。
+
+---
+
+### T11-h · 首页搜索**形态对齐**（**只改首页** · 2026-09-20 追加）
+
+**Files**：`apps/web/src/components/market/Hero.tsx` · `docs/smoke/scripts/m4a-dogfood.ts` · 文档（M4a design §8.10 / 本 plan / 批 design §4.8 / `docs/00` §5 / 证据 §14.10）
+
+**步骤**：
+1. **h1 实现**：右钮 `variant={hasQuery ? 'default' : 'ghost'}` + `aria-disabled={!hasQuery}` + `rounded-full`（空态另加 `text-primary cursor-default`）；`onSubmit` 加 `if (!q) return`
+2. **h2 文档**：规格落 **M4a §8.10 + §8.11**（Hero 属 M4a 交付物）· 批 design **§4.8** + **F94/F95** · `docs/00` §5 补注 · 证据 **§14.10**（**三态**实测 + **3 图**）
+3. **h3 验证**：`m4a-dogfood` 全跑 **46/0**（基线 38 + T11-h **×8**）· web `typecheck` / `format:check` / `lint` · **三态** CDP 实测（**读样式先关过渡** —— F94；**判定聚焦必用真指针** —— F95）
+
+**验证断言**：
+```
+① 空态：`data-variant=ghost` · `aria-disabled=true` · 底透明（`rgba(0,0,0,0)`）· 图标色 = `--primary` · 圆角 = 全胶囊
+② 空态点击 ⇒ URL 不变（不跳 `/skills`）
+③ 聚焦（**真指针点入 input**）：`data-variant=default` · 底色 = 主色实底 · 图标 = 主色前景白 · **`aria-disabled` 仍在**（点亮 ≠ 可提交）· URL 不变
+④ 失焦（**真指针点 h1**）：复位 `ghost` + 主色描边 + `aria-disabled=true`
+⑤ 有输入：`data-variant=default` · `aria-disabled` 移除 · 底色 = 主色实底（读前 `transition:none`）
+⑥ 有输入点击 ⇒ `/search?q=m4a`（**T11-i 口径变更**：Hero 提交目标由 `/skills?q=` 改 `/search?q=` —— 见本 plan T11-i 段与 M4a design §8.12 ⑤）
+```
+
+⚠️ **注意**：**只动首页** —— 门户三页折叠搜索与控制台筛选框**零改动**（G21 ×6 与门户搜索断言已逐条核为无影响）；
+`Hero.tsx` 属 **M4a 交付物** ⇒ 规格落 M4a §8.10，本批只记口径（引用不复制）。
+### T11-i · **搜索与跳转**（**A** 顶栏快速通道 + `/search` 结果页 + 搜索件抽取 · **B** 侧栏 `⌘K` 命令面板 · 2026-09-20 追加）
+
+**Files**：**A** —— `apps/web/src/components/search/AssetSearch.tsx`（**新建**）· `apps/web/src/pages/Search.tsx`（**新建**）· `apps/web/src/components/market/sortOptions.ts`（**新建** · 常量上提）· `apps/web/src/components/ui/TopBar.tsx` · `apps/web/src/components/market/Hero.tsx` · `apps/web/src/components/market/CenterPage.tsx` · `apps/web/src/main.tsx` · i18n（A **7 键** · M4a §8.12 ③-b 定名）；**B** —— `apps/web/src/components/ui/CommandPalette.tsx`（**新建**）· `apps/web/src/components/ui/navItems.ts`（**新建** · 导航清单上提）· `apps/web/src/components/ui/SideNav.tsx` · `apps/web/src/components/ui/AppShell.tsx` · i18n（B **5 键** · M4a §8.13 ④ 定名）；**测试 / 文档** —— `docs/smoke/scripts/m4a-dogfood.ts` + `docs/smoke/scripts/m4b4-personal-b-dogfood.ts` · 文档（M4a design **§8.12 + §8.13** / 主 design §4 + §12 / 本 plan / 批 design §4.9 / `docs/00` §5 / 证据 §14.11）
+
+**步骤**：
+1. **h1 抽件（A）**：`Hero.tsx` 的搜索行抽为 `AssetSearch`（`size` / `placeholder` / `onSubmit` / `className`）· Hero 改消费（`size="lg"` · **提交 `/search?q=`**）
+2. **h2 顶栏（A）**：`TopBar` 在标题右侧、`ml-auto` 之前接入 `AssetSearch`（`size="sm"` · `max-w-[320px]` · `<lg` 隐藏 · 提交 `/search?q=` · 保留输入）
+3. **h3 结果页（A）**：`Search.tsx`（标题 + 官方 `ToggleGroup` 类型 chips + 计数 + 排序 `Select` + 视图切换 + 网格 / 列表 + `Pagination`）· `sortOptions.ts` 常量上提（`CenterPage` 改 import · 零行为变化）· `main.tsx` 加 `/search` 路由
+4. **h4 导航清单上提（B）**：`SideNav` 的 `entries` + `navGroups`（含 gate 门槛）提为 `ui/navItems.ts` ⇒ `SideNav` 改 import（**零行为变化**）· 面板与侧栏**同源消费**
+5. **h5 侧栏一体搜索（B′）**：`ui/shadcn/combobox.tsx`（**官方 vendoring** · Base UI 原语 · 偏离 3 处登记）+ `ui/SidebarSearch.tsx`（常驻输入框 + 紧邻下拉 · 分组 = `navItems` 同源 · 兜底行）· `SideNav` **换入搜索件**（**条目回到 14**）· `AppShell` 撤面板挂载与 `⌘K` 监听（迁入本件）· **删** `ui/CommandPalette.tsx`（弹窗退役）· **新增依赖** `@base-ui/react`
+6. **h6 文档**：M4a **§8.12 + §8.13（v0.35 重写）** · 主 design §4（顶栏 **4 → 5 件** · 侧栏**搜索为常驻件、条目 14 条**）+ §12 线框 · 批 design §4.9（含 B′ 段）· `docs/00` §5 · 证据 **§14.11 + §14.12**
+7. **h7 验证**：两套 dogfood 全跑 · 五门禁（`format:check` / `lint` / `typecheck` / `doc-audit` / `build` / `CI=true test --force`）· 顶栏 / 结果页 / 面板 CDP 实测（**真指针** —— F95）
+
+**验证断言**：
+```
+A（顶栏 + 结果页）
+① 顶栏：输入框存在（`size="sm"` · **固定 `w-[320px]`** · **靠右（语言切换器左侧）** · 放大镜 **`stroke=4`**）· 空态右钮 `ghost` 描边（沿 v0.25 判据）
+② 顶栏提交「rag」⇒ URL = `/search?q=rag`（**跨类型**结果页）· 输入保留
+③ 顶栏 `<lg`（1024px 视口）⇒ 整条隐藏（该断点下不渲染 / 不可见）
+④ 结果页默认 `type=all` ⇒ 列表含 **≥2 种类型**（跨类型实证）；切「技能」chips ⇒ 结果**只含 skill**
+⑤ 结果页排序切档 ⇒ URL 写 `?sort=downloads` · 分页仅 `total > 20` 渲染
+⑥ 首页 Hero 提交「rag」⇒ `/search?q=rag`（**原 `/skills?q=` 口径作废**）
+⑦ 门户三页折叠搜索**零回归**（G21 ×6 原断言全绿 · `/skills?q=` 页内过滤仍生效）
+B（侧栏命令面板）
+⑧ 侧栏条目存在（文案「搜索…」+ 平台徽标）· 收起态（48px）⇒ 只留图标钮
+⑨ 点条目 ⇒ 官方对话框出现（`role=dialog`）
+⑩ 按 `⌘K` / `Ctrl+K` ⇒ 同样打开 · `Esc` ⇒ 关闭
+⑪ 未登录：面板**只列门户 4 条**（无「个人 / 管理」组）—— 角色过滤
+⑫ 输入关键词 ⇒ 列表末尾出现「在全部资产里搜「xxx」」⇒ 回车跳 `/search?q=xxx`
+⑬ 面板条目点击 ⇒ 导航到该路由且对话框关闭
+⑭ 侧栏三组条目与门户组**零回归**（原 14 条断言 / 形态全绿）
+```
+
+⚠️ **注意**：**只加不回退** —— 门户三页折叠搜索与控制台筛选框**不改**（语义不同，非重复）；侧栏**组结构不动**（只加 1 条独立块）；**零后端改动 / 零迁移**。
+
+**落地记录（2026-09-20 实跑）**：**件** = 新建 **5**（`components/search/AssetSearch.tsx` **79** · `pages/Search.tsx` **251** · `components/market/sortOptions.ts` **31** · `components/ui/CommandPalette.tsx` **116** · `components/ui/navItems.tsx` **133**）+ 改造 **6**（`ui/TopBar.tsx` **108** · `ui/SideNav.tsx` **291** · `ui/AppShell.tsx` **98** · `market/Hero.tsx` **128** · `market/CenterPage.tsx` **424** · `main.tsx` +1 路由）；**i18n +12 键**（347 键 / 12 组 · 双向差集 0）；**断言** = `m4a-dogfood` **57/0**（+11）· 本批 dogfood **91/0**；**证据** = 证据文档 **§14.11** + 3 图；**行数一律 `m4b4-measure.ts` 实测回填**（新件已入 measure 清单）。
+
+**落地记录续（2026-09-20 · **T11-i B′** 侧栏一体搜索）**：**件** = 新建 **2**（`components/ui/SidebarSearch.tsx` **289** · `components/ui/shadcn/combobox.tsx` **308**（官方 vendoring））+ **删 1**（`components/ui/CommandPalette.tsx`）+ 改造 **3**（`ui/SideNav.tsx` **265** · `ui/AppShell.tsx`（撤面板与 `⌘K` 监听）· `ui/navItems.tsx` **133** 保留）；**新增依赖** = `@base-ui/react@1.8.0`（MIT · 仅 `apps/web` · +8 包）；**i18n −1 键**（`pages` 退役 ⇒ **346 键 / 12 组** · measure 实测 zh=en=346）；**断言** = `m4a-dogfood` **57/0**（B 段 6 条重写）· 本批 dogfood **91/0** 零回归；**证据** = 证据文档 **§14.12** + 第 **34/35** 图。
+
+**落地记录定稿（2026-09-20 · **T11-i B″** 侧栏框样触发器 → 官方命令面板）**：**形态** = 入口为**看起来像常驻输入框的按钮**（shadcn 官方站同款配方 · 实测 h32 / `#f1f5fb` / 无边框 / 圆角 10 / 内嵌 `⌘K`）⇒ 点击开官方 `CommandDialog`；**回退账** = 删 `ui/SidebarSearch.tsx` + `ui/shadcn/combobox.tsx` · 撤依赖 `@base-ui/react`（实测 `apps/web/package.json` 无残留）· i18n 回 **347 键 / 12 组** · notices 回 **33 件** · 恢复 `ui/CommandPalette.tsx` **120** 行；**改造件行数**：`ui/SideNav.tsx` **293** · `ui/AppShell.tsx` **99** · `ui/navItems.tsx` **133**；**断言** = `m4a-dogfood` **57/0**（B″ 六条 · 文件 **904** 行）· 本批 dogfood **91/0** 零回归；**自检** = 代码 **9.48** / 文档 **9.45**。
+
+**观感收尾（2026-09-20 · T11-i B″ · 用户「只做 B」+「侧边栏搜索图标的颜色要浅一些」）**：依据 = 用户放入仓库根的**官方站命令面板截图**（未跟踪文件 `dialog` · PNG 1104×900）⇒ 核官方仓 `apps/v4/components/command-menu.tsx`（**642 行** · 站点**应用层**实现）后出 **5 屏对照小样**，用户拍板**只做 B**：① `ui/CommandPalette.tsx` 页面条目加 `→` 前缀（lucide `ArrowRight` · 尺寸 / 色值走官方 `CommandItem` 内建规则 ⇒ **零 className 覆盖**）· **兜底行不加**（搜索语义）② `ui/SideNav.tsx` 触发器放大镜改 **`text-muted-foreground`**（原 = 无 className ⇒ 继承 `--foreground` `#0f172a`）⇒ 与同块文案 / `⌘K` 徽标**三处同色**。**未采纳**（用户看小样后未选）：官方站**底栏操作提示栏**（右半 = 复制安装命令 · 组件库专有）· nova 档**容器几何**（官方站自身皮肤）—— 登记于 M4a §8.13 ⑦。**行数**：`ui/CommandPalette.tsx` **120 → 128**（`ui/SideNav.tsx` **293** 不变 · 单行改）· **断言** `m4a-dogfood` **57 → 60/0**（+3）· 本批 **91/0** 零回归 · **自检** = 代码 **9.55** / 文档 **9.60**。
 
 ## 4. 门禁与冒烟顺序（复现 CI · **硬规则**）
 
@@ -606,6 +683,8 @@ bun install --frozen-lockfile
 
 | 项 | 内容 |
 |----|------|
+| 提交链（验收期第三笔 · 2026-09-20） | **已推送** `9219069..ced0d6a` —— `72e48db` `feat(server): add whitelisted sorting to the asset list endpoints` · `434043b` `feat(web): add the market sort control and the updated column` · `ced0d6a` `test(docs): cover asset sorting and speed up the dogfood runs` |
+| CI（验收期第三笔） | **全绿**：run `35499952284` **success**（12 步全 success）|
 | 提交链 | **已推送（2026-09-18）** —— `e78c200` `feat(web): add the owner admin surface and star wiring on the asset detail page`（T12+T16）· `9973d6b` `feat(web): rebuild the console dashboard as three role-scoped cards`（T6）· `f2485aa` `test(m4b4): cover the version yank route and land the batch verification set`（T11·b/c/d：测试 + 脚本 + 证据 + 文档）；远端 `a918930..f2485aa` → `origin/main` |
 | CI | **全绿**：run `35366866235` **success**（12 步全 success —— 安装依赖 / typecheck / lint / format:check / 文档体检 / build / db:migrate / test）|
 | 门禁 | 八步全 **exit 0**：`install --frozen-lockfile`（no changes）· `typecheck` · `lint`（1 条**预存在** warning）· `format:check` · `doc-audit`（**64 PASS / 0 FAIL**）· `build`（4/4）· `db:migrate`（零迁移守门）· `CI=true bun run test`（**server 551** / protocol 27，**0 fail** —— 含 T11-c 补测 14 例）· **覆盖探针** `bun test --coverage`（全仓 **95.60/96.28** · `http/assets.ts` **90.97 → 95.96**）|
@@ -740,8 +819,13 @@ bun install --frozen-lockfile
 | **T11-b**（T8 作废散点订正轮 · 文档面） | 文档 15 维 | **9.22** | **14 处**活口径散点订正（首轮 8 + **换靶精修谓词再挖 6**；含跨文档 `asset-stats` / star 读面「三处 → 两处」口径收敛）+ F64 登记 + 两份审计脚本（关键字谓词 + **活口径谓词**）；**口径撤回**：上轮「整体审计无未决项」为**关键字口径**产物 ⇒ 改判「关键字残留 0 · **语义散点 14 处**」并逐处订正。扣分处 = ④文档-代码对齐 **8.5** · ⑪内部一致 **8.5** · ⑫系统一致 **8.6**（散点复发 + 首轮漏项）|
 | **T11**（验证收尾：造数 + **G1–G21**（现行 77） + 五门禁 + 证据） | ✅ 已完成 | —（验证件，不单列均分） | 造数 4 账号/4 资产/6 版本/2 标签/2 star · dogfood **现行 77 PASS / 0 FAIL / NO JS ERRORS**（T11 时点 53） · 八步门禁 exit 0 · 证据 `docs/smoke/2026-09-18-m4b4-personal-b.md` 已回填 |
 | **T11-e**（验收期 UI 调整轮第二笔：门户视图切换 + 折叠搜索） | 代码 18 维 | **9.24**（提交前自检）| 官方 `ToggleGroup` 视图切换（组件 state · 不记忆）+ 官方 `Table` 列表形态（`py-4` 行高 55 · 描述 `line-clamp-3`）+ 官方 `Collapsible`+`InputGroup` 折叠搜索 + 删页头搜索（去重复入口）；**C9 文档 5.5**（落档前最大扣分项）· A1 9.3（探针四处自伤 F70）· 行为断言 16 条全绿（dogfood **77 PASS / 0 FAIL**）· `m4a-dogfood` **37/0** 零回归 · 零服务端改动 |
-| **T11-f**（验收期第三笔：资产排序 `sort` + 门户 pieces） | 代码 18 维 / 文档 8 维 | **f1 9.35 · f2 9.46 · f3 9.46 · f4 9.47** ✅ 全绿 | 立项期四证：v9 `manualSorting` 存在（递归 grep）· legacy 面类型探针 `typecheck` exit 0 · 运行期 A/B 探针「manual 不重排（`rows=[b,a,c]`）」· 官方列头配方（`Button`+`ArrowUpDown` 两态）；**已落地**：服务端白名单单测 **+12 例** · **G22 ×13**（本批 dogfood **90/0**）· 双面回归（`m4a-dogfood` **38/0** · 匿名 CDP 六组）· 覆盖探针 **不降** · 收尾打分（明细见批 design §4.7 / §11.9 · 证据 §14）|
+| **T11-f**（验收期第三笔：资产排序 `sort` + 门户 pieces） | 代码 18 维 / 文档 8 维 | **f1 9.35 · f2 9.46 · f3 9.46 · f4 9.47** ✅ 全绿 | 立项期四证：v9 `manualSorting` 存在（递归 grep）· legacy 面类型探针 `typecheck` exit 0 · 运行期 A/B 探针「manual 不重排（`rows=[b,a,c]`）」· 官方列头配方（`Button`+`ArrowUpDown` 两态）；**已落地**：服务端白名单单测 **+12 例** · **G22 ×14**（本批 dogfood **91/0**）· 双面回归（`m4a-dogfood` **38/0** · 匿名 CDP 六组）· 覆盖探针 **不降** · 收尾打分（明细见批 design §4.7 / §11.9 · 证据 §14）|
 | **T11-g** | 2026-09-20 | T11-g 全绿：`SMOKE_ONLY` 分段（14 段守卫 + 命中检查）· 会话复用（jar + `me.user.id` 判据） · 实测 45.6s / 2m59s · 真登录 9→4 · 全跑 **91/0**（行为零变化）—— 代码 18 维 **9.49** |
+| **T11-i**（全资产搜索 A + 侧栏命令面板 B） | 代码 18 维 | **9.52** | 逐维打分（A **9.50** ×0.40 / B **9.48** ×0.30 / C **9.59** ×0.30）；**B2 9.2**（输入法组合期点亮未抑制 —— 继承 v0.25 边界）· **C3 9.2**（无运行时可观测标记，靠 DOM 属性探）· **A3 9.4**（Hero 提交目标属**有意**行为变更，已拍板 + 留痕）· **C8 9.5**（跨批改动 M4a 交付物 Hero + 壳层 SideNav/TopBar，均已留痕且本批 dogfood 零回归）| 依据 = **实测**：`m4a-dogfood` **57/0**（+11 条）· 本批 dogfood **91/0** · 五门禁全绿 · i18n **347 键** · 3 图 · **F98/F99 两条自伤已登记并修复** |
+| **T11-h**（首页搜索形态对齐 · **v0.25 聚焦判据**） | 代码 18 维 | **9.51** | 逐维重打（A **9.58** ×0.40 / B **9.38** ×0.30 / C **9.55** ×0.30 = **9.51**；与上轮**同分不同构成**：产物增强项 **+4 断言 ⇒ C5 ↑** 与保留扣分 **B2 9.0**（输入法组合期即时点亮未抑制）· **C3 9.0**（无运行时可观测标记）相抵）· 只改首页（门户/控制台零改动 · 逐条核断言无影响）· 官方件零覆写（`variant` 切换，不赌 `cn` 冲突合并）· 色走 `--primary` token · **点亮 ⟷ 可提交解耦**（空输入守卫 `if (!q) return` 不变）· **新增 8 条 dogfood 断言**（46/0）· **C8 9.5**（跨批改动 M4a 交付物，已留痕）|
+| **T11-i B′**（侧栏搜索改「一体」形态 · 官方 Combobox） | 代码 18 维 / 文档 8 维 | **9.40** / **9.41** | 代码：A **9.38** ×0.40 · B **9.38** ×0.30（**B2 9.2**：列表限高依赖未生成的 nova 简写 · 未做窄屏实跑）· C **9.45** ×0.30（**C5 9.6**：+6 条断言 + 2 条真登录验证；**C3 9.0**：纯 UI 无可观测标记）｜文档 8 维 **9.41**（**边界覆盖 9.2**）。**本笔抓到两个真缺陷**：F101（Base UI 选中回写哨兵值 ⇒ 改「不控 `inputValue` + `key` 重挂载」）· F103（`w-(--anchor-width)` 简写在 TW 4.3.3 不生成 ⇒ 改任意值类）|
+| **T11-i B″**（侧栏搜索定稿：框样触发器 → 官方命令面板 · 同日回退） | 代码 18 维 / 文档 8 维 | **9.48** / **9.45** | 回退干净（件删 2 / 依赖撤 1 / i18n 复回 / notices 回 33 件）· 触发器**照官方站实测配方**（非手搓）· **C6 9.7** 零迁移可回退 · **C8 9.6** 依赖归零无残留 · 两套 dogfood 57/0 · 91/0 |
+| **T11-i B″ 观感收尾**（条目 `→` 前缀 + 触发器图标取色） | 代码 18 维 / 文档 8 维 | **9.55** / **9.60** | 只取**条目前缀箭头**一项（用户拍板「只做 B」）；尺寸 / 色走官方 `CommandItem` 内建规则（零 className 覆盖）· 兜底行不加（搜索语义）· 触发器放大镜 `text-muted-foreground` ⇒ **三处同色实测** · **+3 断言 ⇒ 60/0**（触发器取色 / 条目箭头 / 兜底行无箭头）· 复核发现 **F105**（注释腐化）· **F106**（§4.9 落地记录 5 处行数陈旧，已订正）|
 
 ### 7.6 T12 实现期发现（v0.12 · 明细见批 design §11.9）
 
@@ -760,6 +844,7 @@ bun install --frozen-lockfile
 - **F76（v0.20+ 检查轮）**：证据行数表 `AssetList.tsx` 记 **133** ⇒ 实测 **135** ⇒ 同轮注释订正后再测 **138**（两次增行未回填）—— **同类第三次** ⇒ 纪律入档：**提交前必跑 `m4b4-measure.ts` 回填行数**（本轮已按该纪律回填，并把 `CenterPage`/`zh`/`en`/`Home`/`m4a-dogfood` 补进 measure 清单）
 
 - **第三轮检查（v0.20+ · 换靶角度 ③⑤⑪）**：**F77** 注释腐化 4 处（`CenterPage.tsx` 删页头搜索后 3 处 + 件头 1 组自相矛盾）· **F78** 「唯一搜索入口」范围未限定（首页 `Hero` 胶囊搜索仍在）· **F79** `AssetList.tsx` 件头「零外观覆盖」与真码/行内注释矛盾 ⇒ 全部订正；**覆盖探针**：dogfood **+16 / −0** 断言、`m4a` **+1 / −0** ⇒ **零静默削弱** ✓
+- **收口审计（v0.29 · 2026-09-20）**：**F93** —— 收口 converge 换靶「活口径 vs 历史留痕」，抓出 **5 处当值陈旧**（本文件 §3 f4 标题/步骤/断言① 的 `G22 ×13`+**90** · §7.5 T11-f 行 的 `×13`+**90/0** · Status 行的「实现中」「提交待口令」；`docs/00` §5 行的 **90**/**3 图**/v1.28 + 头部 v1.76 落后修订表；证据 §10 出口件 ④ 行 **90**）⇒ 全部订正，修订记录行按纪律保留
 - **T11-g 追加（v0.28）**：**F90** `send()` 回的是**整条 CDP 消息**（`{id,result}`）⇒ 按 `res.cookies` 取值恒 `undefined`、`?? []` 静默吞掉（会话复用**静默失效**：全绿但复用永不命中）· **F91** `docs/smoke/scripts/**` **不在** `bun run lint` 的 turbo 图内（只受 `format:check` 与显式 `biome check`）· **F92** 门禁 `test` 可能是 turbo **缓存回放**（`FULL TURBO`·`Cached: 4/4`·real 0.107s）⇒ 报门禁数字须标注「真跑/回放」，收口用 `--force`
 - **T11-f 「更新」列 + F89（v0.27）**：用户要求「资产列加一个『更新』对应更新时间，和我们的『排序-最新』相对应」⇒ 列表 **5 → 6 列**、列头可点 **4 → 5 列**（更新 ⟷ `newest`）；**F89** = `handleHeaderSort` 把列名当档位（`?sort=updated`，白名单外 ⇒ 序与档位脱钩）⇒ 导出 `COLUMN_SORT` 译档；dogfood **G20-4 六列** + **G22-6c** ⇒ **91 PASS / 0 FAIL**；f2 复评 **9.46**
 - **T11-f 形态变更（v0.26 · 用户拍板）**：排序控件 **chips ×5 → 官方 `Select`**（线框四案对比后选「方案 B」）⇒ **F87** 104px 定宽在 EN `Most downloads`（106px）下**截断** ⇒ 沿控制台 `#assets-status-filter` 同宽先例改 **160px**（中英均不截断）；G22 断言随形态同步（Select 显示 + `160x32` 真值）· 仍 **90/0**
@@ -773,6 +858,15 @@ bun install --frozen-lockfile
 
 ## 9. 修订记录
 
+| **v0.37** | 2026-09-20 | sunxuewen-rush | **T11-i B″ 观感收尾**（用户「只做 B」+「侧栏搜索图标要浅一些」）① 面板**页面条目加 `→` 前缀**（尺寸 / 色走官方件内建规则 ⇒ 零 className 覆盖）· **兜底行不加**（搜索语义）② 触发器放大镜 **`text-muted-foreground`**（与文案 / `⌘K` 三处同色）③ §3 补落地记录 · §7.5 增行（代码 **9.55** / 文档 **9.60**）④ 断言 `m4a-dogfood` **60/0**（+3）· 本批 **91/0** 零回归 ⑤ **F105**（注释腐化）/ **F106**（5 处陈旧行数）登记并订正 |
+| **v0.36** | 2026-09-20 | sunxuewen-rush | **T11-i B″ 定稿：侧栏搜索回到官方对话框**（用户复审拍板「还是官方站的对话框更适合一些」）① 入口 = **框样触发器**（像常驻输入框的按钮 · shadcn 官方站同款配方）② **B′ 一体形态 + 依赖 `@base-ui/react` 退役**（依赖归零 · notices 回 33 件 · i18n 回 **347 键**）③ §2 件表行改写 · §3 补定稿落地记录 · §7.5 增行（代码 **9.48** / 文档 **9.45**）④ 断言 `m4a-dogfood` **57/0** · 本批 **91/0** |
+| **v0.35** | 2026-09-20 | sunxuewen-rush | **T11-i B′：侧栏搜索改「一体」形态** ① §2 件表行改写（**B′ 新建 2 / 删 1 / 改造 3 / 新增依赖 1** · 条目 **15 → 14**）② §3 补 B′ 落地记录（实测行数 + 断言 + 证据图）③ §7.5 增打分行（代码 **9.40** / 文档 **9.41**）④ i18n **347 → 346**（`pages` 退役）|
+| **v0.34** | 2026-09-20 | sunxuewen-rush | **T11-i 观感微调回填（用户 2026-09-20）**：① 顶栏小搜索 **靠右、置于语言切换器左侧** ② 宽 **固定 `w-[320px]`** ③ 放大镜 **`strokeWidth=4`**（加粗一倍）—— §3 T11-i A-① 断言收紧为「`w=320` + 靠右 + 切换钮左侧 + `stroke=4`」· 实测 `m4a-dogfood` **57/0**（+11 条不变）· 本批 dogfood **91/0** 零回归 |
+| **v0.33** | 2026-09-20 | sunxuewen-rush | **T11-i 落地回填** ① §3 T11-i 补**落地记录**（件 = 新建 5 / 改造 6 · i18n +12 键 · 两套 dogfood 实测）② §7.5 增 T11-i 打分行（代码 18 维 **9.52**）③ 实测：`m4a-dogfood` **46 → 57/0**（+11 断言）· 本批 dogfood **91/0 零回归** · i18n **347 键 / 12 组** ④ 零后端改动 / 零迁移 |
+| **v0.32** | 2026-09-20 | sunxuewen-rush | **T11-i 全资产搜索立项（用户拍板 A1 + B1 + C3 + 「Hero 对齐」）** ① §2 件表增 **T11-i**（新建 3 / 改造 4）② §3 增 T11-i：五步（抽件 → 顶栏 → 结果页 → 文档 → 验证）+ **七条断言**（含跨类型实证 · `<lg` 隐藏 · Hero 口径变更 · 门户零回归）③ 规格落 **M4a §8.12** ④ 零后端改动 / 零迁移 |
+| **v0.31** | 2026-09-20 | sunxuewen-rush | **T11-h v0.25（点亮判据扩为「聚焦 或 有输入」· 用户拍板「鼠标一点击输入的地方、焦点在的时候就变」）** ① §2 件表：Hero 沿革 **v0.25** + 断言 +4 ② §3 T11-h：验证断言改 **六条**（两态 → **三态**）· 实测 **46/0** · 真指针 ③ §7.5 重打 **9.51**（**同分不同构成**：C5 ↑ / B2 · C3 保留）④ **F95**（后台 tab `element.focus()` 不派发 `focus` ⇒ 探针假红；聚焦类交互必用真指针）⑤ 规格落 **M4a §8.11** |
+| **v0.30** | 2026-09-20 | sunxuewen-rush | **T11-h 首页搜索形态对齐（只改首页 · 用户「只做形态对齐 / 空态没反应」）** ① 两态：空态 `ghost` + 主色描边 + `aria-disabled`（点击/回车无反应）/ 有输入 `default` 实底主色 + 白图标 + 提交 ② 空输入**不再跳 `/skills`**（原口径作废）③ `m4a-dogfood` **+4 断言 ⇒ 42/0**（基线 38）④ **F94**（探针把过渡中间态当终值 —— 已沉淀固定写法）⑤ 规格落 **M4a §8.10**（Hero 属 M4a 交付物）⑥ 门户三页与控制台**零改动** |
+| **v0.29** | 2026-09-20 | sunxuewen-rush | **M4b-4 收口审计（converge）** ① 换靶「**活口径 vs 历史留痕**」⇒ 本文件 3 处当值陈旧订正（§3 f4 ×13/90 → ×14/91 · §7.5 T11-f 行 → 91/0 · Status → 全绿落地 + 已提交）② **F93** 登记（§7.6）③ §7 落地记录补**验收期第三笔提交链**（`72e48db`/`434043b`/`ced0d6a`）+ **CI run `35499952284` success** ④ 零实现改动 |
 | **v0.28** | 2026-09-20 | sunxuewen-rush | **T11-g（验证效率）落地 —— 用户「连续几条任务时间都有点长，耗时点在哪里？」** ① **归因 = dogfood 复跑为工具时间大头**（硬证据 = 单轮 `time` 实测 212s/179s/45.6s；会话库分桶数字**已撤** —— 重复行 + 时间戳非单调、两版口径互相矛盾，见证据 §14.9 口径自曝）② **分段执行** `SMOKE_ONLY`（14 段守卫 · G19 常驻 · 命中检查）③ **会话复用**（jar + `me.user.id` 判据 · 跨段探针上提 · 顶层登出）④ 实测：段选 **45.6s** / 全跑 **2m59s** ·真登录 **9 → 4** · 全跑 **91/0**（零行为变化）⑤ **F90**（`send()` 回整条 CDP 消息 ⇒ cookie 取错键静默失效）·**F91**（`docs/` 脚本不在 turbo lint 图内）· **F92**（门禁 `test` 行可能是 turbo **缓存回放** ⇒ 报数须标真跑/回放；已 `--force` 补真跑 32.6s · 562/0）⑥ §7.5 增 **T11-g 行（代码 18 维 9.49）** ⑦ 证据 §14.9 新增 |
 | **v0.27** | 2026-09-20 | sunxuewen-rush | **列表加「更新」列（⟷「最新」档）+ F89 订正** —— ① `AssetList` **六列**（末位「更新」= `formatDate(updatedAt)` `YYYY-MM-DD`；列宽 24/26/16/11/11/12；`colSpan` 6）② **五列可点**（`更新 ⟷ newest`；导出 `COLUMN_SORT` = 列→档单一事实源）③ **F89**：列名当档位 ⇒ `?sort=updated`（序与档位脱钩，因 `dir` 仍生效）⇒ `CenterPage.handleHeaderSort` 先译档 ④ i18n **+`colUpdated` ⇒ 335 键** ⑤ dogfood **G20-4 → 六列** + **G22-6c 新增** ⇒ **91 PASS / 0 FAIL** · `m4a-dogfood` **38/0** ⑥ f2 复评 **9.46** |
 | **v0.26** | 2026-09-20 | sunxuewen-rush | **T11-f 排序控件形态定稿 = 官方 `Select`（用户线框四案对比后拍板「方案 B」）** —— ① 控件：`Label「排序」+ SelectTrigger#market-sort`（`size="sm"` · `w-[160px]` · `role=combobox`）取代 chips ×5 ⇒ 常驻宽 **274 → 160px**、换档点击 **1 → 2 次** ② **F87**：104px 定宽在 EN `Most downloads`（106px）下截断 ⇒ 沿控制台 `#assets-status-filter` 同宽先例改 160 ③ i18n **+`sortLabel` ⇒ 334 键**（实测）④ G22 断言随形态同步 + `160x32` 尺寸真值 ⇒ **90 PASS / 0 FAIL** · `m4a-dogfood` **38/0** ⑤ f2 复评 **9.40** |

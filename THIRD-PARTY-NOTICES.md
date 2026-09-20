@@ -3,7 +3,7 @@
 AI Asset Hub is licensed under the Apache License 2.0 (see [LICENSE](./LICENSE)).
 This file lists third-party software **included in** or **distributed with** this repository,
 as required by their respective licenses. Everything below was measured from the actual
-installed dependency tree (2026-09-18), not transcribed by hand.
+installed dependency tree (2026-09-20), not transcribed by hand.
 
 ## 1. Code vendored into this repository
 
