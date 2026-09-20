@@ -47,7 +47,7 @@ await new Promise((r) => ws.addEventListener('open', r));
 let seq = 0;
 const pending = new Map<number, (m: any) => void>();
 const jsErrors: string[] = [];
-let netStatus: number[] = [];
+const netStatus: number[] = [];
 ws.addEventListener('message', (ev) => {
   const msg = JSON.parse(String(ev.data));
   if (msg.id && pending.has(msg.id)) {

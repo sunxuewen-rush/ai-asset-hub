@@ -265,6 +265,13 @@ async function ensureInput(sel: string, value: string): Promise<boolean> {
 }
 
 const CONTENT = `document.querySelector('[data-slot="sidebar-inset"]')`;
+/**
+ * **页面作用域（排除顶栏）**：T11-i 起顶栏新增公共搜索件（含 `[data-slot="input-group"]`、
+ * `input[aria-label]` 与 `aria-label="搜索"`），而**顶栏本身就在 `sidebar-inset` 内** ⇒ 仅用
+ * `CONTENT` 不足以隔离壳层。**页面级控件探针一律用本作用域**（**F99**：壳层新增件与页面级
+ * 选择器撞车 ⇒ 断言会测错对象）。
+ */
+const PAGE = `document.querySelector('[data-slot="sidebar-inset"] > div')`;
 /** 收藏按钮（**按 title 前缀精确命中**——`sidebar-inset` 里还有 TopBar 的语言切换钮也带 `aria-pressed`，直取首个会误命中） */
 const STAR_BTN = `[...(${CONTENT}).querySelectorAll('button[aria-pressed]')].find((b) => /^(收藏|已收藏)/.test(b.getAttribute('title') ?? ''))`;
 /** 标签卡（容器：chips 的禁用态计数须限定在此卡内，避免命中页面上其它 `aria-disabled` 元素） */
@@ -697,7 +704,7 @@ if (want('G13')) {
     );
     ok('G13 筛选后行集合收窄（HIDDEN 仅 1 行）', rows === 1, `rows=${rows}`);
     await nav(`${APP}/dashboard/assets?page=2`, 2600);
-    await realClickExpr(`(() => ${CONTENT}.querySelector('input[aria-label]'))()`);
+    await realClickExpr(`(() => ${PAGE}.querySelector('input[aria-label]'))()`);
     await realType('m4b4');
     await sleep(1400);
     const afterQ = (await evalJs(`location.pathname + location.search`)) as string;
@@ -1134,13 +1141,16 @@ if (want('G20')) {
    面板 = 工具条**下方** · 宽度与工具条等宽 · 内含「放大镜 + 无边框输入 + 关闭钮」。 ═══════════════ */
 if (want('G21')) {
   {
-    const TRIG = `[...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '搜索')`;
-    const VIEWBTN = `[...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '列表视图')`;
+    // ⚠️ **T11-i 起用 `PAGE` 作用域**（**F99**）：顶栏的公共搜索件同样带 `aria-label="搜索"`
+    //    （`market.searchBtn`）与 `[data-slot="input-group"]`，且**顶栏在 `sidebar-inset` 内**
+    //    ⇒ 不排除顶栏的查找会命中壳层、断言测错对象。
+    const TRIG = `[...${PAGE}.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '搜索')`;
+    const VIEWBTN = `[...${PAGE}.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '列表视图')`;
     const PROBE = `(() => {
     const t = ${TRIG};
     const v = ${VIEWBTN};
     const bar = t && t.parentElement;
-    const g = [...document.querySelectorAll('[data-slot="input-group"]')].find((x) => x.getBoundingClientRect().width > 0);
+    const g = [...${PAGE}.querySelectorAll('[data-slot="input-group"]')].find((x) => x.getBoundingClientRect().width > 0);
     const inp = g && g.querySelector('input');
     return JSON.stringify({
       trigBox: t ? Math.round(t.getBoundingClientRect().width) + 'x' + Math.round(t.getBoundingClientRect().height) : null,
@@ -1162,7 +1172,7 @@ if (want('G21')) {
         const c = [...document.querySelectorAll('[data-slot="card"]')].find((x) => x.querySelector('h1'));
         return c ? c.querySelectorAll('input').length : -1;
       })(),
-      visibleInputs: [...document.querySelectorAll('input')].filter((i) => i.getBoundingClientRect().width > 0).length,
+      visibleInputs: [...${PAGE}.querySelectorAll('input')].filter((i) => i.getBoundingClientRect().width > 0).length,
       url: location.pathname + location.search,
     });
   })()`;
@@ -1221,7 +1231,7 @@ if (want('G21')) {
       'G21-4 面板输入 ⇒ URL `?q=` 且计数改「筛选结果」（收窄）',
       (await (async () => {
         await evalJs(`(() => {
-        const g = [...document.querySelectorAll('[data-slot="input-group"]')].find((x) => x.getBoundingClientRect().width > 0);
+        const g = [...${PAGE}.querySelectorAll('[data-slot="input-group"]')].find((x) => x.getBoundingClientRect().width > 0);
         const inp = g.querySelector('input');
         const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
         setter.call(inp, 'seed-page');

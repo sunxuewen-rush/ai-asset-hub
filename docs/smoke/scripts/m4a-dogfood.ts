@@ -274,6 +274,429 @@ async function main() {
   );
   await shot('1-home');
 
+  /* ── T11-h（2026-09-20 用户拍板「只做形态对齐 · 空态没反应」）：首页搜索**两态** ────────────
+     空态 = `ghost` 底 + 主色描边放大镜 + `aria-disabled`（点击 / 回车一律无反应）；
+     有输入 = `default` 实底主色 + 白图标（`text-primary-foreground` 随 variant）+ 可提交 `/skills?q=`。
+     ⚠️ **读底色前必须先关过渡**（本笔实测踩过）：官方 `Button` 带 `transition-all`，在**隐藏 tab**
+     里过渡不推进 ⇒ 直接读 `backgroundColor` 会拿到**过渡起点值**（`oklab(0 0 0 / 0)` = 透明），
+     误判「实底没生效」。故探针内 `transition:none` → 读 → 复原。 */
+  /**
+   * **页面作用域**（F99 同族 —— 壳层新件抢裸选择器）：`[data-slot=input-group]` 同时出现在
+   * **壳层**：顶栏的全资产搜索件（T11-i A · 常驻）与内容区**同为** `sidebar-inset` 的子节点，
+   * 且壳层那支在 DOM 中**先于内容区** ⇒ 裸 `document.querySelector('[data-slot="input-group"] input')`
+   * 会打到**顶栏那支**（实证：首跑 T11-h 三条断言集体假红）。凡「页面级」探针一律限定
+   * `[data-slot=sidebar-inset] > div`（≡ 壳层 `Outlet` 容器；顶栏是同级 `> header`，天然排除）。
+   *
+   * 历史：F102 登记时壳层那支是 **B′ 期侧栏一体搜索件**（`ui/SidebarSearch.tsx`）；该件已随 B″
+   * 拍板**退役**（见批 design §4.7.6），但**本作用域保留** —— 它对后续任何壳层件都成立。
+   */
+  const PAGE = `[data-slot="sidebar-inset"] > div`;
+  const HERO_INPUT = `document.querySelector('${PAGE} [data-slot="input-group"] input')`;
+  const HERO_BTN = `(() => {
+    const b = [...document.querySelectorAll('${PAGE} button')].find((x) => (x.getAttribute('aria-label') ?? '') === '搜索');
+    if (!b) return 'none';
+    const t = b.style.transition; b.style.transition = 'none'; void b.offsetWidth;
+    const cs = getComputedStyle(b); const svg = b.querySelector('svg');
+    const out = { dv: b.getAttribute('data-variant'), ad: b.getAttribute('aria-disabled'),
+      bg: cs.backgroundColor, icon: svg ? getComputedStyle(svg).color : null, r: cs.borderRadius };
+    b.style.transition = t;
+    return JSON.stringify(out);
+  })()`;
+  const TYPE_HERO = `(() => { const i = document.querySelector('${PAGE} [data-slot="input-group"] input');
+    const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    s.call(i, 'm4a'); i.dispatchEvent(new Event('input', { bubbles: true })); return i.value; })()`;
+  const CLICK_HERO = `(() => { const b = [...document.querySelectorAll('${PAGE} button')].find((x) => (x.getAttribute('aria-label') ?? '') === '搜索');
+    if (b) b.click(); return !!b; })()`;
+
+  const idleBtn = JSON.parse((await evalJs(HERO_BTN)) as string) as {
+    dv: string;
+    ad: string | null;
+    bg: string;
+    icon: string | null;
+    r: string;
+  };
+  ok(
+    'T11-h 空态：右钮 `ghost` + 主色描边 + 不可用（`aria-disabled`）+ 全胶囊',
+    idleBtn.dv === 'ghost' &&
+      idleBtn.ad === 'true' &&
+      idleBtn.bg === 'rgba(0, 0, 0, 0)' &&
+      idleBtn.r !== '0px' &&
+      !!idleBtn.icon,
+    JSON.stringify(idleBtn),
+  );
+  await evalJs(CLICK_HERO);
+  await sleep(900);
+  ok(
+    'T11-h 空态点击 ⇒ 无反应（URL 不变，不跳 `/skills`）',
+    (await evalJs('location.pathname + location.search')) === '/',
+  );
+
+  /* v0.25（2026-09-20 用户拍板「鼠标一点击输入的地方、焦点在的时候就变」）：点亮判据 = **聚焦 或 有输入**。
+     断言三态：① 真指针点入 ⇒ input 真获得焦点 ② 聚焦空态 ⇒ 点亮（`default` + 实底主色）但 `aria-disabled`
+     **仍在**（不可提交）③ 真指针点标题 ⇒ 失焦复位 `ghost` 描边。
+     ⚠️ **必须用真指针**（`clickReal`），不能用页内 `el.focus()`：本笔实测 —— **后台 tab 里
+     `element.focus()` 会设上 `activeElement` 却不派发 `focus` 事件**（探针实测 `activeElement === input`
+     为真、`data-variant` 仍 `ghost`）⇒ React `onFocus` 不触发 ⇒ 假红。与 **F94**（过渡不推进）同属
+     「后台 tab 副作用」家族，但成因不同：本条是**事件不派发**，不是样式不推进。 */
+  await clickReal(HERO_INPUT);
+  await sleep(500);
+  ok(
+    'T11-h 聚焦探针（真指针点入）：input 真获得焦点',
+    (await evalJs(`document.activeElement === ${HERO_INPUT}`)) === true,
+  );
+  const focusBtn = JSON.parse((await evalJs(HERO_BTN)) as string) as {
+    dv: string;
+    ad: string | null;
+    bg: string;
+  };
+  ok(
+    'T11-h 聚焦空态（v0.25）：右钮点亮 `default` 实底主色 · 但仍不可提交（`aria-disabled` 保留）',
+    focusBtn.dv === 'default' &&
+      focusBtn.ad === 'true' &&
+      focusBtn.bg !== 'rgba(0, 0, 0, 0)' &&
+      focusBtn.bg !== 'oklab(0 0 0 / 0)',
+    JSON.stringify(focusBtn),
+  );
+  await clickReal(`document.querySelector('h1')`);
+  await sleep(500);
+  ok(
+    'T11-h 失焦探针（真指针点标题）：焦点已离开 input',
+    (await evalJs(`document.activeElement === ${HERO_INPUT}`)) === false,
+  );
+  const blurredBtn = JSON.parse((await evalJs(HERO_BTN)) as string) as {
+    dv: string;
+    ad: string | null;
+    bg: string;
+  };
+  ok(
+    'T11-h 失焦空态（v0.25）：右钮复位 `ghost` + 主色描边 + 不可用',
+    blurredBtn.dv === 'ghost' && blurredBtn.bg === 'rgba(0, 0, 0, 0)' && blurredBtn.ad === 'true',
+    JSON.stringify(blurredBtn),
+  );
+
+  await evalJs(TYPE_HERO);
+  await sleep(700);
+  const typedBtn = JSON.parse((await evalJs(HERO_BTN)) as string) as {
+    dv: string;
+    ad: string | null;
+    bg: string;
+  };
+  ok(
+    'T11-h 有输入：右钮 `default` **实底主色** + 可提交（`aria-disabled` 移除）',
+    typedBtn.dv === 'default' &&
+      typedBtn.ad === null &&
+      typedBtn.bg !== 'rgba(0, 0, 0, 0)' &&
+      typedBtn.bg !== 'oklab(0 0 0 / 0)',
+    JSON.stringify(typedBtn),
+  );
+  await evalJs(CLICK_HERO);
+  await sleep(1600);
+  const submitted = (await evalJs('location.pathname + location.search')) as string;
+  // T11-i A（口径变更）：Hero 提交目标由 `/skills?q=` **改 `/search?q=`**（跨类型；design §8.12 ⑤）
+  ok(
+    'T11-h 有输入点击 ⇒ 提交 `/search?q=m4a`（T11-i 口径）',
+    submitted.startsWith('/search?q=m4a'),
+    submitted,
+  );
+
+  /* ── T11-i（2026-09-20 用户拍板 A1 + B1 + C3 +「Hero 对齐」+「sidebar 放命令面板搜索」）────
+     **A** = 顶栏小搜索（公共件 `AssetSearch` 的 `sm` 档）+ `/search` 跨类型结果页 + 首页搜索抽件；
+     **B″** = 侧栏**框样触发器**（看起来像常驻输入框的按钮）→ 打开**官方 `CommandDialog` 命令面板**
+     （2026-09-20 用户拍板「还是官方站的对话框更适合」⇒ **A 案**；形态照 **shadcn 官方站同款**实测配方）。
+     ⚠️ 同日先试过「常驻输入框 + 紧邻下拉」的一体形态（官方 `Combobox` · Base UI 原语）—— 用户复审后
+     **拍板改回对话框**，该形态与其依赖 `@base-ui/react` 一并**退役**（偏离登记见批 design §4.7.6）。
+     ⚠️ **F98（本笔实测）**：**后台 tab 里 SPA 路由切换的 DOM 不提交** —— URL 已变而内容仍是旧页
+        （与 F94「过渡不推进」/ F95「focus 不派发」同族）；**凡断言「导航后的页面内容」须先
+        `Page.bringToFront` 激活 tab**（只断言 URL 时不受影响）。 */
+  await send('Page.bringToFront');
+  await sleep(500);
+
+  // A-① 顶栏小搜索（`sm` 档 = h-9 · **固定 w-320** · **靠右**且**在语言切换左侧** · 放大镜 `stroke-width=4`）
+  //     2026-09-20 用户调整：原「标题右侧 · 弹性 max-w-320」⇒ 现「语言切换左侧 · 固定 320 · 图标加粗一倍」
+  const topBar = JSON.parse(
+    (await evalJs(`(() => {
+    const f = document.querySelector('header form');
+    if (!f) return JSON.stringify({ ok: false });
+    const g = f.querySelector('[data-slot="input-group"]');
+    const b = g.getBoundingClientRect();
+    const hb = document.querySelector('header').getBoundingClientRect();
+    const sws = [...document.querySelectorAll('header button[aria-pressed]')];
+    const sw = sws.length ? sws[0].getBoundingClientRect() : null;
+    return JSON.stringify({ ok: true, h: Math.round(b.height), w: Math.round(b.width),
+      ph: f.querySelector('input').placeholder,
+      stroke: f.querySelector('svg').getAttribute('stroke-width'),
+      rightHalf: b.left > hb.left + hb.width / 2,
+      leftOfSwitcher: sw ? b.right <= sw.left : null,
+      gapToSwitcher: sw ? Math.round(sw.left - b.right) : null });
+  })()`)) as string,
+  ) as {
+    ok: boolean;
+    h?: number;
+    w?: number;
+    ph?: string;
+    stroke?: string;
+    rightHalf?: boolean;
+    leftOfSwitcher?: boolean;
+    gapToSwitcher?: number;
+  };
+  ok(
+    'T11-i A 顶栏小搜索（`sm` h-9 · **w=320** · **靠右**·**在语言切换左侧** · 放大镜 `stroke=4`）',
+    topBar.ok &&
+      topBar.h === 36 &&
+      topBar.w === 320 &&
+      topBar.rightHalf === true &&
+      topBar.leftOfSwitcher === true &&
+      topBar.stroke === '4',
+    JSON.stringify(topBar),
+  );
+
+  // A-② 顶栏提交 ⇒ `/search?q=`（真指针：先点入聚焦、再点提交钮 —— 与 T11-h 同法 · F95）
+  await clickReal(`document.querySelector('header form input')`);
+  await sleep(400);
+  await evalJs(`(() => { const i = document.querySelector('header form input');
+    const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    s.call(i, 'm4a'); i.dispatchEvent(new Event('input', { bubbles: true })); return i.value; })()`);
+  await sleep(400);
+  await clickReal(`document.querySelector('header form button[type="submit"]')`);
+  await sleep(1800);
+  const topSubmitted = (await evalJs('location.pathname + location.search')) as string;
+  ok(
+    'T11-i A 顶栏提交 ⇒ `/search?q=m4a`（**跨类型**结果页）',
+    topSubmitted === '/search?q=m4a',
+    topSubmitted,
+  );
+  ok(
+    'T11-i A 顶栏输入**保留**（顶栏常驻 ⇒ 便于改词）',
+    (await evalJs(`document.querySelector('header form input').value`)) === 'm4a',
+  );
+
+  // A-③ `/search` 结果页形态（标题 / 计数 / 类型 chips 四档 / 排序 / 有卡片）
+  await nav(`${BASE}/search?q=seed`);
+  await sleep(2000);
+  const searchPage = JSON.parse(
+    (await evalJs(`(() => {
+    const txt = document.body.innerText;
+    const chips = [...document.querySelectorAll('[data-slot="toggle-group-item"]')].map((x) => x.innerText.trim());
+    return JSON.stringify({ title: !!document.querySelector('h1'), count: /共 [0-9]+ 个结果/.test(txt),
+      chips: chips.slice(0, 4), sort: !!document.querySelector('#search-sort'),
+      cards: document.querySelectorAll('a[href^="/assets/"]').length });
+  })()`)) as string,
+  ) as {
+    title: boolean;
+    count: boolean;
+    chips: string[];
+    sort: boolean;
+    cards: number;
+  };
+  ok(
+    'T11-i A `/search` 页：标题 + 计数 + 类型 chips（全部/技能/MCP/专家）+ 排序 + 卡片',
+    searchPage.title &&
+      searchPage.count &&
+      searchPage.sort &&
+      searchPage.cards > 0 &&
+      searchPage.chips.join('/') === '全部/技能/MCP/专家',
+    JSON.stringify(searchPage),
+  );
+
+  // A-④ 类型 chips 生效（切「技能」⇒ `?type=skill` 且结果**收窄** ⇒ 反证 `all` 档 = 跨类型）
+  const allCards = searchPage.cards;
+  await clickReal(
+    `[...document.querySelectorAll('[data-slot="toggle-group-item"]')].find((x) => x.innerText.trim() === '技能')`,
+  );
+  await sleep(1800);
+  const pinned = JSON.parse(
+    (await evalJs(`(() => JSON.stringify({
+    url: location.search, cards: document.querySelectorAll('a[href^="/assets/"]').length }))()`)) as string,
+  ) as {
+    url: string;
+    cards: number;
+  };
+  ok(
+    'T11-i A 类型 chips 生效（`?type=skill` ⇒ 结果收窄 ⇒ 反证 `all` 是跨类型）',
+    pinned.url.includes('type=skill') && pinned.cards > 0 && pinned.cards < allCards,
+    `${JSON.stringify(pinned)} · all=${allCards}`,
+  );
+
+  // B-① 侧栏框样触发器（占比文案 + 快捷键徽标 + `aria-haspopup=dialog`）
+  await nav(`${BASE}/`);
+  await sleep(1600);
+  const entry = JSON.parse(
+    (await evalJs(`(() => {
+    const b = document.querySelector('[aria-haspopup="dialog"]');
+    if (!b) return JSON.stringify({ ok: false });
+    return JSON.stringify({ ok: true, text: b.innerText.replace(/\\n/g, '|'),
+      kbd: b.innerText.includes('⌘K') || b.innerText.includes('Ctrl+K') });
+  })()`)) as string,
+  ) as { ok: boolean; text?: string; kbd?: boolean };
+  ok(
+    'T11-i B″ 侧栏触发器（常驻框样 · 占位文案 + 快捷键徽标 + `aria-haspopup=dialog`）',
+    entry.ok && entry.kbd === true && entry.text?.includes('搜索页面') === true,
+    JSON.stringify(entry),
+  );
+
+  // B-①b 触发器放大镜**取色**（2026-09-20 用户「侧边栏搜索图标的颜色要浅一些」）：
+  //   原 = 无 className ⇒ 继承按钮 `--foreground`（`#0f172a`，比同块文案更深）；
+  //   现 = `text-muted-foreground` ⇒ 与文案 + `⌘K` 徽标**三处同色**。
+  //   **断言口径**：与 `--muted-foreground` 的**实时解析值**比对（临时探针元素解 token，不写死 hex），
+  //   并反证 ≠ `--foreground` ⇒ token 换肤后断言仍成立。
+  const iconInk = JSON.parse(
+    (await evalJs(`(() => {
+    const b = document.querySelector('[aria-haspopup="dialog"]');
+    const probe = document.createElement('span'); document.body.appendChild(probe);
+    probe.style.color = 'var(--muted-foreground)'; const mutedFg = getComputedStyle(probe).color;
+    probe.style.color = 'var(--foreground)'; const fg = getComputedStyle(probe).color;
+    probe.remove();
+    const svg = b.querySelector('svg'), sp = b.querySelector('span'), kbd = b.querySelector('kbd');
+    return JSON.stringify({ icon: getComputedStyle(svg).color, text: getComputedStyle(sp).color,
+      kbd: kbd ? getComputedStyle(kbd).color : null, mutedFg, fg,
+      stroke: svg.getAttribute('stroke-width') });
+  })()`)) as string,
+  ) as {
+    icon: string;
+    text: string;
+    kbd: string | null;
+    mutedFg: string;
+    fg: string;
+    stroke: string;
+  };
+  ok(
+    'T11-i B″ 触发器放大镜 = `--muted-foreground`（与文案 / `⌘K` 徽标**三处同色** · ≠ `--foreground`）',
+    iconInk.icon === iconInk.mutedFg &&
+      iconInk.icon === iconInk.text &&
+      iconInk.icon === iconInk.kbd &&
+      iconInk.icon !== iconInk.fg,
+    JSON.stringify(iconInk),
+  );
+
+  // B-② 点触发器 ⇒ 面板打开 · 门户 4 条俱在 ·（未登录）不加管理面
+  await clickReal(`document.querySelector('[aria-haspopup="dialog"]')`);
+  await sleep(1000);
+  const panel = JSON.parse(
+    (await evalJs(`(() => {
+    const d = document.querySelector('[role="dialog"]');
+    if (!d) return JSON.stringify({ state: 'ABSENT' });
+    return JSON.stringify({ state: d.getAttribute('data-state'),
+      items: [...d.querySelectorAll('[cmdk-item]')].map((x) => x.innerText.trim()),
+      heading: [...d.querySelectorAll('[cmdk-group-heading]')].map((x) => x.innerText.trim()) });
+  })()`)) as string,
+  ) as { state: string; items?: string[]; heading?: string[] };
+  const anon = ((await evalJs(`document.body.innerText.includes('登录')`)) as boolean) === true;
+  const portalOk = ['首页', '技能中心', 'MCP 中心', '专家中心'].every((x) =>
+    (panel.items ?? []).includes(x),
+  );
+  ok(
+    'T11-i B″ 点触发器 ⇒ 官方 `CommandDialog` 打开（`data-state=open`）· 门户 4 条俱在 · 未登录不加管理面',
+    panel.state === 'open' &&
+      portalOk &&
+      panel.heading?.includes('页面') === true &&
+      (!anon || panel.items?.length === 4),
+    `${JSON.stringify(panel)} anon=${anon}`,
+  );
+
+  // B-②b 条目形态（2026-09-20 用户拍板「只做 B」）：**页面**条目带 `→` 前缀箭头
+  //   （lucide `ArrowRight` · size-16 · 色 = `--muted-foreground` · `stroke-width=2`）。
+  //   尺寸 / 色值**全走官方 `CommandItem` 内建规则**（`[&_svg:not([class*=size-])]:size-4` +
+  //   `[&_svg:not([class*=text-])]:text-muted-foreground`）⇒ 本仓**零 className 覆盖**。
+  //   断言 = 门户 4 条**各 1 枚** svg，且**同尺寸同色**（跨条目一致）。
+  const itemArrows = JSON.parse(
+    (await evalJs(`(() => {
+    const probe = document.createElement('span'); document.body.appendChild(probe);
+    probe.style.color = 'var(--muted-foreground)'; const mutedFg = getComputedStyle(probe).color;
+    probe.remove();
+    const rows = [...document.querySelectorAll('[cmdk-item]')].filter((x) =>
+      ['首页', '技能中心', 'MCP 中心', '专家中心'].includes(x.innerText.trim()));
+    return JSON.stringify({ mutedFg, rows: rows.map((x) => {
+      const s = x.querySelector('svg');
+      return { t: x.innerText.trim(), svg: !!s,
+        w: s ? Math.round(s.getBoundingClientRect().width) : 0,
+        color: s ? getComputedStyle(s).color : null };
+    }) });
+  })()`)) as string,
+  ) as { mutedFg: string; rows: { t: string; svg: boolean; w: number; color: string | null }[] };
+  ok(
+    'T11-i B″ 页面条目带 `→` 前缀（4 条各 1 枚 · size 16 · 色 = `--muted-foreground`）',
+    itemArrows.rows.length === 4 &&
+      itemArrows.rows.every((r) => r.svg && r.w === 16 && r.color === itemArrows.mutedFg),
+    JSON.stringify(itemArrows),
+  );
+
+  // B-③ Esc ⇒ 关闭（`data-state` 节点消失）
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: 'Escape',
+    code: 'Escape',
+    windowsVirtualKeyCode: 27,
+  });
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: 'Escape',
+    code: 'Escape',
+    windowsVirtualKeyCode: 27,
+  });
+  await sleep(1200);
+  ok(
+    'T11-i B″ `Esc` ⇒ 面板关闭',
+    (await evalJs(`document.querySelector('[role="dialog"]') === null`)) === true,
+  );
+
+  // B-④ ⌘K / Ctrl+K ⇒ 打开
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: 'k',
+    code: 'KeyK',
+    windowsVirtualKeyCode: 75,
+    modifiers: 4,
+  });
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: 'k',
+    code: 'KeyK',
+    windowsVirtualKeyCode: 75,
+    modifiers: 4,
+  });
+  await sleep(1000);
+  ok(
+    'T11-i B″ `⌘K`/`Ctrl+K` ⇒ 面板打开',
+    (await evalJs(`document.querySelector('[role="dialog"]')?.getAttribute('data-state')`)) ===
+      'open',
+  );
+
+  // B-⑤ 兜底行：输入关键词 ⇒ 末尾出现「在全部资产里搜「{q}」」⇒ 回车跳 `/search?q=`
+  await evalJs(`(() => { const i = document.querySelector('[cmdk-input]');
+    const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    s.call(i, 'seed'); i.dispatchEvent(new Event('input', { bubbles: true })); return i.value; })()`);
+  await sleep(1000);
+  const fallback = (await evalJs(`(() => {
+    const items = [...document.querySelectorAll('[cmdk-item]')].map((x) => x.innerText.trim());
+    return JSON.stringify(items.filter((x) => x.includes('在全部资产里搜')));
+  })()`)) as string;
+  ok('T11-i B″ 兜底行出现（「在全部资产里搜「seed」」）', fallback.includes('seed'), fallback);
+  // B-⑤b 兜底行**不带**箭头（2026-09-20 用户拍板「只做 B」时定：箭头 = 跳转语义，兜底行是**搜索**语义）
+  ok(
+    'T11-i B″ 兜底行**不带** `→`（搜索语义 ≠ 跳转 · 与页面条目区分）',
+    (await evalJs(
+      `(() => { const it = [...document.querySelectorAll('[cmdk-item]')].find((x) => x.innerText.includes('在全部资产里搜')); return it ? it.querySelector('svg') === null : false; })()`,
+    )) === true,
+  );
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: 'Enter',
+    code: 'Enter',
+    windowsVirtualKeyCode: 13,
+  });
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: 'Enter',
+    code: 'Enter',
+    windowsVirtualKeyCode: 13,
+  });
+  await sleep(1800);
+  ok(
+    'T11-i B″ 兜底行回车 ⇒ 跳 `/search?q=seed`（面板与结果页串联）',
+    (await evalJs('location.pathname + location.search')) === '/search?q=seed',
+    (await evalJs('location.pathname + location.search')) as string,
+  );
+
   await nav(`${BASE}/skills`);
   /**
    * 搜索入口（**2026-09-18 改口径 · T11-e**）：页头搜索框已移除（用户拍板去重复入口）⇒
