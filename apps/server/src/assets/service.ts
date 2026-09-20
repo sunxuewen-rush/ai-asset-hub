@@ -4,6 +4,7 @@
  * （复用 protocol slugSchema / schema 枚举）；本层做坐标寻址与冲突判定。
  */
 import { and, count, eq, exists, ilike, inArray, or, type SQL, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import type { Db } from '../db/client.js';
 import {
   type AssetStatus,
@@ -18,6 +19,66 @@ import { AssetError, assetErrorCodes } from './errors.js';
 
 /** PG 唯一约束冲突（slug 并发兜底） */
 const PG_UNIQUE_VIOLATION = '23505';
+
+/** T11-f 排序白名单（**单点导出** —— 两路由 schema spread 复用，防两处漂移；design §4.7.5） */
+export const ASSET_SORT_VALUES = ['newest', 'downloads', 'stars', 'name', 'author'] as const;
+export type AssetSort = (typeof ASSET_SORT_VALUES)[number];
+
+/** T11-f 方向覆盖（**仅列头可点写入**；缺省 ⇒ 档位固有方向；design §4.7.2 方向模型） */
+export const ASSET_SORT_DIRS = ['asc', 'desc'] as const;
+export type AssetSortDir = (typeof ASSET_SORT_DIRS)[number];
+
+export function isAssetSort(value: unknown): value is AssetSort {
+  return typeof value === 'string' && (ASSET_SORT_VALUES as readonly string[]).includes(value);
+}
+
+export function isAssetSortDir(value: unknown): value is AssetSortDir {
+  return typeof value === 'string' && (ASSET_SORT_DIRS as readonly string[]).includes(value);
+}
+
+/**
+ * 查询层 schema 片段（T11-f）：公开面 / 个人面 `z.object({...})` **spread 复用** ⇒ 零漂移。
+ * `catch('newest')` = 缺省与非法值**同一条回落路径**（design §4.7.1 #3/#4：**静默回落，不 400**）。
+ */
+export const assetSortQueryFields = {
+  sort: z.enum(ASSET_SORT_VALUES).catch('newest'),
+  dir: z.enum(ASSET_SORT_DIRS).optional().catch(undefined),
+};
+
+/** 档位固有方向（design §4.7.5 映射表）：下载/收藏/最新 = `desc`；名称/作者 = `asc` */
+const ASSET_SORT_DEFAULT_DIR: Record<AssetSort, AssetSortDir> = {
+  newest: 'desc',
+  downloads: 'desc',
+  stars: 'desc',
+  name: 'asc',
+  author: 'asc',
+};
+
+/**
+ * `sort` / `dir` → ORDER BY（**白名单映射** · design §4.7.5）：
+ * - 全档带 tiebreaker（`updated_at desc` + `id desc` 收尾 ⇒ 分页稳定，沿本仓既有口径）
+ * - 非法/缺省档位 ⇒ `newest`（**静默回落** —— §4.7.1 #3/#4）；`dir` 缺省/非法 ⇒ 档位固有方向
+ * - `name` / `author` 走**相关子查询**（零 join ⇒ 返回形状与行数不变）：名称取 latest 版本投影
+ *   （`asset.latest_version_id` → `parsed_metadata_json->>'name'`，空名回退 `slug`）；
+ *   作者取 owner 显示名（空名组有序于 `nulls last`，再按用户名）
+ */
+function sortOrderBy(sort: AssetSort | undefined, dir: AssetSortDir | undefined): SQL {
+  const key: AssetSort = isAssetSort(sort) ? sort : 'newest';
+  const direction: AssetSortDir = isAssetSortDir(dir) ? dir : ASSET_SORT_DEFAULT_DIR[key];
+  const primary = direction === 'asc' ? sql`asc` : sql`desc`;
+  switch (key) {
+    case 'downloads':
+      return sql`${asset.downloadCount} ${primary}, ${asset.updatedAt} desc, ${asset.id} desc`;
+    case 'stars':
+      return sql`${asset.starCount} ${primary}, ${asset.updatedAt} desc, ${asset.id} desc`;
+    case 'name':
+      return sql`coalesce(nullif((select v.parsed_metadata_json ->> 'name' from ${assetVersion} v where v.id = ${asset.latestVersionId}), ''), ${asset.slug}) ${primary} nulls last, ${asset.id} desc`;
+    case 'author':
+      return sql`(select nullif(u.name, '') from ${user} u where u.id = ${asset.ownerId}) ${primary} nulls last, (select u.username from ${user} u where u.id = ${asset.ownerId}) ${primary}, ${asset.id} desc`;
+    case 'newest':
+      return sql`${asset.updatedAt} ${primary}, ${asset.id} desc`;
+  }
+}
 
 export type AssetRow = typeof asset.$inferSelect;
 
@@ -40,6 +101,10 @@ export interface ListAssetsOptions {
   q?: string;
   /** label 多值 OR（06 §4——命中挂载任一 label 即命中；slug 入参，服务层解 id） */
   labelSlugs?: string[];
+  /** T11-f 排序档位（design §4.7.5）：白名单五档；**缺省/非法（服务层兜底）⇒ `newest`（= 现状排序，零变化）** */
+  sort?: AssetSort;
+  /** T11-f 方向覆盖（design §4.7.2：仅列表列头可点写入；缺省 ⇒ 档位固有方向） */
+  dir?: AssetSortDir;
 }
 
 /** assetItem 增强投影（M4a R5/R6：latest 版本展示 + owner 显示名——批注入防 N+1） */
@@ -244,8 +309,8 @@ export async function listViewableAssets(
     .select()
     .from(asset)
     .where(where)
-    // T12 排序 updated_at desc（design §6 R12——最近更新优先；id desc 破平）
-    .orderBy(sql`${asset.updatedAt} desc, ${asset.id} desc`)
+    // T12 默认 updated_at desc（最近更新优先；id desc 破平）· T11-f 起参数化：白名单五档 + 方向覆盖
+    .orderBy(sortOrderBy(opts.sort, opts.dir))
     .limit(opts.limit)
     .offset(opts.offset);
   return { items, total: totalRow?.total ?? 0 };

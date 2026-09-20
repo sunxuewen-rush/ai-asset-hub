@@ -11,7 +11,7 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { listViewableAssets, loadAssetItemMeta } from '../assets/service.js';
+import { assetSortQueryFields, listViewableAssets, loadAssetItemMeta } from '../assets/service.js';
 import { starredAssetIds } from '../assets/stars.js';
 import type { Db } from '../db/client.js';
 import { assetStatusSchema } from '../db/schema/index.js';
@@ -25,6 +25,8 @@ const meQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   status: z.union([assetStatusSchema, z.literal('ALL')]).default('ALL'),
   q: z.string().trim().min(1).max(100).optional(),
+  // T11-f 排序（design §4.7.5）：与公开面 **同一 schema 片段**（单点，防漂移）—— 不传 ⇒ 现状排序零变化
+  ...assetSortQueryFields,
 });
 
 export interface MeRoutesDeps {
@@ -41,12 +43,14 @@ export function createMeRoutes({ db }: MeRoutesDeps): Hono {
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
-    const { limit, offset, status, q } = parsed.data;
+    const { limit, offset, status, q, sort, dir } = parsed.data;
     const { items, total } = await listViewableAssets(db, {
       limit,
       offset,
       status,
       q,
+      sort,
+      dir,
       // ★ ownerId 恒取会话（不接受客户端传入）
       ownerId: principal.userId,
     });

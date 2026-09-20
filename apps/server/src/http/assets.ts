@@ -21,6 +21,7 @@ import { canManageAsset } from '../assets/manage.js';
 import {
   type AssetItemMeta,
   type AssetRow,
+  assetSortQueryFields,
   createAsset,
   getAsset,
   listViewableAssets,
@@ -82,6 +83,8 @@ const listQuerySchema = z.object({
   q: z.string().trim().min(1).max(100).optional(),
   /** T12 label 多值 OR（06 §4——?label=a&label=b；上限 20 防滥用） */
   label: z.array(z.string().trim().min(1).max(64)).max(20).optional(),
+  // T11-f 排序（design §4.7.5）：档位 + 方向覆盖 —— 与个人面 **同一 schema 片段**（单点，防漂移）
+  ...assetSortQueryFields,
 });
 
 /** 版本列表分页（T14——独立小 schema：无 type 过滤） */
@@ -246,7 +249,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
-    const { limit, offset, type, q, label } = parsed.data;
+    const { limit, offset, type, q, label, sort, dir } = parsed.data;
     // M4-pre S3：列表恒「活跃资产」面，与 viewer 身份无关（可见性已删）
     const { items, total } = await listViewableAssets(db, {
       limit,
@@ -254,6 +257,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       type,
       q,
       labelSlugs: label,
+      sort,
+      dir,
     });
     // R5/R6：批注入 latest 版本投影 + owner 显示名（两条 inArray 防 N+1）
     const metas = await loadAssetItemMeta(db, items);

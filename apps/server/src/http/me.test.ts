@@ -160,6 +160,24 @@ describe('GET /api/me/assets（R6 个人面）', () => {
     expect(body.every((i) => i.ownerId === ownerA)).toBe(true);
   });
 
+  it('T11-f 排序同参：不传 / 非法 ⇒ 现状排序零变化（反证）· 合法档位只改序不改集合', async () => {
+    const cookie = await signInCookie(auth, ownerA);
+    const baseline = await fetchMine(cookie);
+    expect(baseline.status).toBe(200);
+
+    // ① 非法值静默回落（与公开面同一 schema 片段口径）+ ② 不传 ⇒ 现状序（既有 G4–G6 零影响）
+    const bogus = await fetchMine(cookie, '?sort=bogus&dir=sideways');
+    expect(bogus.status).toBe(200);
+    expect(bogus.body.map((i) => i.slug)).toEqual(baseline.body.map((i) => i.slug));
+
+    // ③ 合法档位放行：排序只改「序」，集合与总数不变（本面 fixture 计数同为 0 ⇒ 断言集合不变式）
+    for (const q of ['?sort=downloads', '?sort=name&dir=asc', '?sort=author']) {
+      const res = await fetchMine(cookie, q);
+      expect(res.status).toBe(200);
+      expect(res.body.map((i) => i.slug).sort()).toEqual(baseline.body.map((i) => i.slug).sort());
+    }
+  });
+
   it('status=HIDDEN ⇒ 只含 HIDDEN；status=ACTIVE ⇒ 只含 ACTIVE', async () => {
     const cookie = await signInCookie(auth, ownerA);
     const hidden = await fetchMine(cookie, '?status=HIDDEN');

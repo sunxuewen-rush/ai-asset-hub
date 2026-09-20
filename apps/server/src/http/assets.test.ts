@@ -481,6 +481,47 @@ describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () =>
     expect(body.items.every((i) => i.type === 'mcp')).toBe(true);
     expect(body.items.filter((i) => i.slug === 'ast-priv-mcp').length).toBeGreaterThanOrEqual(1);
   });
+
+  it('T11-f 排序：五档白名单放行（200）· `?dir=` 组合放行', async () => {
+    for (const q of [
+      'sort=newest',
+      'sort=downloads',
+      'sort=stars',
+      'sort=name',
+      'sort=author',
+      'sort=name&dir=asc',
+      'sort=downloads&dir=desc',
+    ]) {
+      const res = await getReq(`/api/assets?limit=20&${q}`);
+      expect(res.status).toBe(200);
+    }
+  });
+
+  it('T11-f 排序：非法值（`?sort=bogus` / `?dir=sideways`）⇒ 静默回落（200 且与缺省序逐项一致）', async () => {
+    const slugsOf = async (query: string) => {
+      const res = await getReq(`/api/assets?limit=20${query}`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { items: Array<{ slug: string }> };
+      return body.items.map((i) => i.slug);
+    };
+    const baseline = await slugsOf('');
+    expect(await slugsOf('&sort=bogus')).toEqual(baseline);
+    expect(await slugsOf('&sort=bogus&dir=sideways')).toEqual(baseline);
+  });
+
+  it('T11-f 排序：`downloads` / `stars` 服务端真排序（计数单调不增 —— 自洽断言，不依赖库内既有数据）', async () => {
+    for (const [sort, field] of [
+      ['downloads', 'downloadCount'],
+      ['stars', 'starCount'],
+    ] as const) {
+      const res = await getReq(`/api/assets?limit=100&sort=${sort}`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { items: Array<Record<string, number>> };
+      const seq = body.items.map((i) => i[field]!);
+      expect(seq.length).toBeGreaterThan(0);
+      expect([...seq].sort((a, b) => b - a)).toEqual(seq);
+    }
+  });
 });
 
 describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', () => {

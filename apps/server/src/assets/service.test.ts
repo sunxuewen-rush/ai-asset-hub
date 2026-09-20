@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { like } from 'drizzle-orm';
+import { eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import {
   cleanupCreatedUsers,
@@ -13,9 +13,16 @@ process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_tes
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import { asset, auditLog, user } from '../db/schema/index.js';
+import { asset, assetVersion, auditLog, user } from '../db/schema/index.js';
 import { AssetError, type AssetErrorCode, assetErrorCodes } from './errors.js';
-import { createAsset, getAsset, listAssets } from './service.js';
+import {
+  type AssetSort,
+  type AssetSortDir,
+  createAsset,
+  getAsset,
+  listAssets,
+  listViewableAssets,
+} from './service.js';
 
 let db: Db;
 
@@ -49,7 +56,15 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // 按前缀清理（M1 纪律：禁全表 delete；FK 序：asset → user）
+  // 按前缀清理（M1 纪律：禁全表 delete；FK 序：asset_version → asset → user ——
+  // `asset_version.asset_id` **无 onDelete** ⇒ 必先删版本，否则 23503）
+  const stale = (
+    await db
+      .select({ id: asset.id })
+      .from(asset)
+      .where(like(asset.slug, `${PREFIX}%`))
+  ).map((r) => r.id);
+  if (stale.length > 0) await db.delete(assetVersion).where(inArray(assetVersion.assetId, stale));
   await db.delete(asset).where(like(asset.slug, `${PREFIX}%`));
   await cleanupCreatedUsers(db);
   await db.$client.end();
@@ -172,5 +187,169 @@ describe('listAssets', () => {
     expect(page2.items).toHaveLength(1);
     // 稳定排序：createdAt desc + id desc（不重叠分页）
     expect(page1.items[0]!.id).not.toBe(page2.items[0]!.id);
+  });
+});
+
+describe('listViewableAssets · sort（T11-f：白名单五档 + 方向覆盖 + 静默回落）', () => {
+  // fixture 四件（`ast-sort-*`）：下载 / 收藏 / 名称 / 作者四维互异；`q='ast-sort'` 收窄 ⇒
+  // 断言只依赖本组数据（AGENTS.md：断言不依赖「库里只有本文件的数据」）
+  const SORT_Q = 'ast-sort';
+  const allUpdatedAt = new Date('2026-09-20T00:00:00.000Z'); // 同一 updated_at ⇒ 专测 tiebreaker
+  const slugsOf = (rows: Array<{ slug: string }>) => rows.map((r) => r.slug);
+
+  beforeAll(async () => {
+    // 幂等：清本组历史残留（版本先删 —— FK 无级联）
+    const stale = (
+      await db
+        .select({ id: asset.id })
+        .from(asset)
+        .where(like(asset.slug, `${SORT_Q}-%`))
+    ).map((r) => r.id);
+    if (stale.length > 0) {
+      await db.delete(assetVersion).where(inArray(assetVersion.assetId, stale));
+      await db.delete(asset).where(inArray(asset.id, stale));
+    }
+    const ownerSortA = await makeUser('sort-a'); // displayName = 'ast-sort-a'
+    const ownerSortZ = await makeUser('sort-z'); // displayName = 'ast-sort-z'
+    const spec: Array<{
+      slug: string;
+      owner: string;
+      downloads: number;
+      stars: number;
+      name?: string;
+    }> = [
+      // owner 显示名序：ast-owner-a(a1) < ast-sort-a(a2,a4) < ast-sort-z(a3)
+      { slug: 'ast-sort-a1', owner: ownerA, downloads: 5, stars: 30, name: 'zulu' },
+      { slug: 'ast-sort-a2', owner: ownerSortA, downloads: 30, stars: 5, name: 'alpha' },
+      { slug: 'ast-sort-a3', owner: ownerSortZ, downloads: 10, stars: 10, name: 'bravo' },
+      { slug: 'ast-sort-a4', owner: ownerSortA, downloads: 0, stars: 0 }, // 无版本 ⇒ 名称回退 slug
+    ];
+    for (const s of spec) {
+      const row = await createAsset(db, { slug: s.slug, type: 'skill', ownerId: s.owner });
+      let latestVersionId: number | null = null;
+      if (s.name !== undefined) {
+        const [v] = await db
+          .insert(assetVersion)
+          .values({
+            assetId: row.id,
+            version: '1.0.0',
+            status: 'PUBLISHED',
+            parsedMetadataJson: { name: s.name },
+          })
+          .returning({ id: assetVersion.id });
+        latestVersionId = v!.id;
+      }
+      await db
+        .update(asset)
+        .set({
+          downloadCount: s.downloads,
+          starCount: s.stars,
+          latestVersionId,
+          updatedAt: allUpdatedAt,
+        })
+        .where(eq(asset.id, row.id));
+    }
+  });
+
+  it('缺省 sort ⇒ 现状排序（`updated_at desc, id desc`——行为零变化）· tiebreaker 稳定', async () => {
+    const { items } = await listViewableAssets(db, { limit: 20, offset: 0, q: SORT_Q });
+    // 四件 updated_at 相同 ⇒ 恰由 `id desc` 决定（插入序 a1→a4 ⇒ 倒序）
+    expect(slugsOf(items)).toEqual(['ast-sort-a4', 'ast-sort-a3', 'ast-sort-a2', 'ast-sort-a1']);
+  });
+
+  it('downloads ⇒ 下载数降序（热度轴）', async () => {
+    const { items } = await listViewableAssets(db, {
+      limit: 20,
+      offset: 0,
+      q: SORT_Q,
+      sort: 'downloads',
+    });
+    expect(slugsOf(items)).toEqual(['ast-sort-a2', 'ast-sort-a3', 'ast-sort-a1', 'ast-sort-a4']);
+  });
+
+  it('stars ⇒ 收藏数降序', async () => {
+    const { items } = await listViewableAssets(db, {
+      limit: 20,
+      offset: 0,
+      q: SORT_Q,
+      sort: 'stars',
+    });
+    expect(slugsOf(items)).toEqual(['ast-sort-a1', 'ast-sort-a3', 'ast-sort-a2', 'ast-sort-a4']);
+  });
+
+  it('name ⇒ 名称升序（latest 版本投影；无版本 ⇒ 回退 slug）', async () => {
+    const { items } = await listViewableAssets(db, {
+      limit: 20,
+      offset: 0,
+      q: SORT_Q,
+      sort: 'name',
+    });
+    // alpha(a2) < ast-sort-a4(a4 回退 slug) < bravo(a3) < zulu(a1)
+    expect(slugsOf(items)).toEqual(['ast-sort-a2', 'ast-sort-a4', 'ast-sort-a3', 'ast-sort-a1']);
+  });
+
+  it('author ⇒ owner 显示名升序（同名组按 `id desc` 破平）', async () => {
+    const { items } = await listViewableAssets(db, {
+      limit: 20,
+      offset: 0,
+      q: SORT_Q,
+      sort: 'author',
+    });
+    expect(slugsOf(items)).toEqual(['ast-sort-a1', 'ast-sort-a4', 'ast-sort-a2', 'ast-sort-a3']);
+  });
+
+  it('dir 覆盖：`desc` 反向 name 序 · `asc` 反向 downloads 序（列头两态）', async () => {
+    const desc = await listViewableAssets(db, {
+      limit: 20,
+      offset: 0,
+      q: SORT_Q,
+      sort: 'name',
+      dir: 'desc',
+    });
+    expect(slugsOf(desc.items)).toEqual([
+      'ast-sort-a1',
+      'ast-sort-a3',
+      'ast-sort-a4',
+      'ast-sort-a2',
+    ]);
+    const asc = await listViewableAssets(db, {
+      limit: 20,
+      offset: 0,
+      q: SORT_Q,
+      sort: 'downloads',
+      dir: 'asc',
+    });
+    expect(slugsOf(asc.items)).toEqual([
+      'ast-sort-a4',
+      'ast-sort-a1',
+      'ast-sort-a3',
+      'ast-sort-a2',
+    ]);
+  });
+
+  it('非法档位 / 非法方向 ⇒ 静默回落（不抛错；= 缺省态）', async () => {
+    const { items } = await listViewableAssets(db, {
+      limit: 20,
+      offset: 0,
+      q: SORT_Q,
+      sort: 'bogus' as AssetSort,
+      dir: 'sideways' as AssetSortDir,
+    });
+    expect(slugsOf(items)).toEqual(['ast-sort-a4', 'ast-sort-a3', 'ast-sort-a2', 'ast-sort-a1']);
+  });
+
+  it('name / author 档零 join ⇒ 返回形状与行数不变（无重复行）', async () => {
+    for (const sort of ['name', 'author'] as const) {
+      const { items, total } = await listViewableAssets(db, {
+        limit: 20,
+        offset: 0,
+        q: SORT_Q,
+        sort,
+      });
+      expect(items).toHaveLength(4);
+      expect(total).toBe(4);
+      expect(new Set(items.map((i) => i.id)).size).toBe(4);
+      expect(items.every((i) => i.slug.startsWith(SORT_Q))).toBe(true);
+    }
   });
 });
