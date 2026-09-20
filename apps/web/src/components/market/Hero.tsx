@@ -1,12 +1,5 @@
-import { Search } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from '@/components/ui/shadcn/input-group';
+import { AssetSearch } from '@/components/search/AssetSearch';
 import type { StatsResponse } from '../../api/types.js';
 import { useI18n } from '../../i18n/I18nProvider.js';
 
@@ -33,17 +26,26 @@ import { useI18n } from '../../i18n/I18nProvider.js';
  * v0.21（2026-09-17 用户拍板 B · 登记 M4a design v0.29 §8.9）：**整个 hero 去卡**（`Card` → `div`）—— 内容是「落底展示」而非「卡内展示」。
  *   本件不再引用 `Card`（实测：该件仍有 6 处消费者——`FilterStrip` / `AssetCard` / `CenterPage` /
  *   `DetailTabs` / `PageHeader` / `AssetDetail` ⇒ 不受影响，非"零消费者"）。撑满/居中/内距/动画四项不变。
+ * v0.24（2026-09-20 用户拍板「只做形态对齐 · 空态没反应」· T11-h）：**搜索行两态对齐业界门户顶栏形态**
+ *   ① 空态：右钮 `ghost` 底 + **主色描边**放大镜 + **不可用**（点击 / 回车一律无反应）
+ *   ② 有输入：右钮 **主色实底 + 白色图标**（`variant="default"` 自带 `text-primary-foreground`）+ 可提交
+ *   ③ 空输入**不再跳 `/skills`**（原口径作废）—— `onSubmit` 加 `if (!q) return`
+ *   ④ 不可用态用 **`aria-disabled` 而非原生 `disabled`**：官方 Button 的 `disabled:opacity-50` 会把图标
+ *      淡成半透明（与参考形态「仍是满蓝」不符）；要保住满蓝就得 class 覆写，而本仓 `cn`（npm `cn`）的
+ *      冲突合并行为**未经验证** ⇒ 不赌覆写。行为上「点击无反应」由 `onSubmit` 守卫保证（等价），
+ *      语义上 `aria-disabled` 已向辅助技术声明不可用。
+ *   ⑤ 圆角：按钮 `rounded-full` 与容器同心（官方默认 `rounded-md`）。
+ * v0.25（2026-09-20 用户拍板「鼠标一点击输入的地方、焦点在的时候就变」）：右钮**点亮判据**由
+ *   「有输入」扩为「**输入框聚焦 或 有输入**」—— 新增 `focused`（`onFocus` / `onBlur`），`lit = focused || hasQuery`。
+ *   **可提交性仍只由「有输入」决定**（空输入点击 / 回车照样无反应，拍板 ① 不变）⇒「视觉点亮」与
+ *   「可提交」**解耦**：点亮只是「焦点在」的形态回执，不是「可按」的语义信号（`aria-disabled` 照旧随 `hasQuery`）。
+ * v0.26（2026-09-20 · **T11-i A**）：搜索行**抽出为公共件** `components/search/AssetSearch.tsx`
+ *   （首页 `size="lg"` / 顶栏 `size="sm"` 共用**一份行为**）· 提交目标由 `/skills?q=` **改 `/search?q=`**
+ *   （跨类型结果页 —— 与顶栏给**同一结果集**；规格 = M4a design **§8.12**）。
  */
 export function Hero({ stats }: { stats: StatsResponse | null }) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    const q = query.trim();
-    navigate(q ? `/skills?q=${encodeURIComponent(q)}` : '/skills');
-  }
 
   /** 统计条（`value: null` = stats 未到位 → 渲染 `—`，与旧行为一致） */
   const statsItems = [
@@ -92,26 +94,14 @@ export function Hero({ stats }: { stats: StatsResponse | null }) {
             放大镜即提交」；一个框里放大镜只应出现一次，承担提交时归**右侧**。
             · 内距改用官方 addon 自带值（`inline-end` 的 `pr-3` / `has-[>button]:mr-[-0.45rem]`），
               不再叠加自定义 pl/pr。 */}
-      <form className="mx-auto w-full max-w-[900px]" onSubmit={onSubmit}>
-        <InputGroup className="h-11 rounded-full">
-          <InputGroupInput
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('market', 'searchPlaceholder')}
-            aria-label={t('market', 'searchPlaceholder')}
-          />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              type="submit"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t('market', 'searchBtn')}
-            >
-              <Search className="size-4" aria-hidden="true" />
-            </InputGroupButton>
-          </InputGroupAddon>
-        </InputGroup>
-      </form>
+      {/* T11-i A：搜索行 = 公共件 `AssetSearch`（`lg` 档 = h-11 胶囊）；两态 / 聚焦判据 / 空态守卫
+          全在该件内部（单一事实源）—— 顶栏 `sm` 档共用同一份行为。提交目标 = `/search?q=`（跨类型）。 */}
+      <AssetSearch
+        size="lg"
+        className="mx-auto w-full max-w-[900px]"
+        placeholder={t('market', 'searchPlaceholder')}
+        onSubmit={(q) => navigate(`/search?q=${encodeURIComponent(q)}`)}
+      />
 
       {/* v0.19：去中间分割线（原 `border-t border-border pt-6` 整组移除）。
           v0.20（用户拍板）：统计条改**卡片形态 + 宽度撑满 hero** —— 每项一枚 tile（淡蓝底 `bg-secondary`

@@ -1,17 +1,5 @@
 import { cn } from 'cn';
-import {
-  ClipboardCheck,
-  Gauge,
-  House,
-  KeyRound,
-  LayoutDashboard,
-  Package,
-  ScrollText,
-  Send,
-  Settings,
-  Tags,
-  Users,
-} from 'lucide-react';
+import { House, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -30,22 +18,14 @@ import {
   useSidebar,
 } from '@/components/ui/shadcn/sidebar';
 import { fetchStats } from '../../api/stats.js';
-import type { AssetType } from '../../api/types.js';
 import { useAuth } from '../../auth/AuthProvider.js';
-import { hasRole, ROLE } from '../../auth/roles.js';
+import { hasRole } from '../../auth/roles.js';
 import { useApi } from '../../hooks/useApi.js';
 import { useI18n } from '../../i18n/I18nProvider.js';
+import { paletteShortcutLabel } from './CommandPalette.js';
+import { buildNav, EXACT_MATCH_PATHS, type NavType } from './navItems.js';
 import { TypeIcon } from './TypeIcon.js';
 import { UserMenu } from './UserMenu.js';
-
-type NavType = 'home' | AssetType;
-
-interface NavEntry {
-  type: NavType;
-  to: string;
-  zhLabel: string;
-  enLabel: string;
-}
 
 /*
  * 类型色衬底已于 2026-09-17 撤除（用户拍板「14 条全用中性底」）——
@@ -81,15 +61,6 @@ function IconSlot({ children, className }: { children: ReactNode; className?: st
 }
 
 /**
- * 精确匹配路径（其余条目按前缀匹配）——首页与控制台首页。
- *
- * `/dashboard` 必须精确：它是个人组的**分区父项**，而 `/dashboard/assets|submissions|tokens`
- * 是它的子路径 ⇒ 前缀匹配会让「工作台」在任一子页与子页**同时高亮**
- * （M4b-3 T9④ 实测，2026-09-17 用户拍板 ①）。
- */
-const EXACT_MATCH_PATHS = new Set(['/', '/dashboard']);
-
-/**
  * 侧栏导航（批 design §6.1 显隐矩阵 · 主 design §4「入口分层与显隐规则」为唯一源）。
  *
  * **门户组**（首页 + 三中心 + 计数）= **带组标题「门户」的 `SidebarGroup`**（2026-09-17 用户拍板：
@@ -120,7 +91,7 @@ const EXACT_MATCH_PATHS = new Set(['/', '/dashboard']);
  * 2026-09-17 用户提议「不要套壳」⇒ `variant` 由 `floating` 改为**官方默认 `sidebar`**（实心贴边 · 无圆角/边框/阴影）。
  * 不变：导航条目 / 路由 / 计数逻辑；激活判定改 `useLocation`（原 NavLink 子函数渲染，与 `asChild` 不兼容）。
  */
-export function SideNav() {
+export function SideNav({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { t } = useI18n();
   const { pathname } = useLocation();
   const { data: stats } = useApi((signal) => fetchStats({ signal }), []);
@@ -129,13 +100,12 @@ export function SideNav() {
   // 在部分节点不稳定 ⇒ 条目收窄/文字隐藏统一用 `collapsed` 判定，避免"某些条目没收缩"）
   const { state: sideState } = useSidebar();
   const collapsed = sideState === 'collapsed';
-
-  const entries: NavEntry[] = [
-    { type: 'home', to: '/', zhLabel: t('navigation', 'home'), enLabel: 'Home' },
-    { type: 'skill', to: '/skills', zhLabel: t('navigation', 'skills'), enLabel: 'Skills' },
-    { type: 'mcp', to: '/mcps', zhLabel: t('navigation', 'mcps'), enLabel: 'MCP Servers' },
-    { type: 'agent', to: '/agents', zhLabel: t('navigation', 'agents'), enLabel: 'Agents' },
-  ];
+  /**
+   * 导航清单（**单一事实源** = `navItems.buildNav` · T11-i B 上提）：文案在组件内求值（语言切换随
+   * 上下文重渲染）；`to` 缺省 = 占位条目。门槛同源（`authed` / `hasRole` 档位）。
+   * 命令面板 `CommandPalette` 消费**同一份**清单 ⇒ 不复制第三份路由表（design §8.13 ③）。
+   */
+  const { portal: entries, groups: navGroups } = buildNav(t);
 
   const countOf = (type: NavType): number | undefined =>
     type === 'home' ? undefined : stats?.typeCounts[type];
@@ -143,67 +113,6 @@ export function SideNav() {
   /** 激活判定（精确匹配集合 = `EXACT_MATCH_PATHS`；其余按路径前缀匹配——等价原 `NavLink end`） */
   const isActive = (to: string): boolean =>
     EXACT_MATCH_PATHS.has(to) ? pathname === to : pathname.startsWith(to);
-
-  /**
-   * 三组条目（文案在组件内求值 ⇒ 语言切换随上下文重渲染；`to` 缺省 = 占位条目）。
-   * 门槛：`'authed'` = 已登录即可（个人组）· 数字 = `hasRole` 档位。
-   */
-  const navGroups: Array<{
-    labelKey: 'groupPersonal' | 'groupAdmin' | 'groupSuperAdmin';
-    gate: 'authed' | number;
-    entries: Array<{ to?: string; text: string; icon: ReactNode }>;
-  }> = [
-    {
-      labelKey: 'groupPersonal',
-      gate: 'authed',
-      entries: [
-        {
-          to: '/dashboard',
-          text: t('dashboard', 'title'),
-          icon: <LayoutDashboard className="size-4" />,
-        },
-        {
-          to: '/dashboard/assets',
-          text: t('dashboard', 'myAssets'),
-          icon: <Package className="size-4" />,
-        },
-        {
-          to: '/dashboard/submissions',
-          text: t('dashboard', 'submissions'),
-          icon: <Send className="size-4" />,
-        },
-        {
-          to: '/dashboard/tokens',
-          text: t('dashboard', 'tokens'),
-          icon: <KeyRound className="size-4" />,
-        },
-      ],
-    },
-    {
-      labelKey: 'groupAdmin',
-      gate: ROLE.ADMIN,
-      entries: [
-        // 「管理看板」= **占位条目**（`to` 缺省 ⇒ 轻提示）；页面本体 + `/admin` 路由归 **M4b-6**
-        // （批 design §14.7：本批**不改路由表**——`/admin` 维持既有重定向 → `/admin/reviews`）
-        { text: t('navigation', 'adminBoard'), icon: <Gauge className="size-4" /> },
-        {
-          to: '/admin/reviews',
-          text: t('admin', 'reviews'),
-          icon: <ClipboardCheck className="size-4" />,
-        },
-        { to: '/admin/audit', text: t('admin', 'audit'), icon: <ScrollText className="size-4" /> },
-      ],
-    },
-    {
-      labelKey: 'groupSuperAdmin',
-      gate: ROLE.SUPER_ADMIN,
-      entries: [
-        { to: '/admin/labels', text: t('admin', 'labels'), icon: <Tags className="size-4" /> },
-        { text: t('admin', 'settings'), icon: <Settings className="size-4" /> },
-        { text: t('admin', 'users'), icon: <Users className="size-4" /> },
-      ],
-    },
-  ];
 
   // variant = 官方默认 `sidebar`（实心贴边 · 无圆角/边框/阴影 = 「不套壳」——2026-09-17 用户提议）
   return (
@@ -233,6 +142,40 @@ export function SideNav() {
       {/* `px-1` 为 AIH 覆盖：**2026-09-17 撤除**（用户要求收起态图标与图标轨**几何居中**）——
           官方 `SidebarGroup` 的 `p-2`(8) 已提供左右内缩；撤除后图标中心 = 面板中心。 */}
       <SidebarContent className="gap-1 pt-1">
+        {/* ── 侧栏搜索触发器（T11-i **B″「框样按钮」形态** · 2026-09-20 用户拍板「A」）──
+            位置 = **品牌块正下方 / 门户组之前**；形态 = **看起来像常驻输入框的按钮**（放大镜 +
+            占位文案 + `⌘K` 徽标），点击 / `⌘K` ⇒ 打开官方 **`CommandDialog` 命令面板**。
+            依据 = **shadcn 官方站同款实测配方**（`button[data-slot=dialog-trigger]` · `bg-muted` ·
+            `border-none` · `shadow-none` · `justify-start` + 内嵌 `⌘K`）。规格见 M4a §8.13。 */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip={t('navigation', 'searchEntry')}
+                  onClick={onOpenPalette}
+                  aria-haspopup="dialog"
+                  className={cn(
+                    collapsed
+                      ? 'size-8'
+                      : 'h-8 w-full justify-start gap-2 rounded-lg border-none bg-muted pl-3 font-normal shadow-none',
+                  )}
+                >
+                  <Search className="size-4 text-muted-foreground" strokeWidth={4} />
+                  <span className={cn('truncate text-muted-foreground', collapsed && 'hidden')}>
+                    {t('navigation', 'palettePlaceholder')}
+                  </span>
+                  {!collapsed && (
+                    <kbd className="ml-auto rounded-sm border border-border px-1.5 py-0.5 font-medium text-[10px] text-muted-foreground">
+                      {paletteShortcutLabel()}
+                    </kbd>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {/* ── 门户组 ──
             2026-09-17 用户拍板两条：① **加组标题「门户」**（原「不加」拍板翻转，与三组同构）
             ② 14 条**全用中性底**（门户原资产类型色衬底撤除）。

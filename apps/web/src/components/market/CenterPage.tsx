@@ -44,8 +44,8 @@ import {
   type SortKey,
 } from './AssetList.js';
 import { FilterStrip } from './FilterStrip.js';
-
-const PAGE_SIZE = 20;
+// 排序档位常量（T11-i A 上提）：与 `/search` 结果页**同源**（design §8.12「常量上提」—— 本件改 import，行为零变化）
+import { isSortKey, PAGE_SIZE, SORT_LABEL_KEYS, SORT_OPTIONS } from './sortOptions.js';
 
 /**
  * 视图形态（T11-e）：默认**网格**；`list` = 单列行列表（`AssetList`）。
@@ -105,24 +105,6 @@ const META: Record<
     total: 'totalAgents',
   },
 };
-
-/**
- * 排序档位（T11-f · design §4.7.5 与服务端 `ASSET_SORT_VALUES` 同值域）。
- * 顺序 = `Select` 选项序（默认档「最新」在首）；`MarketKey` 之外另用字面键表 ⇒ 与 `t()` 的键联合对齐。
- */
-const SORT_OPTIONS = ['newest', 'downloads', 'stars', 'name', 'author'] as const;
-/** 档位白名单守卫（T11-f）：URL 值归一 —— 非法 ⇒ 回落默认档（与服务端「静默回落」同口径） */
-function isSortKey(value: string | undefined): value is SortKey {
-  return value !== undefined && (SORT_OPTIONS as readonly string[]).includes(value);
-}
-
-const SORT_LABEL_KEYS = {
-  newest: 'sortNewest',
-  downloads: 'sortDownloads',
-  stars: 'sortStars',
-  name: 'sortName',
-  author: 'sortAuthor',
-} as const;
 
 /**
  * 类型 icon tile 底色（§4.4 ② 类型色补丁 `--type-*` → `@theme` 映射；**查表替代旧

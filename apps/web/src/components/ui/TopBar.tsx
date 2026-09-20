@@ -1,4 +1,5 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AssetSearch } from '@/components/search/AssetSearch';
 import { Separator } from '@/components/ui/shadcn/separator';
 import { SidebarTrigger } from '@/components/ui/shadcn/sidebar';
 import type { Translate } from '@/i18n/I18nProvider';
@@ -76,6 +77,7 @@ function titleOf(pathname: string, t: Translate): { title: string; section?: str
 
 export function TopBar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { t } = useI18n();
   const crumb = titleOf(pathname, t);
   return (
@@ -89,6 +91,16 @@ export function TopBar() {
           </>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {/* 全资产搜索（**T11-i A** · M4a design §8.12 ④）。
+              2026-09-20 用户调整：**靠右**、置于**语言切换左侧**（原 = 标题右侧）；固定 **w-320**（非弹性）。
+              `<lg`（1024px）整条隐藏（窄屏不挤顶栏、不做图标钮展开）；提交 ⇒ `/search?q=`（跨类型结果页）
+              并**保留输入**（顶栏常驻 ⇒ 便于改词）。组件 = 公共件 `AssetSearch`（与首页 Hero 同一份行为）。 */}
+          <AssetSearch
+            size="sm"
+            className="hidden w-[320px] lg:block"
+            placeholder={t('market', 'searchPlaceholder')}
+            onSubmit={(q) => navigate(`/search?q=${encodeURIComponent(q)}`)}
+          />
           <LanguageSwitcher />
         </div>
       </div>

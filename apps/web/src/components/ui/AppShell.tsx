@@ -1,6 +1,8 @@
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarInset, SidebarProvider } from '@/components/ui/shadcn/sidebar';
+import { CommandPalette } from './CommandPalette.js';
+
 import { SideNav } from './SideNav.js';
 import { TopBar } from './TopBar.js';
 
@@ -50,6 +52,22 @@ export function AppShell() {
    * 规则可用）。cookie 与官方同名同 max-age，保持刷新后状态恢复。
    */
   const [open, setOpen] = useState(readSidebarOpen);
+  /**
+   * 命令面板开合（**T11-i B″** · M4a design §8.13）：入口两处 —— **侧栏框样触发器**（`SideNav`
+   * 的 `onOpenPalette`）与 **`⌘K` / `Ctrl+K`**（本节监听）。监听挂**壳层一处**（与侧栏 `⌘B`
+   * 同族），不分散到各页。`preventDefault` 防浏览器默认行为（Chrome 的 ⌘K 有内置动作）。
+   */
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     document.cookie = `${SIDEBAR_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 7}`;
@@ -67,13 +85,15 @@ export function AppShell() {
         } as CSSProperties
       }
     >
-      <SideNav />
+      <SideNav onOpenPalette={() => setPaletteOpen(true)} />
       <SidebarInset>
         <TopBar />
         <div className="flex min-h-[calc(100vh-58px)] min-w-0 flex-1 flex-col px-[22px] py-2">
           <Outlet />
         </div>
       </SidebarInset>
+      {/* 命令面板（Dialog 形态 · 渲在壳层一处 ⇒ 全站可达） */}
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </SidebarProvider>
   );
 }

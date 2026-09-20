@@ -22,11 +22,25 @@ export const zh = {
     logout: '登出',
     // 「管理看板」占位条目（批 design §14.7；页面本体归 M4b-6）
     adminBoard: '管理看板',
+    searchEntry: '搜索…',
+    // T11-i B：侧栏命令面板（M4a design §8.13 ④ 定名）
+    palettePlaceholder: '搜索页面或输入以跳转…',
+    pages: '页面',
+    paletteEmpty: '没有匹配的页面',
+    paletteSearchAssets: '在全部资产里搜「{q}」',
   },
   market: {
     heroIntro: '发现和分享AI资源',
     heroSub: '使用AI X Hub构建强大的AI Agent',
     searchPlaceholder: '搜索技能、MCP、Agent…',
+    // T11-i A：全资产搜索（`/search` 结果页 + 顶栏小搜索 · M4a design §8.12 ③-b 定名）
+    searchAllTitle: '搜索结果',
+    searchAllCount: '共 {n} 个结果',
+    searchAllHint: '输入关键词，搜索全部资产',
+    typeAll: '全部',
+    typeSkill: '技能',
+    typeMcp: 'MCP',
+    typeAgent: '专家',
     searchBtn: '搜索',
     statSkill: '技能总数',
     statAgent: '专家总数',

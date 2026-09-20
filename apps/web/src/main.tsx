@@ -16,6 +16,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Device } from '@/pages/Device';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
+import { Search } from '@/pages/Search';
 import { Submissions } from '@/pages/Submissions';
 import { Tokens } from '@/pages/Tokens';
 // 样式单入口（Tailwind v4 + shadcn token + AIH 层，design §4.4 v0.10 定案）：
@@ -89,11 +90,13 @@ function AppRoutes() {
 
           {/* ── 应用壳（顶栏 + 侧栏 + 内容区 Outlet）── */}
           <Route element={<AppShell />}>
-            {/* 门户 5 条（公开读面，**无守卫**） */}
+            {/* 门户 6 条（公开读面，**无守卫**）—— T11-i A 增 `/search`（全资产搜索结果页） */}
             <Route path="/" element={<Home />} />
             {CENTER_ROUTES.map(({ path, type }) => (
               <Route key={path} path={path} element={<Center type={type} />} />
             ))}
+            {/* 全资产搜索结果页（T11-i A · 顶栏与首页搜索的落地页；`?q=&type=&sort=&dir=&page=`） */}
+            <Route path="/search" element={<Search />} />
             {/* 扁平化坐标：全局唯一裸 slug（M4-pre R5） */}
             <Route path="/assets/:slug" element={<AssetDetail />} />
 
