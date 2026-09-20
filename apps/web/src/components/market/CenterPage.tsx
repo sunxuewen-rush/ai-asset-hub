@@ -1,7 +1,20 @@
-import { useState } from 'react';
+import { LayoutGrid, List, Search, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/shadcn/button';
 import { Card, CardHeader } from '@/components/ui/shadcn/card';
-import { Input } from '@/components/ui/shadcn/input';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/shadcn/collapsible';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/components/ui/shadcn/input-group';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../../api/assets.js';
 import { fetchStats } from '../../api/stats.js';
 import type { AssetType } from '../../api/types.js';
@@ -13,9 +26,19 @@ import { ErrorState } from '../ui/ErrorState.js';
 import { Pagination } from '../ui/Pagination.js';
 import { TypeIcon } from '../ui/TypeIcon.js';
 import { AssetCard, AssetGrid } from './AssetCard.js';
+import { AssetList, AssetListLoading, AssetListRow } from './AssetList.js';
 import { FilterStrip } from './FilterStrip.js';
 
 const PAGE_SIZE = 20;
+
+/**
+ * 视图形态（T11-e）：默认**网格**；`list` = 单列行列表（`AssetList`）。
+ *
+ * **不落 URL、不落存储**（用户 2026-09-18 拍板「不用记忆」）：由组件 state 承载 ⇒
+ * 同页内翻页（`?page=`）/ 搜索（`?q=`）/ 筛标签都**保持视图**（同一路由同元素 ⇒ 组件不卸载）；
+ * 离开页面 / 刷新 / 后退前进 ⇒ 重新挂载 ⇒ 回默认网格。
+ */
+type ViewMode = 'grid' | 'list';
 
 /**
  * 载态骨架槽位（本批 §3.10：各页载态 → 官方 `Skeleton`）：**8 壳 = 1440 断点首屏可见量**
@@ -103,7 +126,8 @@ const TYPE_EYEBROW: Record<AssetType, string> = {
  * - icon tile 52px 渐变（`--grad-skill/mcp/agent`）+ 蓝投影 → **44px 实底类型色 + 圆角 13px**
  *   + 白图标 22px（§4.4 ③ 类型 tile 真值；渐变只回品牌字/主 CTA/页面底三处）
  * - 页头搜索框改 shadcn `Input`（§4.1 纪律 1「交互件装原生」；与 hero 同件）——宽度、占位符、
- *   `aria-label`、受控行为不变
+ *   `aria-label`、受控行为不变 —— ⚠️ **该页头搜索框已于 v1.22（T11-e）移除**（用户「title 上的搜索就重复设计了」）：
+ *   本页搜索唯一入口 = 工具条右侧的**折叠面板**（见下方 `searchOpen` 段）；本行保留为 M4a 迁移沿革
  * - 计数徽章（`--brand` #2563eb + rgba 衬底/描边 + r14）→ **hero 统计 tile 语法**（`bg-secondary`
  *   + `border-border` + `rounded-xl`），数字 `text-[22px] text-primary tabular-nums`
  * - 字阶收敛（§4.4 ⑤）：21 → `text-xl`(20，21 降 1px 归位) · 12.5 → `text-xs` · 13/11 保档
@@ -119,6 +143,19 @@ export function CenterPage({ type }: { type: AssetType }) {
   const { q, setQ, committedQ, labels, toggleLabel, clearLabels, page, setPage } = useMarketQuery();
   const { data: stats } = useApi((signal) => fetchStats({ signal }), []);
   const [retryTick, setRetryTick] = useState(0);
+  const [view, setView] = useState<ViewMode>('grid');
+  /**
+   * 折叠搜索（T11-e · 用户 2026-09-18「参考 ClawHub 切换钮左侧的搜索，点击后下方显示一个搜索框」）：
+   * 默认收起；点触发钮在**工具条下方**展开一条撑满宽度的搜索条（官方 `Collapsible` + 官方 `InputGroup`）。
+   * 复用 `useMarketQuery` 的**同一 `q`**（防抖 300ms 与 URL 写入由该 hook 统一负责）。
+   * ⚠️ v1.22 前页头亦有搜索框、两者同源；页头搜索移除后本面板为**中心三页唯一搜索入口**（首页 `Hero` 的胶囊搜索属落地页入口，未动）。
+   */
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // 展开即聚焦输入框（ClawHub 实测不聚焦；本仓**有意 +1 行**：少一次点击，触屏/键盘都更顺）
+  useEffect(() => {
+    if (searchOpen) searchRef.current?.focus();
+  }, [searchOpen]);
 
   const labelsKey = labels.join(',');
   const {
@@ -165,7 +202,7 @@ export function CenterPage({ type }: { type: AssetType }) {
         **它不按内容撑开自身宽度**。放进 `flex flex-row` 当 flex item 时，自动宽度解析为 0，
         描述文字被压到 min-content（43~64px）⇒ 6~12 行、卡高 240~357px（/skills /mcps /agents 三页）。
         **`flex-1` 为必需项**：显式给这个 flex item 宽度上下文（形态零变化：图标 44 / 搜索框 240 /
-        计数块 97 / 内距 26·22 均不动）。后续 Card 子件进 flex 行时同查此坑。
+        计数块 97 / 内距 26·22 均不动 —— **原「搜索框 240」已随 v1.22 删页头搜索移除**）。后续 Card 子件进 flex 行时同查此坑。
       */}
       <Card className="mb-4 flex flex-row items-center gap-5 px-[26px] py-[22px]">
         <span
@@ -180,13 +217,9 @@ export function CenterPage({ type }: { type: AssetType }) {
           </span>
           <p className="mt-1 text-[13px] text-muted-foreground">{t('market', meta.desc)}</p>
         </CardHeader>
-        <Input
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
-          placeholder={t('market', meta.ph)}
-          aria-label={t('market', meta.ph)}
-          className="ml-auto w-[240px]"
-        />
+        {/* 页头搜索框**已移除**（用户 2026-09-18：「title 上的搜索就重复设计了，需要去掉」）
+            —— 唯一搜索入口 = 工具条右侧折叠面板（T11-e）；`meta.ph` 三键改由面板消费。
+            计数块随 `CardHeader` 的 `flex-1` 自动贴右，页头形态不变。 */}
         <div className="shrink-0 rounded-xl border border-border bg-secondary px-5 py-2.5 text-center">
           <b className="block text-[22px] leading-tight font-bold text-primary tabular-nums">
             {count === undefined ? '—' : count.toLocaleString()}
@@ -199,34 +232,115 @@ export function CenterPage({ type }: { type: AssetType }) {
 
       <FilterStrip selected={labels} onToggle={toggleLabel} onClearAll={clearLabels} />
 
-      <div className="mb-3 flex items-center gap-3 px-0.5">
-        <span className="text-[13px] text-muted-foreground">
-          {filtersActive
-            ? t('market', 'filteredCount', { n: list?.total ?? 0 })
-            : t('market', meta.total, { n: list?.total ?? 0 })}
-        </span>
-        <span className="ml-auto text-xs text-muted-foreground">{t('market', 'sortRecent')}</span>
-      </div>
+      <Collapsible open={searchOpen} onOpenChange={setSearchOpen} className="mb-3">
+        <div className="flex items-center gap-3 px-0.5">
+          <span className="text-[13px] text-muted-foreground">
+            {filtersActive
+              ? t('market', 'filteredCount', { n: list?.total ?? 0 })
+              : t('market', meta.total, { n: list?.total ?? 0 })}
+          </span>
+          <span className="ml-auto text-xs text-muted-foreground">{t('market', 'sortRecent')}</span>
+          {/* 折叠搜索触发钮（T11-e）：官方 `Button`（ghost · icon-sm）—— 位置在视图切换钮**左侧**，
+              与 ClawHub 同位；`aria-expanded` 由官方 `CollapsibleTrigger` 自动给出 */}
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t('market', 'searchBtn')}
+              title={t('market', 'searchBtn')}
+            >
+              <Search />
+            </Button>
+          </CollapsibleTrigger>
+          {/* 视图切换（T11-e）：官方 ToggleGroup —— 形态/色值走官方 variant，**不覆盖 className**。
+            `type="single"` 下再点当前项会回调空串 ⇒ 以 `if (next)` 守住「两态必居其一」。 */}
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={view}
+            onValueChange={(next) => {
+              if (next) setView(next as ViewMode);
+            }}
+          >
+            <ToggleGroupItem
+              value="grid"
+              aria-label={t('market', 'viewGrid')}
+              title={t('market', 'viewGrid')}
+            >
+              <LayoutGrid />
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="list"
+              aria-label={t('market', 'viewList')}
+              title={t('market', 'viewList')}
+            >
+              <List />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        {/* 折叠搜索面板（T11-e）：工具条**下方** · 宽度撑满 —— 官方 `InputGroup`
+            （放大镜 addon + 无边框输入 + 尾部关闭钮），对应 ClawHub 的 `.browse-search-control` */}
+        <CollapsibleContent>
+          <InputGroup className="mt-2">
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+            <InputGroupInput
+              ref={searchRef}
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+              placeholder={t('market', meta.ph)}
+              aria-label={t('market', meta.ph)}
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                aria-label={t('market', 'searchClose')}
+                title={t('market', 'searchClose')}
+                onClick={() => {
+                  setQ('');
+                  setSearchOpen(false);
+                }}
+              >
+                <X />
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+        </CollapsibleContent>
+      </Collapsible>
 
-      {loading && (
-        // 载态骨架（本批 §3.10：官方 `Skeleton` 替手搓居中占位）
-        <AssetGrid>
-          {LOADING_SLOTS.map((slot) => (
-            <Skeleton key={slot} className="h-[166px] rounded-xl" />
-          ))}
-        </AssetGrid>
-      )}
+      {loading &&
+        // 载态骨架（本批 §3.10：官方 `Skeleton` 替手搓居中占位；T11-e：随视图形态分派）
+        (view === 'grid' ? (
+          <AssetGrid>
+            {LOADING_SLOTS.map((slot) => (
+              <Skeleton key={slot} className="h-[166px] rounded-xl" />
+            ))}
+          </AssetGrid>
+        ) : (
+          <AssetListLoading />
+        ))}
       {error && <ErrorState error={error} onRetry={() => setRetryTick((tick) => tick + 1)} />}
       {!loading && !error && list && list.items.length === 0 && (
         <EmptyState message={t('market', 'noResult')} />
       )}
       {!loading && !error && list && list.items.length > 0 && (
         <>
-          <AssetGrid>
-            {list.items.map((item) => (
-              <AssetCard key={item.id} item={item} />
-            ))}
-          </AssetGrid>
+          {view === 'grid' ? (
+            <AssetGrid>
+              {list.items.map((item) => (
+                <AssetCard key={item.id} item={item} />
+              ))}
+            </AssetGrid>
+          ) : (
+            <AssetList>
+              {list.items.map((item) => (
+                <AssetListRow key={item.id} item={item} />
+              ))}
+            </AssetList>
+          )}
           {/* 分页：**仅多页时渲染**（`total > PAGE_SIZE`）—— 单页显示「1 / 1 · 每页 20」是噪音。
               ⚠️ 2026-09-16（M4b-3 T6 自检发现）：本件此前**无条件**渲染分页（`Pagination` 只在 `total <= 0`
               时自隐）⇒ 3 个资产也出「1 / 1」，与门户 dogfood 断言「资产数 < limit ⇒ 无分页控件（正当缺席）」

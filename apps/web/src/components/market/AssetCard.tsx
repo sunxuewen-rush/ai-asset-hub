@@ -4,33 +4,30 @@ import { Card } from '@/components/ui/shadcn/card';
 import type { AssetItem } from '../../api/types.js';
 import { AssetStat } from '../console/asset-stats.js';
 import { AssetAvatar } from '../ui/AssetAvatar.js';
-import { ownerText } from './format.js';
 
 /**
- * 资产卡（§4.4 v0.6 结构命名：card-head → title(main/meta) → card-desc → card-foot）
+ * 资产卡（§4.4 v0.6 结构命名：card-head → title(main/meta) → card-desc）
  *
  * 换皮（plan T10）：玻璃面 → 白卡 `bg-card` + `shadow-sm`；hover = 底色变化（`bg-muted/50`）。
- * 不变：`compactCount`/`ownerText` 口径 · `line-clamp-2` 描述。
  *
- * **M4b-4 验收期三条调整（用户 2026-09-18 拍板）**：
+ * **M4b-4 验收期四条调整（用户 2026-09-18 拍板）**：
  *  ① 下载图标 = 与详情页元信息卡/列表列**同件**（`AssetStat`，lucide `Download`）—— 退役文本字形 `⇣`
  *  ② **去掉卡片上的版本号**（元信息行只剩下载与收藏两个数值）
- *  ③ 收藏**在卡片上是纯展示**（`AssetStat kind="star"`，紧贴下载次数右侧，与下载同款度量：图标 `size-3.5` ·
- *     `text-[11px] tabular-nums` · `text-muted-foreground`）—— **不响应点击**，与元信息同级；
- *     收藏交互的**唯一入口 = 资产详情页头卡**（`StarButton`，仍为登录用户可用）
+ *  ③ 收藏**纯展示**（`AssetStat kind="star"`，紧贴下载次数右侧，同件同款）—— 不响应点击；
+ *     收藏交互的**唯一入口 = 资产详情页头卡**（`StarButton`）
+ *  ④ **取消页脚整块**（原「作者」行 + 悬空圆点一并去掉），**让出的高度给描述** ⇒ `line-clamp-2` → **`-3`**
+ *     卡片高度不变（`min-h-[158px]` ⇒ 网格节奏不变）；**作者不再显示在卡片上**（详情页仍显示）
  *
- * ⚠️ **DOM 结构（覆盖层 Link）**：`Card(relative)` → ① `<a class="absolute inset-0 z-0">`（整卡热区，含页脚一行）
+ * ⚠️ **DOM 结构（覆盖层 Link）**：`Card(relative)` → ① `<a class="absolute inset-0 z-0">`（整卡热区）
  * → ② 内容层 `relative z-10 pointer-events-none`（纯展示，点击一律穿透到 ①）。取舍：卡内**文本拖选**失效。
- * （历史：早先为让收藏按钮可点曾把 `<Link>` 只包主体 —— F58；星标改纯展示后不再有嵌套 interactive content 问题，
- * 覆盖层保留的理由变成「**整卡可点（含页脚）**」。）
+ * 卡内**无任何可交互元素**（星标已改纯展示）⇒ 无 nested interactive content 问题。
  */
 export function AssetCard({ item }: { item: AssetItem }) {
   const to = `/assets/${encodeURIComponent(item.slug)}`;
   const displayName = item.latestName ?? item.slug;
-  const author = ownerText(item);
   return (
-    <Card className="group relative flex min-h-[158px] w-full cursor-pointer flex-col gap-0 px-[18px] pt-[18px] transition-colors hover:bg-muted/50">
-      {/* ① 覆盖层热区：整卡可点（含页脚） */}
+    <Card className="group relative flex min-h-[158px] w-full cursor-pointer flex-col gap-0 px-[18px] pt-[18px] pb-[16px] transition-colors hover:bg-muted/50">
+      {/* ① 覆盖层热区：整卡可点 */}
       <Link to={to} aria-label={displayName} className="absolute inset-0 z-0 rounded-xl" />
       {/* ② 内容层：纯展示，点击一律穿透到 ① */}
       <div className="pointer-events-none relative z-10 flex min-w-0 flex-1 flex-col">
@@ -50,17 +47,10 @@ export function AssetCard({ item }: { item: AssetItem }) {
             </div>
           </div>
         </div>
-        <p className="mb-3 line-clamp-2 flex-1 text-[13px] leading-[1.7] text-foreground/80">
+        {/* 描述：页脚取消后**独占剩余高度**（`flex-1` + `line-clamp-3`） */}
+        <p className="line-clamp-3 flex-1 text-[13px] leading-[1.7] text-foreground/80">
           {item.latestDescription ?? ''}
         </p>
-      </div>
-      <div className="pointer-events-none relative z-10 flex items-center gap-[7px] overflow-hidden border-t border-border pt-[9px] pb-[11px] text-[11px] whitespace-nowrap text-muted-foreground">
-        {author && (
-          <>
-            <b className="overflow-hidden font-normal text-ellipsis">{author}</b>
-            <span className="size-[3px] shrink-0 rounded-full bg-muted-foreground/40" />
-          </>
-        )}
       </div>
     </Card>
   );
