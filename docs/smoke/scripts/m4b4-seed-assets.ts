@@ -13,6 +13,13 @@
 //         ⇒ 两条都挂到 m4b4-seed-skill（G9 chips 文案 / G11 非超管 × 禁用）
 //   star  m4b2_mgr 收藏 m4b4-seed-skill ⇒ owner 看 `starCount=1` 且 `starredByMe=false`（G16 对照）
 //         m4b2_user 收藏 m4b4-seed-other ⇒ owner 看 `starredByMe=true`（G16 正证）
+//   分页占位（T11-e 新增 · 21 条 `m4b4-seed-page-01`…`-21` · **类型 mcp** · owner = m4b2_mgr · ACTIVE
+//         · 各带 PUBLISHED 版本）⇒ `/mcps` 总数 2 → 23（> `PAGE_SIZE` 20）⇒ 门户出现第二页，
+//         供「翻页不改视图」断言使用。
+//     ⚠️ **不用 skill 类型**：`/skills` 的 ACTIVE 计数被 `m4a-dogfood` 两条断言依赖
+//         （「资产数 < limit ⇒ 无分页控件」+「首屏含 LangGraph 卡片」，`m4a-dogfood.ts:346` 区）
+//         —— 加 21 条 skill 即打翻既有基线。
+//     ⚠️ **不挂 `m4b2_user` 名下**：`我的资产` 的 3 行断言（G5/G6）会被污染。
 //
 // 运行（**仓库根** —— env 在 `apps/server/.env`，根目录无 `.env`，故须显式 `--env-file`）：
 //   SMOKE_M4B2_PASSWORD='<口令>' bun --env-file=apps/server/.env docs/smoke/scripts/m4b4-seed-assets.ts
@@ -170,22 +177,39 @@ async function ensureVersion(
   version: string,
   versionStatus: VersionStatus,
   actorId: string,
+  /**
+   * 版本展示描述 —— 写入 `asset_version.parsed_metadata_json.description`。
+   * ⚠️ 卡片/列表/搜索的「描述」**不是版本表列**，而是该 jsonb 投影（`assets/service.ts:104` 读
+   * `parsed_metadata_json->>'description'`；搜索面 `:205` 亦用它）⇒ 不写这里，卡片描述恒为空。
+   */
+  description: string,
 ): Promise<number> {
+  // ⚠️ **不写 `name`**：`latestName` 会直接当卡片标题用（`AssetCard` 取 `latestName ?? slug`）——
+  // 曾误写 `name: 版本号` 导致卡片标题变成「1.0.0」（2026-09-18 实测抓到，已修）
+  const meta = { description };
   const found = await db.$client.query<{ id: number }>(
     'select id from asset_version where asset_id = $1 and version = $2',
     [assetId, version],
   );
   const existing = found.rows[0];
   if (existing) {
-    await db.$client.query('update asset_version set status = $1 where id = $2', [
-      versionStatus,
-      existing.id,
-    ]);
+    // 重跑即复位：状态与描述一并回到约定值（`$2::jsonb` 显式转型——否则 text→jsonb 报类型错）
+    await db.$client.query(
+      'update asset_version set status = $1, parsed_metadata_json = $2::jsonb where id = $3',
+      [versionStatus, JSON.stringify(meta), existing.id],
+    );
     return existing.id;
   }
   const inserted = await db
     .insert(assetVersion)
-    .values({ assetId, version, status: versionStatus, createdBy: actorId, fileCount: 0 })
+    .values({
+      assetId,
+      version,
+      status: versionStatus,
+      createdBy: actorId,
+      fileCount: 0,
+      parsedMetadataJson: meta,
+    })
     .returning({ id: assetVersion.id });
   const created = inserted[0];
   if (!created) throw new Error(`insert asset_version 未返回行：${assetId}/${version}`);
@@ -200,22 +224,48 @@ async function setLatest(assetId: number, versionId: number): Promise<void> {
   ]);
 }
 
+/**
+ * 描述文案（用户 2026-09-18「给资产加一些描述信息，我看一下效果」）：**刻意做出长度差异**，
+ * 便于在门户卡（描述区 = 3 行 ≈ 72px）上对比「填满 / 两行 / 一行 / 被截断」四种观感。
+ */
+const DESC = {
+  /** 长（≈5 行 ⇒ 卡片上**被截断**，测 `line-clamp-3`） */
+  skillLong:
+    '面向企业知识库场景的检索增强生成技能：内置文档切分、向量化召回与交叉编码器重排三段流水线，支持增量索引与多租户隔离；' +
+    '附带评测脚本与 12 组基准问句，可直接接入现有向量库与 LLM 网关，无需改动业务代码。',
+  /** 中（≈2 行 ⇒ 描述区留一行空白） */
+  otherMedium:
+    '内部使用的发布检查助手：校验 SKILL.md 元数据完整性、包布局与版本号规范，并生成可直接粘贴的发布单。',
+  /** 短（1 行） */
+  skillDraft: '增量索引实验版（未发布）——仅供内部评测。',
+  skillRejected: '首次提交被驳回：缺少基准问句集与最小复现用例。',
+  skillUploaded: '初版骨架（占位）。',
+  mcpDraft: 'HTTP MCP Server 示例：暴露 3 个工具（搜索 / 取详情 / 打分）。',
+  agentDraft: '示例 Agent 定义：两段式规划 + 工具调用编排。',
+} as const;
+
 const skillId = await ensureAsset('skill', 'skill', 'ACTIVE', ownerId);
-const skillPublished = await ensureVersion(skillId, '1.0.0', 'PUBLISHED', ownerId);
-await ensureVersion(skillId, '0.9.0', 'DRAFT', ownerId);
-await ensureVersion(skillId, '0.8.0', 'REJECTED', ownerId);
-await ensureVersion(skillId, '0.7.0', 'UPLOADED', ownerId);
+const skillPublished = await ensureVersion(skillId, '1.0.0', 'PUBLISHED', ownerId, DESC.skillLong);
+await ensureVersion(skillId, '0.9.0', 'DRAFT', ownerId, DESC.skillDraft);
+await ensureVersion(skillId, '0.8.0', 'REJECTED', ownerId, DESC.skillRejected);
+await ensureVersion(skillId, '0.7.0', 'UPLOADED', ownerId, DESC.skillUploaded);
 await setLatest(skillId, skillPublished);
 
 const mcpId = await ensureAsset('mcp', 'mcp', 'HIDDEN', ownerId);
-await ensureVersion(mcpId, '0.1.0', 'DRAFT', ownerId);
+await ensureVersion(mcpId, '0.1.0', 'DRAFT', ownerId, DESC.mcpDraft);
 
 const agentId = await ensureAsset('agent', 'agent', 'ARCHIVED', ownerId);
-await ensureVersion(agentId, '0.2.0', 'DRAFT', ownerId);
+await ensureVersion(agentId, '0.2.0', 'DRAFT', ownerId, DESC.agentDraft);
 
 // 他人（管理档）名下 ACTIVE 资产 —— G5「owner-only 集合」的反证物
 const otherId = await ensureAsset('other', 'skill', 'ACTIVE', managerId);
-const otherPublished = await ensureVersion(otherId, '1.0.0', 'PUBLISHED', managerId);
+const otherPublished = await ensureVersion(
+  otherId,
+  '1.0.0',
+  'PUBLISHED',
+  managerId,
+  DESC.otherMedium,
+);
 await setLatest(otherId, otherPublished);
 
 /* ── ③ 标签：PRIVILEGED 新定义（含 zh/en 译名）+ 两条挂载 ── */
@@ -300,11 +350,28 @@ for (const assetId of [skillId, mcpId, agentId, otherId]) {
   );
 }
 
+/* ── ⑤ 分页占位（T11-e · 门户视图切换的翻页断言）：21 条 ACTIVE mcp ⇒ `/mcps` 23 条 > 20 ── */
+const PAGE_ASSET_COUNT = 21;
+for (let i = 1; i <= PAGE_ASSET_COUNT; i += 1) {
+  const suffix = `page-${String(i).padStart(2, '0')}`;
+  const pageAssetId = await ensureAsset(suffix, 'mcp', 'ACTIVE', managerId);
+  const pageVersion = await ensureVersion(
+    pageAssetId,
+    '0.1.0',
+    'PUBLISHED',
+    managerId,
+    `分页验证占位 #${i}：用于门户列表翻页与视图切换断言（不参与其余断言）。`,
+  );
+  await setLatest(pageAssetId, pageVersion);
+}
+
 const summary = await db.$client.query<{ slug: string; status: string; star_count: number }>(
   `select slug, status, star_count from asset where slug like $1 order by slug`,
   [`${ASSET_PREFIX}%`],
 );
-console.log('M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）：');
+console.log(
+  `M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star / ${PAGE_ASSET_COUNT} 条分页占位 mcp）：`,
+);
 for (const row of summary.rows) {
   console.log(`  ${row.slug}  status=${row.status}  star_count=${row.star_count}`);
 }

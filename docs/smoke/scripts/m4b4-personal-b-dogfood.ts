@@ -24,6 +24,13 @@
  *
  * ⚠️ G15 口径（F60 登记）：**幂等以 API 两次 `PUT` 判**，不以 UI 连点两次判
  *    —— UI 的收藏按钮是**切换**语义（连点两次 = 收藏后取消），那是正确行为、不是幂等失败。
+ *
+ * ⚠️ **登录限流（2026-09-18 实证）**：服务端 `LOGIN_RATE_LIMIT = 15 分钟 / 20 次`
+ *    （`apps/server/src/auth/better-auth.ts:64` · in-memory）。本脚本含 **6~7 次登录** ⇒
+ *    **同一 15 分钟窗口内连跑两遍即撞限流**，症状 = 凭据正确但 `/api/auth/me` 返回 `401:anon`
+ *    （诊断行 `me=401:anon`），脚本随即「登录失败 —— 中止」。
+ *    处置：**重启 api**（in-memory 计数清零；web/api 之外的东西不受影响）后再跑；
+ *    连跑多个脚本（本脚本 + `m4a-dogfood`）时把两遍间隔开，或合并成一次顺序执行。
  */
 import { appendFileSync, writeFileSync } from 'node:fs';
 
@@ -813,6 +820,293 @@ await mustLogin(USER);
       listStar.includes(String(api)) &&
       headStar.includes(String(api)),
     `列表=${listStar} · 头卡=${headStar} · 接口=${api}`,
+  );
+}
+
+/* ═══════════════ G20 · 门户视图切换（网格 ⇄ 列表 · **T11-e**）
+   —— 用户 2026-09-18 拍板：「我们不用记忆，默认都按照卡片显示，用户手动切换的话，就切换列表，
+      下一页上一页的时候不影响」。断言面 = 默认态 / 切换后形态与字段 / 翻页保持 / 不记忆 / 匿名可用。
+   选 `/mcps` 做翻页（造数 21 条 ⇒ 23 > limit 20，**故 /skills 的既有基线不被污染**）。
+   形态 = 官方 `Table`（用户 2026-09-18 拍板 A：先试 `Item` 后弃用 —— 带边框 `Item` 逐行成卡，
+   「列表」读起来碎/松；官方注册表**无 `list` 件**，最接近的是 `table` / `item`）。 ═══════════════ */
+{
+  /** 视图态探针：视图钮按 i18n aria-label 定位（zh/en 双口径）；行锚点 = 官方 `Item` 上的
+      `data-asset-row`（本件稳定标记 —— 不按 class 嗅探，官方件改版即失效） */
+  const VIEW_STATE = `(() => {
+    const btns = [...document.querySelectorAll('button')].filter((b) => /^(网格视图|列表视图|Grid view|List view)$/.test((b.getAttribute('aria-label') ?? '').trim()));
+    const rows = [...document.querySelectorAll('[data-asset-row]')];
+    let rowButtons = 0;
+    for (const r of rows) rowButtons += r.querySelectorAll('button').length;
+    return JSON.stringify({
+      toggleCount: btns.length,
+      on: btns.filter((b) => b.getAttribute('data-state') === 'on').map((b) => b.getAttribute('aria-label')),
+      grid: document.querySelector('div.grid.grid-cols-4') !== null,
+      rows: rows.length,
+      rowButtons,
+      rowHeight: rows[0] ? Math.round(rows[0].getBoundingClientRect().height) : null,
+      pagination: document.querySelector('nav[aria-label="pagination"]') !== null,
+      url: location.pathname + location.search,
+    });
+  })()`;
+  type ViewState = {
+    toggleCount: number;
+    on: string[];
+    grid: boolean;
+    rows: number;
+    rowButtons: number;
+    rowHeight: number | null;
+    pagination: boolean;
+    url: string;
+  };
+  const viewState = async (): Promise<ViewState | null> =>
+    parseOrNull<ViewState>((await evalJs(VIEW_STATE)) as string);
+  const clickView = async (label: string): Promise<boolean> =>
+    (await evalJs(
+      `(() => { const b = [...document.querySelectorAll('button')].find((x) => (x.getAttribute('aria-label') ?? '').trim() === '${label}'); if (!b) return false; b.click(); return true; })()`,
+    )) === true;
+
+  await mustLogin(USER);
+  await nav(`${APP}/mcps`, 3400);
+  const s1 = await viewState();
+  ok(
+    'G20-1 `/mcps` 首访 ⇒ **默认网格**（两枚视图钮存在 · 网格容器在 · 行容器 0）',
+    s1?.toggleCount === 2 &&
+      s1.on.length === 1 &&
+      s1.on[0] === '网格视图' &&
+      s1.grid &&
+      s1.rows === 0,
+    JSON.stringify(s1),
+  );
+
+  ok('G20-2 点「列表视图」⇒ 切换成功', await clickView('列表视图'));
+  await sleep(1600);
+  const s2 = await viewState();
+  ok(
+    'G20-3 列表形态：20 行（= limit）· 行高 ≥55（单行描述 55；描述最多 3 行时更高）· 行内 **0 button**（下载/收藏纯展示口径不破）',
+    s2?.on.length === 1 &&
+      s2.on[0] === '列表视图' &&
+      !s2.grid &&
+      s2.rows === 20 &&
+      (s2.rowHeight ?? 0) >= 55 &&
+      s2.rowButtons === 0,
+    JSON.stringify(s2),
+  );
+  ok(
+    'G20-4 表头 5 列（名称/描述/作者/下载/收藏）+ 行内五格字段齐（名称链接 · 描述 · 作者 · 两枚 stat）',
+    (await evalJs(`(() => {
+      const heads = [...document.querySelectorAll('thead th')].map((h) => h.innerText.trim()).join('|');
+      const row = document.querySelector('[data-asset-row]');
+      if (!row) return false;
+      const tds = [...row.querySelectorAll('td')];
+      if (tds.length !== 5) return false;
+      return (
+        heads === '名称|描述|作者|下载|收藏' &&
+        tds[0].querySelector('a[href^="/assets/"]') !== null &&
+        (tds[1].innerText || '').length > 0 &&
+        (tds[2].innerText || '').includes('m4b2_mgr') &&
+        tds[3].querySelector('span.tabular-nums') !== null &&
+        tds[4].querySelector('span.tabular-nums') !== null
+      );
+    })()`)) === true,
+  );
+  ok(
+    'G20-4b 描述列上限 = **3 行 + 省略号**（`line-clamp: 3` 真值 + 单元格可换行）',
+    (await evalJs(`(() => {
+      const row = document.querySelector('[data-asset-row]');
+      if (!row) return false;
+      const td = row.querySelectorAll('td')[1];
+      const box = td.firstElementChild;
+      if (!box) return false;
+      const s = getComputedStyle(box);
+      return (
+        s.webkitLineClamp === '3' &&
+        getComputedStyle(td).whiteSpace === 'normal' &&
+        s.webkitLineClamp !== 'none'
+      );
+    })()`)) === true,
+  );
+  await shot('20-mcps-list-view');
+
+  // 翻页：仍为列表（用户口径「下一页上一页的时候不影响」）
+  const paged = await evalJs(`(() => {
+    const nav = document.querySelector('nav[aria-label="pagination"]');
+    if (!nav) return 'no-nav';
+    const next = [...nav.querySelectorAll('a,button')].find((e) => /next|Next/.test((e.getAttribute('aria-label') ?? '') + (e.textContent ?? '')));
+    if (!next) return 'no-next';
+    next.click();
+    return 'clicked';
+  })()`);
+  await sleep(2200);
+  const s3 = await viewState();
+  ok(
+    'G20-5 翻到第 2 页 ⇒ URL `?page=2` 且**仍是列表**（视图不受翻页影响）',
+    paged === 'clicked' &&
+      s3?.url.includes('page=2') === true &&
+      s3?.on[0] === '列表视图' &&
+      s3?.grid === false &&
+      s3?.rows === 3,
+    `${paged} · ${JSON.stringify(s3)}`,
+  );
+
+  // 不记忆：离开页面再回来 ⇒ 回默认网格
+  await nav(`${APP}/agents`, 2600);
+  await nav(`${APP}/mcps`, 3400);
+  const s4 = await viewState();
+  ok(
+    'G20-6 「不记忆」口径：离开再回（重新挂载）⇒ 回默认网格',
+    s4?.on[0] === '网格视图' && s4?.grid === true && s4?.rows === 0,
+    JSON.stringify(s4),
+  );
+
+  // 匿名可用（视图切换纯前端）
+  await logout();
+  await nav(`${APP}/skills`, 3000);
+  const anonToggle = await evalJs(
+    `[...document.querySelectorAll('button')].filter((b) => /^(网格视图|列表视图)$/.test((b.getAttribute('aria-label') ?? '').trim())).length`,
+  );
+  ok('G20-7 匿名 ⇒ 视图钮照常渲染（纯前端能力）', anonToggle === 2, `toggleCount=${anonToggle}`);
+  ok('G20-8 匿名点「列表视图」⇒ 生效', await clickView('列表视图'));
+  await sleep(1600);
+  const s5 = await viewState();
+  ok(
+    'G20-9 匿名列表形态生效（/skills 6 行 · 无分页控件 = 正当缺席）',
+    s5?.on[0] === '列表视图' && s5?.grid === false && s5?.rows === 6 && s5?.pagination === false,
+    JSON.stringify(s5),
+  );
+  await shot('20-skills-list-view-anon');
+}
+
+/* ═══════════════ G21 · 折叠搜索（ClawHub 同构 · **T11-e**）
+   —— 用户 2026-09-18：「参考切换按钮左侧的搜索，点击后下方显示一个搜索框，我们也做一个」
+   ClawHub 实测规格：触发钮 = 图标钮（42×42 · `aria-label="Search skills"` · 开时 `aria-expanded=true`）；
+   面板 = 工具条**下方** · 宽度与工具条等宽 · 内含「放大镜 + 无边框输入 + 关闭钮」。 ═══════════════ */
+{
+  const TRIG = `[...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '搜索')`;
+  const VIEWBTN = `[...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '列表视图')`;
+  const PROBE = `(() => {
+    const t = ${TRIG};
+    const v = ${VIEWBTN};
+    const bar = t && t.parentElement;
+    const g = [...document.querySelectorAll('[data-slot="input-group"]')].find((x) => x.getBoundingClientRect().width > 0);
+    const inp = g && g.querySelector('input');
+    return JSON.stringify({
+      trigBox: t ? Math.round(t.getBoundingClientRect().width) + 'x' + Math.round(t.getBoundingClientRect().height) : null,
+      trigX: t ? Math.round(t.getBoundingClientRect().left) : null,
+      viewX: v ? Math.round(v.getBoundingClientRect().left) : null,
+      expanded: t ? t.getAttribute('aria-expanded') : null,
+      barBottom: bar ? Math.round(bar.getBoundingClientRect().bottom) : null,
+      barW: bar ? Math.round(bar.getBoundingClientRect().width) : null,
+      groupTop: g ? Math.round(g.getBoundingClientRect().top) : null,
+      groupW: g ? Math.round(g.getBoundingClientRect().width) : null,
+      addons: g ? g.querySelectorAll('[data-slot="input-group-addon"]').length : 0,
+      focused: !!inp && document.activeElement === inp,
+      closeBtn: (() => { const c = [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '关闭搜索'); return c ? Math.round(c.getBoundingClientRect().width) : null; })(),
+      // hero 卡 = **第一个内含 h1 的 Card**（实测：中心页 hero 恒为首卡且含 h1，筛选条卡无 h1，
+      // 资产卡是 h3）。⚠️ 两个坑都踩过：① 页面上有**两个 h1**（顶栏 + hero），用第一个 h1 的
+      // closest(card) 会命中顶栏的那个 ⇒ -1；② 按计数徽章文案匹配也不行 —— zh 文案
+      // 「个技能资产」连写、「个 MCP 资产」带空格（正则一律失配）。
+      heroInputs: (() => {
+        const c = [...document.querySelectorAll('[data-slot="card"]')].find((x) => x.querySelector('h1'));
+        return c ? c.querySelectorAll('input').length : -1;
+      })(),
+      visibleInputs: [...document.querySelectorAll('input')].filter((i) => i.getBoundingClientRect().width > 0).length,
+      url: location.pathname + location.search,
+    });
+  })()`;
+  type FoldSearch = {
+    trigBox: string | null;
+    trigX: number | null;
+    viewX: number | null;
+    expanded: string | null;
+    barBottom: number | null;
+    barW: number | null;
+    groupTop: number | null;
+    groupW: number | null;
+    addons: number;
+    focused: boolean;
+    closeBtn: number | null;
+    heroInputs: number;
+    visibleInputs: number;
+    url: string;
+  };
+  const probe = async (): Promise<FoldSearch | null> =>
+    parseOrNull<FoldSearch>((await evalJs(PROBE)) as string);
+
+  await nav(`${APP}/mcps`, 3400);
+  const s1 = await probe();
+  ok(
+    'G21-1 收起态：触发钮为图标钮（32×32）· 位于视图切换钮**左侧** · `aria-expanded=false` · 面板未渲染',
+    s1?.trigBox === '32x32' &&
+      (s1.trigX ?? 0) < (s1.viewX ?? 0) &&
+      s1.expanded === 'false' &&
+      s1.groupTop === null &&
+      s1.visibleInputs === 0 &&
+      s1.heroInputs === 0,
+    JSON.stringify(s1),
+  );
+
+  ok(
+    'G21-2 点触发钮 ⇒ 展开',
+    (await evalJs(
+      `(() => { const t = ${TRIG}; if (!t) return false; t.click(); return true; })()`,
+    )) === true,
+  );
+  await sleep(1600);
+  const s2 = await probe();
+  ok(
+    'G21-3 展开态：面板在工具条**下方**（top ≥ 工具条底）· 宽度与工具条等宽 · 两枚 addon · 自动聚焦',
+    s2?.expanded === 'true' &&
+      (s2.groupTop ?? 0) >= (s2.barBottom ?? 0) &&
+      Math.abs((s2.groupW ?? 0) - (s2.barW ?? 0)) <= 2 &&
+      s2.addons === 2 &&
+      s2.focused &&
+      s2.closeBtn === 24,
+    JSON.stringify(s2),
+  );
+
+  ok(
+    'G21-4 面板输入 ⇒ URL `?q=` 且计数改「筛选结果」（收窄）',
+    (await (async () => {
+      await evalJs(`(() => {
+        const g = [...document.querySelectorAll('[data-slot="input-group"]')].find((x) => x.getBoundingClientRect().width > 0);
+        const inp = g.querySelector('input');
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        setter.call(inp, 'seed-page');
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`);
+      await sleep(1600);
+      const s = await probe();
+      const narrowed =
+        ((await evalJs('document.body.innerText.includes("筛选结果")')) as boolean) === true;
+      return s?.url.includes('q=seed-page') === true && narrowed;
+    })()) === true,
+  );
+
+  const s3 = await probe();
+  ok(
+    'G21-5 页头搜索**已移除**（去重复入口 · 用户 2026-09-18）：hero 卡内 input 数 = 0 · 全页可见 input = 1（即面板这个）',
+    s3?.heroInputs === 0 && s3?.visibleInputs === 1,
+    `heroInputs=${s3?.heroInputs} · visibleInputs=${s3?.visibleInputs}`,
+  );
+
+  ok(
+    'G21-6 点关闭钮 ⇒ 清空 q（URL 去 q）+ 收起（面板消失 · `aria-expanded=false`）',
+    (await (async () => {
+      const clicked =
+        (await evalJs(
+          `(() => { const c = [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '关闭搜索'); if (!c) return false; c.click(); return true; })()`,
+        )) === true;
+      await sleep(1600);
+      const s = await probe();
+      return (
+        clicked &&
+        s?.url === '/mcps' &&
+        s.expanded === 'false' &&
+        s.groupTop === null &&
+        s.visibleInputs === 0
+      );
+    })()) === true,
   );
 }
 

@@ -60,6 +60,12 @@ const files = [
   'apps/web/src/pages/Dashboard.tsx',
   'apps/web/src/components/market/detail/VersionCompare.tsx',
   'apps/web/src/components/market/AssetCard.tsx',
+  'apps/web/src/components/market/AssetList.tsx',
+  'apps/web/src/components/market/CenterPage.tsx',
+  'apps/web/src/i18n/zh.ts',
+  'apps/web/src/i18n/en.ts',
+  'apps/web/src/pages/Home.tsx',
+  'docs/smoke/scripts/m4a-dogfood.ts',
   'docs/smoke/scripts/m4b4-seed-assets.ts',
   'docs/smoke/scripts/m4b4-personal-b-dogfood.ts',
 ];

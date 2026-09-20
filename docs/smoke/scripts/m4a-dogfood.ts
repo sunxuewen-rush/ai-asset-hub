@@ -275,13 +275,27 @@ async function main() {
   await shot('1-home');
 
   await nav(`${BASE}/skills`);
+  /**
+   * 搜索入口（**2026-09-18 改口径 · T11-e**）：页头搜索框已移除（用户拍板去重复入口）⇒
+   * 入口 = 工具条右侧的折叠面板触发钮；点开后输入框出现（占位符仍为「搜索技能…」）。
+   * 原断言直接查 `input[placeholder*="搜索技能"]` —— 折叠收起时 DOM 里不存在，故拆两步。
+   */
   ok(
-    '中心搜索占位',
+    '中心搜索入口 = 折叠面板触发钮',
     await until(
       async () =>
-        (await evalJs(`document.querySelector('input[placeholder*="搜索技能"]') !== null`)) ===
-        true,
+        (await evalJs(
+          `[...document.querySelectorAll('button')].some((b) => (b.getAttribute('aria-label') ?? '') === '搜索')`,
+        )) === true,
     ),
+  );
+  await evalJs(
+    `(() => { const t = [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? '') === '搜索'); if (t) t.click(); return !!t; })()`,
+  );
+  await sleep(1400);
+  ok(
+    '点开触发钮 ⇒ 搜索输入框出现（占位符 = 搜索技能…）',
+    (await evalJs(`document.querySelector('input[placeholder*="搜索技能"]') !== null`)) === true,
   );
   ok(
     '中心真实数据卡',

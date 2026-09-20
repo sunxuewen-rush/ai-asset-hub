@@ -32,6 +32,9 @@
 
 ## 3. 本批 dogfood：G1-G19（断言① · `docs/smoke/scripts/m4b4-personal-b-dogfood.ts`）
 
+> ⚠️ **v1.22 起为 G1–G21** —— 本节表内 G1–G19 为 T11 收尾态（**53 PASS**）；本轮追加 **G20（视图切换 ×10）+ G21（折叠搜索 ×6）**
+> ⇒ 现行 **77 PASS / 0 FAIL**（实跑记录见 **§13.2**）。
+
 **总结果：`✅ PASS 60 · FAIL 0 · CDP 超时 0` + `NO JS ERRORS`**（53 → 58 = T11-c 补测 **G12b** 五条；58 → **60** = 验收期 UI 轮 **G14b** 两条，且 G18 改指详情页）
 
 | 组 | 断言 | 实测证据（原样摘录） |
@@ -50,7 +53,7 @@
 | **G12** | 版本 Tab 行内动作：owner 2 态 / 管理档 4 态 + yank | ✅ 访客 `{del:0,yank:0}` · owner `{del:1,yank:0}`（仅 `DRAFT` 行）· 管理档 `{del:3,yank:1}`（`DRAFT`/`REJECTED`/`UPLOADED` + 仅 `PUBLISHED` 行 yank） |
 | **G12b**（T11-c 补） | **撤回分发「UI → 端点」端到端**（真点击，非仅渲染断言） | ✅ 五连：① 点行内「撤回分发」⇒ 官方 `AlertDialog` 打开 + 填原因 + 提交 ② 端点真被调用：版本 `1.0.0` **PUBLISHED → YANKED** ③ 行内入口消失（非 PUBLISHED 不再可撤）④ 已撤回版本下载 ⇒ **400 `asset.version_yanked`** ⑤ 重复撤回 ⇒ **400 `asset.version_not_yankable`**（明示非幂等契约）· ⚠️ **本段会改库** ⇒ 顺序恒为 **seed → dogfood** |
 | **G13** | 筛选/搜索 ⇒ `page` 回落 + URL 同步 | ✅ `?page=2` + 切「已隐藏」⇒ `/dashboard/assets?status=HIDDEN`（**page 已删** · 行数收窄为 1）· q 输入 ⇒ `?q=m4b4` |
-| **G14** | 门户零回归（+ 详情页收藏入口） | ✅ §2 的 `m4a-dogfood` **36/36** + 详情页收藏入口存在（`aria-label` = `收藏 N`）· ⚠️ **门户卡已改纯展示**（2026-09-18 用户拍板）⇒ 见 **G14b** |
+| **G14** | 门户零回归（+ 详情页收藏入口） | ✅ §2 的 `m4a-dogfood` **36/36**（T11 收尾态；**现行 37/37** —— F69/F75） + 详情页收藏入口存在（`aria-label` = `收藏 N`）· ⚠️ **门户卡已改纯展示**（2026-09-18 用户拍板）⇒ 见 **G14b** |
 | **G14b-1**（T11-d 新增） | **门户卡星标 = 纯展示**（两枚同款 stat：下载 + 收藏 · 卡内 `button[aria-pressed]` = 0） | ✅ 实测两 stat 度量完全一致：font `11px` · color `rgb(100,116,139)` · icon `14×14`（同款由「同为 `AssetStat` 件」结构性保证）|
 | **G14b-2**（T11-d 新增） | **点卡片星标处 ⇒ 穿透到整卡热区**（进详情页，非收藏动作） | ✅ 真坐标点击后 `pathname` = `/assets/*` |
 | **G15** | star 幂等（**API 两次 `PUT` 口径**，F60） | ✅ `base=1 → 2 → 2`（两次 PUT 只 +1，`starred` 恒 true）· 两次 DELETE ⇒ `1 → 1` 回基线 |
@@ -93,7 +96,7 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | 抽屉时代旧口径散点 | 命中集中在 §2.1c/§2.1d 过程记录 + 早期 F 行；§2.1 **Q6/Q7 决策行**仍含「⋯ 菜单 / 抽屉」字面 | **登记**：该节已被 §2.1c 顶部指针（「现行口径以 §4.2/§4.3/§4.6 为准」）+ §2.1d 覆盖 ⇒ 留作决策沿革，不追改 |
 | 未消费 i18n 键（新键死键） | **实测 12 键**：`version.deleteDisabled` · `version.yankDisabled` · `admin.noPermission` · `status.current` · `section.labels` · `market.versionPublished` · `market.versionYanked` · `version.col.version` · `version.col.status` · `version.col.created` · `version.col.files` · `version.empty` | **如实登记**（不静默删键 —— 前 2 键归「禁用+说明」形态、后 5 键归**已取消的抽屉**版本段、`section.labels` 与 `market.labelsTitle` 同义二选一）· 归 **M4b-6/M4b-7** 触碰时收敛 |
 | 死导出（12 个新导出全扫） | **0 死导出**（`AssetStat`6 · `canYank`4 · `canPrivileged`3 · `deletableStatuses`2 · `isVersionDeletable`2 · `useViewer`8 · `StarButton`7 · `starAsset`2 · `unstarAsset`2 · `apiPut`4 …） | — |
-| 门户调用点零 diff | `CenterPage.tsx` / `FilterStrip.tsx` **未改** | ✅ |
+| 门户调用点零 diff | `CenterPage.tsx` / `FilterStrip.tsx` **未改** | ✅（**T11 收尾态** —— v1.22 T11-e 已改 `CenterPage.tsx`（视图切换/折叠搜索）⇒ 现行契约 = 门户**行为**零回归，见 §13.2）|
 | 文档数字实测 | i18n 键数（§7）· 行数表（§7）· 测试用例数（537）均以脚本实测回填；批 design §6.1「65 → 79」与实测 **79** 一致 | ✅ |
 | **覆盖探针**（T11-c 新增维度） | 仓库原**无覆盖率基建**（无 `coverage` 脚本 · CI 不跑 · 文档未要求）⇒ 本轮以 `bun test --coverage` 实测：全仓 **95.60/96.28**；发现 `http/assets.ts` 的 **yank 路由整段零覆盖**（683-713）⇒ **已补测**（见 §6 A5） | ✅ 建立可复跑命令 |
 | 未决项 | **0**（本表 3 条为「登记留存」，均写明归属批） | ✅ |
@@ -136,7 +139,7 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | ① | 批 design 8 维 ≥9 | ✅ **定稿 9.69**（v1.10）+ **执行期 converge 重评见 §9** |
 | ② | **T1–T16**（**T8 已作废**）Task 全绿 | ✅ 15/15（逐 Task 均分 **9.41–9.71**；本轮 T12 9.43 / T16 9.41 / T6 9.43） |
 | ③ | 五门禁逐项 exit 0 | ✅ §1（8 步全绿） |
-| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ⬜ **用户实机观感**（§11） |
+| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ⬜ **用户实机观感**（§11）；**现行 = G1–G21 = 77 PASS / 0 FAIL**（T11-e · §13.2）|
 | ⑤ | 整体审计 | ✅ §5 —— **关键字残留 0**；**语义散点 14 处已订正**（F64 · 口径已撤回，见 §5 / §6 A4 · **换靶第二轮** 补抓 6 处）；4 条登记留存均写明归属 |
 
 ## 9. 文档-代码对齐重评（converge）
@@ -183,6 +186,7 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | 形态覆盖 | 列表 9 列（**操作列 = `Eye` 真链接直跳详情页**；~~抽屉~~ **v1.9 取消**）· 详情页（头卡 [下载][收藏] + 右栏 元信息/标签+-/管理卡）· 管理区 **5 档权限** |
 | 物料清理 | ✅ **已执行**（`apps/web/src/pages/__proto/` 已删；`main.tsx` DEV 路由行已于 `3ab0299` 清除；全仓 `__proto` 引用 = 0） |
 
+
 **原「留待明确口令的项」处置（2026-09-18 用户拍板）**
 
 | # | 项 | 处置 |
@@ -191,3 +195,73 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | 2 | `labels` 带 `type` 后 **PRIVILEGED 的 ×** 是否升级为精确禁用 | ✅ **升级为「禁用 + `title` 说明」**（用户 2026-09-18 拍板）：文案 `label.privileged`；服务端 `label.access_denied` 兜底**不变**（双保险）—— G11 实测佐证（owner `locked=1` / 超管 `locked=0`） |
 | 3 | 状态文案 `活跃` vs `正常` · 版本 8 态 3 处措辞 | ⬜ 待定（§10 第 6 项） |
 | 4 | ~~star 能力依赖~~ | ✅ 依赖消解（v1.8 并入本批；T15/T16 已交付，G15–G17 绿） |
+
+
+## 13. 验收期第二笔：门户视图切换 + 折叠搜索（**T11-e** · 2026-09-18 · v1.22）
+
+> 用户逐条拍板：① 门户三页加「卡片 ⇄ 列表」切换 ② 参考 ClawHub「切换钮左侧的搜索」做折叠搜索 ③ **删页头搜索框**（「title 上的搜索就重复设计了」）。
+> 本节为**追加证据**（§1–§12 记录的是 T11 收尾态；本轮数字以本节为准）。
+
+### 13.1 门禁（本轮实跑 · 全绿）
+
+| 步骤 | 命令 | 结果 |
+|------|------|------|
+| 类型 | `bun run typecheck` | **exit 0** |
+| 静态 | `bun run lint` | **exit 0** —— 1 条**预存在** warning（`AppShell.tsx:55 noDocumentCookie`）|
+| 格式 | `bun run format:check` | **exit 0** —— `Checked 270 files`（删 `item.tsx` 后 271 → 270）|
+| 文档体检 | `bun docs/smoke/scripts/doc-audit.ts` | **exit 0** —— **64 PASS / 0 FAIL**（= 基线）|
+| 构建 | `bun run build` | **exit 0** —— 4/4 successful |
+| 测试 | `CI=true bun run test` | **exit 0** —— server **550 pass / 1 skip / 0 fail**（Ran **551** tests across 51 files）· 1577 expect() calls |
+
+### 13.2 行为断言（本轮新增 16 条 · 实测）
+
+| 脚本 | 结果 |
+|------|------|
+| `m4b4-personal-b-dogfood.ts` | **77 PASS / 0 FAIL / 0 CDP 超时 / NO JS ERRORS**（原 60 + **G20×10** + **G21×6** + G20-4b）|
+| `m4a-dogfood.ts`（门户零回归） | **37 PASS / 0 FAIL**（原 36 → 37：搜索入口断言由「页头输入框」改「折叠面板触发钮 + 点开出现输入框」—— **F69 跨批口径变更**）|
+
+### 13.3 观感/形态实测真值（浏览器 CDP）
+
+| 项 | 实测值 |
+|----|--------|
+| 视图切换钮 | 官方 `ToggleGroupItem` 单钮 **42×32**（icon 16px）· `aria-label` = 网格视图/列表视图 · `data-state` on/off（**无 `aria-pressed`**，官方以 `data-state` 表达）|
+| 折叠搜索触发钮 | **32×32**（官方 `Button` ghost `icon-sm`）· 位于视图切换钮**左侧**（实测 x 586 vs 672 @748 视口）· `aria-expanded` 由官方 `CollapsibleTrigger` 给出 |
+| 折叠面板 | 工具条**下方**、宽度与工具条**等宽**（实测 693 / 693 · 面板高 36）· 两枚 `InputGroupAddon` + 关闭钮 **24px** · 展开**自动聚焦**（`document.activeElement` = 输入框）|
+| 列表行（官方 `Table`） | 行高 **55**（单行描述）· 长描述 **93**（描述块 60 = 3 行）· 表头高 **40**（官方 `h-10`）· 单元格 `padding: 16px/8px`（`py-4` 覆写 + 官方 `px-2`）|
+| 列宽 @1440 | 名称 **294** / 描述 **339** / 作者 **226** / 下载 **135** / 收藏 **135**（百分比列宽 26/30/20/12/12）|
+| 整行热区 | 首列 `<Link>` + `after:absolute after:inset-0` ⇒ 点描述列 `elementFromPoint` 命中的是该链接（实测）· 行内 **0 button** |
+| 去卡化 | 面板 `border: 0` · 背景透明 · 页面底 `rgb(248,250,255)` ⇒ 表格落在页底上，仅靠官方行分隔线与表头底纹划结构 |
+| 页头搜索 | **已移除** —— hero 卡内 `input` 数 **0** · 折叠态全页可见 input **0**、展开态 **1** |
+
+### 13.4 i18n 与造数（实测）
+
+- **i18n 329 键 / 12 组**（T11-e **+6**：`viewGrid` / `viewList` / `colName` / `colDesc` / `colDownload` / `searchClose`）· 双语双向差集 **0** · en 值级中文泄漏 **0** · **未消费键 12 = 基线**（新键 6 个**全部有消费者**）
+- 造数 **+21 条 ACTIVE `mcp` 分页占位**（`m4b4-seed-page-01`…`-21` · owner = 管理档）⇒ `/mcps` **2 → 23**（> `PAGE_SIZE` 20）出第二页；`/skills` 保持 **6**（不动既有基线）· 运行顺序恒为 **seed → dogfood**（dogfood 会真撤回版本）
+
+### 13.5 本轮发现的缺陷（**F68–F73** · 明细见批 design §11.9）
+
+| # | 级 | 摘要 | 处置 |
+|---|:--:|------|------|
+| **F68** | 🟡 | 官方 `item.tsx` **落仓后弃用**（观感判「逐行成卡 ⇒ 碎/松」）⇒ 改 `Table` | ✅ **删除**（零消费点 grep 实证）；**官方注册表无 `list` 件**（64 件实测核对）留痕防复现 |
+| **F69** | 🟡 | `m4a-dogfood` 搜索入口断言口径变更（**跨批交付物**） | ✅ 改写为折叠面板两步断言 · 36 → **37** |
+| **F70** | 🟡 | 探针**四处自伤**：模板字符串内反引号截断 · 两个 `h1` 致锚点错 · 徽章文案带空格致正则失配 · 漏带 `pagination` 字段（`undefined === false` 恒假） | ✅ 全部修 + 写进脚本注释 |
+| **F71** | 🟡 | **登录限流** 15min/20 次（`auth/better-auth.ts:64`）⇒ 连跑两遍即撞（症状 `me=401:anon`） | ✅ 写进脚本头（处置 = 重启 api）；双证：配置存在 + 重启后 **77/0** |
+| **F72** | 🟡 | i18n 键数漂移（主 design §11 记 323） | ✅ 同补 **329 键** 行（主 design） |
+| **F73** | ⚪ | `m4b4-measure.ts` 文件清单缺新件 | ✅ 补 `AssetList.tsx` |
+
+### 13.6 权威行数（本轮新增/改动 · `wc -l` 口径）
+
+| 文件 | 行数 |
+|------|-----:|
+| `apps/web/src/components/market/AssetList.tsx`（**新件**） | **138**（**F76 订正**：133 → 135 → **138** —— 两次注释增行；本表数值**一律以 `m4b4-measure.ts` 实跑为准**，提交前重跑回填）|
+| `apps/web/src/components/market/CenterPage.tsx`（改造） | **361** |
+| `apps/web/src/i18n/zh.ts` / `en.ts` | **385 / 380** |
+| `docs/smoke/scripts/m4b4-personal-b-dogfood.ts` | **1119** |
+| `docs/smoke/scripts/m4b4-seed-assets.ts` | **380** |
+| `docs/smoke/scripts/m4a-dogfood.ts` | **523** |
+
+### 13.7 未决 / 待用户拍板
+
+- **观感三项**（本轮已给建议，待拍板）：① 行 hover 口径（列表行 = 官方 `accent/50` vs 网格卡 = `muted/50`）② 表头是否加浅底纹（官方 `TableHeader` 无底色）③ 行高是否换档（55 / 48 / 63）
+- **F6 相关联**：`item.tsx` 已删（本轮）；`m4a-dogfood` 跨批改动已留痕
+- **提交**：本轮代码 + 文档 + 证据 + 2 张新图待**用户口令**后提交（拆分见批 plan §7 落地记录）
