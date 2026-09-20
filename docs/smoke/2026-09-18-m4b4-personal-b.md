@@ -139,7 +139,7 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | ① | 批 design 8 维 ≥9 | ✅ **定稿 9.69**（v1.10）+ **执行期 converge 重评见 §9** |
 | ② | **T1–T16**（**T8 已作废**）Task 全绿 | ✅ 15/15（逐 Task 均分 **9.41–9.71**；本轮 T12 9.43 / T16 9.41 / T6 9.43） |
 | ③ | 五门禁逐项 exit 0 | ✅ §1（8 步全绿） |
-| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ⬜ **用户实机观感**（§11）；**现行 = G1–G21 = 77 PASS / 0 FAIL**（T11-e · §13.2）|
+| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ⬜ **用户实机观感**（§11）；**现行 = G1–G22 = 90 PASS / 0 FAIL**（T11-f · §14.2；T11-e 时点 **G1–G21 = 77** · §13.2）|
 | ⑤ | 整体审计 | ✅ §5 —— **关键字残留 0**；**语义散点 14 处已订正**（F64 · 口径已撤回，见 §5 / §6 A4 · **换靶第二轮** 补抓 6 处）；4 条登记留存均写明归属 |
 
 ## 9. 文档-代码对齐重评（converge）
@@ -265,3 +265,121 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 - **观感三项**（本轮已给建议，待拍板）：① 行 hover 口径（列表行 = 官方 `accent/50` vs 网格卡 = `muted/50`）② 表头是否加浅底纹（官方 `TableHeader` 无底色）③ 行高是否换档（55 / 48 / 63）
 - **F6 相关联**：`item.tsx` 已删（本轮）；`m4a-dogfood` 跨批改动已留痕
 - **提交**：本轮代码 + 文档 + 证据 + 2 张新图待**用户口令**后提交（拆分见批 plan §7 落地记录）
+
+## 14. 验收期第三笔：资产排序（**T11-f** · 2026-09-20 · **v1.27**）
+
+> 用户 2026-09-20：「资产排序的设计——收藏/下载/作者/名称 支持排序」+「列表视图表头可点排序，我的倾向是做」。
+> 本笔**唯一含服务端契约变更**的验收期笔（`GET /api/assets` / `GET /api/me/assets` 加白名单 `sort` + `dir`）。
+> 本节为**追加证据**（§13 记录的是 T11-e 态；本轮数字以本节为准）。
+
+### 14.1 门禁（本轮实跑 · 全绿）
+
+| 步骤 | 命令 | 结果 |
+|------|------|------|
+| 类型 | `bun run typecheck` | **exit 0**（4/4 tasks）|
+| 静态 | `bun run lint` | **exit 0** —— 1 条**预存在** warning（`AppShell.tsx:55`）+ 服务端 139 warning / 5 info（**均为基线既有**，本笔 0 新增）|
+| 格式 | `bun run format:check` | **exit 0** —— `Checked 270 files` |
+| 文档体检 | `bun docs/smoke/scripts/doc-audit.ts` | **exit 0** —— **64 PASS / 0 FAIL**（= 基线）|
+| 构建 | `bun run build` | **exit 0** —— 4/4 successful |
+| 测试 | `CI=true bun run test` | **exit 0** —— server **562 pass / 1 skip / 0 fail**（Ran **563** tests across 51 files）· **1620 expect() calls** · protocol **27 / 0 fail**（82 expect）· ⚠️ **口径（F92）**：机器链路上该行**常为 turbo 缓存回放**（`Cached: 4/4` · real 0.107s）；本笔已用 `CI=true bun run test --force` 补**真跑** = real **32.6s** · 562 pass / 0 fail（同上）|
+| 活口径谓词 | `bash docs/smoke/scripts/m4b4-live-quarter-scan.sh` | **合计 = 0**（0 方可提交）|
+
+### 14.2 行为断言（本轮新增 13 条 · 实测）
+
+| 脚本 | 结果 |
+|------|------|
+| `m4b4-personal-b-dogfood.ts` | **91 PASS / 0 FAIL / 0 CDP 超时 / NO JS ERRORS**（原 77 + **G22×14**；T11-g 后：**SMOKE_ONLY=G22 ⇒ 45.6s** 命中 14 条 + 命中检查 + G19 · 全跑 **2m59s** · 真登录 **9 → 4**）|
+| `m4a-dogfood.ts`（门户零回归） | **38 PASS / 0 FAIL**（原 37 → 38：原 1 条「中心排序栏」静态文本断言拆为 **2 条**（旧文本退役 + 控件形态 = 官方 `Select` `role=combobox` + 默认档「最新」）—— **F85 跨口径变更**，**v1.27 随形态再改 1 次**）|
+| 服务端用例 | **+12 例**：`assets/service.test.ts` **+8**（五档真值 / `dir` 反向 / 非法回落 / tiebreaker / 零 join 形状）· `http/assets.test.ts` **+3**（白名单放行 / 非法回落逐项一致 / 计数单调）· `http/me.test.ts` **+1**（不传 ⇒ 现状序 + 只改序不改集合）|
+
+**G22 明细（13 条 · 全绿）**：G22-1 默认档干净 URL + 「最新」选中 · G22-2 默认序 = 接口默认序 · G22-3 ×4（下载量/星标数/名称/作者四档 = URL + 列表序与接口**逐项一致**）· G22-4 改排序**回第 1 页**（`?page=2` → `?sort=stars`）· G22-5 非法值静默回落 + chip 归一 · G22-6 列头同列两态（`ascending → descending`）· G22-6b 点异列**首点 `desc`**（F84 口径）· G22-7 四列可点 / 描述列不可点 · G22-8 双视图同序 · G22-9 **匿名可用**（本段全程 `me=401`）· **G22-6c** 点「更新」列 ⟺「最新」档（URL 无 `sort=updated` · Select 仍「最新」· 同列 `desc→asc→desc` 序与接口一致）。
+
+### 14.3 观感/形态实测真值（浏览器 CDP）
+
+| 项 | 实测值 |
+|----|--------|
+| 排序控件（**v1.27 = 官方 `Select`**） | `Label「排序」+ SelectTrigger#market-sort` · **实测 160×32**（`size="sm"`）· `role=combobox` · 收起态显示当前档（默认「最新」）· 选项 = 最新/下载量/星标数/名称/作者 · 计数行内 **搜索钮左侧**（`ml-auto`）· **常驻宽 274 → 160px**（对比 chips 版）· 换档点击 **1 → 2 次**（用户 2026-09-20 线框四案对比后拍板「方案 B」）|
+| 列头按钮 | 官方 `Button` ghost `size=sm` + 图标（未排 `ArrowUpDown` / 降 `ArrowDown` / 升 `ArrowUp`）· `th[aria-sort]` = `none ｜ ascending ｜ descending` · **描述列无按钮** |
+| 两态语义 | **首点该列 ⇒ `desc`**（含异列）· **再点同列 ⇒ `asc`** ⇒ URL `?sort=name&dir=desc → …&dir=asc` |
+| 方向真值（`Select` 驱动 · URL 无 `dir`） | `?sort=downloads` ⇒ 下载列 `aria-sort=descending`；`?sort=name` ⇒ 名称列 `ascending`（= 档位固有方向）|
+| 非法值 | `?sort=bogus` ⇒ `Select` 归一「最新」· 顺序 = 接口默认序 · **200**（不 400 / 不空白）|
+| 双语宽度（**F87**） | 定宽 **160px**：zh（最长「星标数」42px）与 EN（最长 `Most downloads` **106px**）均 `clipped:false`；**104px 版在 EN 下截断**（`scrollWidth 106 > clientWidth 54`）|
+| 展开态 | 点触发钮 ⇒ `[role=option]` 面板 **五档齐**（最新/下载量/星标数/名称/作者）· 选中项高亮 |
+| 双视图 | 列表视图改排序 → 切回网格 ⇒ URL + chip 选中 + 顺序**均保持**（同一状态）|
+
+### 14.4 i18n 与造数（实测）
+
+- **i18n 335 键 / 12 组**（T11-f：`market` **+6** + `colUpdated`（**「更新」列**） —— `sortLabel`（**v1.27 随 `Select` 新增**）+ `sortNewest`/`sortDownloads`/`sortStars`/`sortName`/`sortAuthor`，**退役 `sortRecent`**）· 双语双向差集 **0** · en 值级中文泄漏 **0** · **未消费键 12 = 基线**（退役键原**有消费者** ⇒ 清单不变；6 个新键全部有消费点）
+- 造数沿用 §13 的 **21 条 ACTIVE `mcp` 分页占位**（排序样本天然可用：下载/星标值递变）· 运行顺序恒为 **seed → dogfood**
+
+### 14.5 本轮发现的缺陷（**F82–F91** · 明细见批 design §4.7.6 / §11.9）
+
+| # | 级 | 摘要 | 处置 |
+|---|:--:|------|------|
+| **F82** | 🟡 | 契约行（主 design §7.1/§7.2 R6）**只登记 `sort`、漏 `dir`** —— 若不落服务端，列头升序只作用于**当前页** | ✅ 主 design **v1.57** 补 `&dir=` + §4.7.5 补字段 |
+| **F83** | 🔴 | §4.7.5 写 `sort: z.enum(...).default('newest')` —— **非法值会 400**，与 §4.7.1 #4「静默回落」**自相矛盾** | ✅ 改 `.catch('newest')` / `dir: ….optional().catch(undefined)`（缺省与非法**同一条回落路径**）|
+| **F84** | 🟡 | §4.7.5「点异列 = 该列**固有方向**」与 §4.7.2/§4.7.3「首点 ⇒ `desc`」**同文档互相矛盾** | ✅ 实现取**首点 `desc`**（官方配方同口径）⇒ 订正 §4.7.5 + G22-6b 钉死 |
+| **F85** | 🟡 | `m4a-dogfood`「中心排序栏」断言依赖**被取代的静态文本**（跨批交付物改动）；**连带**该脚本产出的 M4a 证据图（`1-home` / `2-skills` / `2b` / `2c` / `7-locale-en` 5 张）随形态变更**重生成**（工作区显示 M）| ✅ 断言改写为 2 条（旧文本退役反证 + 五档 chips 形态）⇒ 37 → **38**；证据图**按当前态重生成**（二进制差异不可人工核读 ⇒ 图内观感归用户人眼）|
+| **F88** | 🟡 | §14.7 权威行数表**先写估值**（CenterPage 451 / zh 391 / en 386 / dogfood 1303 / m4a 553）| **F76 同类第 4 次复发** —— 「行数类数字提交前必跑 `m4b4-measure.ts`」纪律已在 v0.20+ 立档，本笔仍先估 | ✅ 立即以 `wc -l` 实测回填（438 / 390 / 385 / 1307 / 552）并逐格标注；**纪律加固**：把 `CenterPage`/`zh`/`en`/两 dogfood 脚本纳入 measure 清单（F73 已补 4 件）|
+| **F87** | 🟡 | `Select` 触发器定宽 **104px** 只按**中文选项**（≤3 字）估宽，未按 **EN 最长选项**实测 ⇒ EN `Most downloads`（**106px**）被截断（`scrollWidth 106 > clientWidth 54`）| ✅ 改 **160px**（沿控制台 `#assets-status-filter` 同宽先例）· 实测两语 `clipped:false` |
+| **F86** | ⚪ | 覆盖探针口径陷阱：`bun test --coverage`（不带路径）会把 **`dist/**` 陈旧编译产物**一并当测试跑 ⇒ 状态型用例**重复执行**（限流 / device code）⇒ **7 例假失败** | ✅ 反证：`--coverage src/` = **562 pass / 0 fail** + 单文件 11/11；本笔文件零涉 auth 面 ⇒ 归**测试基建口径**（与 F66 同族，建议 coverage 跑前清 `dist`）|
+
+### 14.6 覆盖探针（判据 = **不降**）
+
+| 范围 | 本轮 | 基线（T11-e 态） | 判定 |
+|------|:----:|:----:|:----:|
+| 全仓 `--coverage src/` | **95.60 funcs / 96.29 lines** | 95.60 / 96.22 | ✅ 持平 / **+0.07** |
+| `src/http/assets.ts` | **96.36 / 95.98** | 96.36 / 95.96 | ✅ +0.02 |
+| `src/assets/service.ts`（本笔新逻辑） | **100.00 / 97.49** | — | ✅（未覆盖 201-205 = 既有分支）|
+| `src/http/me.ts` | **100.00 / 100.00** | — | ✅ |
+
+### 14.7 权威行数（本轮新增/改动 · `wc -l` 口径）
+
+| 文件 | 行数 |
+|------|-----:|
+| `apps/server/src/assets/service.ts` | **317** |
+| `apps/server/src/assets/service.test.ts` | **355** |
+| `apps/server/src/http/assets.ts` | **844** |
+| `apps/server/src/http/assets.test.ts` | **1216** |
+| `apps/server/src/http/me.ts` | **82** |
+| `apps/server/src/http/me.test.ts` | **248** |
+| `apps/web/src/hooks/useMarketQuery.ts` | **171** |
+| `apps/web/src/api/assets.ts` | **62** |
+| `apps/web/src/components/market/AssetList.tsx` | **286**（T11-f 六列 + `COLUMN_SORT`；**实测回填**）|
+| `apps/web/src/components/market/CenterPage.tsx` | **442**（`Select` + `handleHeaderSort`；**实测**）|
+| `apps/web/src/i18n/zh.ts` / `en.ts` | **391 / 386**（+`sortLabel`/`sortNewest`…/`colUpdated`；**实测**）|
+| `docs/smoke/scripts/m4b4-personal-b-dogfood.ts` | **1518**（T11-g 分段守卫 + 会话复用 + 分段警示；**实测** — 1507 → 1511 → **1518** 三次订正，F88 同类自查：**行数一律落笔前重测**）|
+| `docs/smoke/scripts/m4a-dogfood.ts` | **552**（**F88 实测订正**：先估 553）|
+
+新增证据图 **5 张**（v1.27 命名对齐内容）：`docs/smoke/m4b4-24-sort-select.png`（默认 Select 收起态）· `m4b4-25-sort-bogus-fallback.png` · `m4b4-26-sort-header-desc.png` · `m4b4-27-sort-grid-preserved.png` · `m4b4-28-sort-updated-column.png`（「更新」列 ⟺ 最新档）。
+> ⚠️ 脚本每次运行都会重写 §12/§13 时点的旧图 ⇒ 本笔收尾**已把已跟踪旧图恢复为各节时点态**（`git checkout`），故它们**不入本笔 diff**；本笔只新增上述 4 张。
+
+### 14.9 验证效率实测（T11-g · 2026-09-20）
+
+| 指标 | 改进前 | 改进后 | 口径 |
+|------|:------:|:------:|------|
+| 分段跑（`SMOKE_ONLY=G22`） | 3.5~5 分（只能全跑） | **45.6s** | `time bun … m4b4-personal-b-dogfood.ts` 实测 |
+| 全跑（不带变量） | **3m32s** | **2m59s** | 同一命令实测（省 ≈33s = 5 次登录） |
+| 一轮真登录次数 | **9** | **4** | `前置：以 X 登录` 行计数（复用 6 次 · `extra` 标注路径） |
+| 组名打错 | 无此能力 | **3.1s FAIL** + 列出 22 个可选段 | `SMOKE_ONLY=G99` 实测 |
+| 全跑断言总数 | 91 | **91**（零行为变化） | 同口径对照 |
+
+- **归因（严谨版 · 2026-09-20 重做）**：会话库时间戳归因**只能给量级** —— 该库有重复行（当日剔重 **982** 条）且
+  时间戳**非单调**（按 id 配对会算出负值）。按「按时间戳排序 + 全量去重 + 单一口径 + >15 分钟空隙单列 idle」重算：
+  工作时段 **368 分** = **用户侧 149.5** · **工具执行 129.3**（其中 dogfood 类 **90.2** ≈ 70%）· **我的生成 89.0**，
+  另有 **idle 66.9**（人离开的长空隙）。
+- ⚠️ **口径自曝（同一批统计内部就不自洽）**：脚本调用计数 **77** 次 × 单轮 179s ≈ **230 分**，**大于**工具总时长
+  129 分 ⇒ 计数与耗时**互不吻合**，两者都受会话库质量限制 ⇒ **本组数字不得作结论，只保留「dogfood 是大头」这一方向**。
+- **可信硬证据（直接 `time` 实测，不受上述口径影响）**：单轮全跑 **179s**（改前 **212s**）· 分段 **45.6s** ·
+  `seed` **0.34s** · 真登录 **4** / 复用 **6** · 断言 **91/0** · 组名打错 3.1s FAIL。
+- **已撤口径**：早前报告的「工作时段 441 分 = 输入/审批 201 · 工具 156 · 出字 84 · dogfood ~110 分」——
+  同一批数据两版口径互相矛盾（441 vs 368）⇒ **撤回**，不参与任何评分与结论。
+- 已知边界：**会话复用的失败回落分支未实测**（只跑过命中路径 —— 见批 design §11.9 T11-g 行 A1 扣分）；
+  `docs/` 脚本不在 turbo lint 图内（**F91**）。
+
+### 14.8 未决 / 待用户拍板
+
+- **观感**（须人眼）：① **排序控件形态已定**（用户线框四案对比后拍板官方 `Select`）② 待看余项 = 列头按钮与表头左对齐（官方 `Button` 自带内距）· 方向图标尺寸 · 排序 `Select` 与搜索/视图钮的视觉重量平衡
+- **登记后续**（非目标 · 见批 design §4.7.2）：控制台「我的资产」UI 排序（`DataTable` legacy 面加性接法已实证可行）· 排序索引（`download_count`/`star_count` 无索引）· 名称 `COLLATE`（中文 collation 按 code point 序）· 排序**记忆**
+- **F86 关联**：`test --coverage` 全量口径会跑 `dist/**`；建议后续清 `dist` 或加 ignore（归测试基建，与 F66 同族）
+- **提交**：本笔实现 + 文档 + 证据 + **5 张新图**待**用户口令**后提交

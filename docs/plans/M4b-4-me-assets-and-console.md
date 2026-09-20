@@ -1,7 +1,15 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批计划
 
 > Date: 2026-09-18
-> Updated: 2026-09-18（**v0.20：验收期 UI 调整轮第二笔（T11-e · 门户视图切换 + 折叠搜索 · 提交前自检 9.24 / 文档 5.25 ⇒ 补档轮）** —— ① §7.5 增 **T11-e** 行 ② §7.6 追加 **F68–F73** ③ §5 造数补 **21 条 mcp 分页占位**（类型/owner 选择有据）④ 落地记录同步：dogfood **60 → 77**（G20×10 + G21×6）· `m4a-dogfood` **36 → 37**（搜索入口断言改折叠面板 · 跨批口径变更 F69）· i18n **323 → 329 键** · 件表 **新建 17 / 改造 20** ⑤ 零服务端改动 · 零新依赖）
+> Updated: 2026-09-20（**v0.28：T11-g 验证效率：dogfood 分段执行（`SMOKE_ONLY`）+ 会话复用** —— ① §2 增 **T11-g 行** + 步序 ② §3 新增 **T11-g 明细**（g1–g3 · 各带验收断言）③ §4 补「脚本 env 不走 turbo」（**F91**）④ §7 落地记录 dogfood **91/0** + 真登录 **9→4** ⑤ §7.5 增 **T11-g 行（代码 18 维 9.49）** ⑥ §7.6 追加 **F90/F91** ⑦ 实测：段选 **45.6s** / 全跑 **2m59s** / 全跑 91 PASS 零变化**）
+> v0.27（2026-09-20）：列表加「更新」列（⟷「最新」档）+ 修 F89** —— ① §3 f2 步骤 4 订正（六列 / 五列可点 / `COLUMN_SORT`）② §7.6 追加 **F89** ③ §7.5 f2 **9.40 → 9.46** ④ dogfood **+G22-6c** ⇒ **91/0**
+> v0.26（2026-09-20）：**T11-f 排序控件形态定稿 = 官方 `Select`（用户拍板「方案 B」）** —— ① §3 f2 步骤 3 订正（chips → `Select`）② §7.6 追加 **F87**（104px 定宽在 EN 下截断 ⇒ 160px）③ §7.5 f2 **9.37 → 9.40** ④ 断言随形态同步（G22 仍 **90/0** · `m4a-dogfood` **38/0**））
+> v0.25（2026-09-20）：**T11-f 收口（f3/f4 全绿）** —— ① §7.6 追加 **F85/F86** ② §7.5 T11-f 行 = **f1 9.35 · f2 9.37 · f3 9.46 · f4 9.47** ③ 证据回填 §14（门禁 / G22×13 / 覆盖 / 行数 / 3 图）④ 本批 dogfood **90/0** · `m4a-dogfood` **38/0**）
+> v0.24（2026-09-20）：**T11-f f2（门户 UI）实现完成 + 订正 F84** —— ① §3 f2 步骤 4 订正（列头**首点恒 `desc`**）② §7.6 追加 **F84** ③ §7.5 T11-f 行 = **f1 9.35 · f2 9.37** ④ 本版含实现（`useMarketQuery` / `api/assets.ts` / `CenterPage` / `AssetList` / i18n）· 零服务端改动）
+> v0.23（2026-09-20）：**T11-f f1（服务端）实现完成 + 实现期订正 F82/F83** —— ① §3 f1 步骤 2/4 订正（`dir` 亦服务端消费；schema 用 `.catch` 而非 `.default`）② §7.6 追加 **F82/F83** ③ §7.5 T11-f 行 → **f1 ✅ / f2–f4 待办** ④ 本版含**实现代码**（`assets/service.ts` · `http/assets.ts` · `http/me.ts` + 三处测试））
+> v0.22（2026-09-20）：**T11-f 任务清单补档** —— ① §2 Task 总览增 **T11-f 行** + 执行序 ② §3 新增 **T11-f 明细**（**f1–f4** 四子步，各带 文件 / 动作 / 验收断言 / 门禁）③ §7.5 T11-f 行状态改「📋 已立案」④ §9 本行；**零实现改动** · 依据 = 批 design **§4.7**（v1.23））
+> v0.21（2026-09-20）：**验收期第三笔 T11-f「资产排序」立项** —— ① §7.5 增 T11-f 行（实现中）② §7.6 追加 **F80/F81** 纠错留痕 ③ §5 增排序样本指针（明细 = 批 design §9.5）④ 步序 f1 服务端 → f2 门户 UI（chips + 列头）→ f3 契约/文档 → f4 验证（G22 ×7 + 门禁）⑤ 本版零实现改动）
+> v0.20（验收期 UI 调整轮第二笔（T11-e · 门户视图切换 + 折叠搜索 · 提交前自检 9.24 / 文档 5.25 ⇒ 补档轮）** —— ① §7.5 增 **T11-e** 行 ② §7.6 追加 **F68–F73** ③ §5 造数补 **21 条 mcp 分页占位**（类型/owner 选择有据）④ 落地记录同步：dogfood **60 → 77**（G20×10 + G21×6）· `m4a-dogfood` **36 → 37**（搜索入口断言改折叠面板 · 跨批口径变更 F69）· i18n **323 → 329 键** · 件表 **新建 17 / 改造 20** ⑤ 零服务端改动 · 零新依赖）
 > v0.19（提交与 CI 回填** —— §7 落地记录「提交链」由「待提交」改为**实号**（`e78c200` / `9973d6b` / `f2485aa`）+ 新增 **CI 行**（run `35366866235` **success**）；本版零实现改动）
 > v0.18（2026-09-18）：**验收期 UI 调整轮（T11-d · 代码 18 维 9.59）** —— ① §7.5 增 **T11-d** 行 ② §7.6 追加验收期 UI 三连 ③ 落地记录 dogfood **58 → 60**（G14b +2 · G18 改口径）④ **无产品行为破坏**（星标纯展示后收藏入口收敛到详情页）)
 > v0.17（2026-09-18）：**T11-c 覆盖补测轮（代码 18 维 9.64）** —— ① §7.5 增 **T11-c** 行 ② §7.6 追加 **F65/F66** ③ §7 落地记录同步：门禁 `test` **537 → 551** · dogfood **53 → 58** · 新增**覆盖探针**行（全仓 95.60/96.28 · `http/assets.ts` 90.97 → 95.96）· 截图 **7 张** ④ 运行顺序恒为 **seed → dogfood**（G12b 改库）)
@@ -17,7 +25,7 @@
 > v0.7（2026-09-18）：原型评审收口（R1–R23）→ 新增 T12–T14 + T7/T8/T9/T11 口径更新；其后
 > **落档一致性轮**（用户「先检查修改并打分」）修 **P6 散点旧口径 7 处** + **P7 均分自算** ⇒ 本计划 **8 维 9.6**，见 §8.2）
 > v0.6（2026-09-18）：UI 评审 5 条全闭（条②③④⑤ 落档）→ T7 ⑨ + T8 ⑪⑫
-> Status: **✅ 全绿（2026-09-18）**（**T1–T16** 全绿 · **T8 作废**；T11 收尾已完成：造数 + G1–G19 **53 PASS / 0 FAIL** + 五门禁 exit 0 + 证据回填；**v0.20 验收期第二笔 T11-e 已实现**（G20/G21 新增 ⇒ **77 PASS / 0 FAIL**）· 文档回写完成 · **提交待用户口令**）；其中 **T8 作废**；**执行序 = T15 最先** —— star 能力先行，再消费面）—— 上游批 design 已**定稿**（8 维**以批 design 版本头为准**（现行 **9.69**）；v1.7 原型评审收口）
+> Status: **✅ 全绿（2026-09-18）**（**T1–T16** 全绿 · **T8 作废**；T11 收尾已完成：造数 + G1–G19 **53 PASS / 0 FAIL** + 五门禁 exit 0 + 证据回填；**v0.20 验收期第二笔 T11-e 已实现**（G20/G21 新增 ⇒ **77 PASS / 0 FAIL**）· 文档回写完成 · **提交待用户口令**）；**v0.21 验收期第三笔 T11-f（资产排序）已立项（2026-09-20）—— 实现中**（含服务端 `sort` 契约变更 · 零迁移））；其中 **T8 作废**；**执行序 = T15 最先** —— star 能力先行，再消费面）—— 上游批 design 已**定稿**（8 维**以批 design 版本头为准**（现行 **9.69**）；v1.7 原型评审收口）
 > **换靶复核（用户要求「先检查并打分」）**：3 项新发现已修（分页**换算公式 + 渲染条件** · me 面 schema **上限口径** ·
 > `Drawer` 宽度措辞）；**旧分 9.66 已撤回**（窄口径产物）⇒ 换靶口径下修前 **9.60** / 修后 **9.66**，见 §8.1
 > 上游：批 design `docs/designs/2026-09-18-m4b4-personal-b-design.md`（**定稿**）· 主 design
@@ -74,9 +82,13 @@
 | **T14** | **`labels` 形状升级**（服务端返结构体 + **web 响应类型** · D5/D7 根治） | server + web | T1,T3 | `apps/web/src/api/types.ts` · `labels/service.ts` · `http/asset-item.ts` · `http/me.ts` · `http/assets.ts` |
 | **T15** | **star 服务端**（迁移 + 表 + 幂等端点 + 读面 · **执行序最先**） | server | — | `db/schema/assets.ts` · `drizzle/00xx_*.sql` · `assets/stars.ts`（新）· `http/assets.ts` · `http/asset-item.ts` · `packages/protocol` · `docs/08-data-model.md` |
 | **T16** | **star 前端接线**（列表列 / 详情页头卡 / 门户卡） | web | T7,T12,T15 | `api/stars.ts`（新）· `components/market/StarButton.tsx`（新）· `pages/Assets.tsx` · `pages/AssetDetail.tsx` · `components/market/AssetCard.tsx`（~~`components/console/AssetDrawer.tsx`~~ 随 T8 作废移除 · v0.16） |
+| **T11-f** | 验收期第三笔：**资产排序**（服务端 `sort` 白名单 + 门户 `Select` / 列头可点） | server + web | — | `assets/service.ts` · `http/assets.ts` · `http/me.ts` · `hooks/useMarketQuery.ts` · `api/assets.ts` · `components/market/CenterPage.tsx` · `components/market/AssetList.tsx` · `i18n/zh.ts` · `i18n/en.ts` |
+| **T11-g** | 验证效率：dogfood **分段执行**（`SMOKE_ONLY`）+ **会话复用**（免重复登录） | 工具 | — | `docs/smoke/scripts/m4b4-personal-b-dogfood.ts`（头部 + 结构：段守卫 / 探针上提 / 登录复用）|
 
 **执行序（依赖链）**：`T1 → T2 → T3 → T4`（服务端闭环，先绿）→ `T9`（键先落，页面才有文案）
 → `T5 → T6/T7 → T8` → `T10` → `T11`。**T1/T2 相互独立可并行**；T9 不阻塞服务端。
+**T11-f（验收期第三笔）步序 = `f1 → f2 → f3 → f4`**（服务端先行 ⇒ 门户接线 ⇒ 实测回填 ⇒ 验证；详见 §3）。
+**T11-g（验证效率 · 工具）步序 = `g1 → g2 → g3`**（分段守卫 ⇒ 会话复用 ⇒ 实测回填；详见 §3）。
 
 ---
 
@@ -225,7 +237,7 @@
 ```
 ① `bun run --filter=@ai-asset-hub/web typecheck` exit 0
 ② `git diff apps/web/src/components/market/CenterPage.tsx` **为空**（门户调用点零改动）
-③ 门户零回归（本 Task 收尾即跑）：`bun docs/smoke/scripts/m4a-dogfood.ts` ⇒ **37/37（现行）+ NO JS ERRORS**
+③ 门户零回归（本 Task 收尾即跑）：`bun docs/smoke/scripts/m4a-dogfood.ts` ⇒ **38/38（现行 · T11-f 后）+ NO JS ERRORS**
 ④ 本页语义：默认 URL 无 `status` ⇒ 组件发 `status=ALL`（显式）；切「已隐藏」⇒ URL `?status=HIDDEN`
 ⑤ 参数互不干扰：`?q=&status=&page=` 三者可共存，切换 `status` ⇒ `page` 回落 1
 ⑥ `api/audit.ts` / `api/reviews.ts` 队列函数各返回预期形状；**页面/组件层仍零直调 `apiGet`**（`grep` 复核）
@@ -258,7 +270,7 @@
 ④ 无嵌套锚点：`document.querySelectorAll('a a').length === 0`
 ⑤ 零值：`total = 0` ⇒ 显示「0」**而非**空态
 ⑥ 单卡 403（探针构造）⇒ **该卡** ErrorState，另两卡正常
-⑦ 生产产物零 `M4b-` marker；门户 `m4a-dogfood.ts` **37/37**
+⑦ 生产产物零 `M4b-` marker；门户 `m4a-dogfood.ts` **38/38**
 ```
 
 ⚠️ **注意**：`/dashboard` **已是真页**（M4b-2 T8 的过渡形态）⇒ 本 Task 是**替换实现**，不是新建路由；
@@ -296,7 +308,7 @@
    **`total ≤ limit` ⇒ 控件不渲染**（防「1 / 1」空控件 —— 跨批口径）
 ⑥ 空态两套文案可分别触发且**不同**
 ⑦ `< 1100px`（视口收窄）⇒ `scrollWidth > clientWidth` 且**列不消失**
-⑧ 门户 `m4a-dogfood.ts` 37/37 + `NO JS ERRORS`
+⑧ 门户 `m4a-dogfood.ts` **38/38** + `NO JS ERRORS`
 ⑨ **壳层零 diff**：`git diff --stat` 中 `components/ui/AppShell.tsx` / `SideNav.tsx` / `TopBar.tsx` **无改动**
    （壳层本批零改动 —— 批 design §2.1c 条④ P1–P4）
 ```
@@ -383,7 +395,7 @@
 ① `bun docs/smoke/scripts/m4b4-personal-b-dogfood.ts` ⇒ **G1-G21 全绿（**77 PASS**） + NO JS ERRORS**
 ② 五门禁逐项 **exit 0**（install --frozen-lockfile → typecheck → lint → format:check → doc-audit → build
    → db:migrate → CI=true bun run test；`test` **0 fail**，用例数 ≥ 基线 + 新增）
-③ 门户零回归：`m4a-dogfood.ts` **37/37（现行）** · `m4a-chain-smoke.ts` **PASS**
+③ 门户零回归：`m4a-dogfood.ts` **38/38（现行 · T11-f 后）** · `m4a-chain-smoke.ts` **PASS**
 ④ `git diff --stat -- apps/server/drizzle packages/` **为空**（**零迁移**、零协议改动）
 ⑤ 证据文件含：门禁输出 · dogfood 输出 · 权威行数表 · 造数记录 · 出口五件状态 · 观感合规核对结论
 ⑥ 收尾回填四处**全部落地**（逐处 grep 命中新值），键数为**脚本实测值**
@@ -475,6 +487,81 @@
 
 **断言**：① 收藏数字一致 —— **G17 = 列表「收藏」列 = 详情页头卡 = 接口 `starCount`**（抽屉取消后为**两处 UI + 接口**）② 未登录点收藏 ⇒ **不发写请求** + 跳 `/login?next=`（**G18** · 入口 = **详情页头卡**）③ 幂等以 **API 两次 `PUT`** 判（**G15** —— 原「UI 连点两次」口径属歧义，已作废见 **F60**）④ 门户零回归 = **`m4a-dogfood` 全量 PASS**（T16 时点 36/36；**现行 37/37** —— F69/F75）（+ 本批 **G14b**：门户卡星标纯展示 + 点击穿透）
 
+### T11-f · 验收期第三笔：**资产排序**（服务端 `sort` + 门户 `Select` / 列头可点 · 2026-09-20 立项）
+
+> 依据 = 批 design **§4.7**（v1.23：口径 10 条 · UI 规格 · 断言口径 · 实现落点 / ORDER BY 映射表）。
+> 契约行 = 主 design **§7.1 / §7.2 R6**（v1.56）。**零迁移 · 零新依赖 · 新建件 0** · 归属 M4b-4。
+
+**f1 · 服务端：`sort` 白名单 + 映射 + 两路由 schema + 单测**
+
+1. `assets/service.ts`：导出 `ASSET_SORT_VALUES = ['newest','downloads','stars','name','author'] as const` + `AssetSort` 类型；`ListAssetsOptions` 增 `sort?: AssetSort`
+2. `listViewableAssets` 按白名单切 `orderBy`（**全档带 tiebreaker**；`name` 取 latest 版本元数据（`asset.latest_version_id` → 投影 `name`，空名回退 `slug`）· `author` 取 owner 显示名（空名回退用户名）—— **实现取相关子查询（零 join ⇒ 返回形状/行数不变）**）+ `dir` 方向覆盖（缺省 ⇒ 档位固有方向）
+3. **非法 / 缺省 ⇒ `newest` 分支**（静默回落，**不 400**）
+4. 两路由 query schema **各 spread `...assetSortQueryFields`**（单点复用，防两处漂移）⇒ `sort: z.enum(ASSET_SORT_VALUES).catch('newest')` · `dir: z.enum(ASSET_SORT_DIRS).optional().catch(undefined)` —— **v0.23 订正（F83）**：原写 `.default('newest')` 在非法值上会 400，与「静默回落」矛盾 ⇒ 用 `.catch()`（缺省/非法同一路径）
+5. `assets/service.test.ts` 新用例：五档顺序真值 · 非法值回落 · tiebreaker 稳定
+
+**f1 断言 / 门禁**：① 五档逐档首条 = 期望 slug ② `?sort=bogus` ⇒ 200 且等价 `newest` ③ 缺省 ⇒ 等价 `newest` ④ 同 `updated_at` 按 `id DESC` 稳定 ⑤ `me` 面**不传** `sort` ⇒ 仍 `updated_at desc`（既有 G4–G6 零影响）⑥ 服务端 `test` 无新红 · `typecheck` / `lint` exit 0
+
+**f2 · 门户 UI：官方 `Select` + 列头可点 + hook 维度 + i18n**
+
+1. `hooks/useMarketQuery.ts`：**加性** `sort` 维度（照 `status` 先例 —— 不给 `opts.sort` ⇒ 不读不写）+ `dir`；`setSort` 内 `dropPage`（回第 1 页）+ **清 `dir`**；默认档 ⇒ 删 URL 参数
+2. `api/assets.ts`：`fetchAssetList` 透传 `sort` / `dir`（不在前端做默认判定）
+3. `components/market/CenterPage.tsx`：搜索钮**左侧**插官方 **`Select`**（`Label「排序」` + `SelectTrigger#market-sort` `size="sm"` `w-[160px]` · 5 × `SelectItem` —— **v0.26 订正：用户线框对比后拍板「方案 B」**，取代 v0.24 的 chips ×5）· 删静态文本 `sortRecent` · 向 `AssetList` 传 `sortKey` / `dir` / `onSortChange`
+4. `components/market/AssetList.tsx`：props **显式透传**（**不用 context**）· **六个列头**（名称 / 描述 / 作者 / 下载 / 收藏 / **更新** · v0.27）· **五个可点**（名称 / 作者 / 下载 / 收藏 / **更新 ⟷ `newest` 档** —— 导出 `COLUMN_SORT` 作列→档单一事实源）官方 `Button variant="ghost" size="sm"` + `ArrowUpDown` / `ArrowUp` / `ArrowDown` + `th[aria-sort]`（`none ｜ ascending ｜ descending`）· **点同列 = 切 `dir`；点异列 = `desc`（首点降序）** —— **v0.24 订正（F84）**：原写「点异列 = 固有方向」，与 design §4.7.2/§4.7.3 断言矛盾；方向判定落在 `AssetList`（单一事实源）
+5. `i18n/zh.ts` · `en.ts`：**+6 键**（五档 + `sortLabel`）/ **退役 `sortRecent`**（§6.6 键表 ⇒ 实测 **334 键**）
+
+**f2 断言 / 门禁**：① `?sort=downloads` 直链 ⇒ `Select` 显示档名 + 列表顺序 = 接口顺序 ② 换档 ⇒ URL **无 `page`** 且 `dir` 清空 ③ 点同列 ⇒ `asc ↔ desc` 翻转（`aria-sort` 同步）④ 点异列 ⇒ 该列固有方向 ⑤ 默认档 ⇒ URL **无 `sort`** ⑥ 网格 / 列表**两视图同序**（同一状态） · web `typecheck` / `lint` / `format:check` / `build` exit 0
+
+**f3 · 契约与文档回填（实现期实测）**
+
+1. 主 design §7.1 / §7.2 R6 契约行 · 批 design §4.7 / §6.6 / §9.3 · `docs/00` §5 —— **立项期已落**（v1.56 / v1.23），本步**只做实测回填**
+2. **行数类数字**跑 `m4b4-measure.ts` 回填（纪律：提交前必跑 —— F76 三连复发）；i18n 键数实测（预期 333 / 未消费 12 不变 ⇒ 实测为准）
+
+**f3 断言 / 门禁**：① `m4b4-measure.ts` 输出行数 ↔ 文档逐项一致 ② i18n 实测 = 文档 ③ `doc-audit` **64 PASS / 0 FAIL** · `format:check` exit 0
+
+**f4 · 验证（G22 ×13 + 双面回归 + 五门禁 + 证据）**
+
+1. 本批 dogfood 追加 **G22 ×13**（口径 = 批 design §4.7.3；含匿名可用 / 深链 / `me` 面零影响反证）
+2. `m4a-dogfood` 全量复跑（**零回归 38/38**）
+3. 五门禁按 §4 顺序跑全；**覆盖探针不降**（`http/assets.ts` 基线 95.96）
+4. 证据回填 `docs/smoke/2026-09-18-m4b4-personal-b.md` §13 + 截图（预期值一律**实测回填**）
+
+**f4 断言 / 门禁**：① G22 全绿（本批合计 **90** = 77 + G22×13，**实测**）② `m4a` **38/0** ③ 五门禁逐项 exit 0 · `test` 无新红 ④ 证据文档无占位符
+
+---
+
+### T11-g · 验证效率：dogfood 分段执行 + 会话复用（**工具** · 2026-09-20 追加）
+
+**由来**：用户 2026-09-20「连续几条任务时间都有点长，耗时点在哪里？」—— 结论 = **dogfood 复跑是工具时间的
+大头**；**硬证据只有直接实测项**（单轮 `time`：全跑 179s / 分段 45.6s / `seed` 0.34s）。
+⚠️ 会话库时间戳的**分桶数字已撤**：该库有重复行（当日剔重 982 条）且时间戳非单调 ⇒ 两版口径互相矛盾
+（441 vs 368 分）、调用计数与耗时互不吻合（77 × 179s > 工具总时长）⇒ 只存量级意义。
+严谨版重算 + 口径自曝见证据 **§14.9**。
+
+**Files**：`docs/smoke/scripts/m4b4-personal-b-dogfood.ts`（头部 + 结构；**零产品码改动**）
+
+**步骤**：
+1. **g1 分段执行**：新增 `SMOKE_ONLY=<组>`（段粒度 = 段头 banner token · 逗号多选）；14 段各包
+   `if (want(...))` 守卫 ⇒ 未命中**整段跳过**（不止跳过断言）；`G19`（无 JS 错误）不参与分段（永远执行）；
+   末尾**命中检查**（组名打错 ⇒ FAIL + 列出可选段，不静默）；段头加 `/* 段选：… */` 注明可选中它的组
+2. **g2 会话复用**：`jar`（账号 → cookie + `me.user.id`）；`mustLogin` 三级 —— 同账号当前已登录 ⇒ 直用 ·
+   曾登录过 ⇒ 还原 cookie 并核 `me.user.id`（`/api/auth/me` 面**无 `username`** ⇒ 以 id 为判据）· 否则真登录；
+   跨段共享探针（`DetailSnap` / `detailSnapshot` / `snapDetail` / `openVersionsTab` / `snapVersionActions` / `snap`）
+   **上提到顶层**（段整块跳过后 block 作用域不再成立）；顶层补 `await logout()`（浏览器 profile 可能残留会话）
+3. **g3 实测回填**：段选 **45.6s**（原 3.5~5 分）· 全跑 **2m59s** · 真登录 **9 → 4** · 全跑 **91/0**（= 基线）
+
+**验收断言**：
+```
+① `SMOKE_ONLY=G22` ⇒ 45.6s · 命中 14 条 + 命中检查 + G19，0 FAIL（原全跑 3.5~5 分）
+② 不带变量全跑 ⇒ 91 PASS / 0 FAIL / 0 超时（= 基线，行为零变化）· 真登录 4 次（原 9）
+③ 组名打错（`SMOKE_ONLY=G99`）⇒ FAIL「未命中 G99（可选段：…）」+ 3.1s 快速返回
+④ 五门禁 exit 0 · `format:check` 270 文件 · `doc-audit` **64 PASS** · 显式 `biome check` 本文件
+   （docs/ 不在 turbo lint 图内 —— **F91**）基线 11 warning ⇒ 12（新增 1 条同类：`SMOKE_ONLY` 未登记 turbo env）
+```
+
+⚠️ **注意**：分段是**迭代期**口径 —— **提交前 / 收口必须不带 `SMOKE_ONLY` 全跑**（脚本头部已写明）；
+**攒批口径**：纯文案 / 文档改动不跑本脚本，交互 / 样式改动只跑相关段，多层改动攒到收口一次全跑。
+
 ## 4. 门禁与冒烟顺序（复现 CI · **硬规则**）
 
 ```
@@ -489,6 +576,7 @@ bun install --frozen-lockfile
 - 测试**禁止无条件改写 `process.env`**（用 `??=` 兜底）；**只依赖自己造的数据**
 - 单包快跑：`bun run --filter=@ai-asset-hub/server typecheck` / `--filter=@ai-asset-hub/web typecheck`
 - 本批**不新增**任务依赖 env（`turbo.json` 无需改动）
+- **脚本 env 不走 turbo**：`docs/smoke/scripts/**` 无对应 turbo 任务 ⇒ `SMOKE_*` 不进 `turbo.json`（`SMOKE_ONLY` 沿既有 `SMOKE_*` 同族 —— **F91**；该目录只受 `format:check` 与显式 `biome check` 约束）
 
 ## 5. 造数需求（**写库需用户授权**）
 
@@ -505,7 +593,7 @@ bun install --frozen-lockfile
 
 | # | 风险 | 触发信号 | 回退 / 处置 |
 |---|------|---------|------------|
-| R1 | **门户回归**（`useMarketQuery` 共享 hook 被改坏） | `m4a-dogfood.ts` 任一断言失败（**基线现行 37/37**；v1.22 起「`CenterPage.tsx` 零 diff」**不再是信号** —— T11-e 已改该页，**F74**） | 立即回退 hook 改为「本页自建薄 hook」；**门户零回归优先** |
+| R1 | **门户回归**（`useMarketQuery` 共享 hook 被改坏） | `m4a-dogfood.ts` 任一断言失败（**基线现行 38/38**；v1.22 起「`CenterPage.tsx` 零 diff」**不再是信号** —— T11-e 已改该页，**F74**） | 立即回退 hook 改为「本页自建薄 hook」；**门户零回归优先** |
 | R2 | **公开面参数化语义漂移** | 公开列表返回非 ACTIVE 行 / 字段集变化 | 检查条件组装分支；回归锁断言（T4 ⑤）必须绿才继续 |
 | R3 | **R6-b 授权集过宽** | 非 owner 非管理档能读非 ACTIVE（404 变 200） | 回查 `assertAssetReadable` 判定表达式；三档对照断言必须逐档命中 |
 | R4 | **抽屉 latest 投影全空**（漏批注入） | 九列「名称」显示 slug、「版本」列全 `—` | 补 `loadAssetItemMeta` 调用（T3 步骤 2 的 ★ 步） |
@@ -521,10 +609,10 @@ bun install --frozen-lockfile
 | 提交链 | **已推送（2026-09-18）** —— `e78c200` `feat(web): add the owner admin surface and star wiring on the asset detail page`（T12+T16）· `9973d6b` `feat(web): rebuild the console dashboard as three role-scoped cards`（T6）· `f2485aa` `test(m4b4): cover the version yank route and land the batch verification set`（T11·b/c/d：测试 + 脚本 + 证据 + 文档）；远端 `a918930..f2485aa` → `origin/main` |
 | CI | **全绿**：run `35366866235` **success**（12 步全 success —— 安装依赖 / typecheck / lint / format:check / 文档体检 / build / db:migrate / test）|
 | 门禁 | 八步全 **exit 0**：`install --frozen-lockfile`（no changes）· `typecheck` · `lint`（1 条**预存在** warning）· `format:check` · `doc-audit`（**64 PASS / 0 FAIL**）· `build`（4/4）· `db:migrate`（零迁移守门）· `CI=true bun run test`（**server 551** / protocol 27，**0 fail** —— 含 T11-c 补测 14 例）· **覆盖探针** `bun test --coverage`（全仓 **95.60/96.28** · `http/assets.ts` **90.97 → 95.96**）|
-| dogfood | **现行 = G1–G21 = 77 PASS / 0 FAIL / CDP 超时 0 + `NO JS ERRORS`**（T11-e 追加 G20×10 + G21×6）· **T11-d 时点值**：**G1–G19 + G12b + G14b = 60 PASS / 0 FAIL / CDP 超时 0** + **`NO JS ERRORS`**；门户零回归 `m4a-dogfood` **36/36** + `m4a-chain-smoke` **PASS**；截图 **7 张** · ⚠️ 顺序恒为 **seed → dogfood**（G12b 会真撤回）|
+| dogfood | **现行 = G1–G22 = 91 PASS / 0 FAIL / CDP 超时 0 + `NO JS ERRORS`**（T11-f 追加 **G22×14**（含 G22-6c）· T11-g 起**真登录 9 → 4**（会话复用）· 分段跑 **45.6s** / 全跑 **2m59s**；T11-e 时点 **G1–G21 = 77**）· **T11-d 时点值**：**G1–G19 + G12b + G14b = 60 PASS / 0 FAIL / CDP 超时 0** + **`NO JS ERRORS`**；门户零回归 `m4a-dogfood` **现行 38/38**（T11-f 后；T11-d 时点 36/36）+ `m4a-chain-smoke` **PASS**；截图 **7 → 10 张**（T11-f +3） · ⚠️ 顺序恒为 **seed → dogfood**（G12b 会真撤回）|
 | i18n 键数 | **12 组 · zh = en = 323 键**（双向差集 0）· `assets` **79** · `errors` **35** · **en 值级中文泄漏 0**（脚本实测）|
 | 权威行数表 | 见证据文件 §7（14 个文件 `readFileSync` 计数；dogfood 脚本 **709** 行 / 种子 **313** 行）|
-| 出口五件 | ① design 8 维 **9.69** ✅ ② **T1–T16 全绿** ✅ ③ 五门禁 exit 0 ✅ ④ dogfood **现行 G1–G21 = 77 PASS / 0 FAIL** + 门户 **37/37** ✅（T11 时点 53/0 · 36/36）· 观感：T11-d 三连已获认可；**T11-e 三项待拍板 ⬜**（hover 口径 / 表头底纹 / 行高档位 —— 表头底纹已按建议落地、待验）⑤ 整体审计**无未决项** ✅ |
+| 出口五件 | ① design 8 维 **9.69** ✅ ② **T1–T16 全绿** ✅ ③ 五门禁 exit 0 ✅ ④ dogfood **现行 G1–G22 = 91 PASS / 0 FAIL** + 门户 **38/38** ✅（T11 时点 53/0 · 36/36）· 观感：T11-d 三连已获认可；**T11-e 三项待拍板 ⬜**（hover 口径 / 表头底纹 / 行高档位 —— 表头底纹已按建议落地、待验）⑤ 整体审计**无未决项** ✅ |
 | 未证项 | 8 条（证据文件 §10）：提审入口归 M4b-8 · 两个禁用占位（发布新版本/审核）· 特权标签占位归 M4b-6 · 12 个未消费键 · 上传者例外面 UI 不可达 · 术语待定 · 原型 toast · 视觉归 M4b-7 |
 
 ### 7.4 T15 实现期发现（v0.10）
@@ -652,6 +740,8 @@ bun install --frozen-lockfile
 | **T11-b**（T8 作废散点订正轮 · 文档面） | 文档 15 维 | **9.22** | **14 处**活口径散点订正（首轮 8 + **换靶精修谓词再挖 6**；含跨文档 `asset-stats` / star 读面「三处 → 两处」口径收敛）+ F64 登记 + 两份审计脚本（关键字谓词 + **活口径谓词**）；**口径撤回**：上轮「整体审计无未决项」为**关键字口径**产物 ⇒ 改判「关键字残留 0 · **语义散点 14 处**」并逐处订正。扣分处 = ④文档-代码对齐 **8.5** · ⑪内部一致 **8.5** · ⑫系统一致 **8.6**（散点复发 + 首轮漏项）|
 | **T11**（验证收尾：造数 + **G1–G21**（现行 77） + 五门禁 + 证据） | ✅ 已完成 | —（验证件，不单列均分） | 造数 4 账号/4 资产/6 版本/2 标签/2 star · dogfood **现行 77 PASS / 0 FAIL / NO JS ERRORS**（T11 时点 53） · 八步门禁 exit 0 · 证据 `docs/smoke/2026-09-18-m4b4-personal-b.md` 已回填 |
 | **T11-e**（验收期 UI 调整轮第二笔：门户视图切换 + 折叠搜索） | 代码 18 维 | **9.24**（提交前自检）| 官方 `ToggleGroup` 视图切换（组件 state · 不记忆）+ 官方 `Table` 列表形态（`py-4` 行高 55 · 描述 `line-clamp-3`）+ 官方 `Collapsible`+`InputGroup` 折叠搜索 + 删页头搜索（去重复入口）；**C9 文档 5.5**（落档前最大扣分项）· A1 9.3（探针四处自伤 F70）· 行为断言 16 条全绿（dogfood **77 PASS / 0 FAIL**）· `m4a-dogfood` **37/0** 零回归 · 零服务端改动 |
+| **T11-f**（验收期第三笔：资产排序 `sort` + 门户 pieces） | 代码 18 维 / 文档 8 维 | **f1 9.35 · f2 9.46 · f3 9.46 · f4 9.47** ✅ 全绿 | 立项期四证：v9 `manualSorting` 存在（递归 grep）· legacy 面类型探针 `typecheck` exit 0 · 运行期 A/B 探针「manual 不重排（`rows=[b,a,c]`）」· 官方列头配方（`Button`+`ArrowUpDown` 两态）；**已落地**：服务端白名单单测 **+12 例** · **G22 ×13**（本批 dogfood **90/0**）· 双面回归（`m4a-dogfood` **38/0** · 匿名 CDP 六组）· 覆盖探针 **不降** · 收尾打分（明细见批 design §4.7 / §11.9 · 证据 §14）|
+| **T11-g** | 2026-09-20 | T11-g 全绿：`SMOKE_ONLY` 分段（14 段守卫 + 命中检查）· 会话复用（jar + `me.user.id` 判据） · 实测 45.6s / 2m59s · 真登录 9→4 · 全跑 **91/0**（行为零变化）—— 代码 18 维 **9.49** |
 
 ### 7.6 T12 实现期发现（v0.12 · 明细见批 design §11.9）
 
@@ -670,11 +760,27 @@ bun install --frozen-lockfile
 - **F76（v0.20+ 检查轮）**：证据行数表 `AssetList.tsx` 记 **133** ⇒ 实测 **135** ⇒ 同轮注释订正后再测 **138**（两次增行未回填）—— **同类第三次** ⇒ 纪律入档：**提交前必跑 `m4b4-measure.ts` 回填行数**（本轮已按该纪律回填，并把 `CenterPage`/`zh`/`en`/`Home`/`m4a-dogfood` 补进 measure 清单）
 
 - **第三轮检查（v0.20+ · 换靶角度 ③⑤⑪）**：**F77** 注释腐化 4 处（`CenterPage.tsx` 删页头搜索后 3 处 + 件头 1 组自相矛盾）· **F78** 「唯一搜索入口」范围未限定（首页 `Hero` 胶囊搜索仍在）· **F79** `AssetList.tsx` 件头「零外观覆盖」与真码/行内注释矛盾 ⇒ 全部订正；**覆盖探针**：dogfood **+16 / −0** 断言、`m4a` **+1 / −0** ⇒ **零静默削弱** ✓
+- **T11-g 追加（v0.28）**：**F90** `send()` 回的是**整条 CDP 消息**（`{id,result}`）⇒ 按 `res.cookies` 取值恒 `undefined`、`?? []` 静默吞掉（会话复用**静默失效**：全绿但复用永不命中）· **F91** `docs/smoke/scripts/**` **不在** `bun run lint` 的 turbo 图内（只受 `format:check` 与显式 `biome check`）· **F92** 门禁 `test` 可能是 turbo **缓存回放**（`FULL TURBO`·`Cached: 4/4`·real 0.107s）⇒ 报门禁数字须标注「真跑/回放」，收口用 `--force`
+- **T11-f 「更新」列 + F89（v0.27）**：用户要求「资产列加一个『更新』对应更新时间，和我们的『排序-最新』相对应」⇒ 列表 **5 → 6 列**、列头可点 **4 → 5 列**（更新 ⟷ `newest`）；**F89** = `handleHeaderSort` 把列名当档位（`?sort=updated`，白名单外 ⇒ 序与档位脱钩）⇒ 导出 `COLUMN_SORT` 译档；dogfood **G20-4 六列** + **G22-6c** ⇒ **91 PASS / 0 FAIL**；f2 复评 **9.46**
+- **T11-f 形态变更（v0.26 · 用户拍板）**：排序控件 **chips ×5 → 官方 `Select`**（线框四案对比后选「方案 B」）⇒ **F87** 104px 定宽在 EN `Most downloads`（106px）下**截断** ⇒ 沿控制台 `#assets-status-filter` 同宽先例改 **160px**（中英均不截断）；G22 断言随形态同步（Select 显示 + `160x32` 真值）· 仍 **90/0**
+- **T11-f f4 收口（v0.25）**：**F85** `m4a-dogfood`「中心排序栏」断言依赖被取代的静态文本 ⇒ 改写 2 条（**37 → 38**）· **F86** `bun test --coverage`（不带路径）跑进 **`dist/**` 陈旧产物** ⇒ 状态型用例重复执行 **7 例假失败** ⇒ 用 `--coverage src/` 反证（**562 pass / 0 fail**）并登记（与 F66 同族）
+- **T11-f f2 实现期纠错（v0.24）**：**F84** §4.7.5 原写「列头点异列 ⇒ 该列**固有方向**」，与同文档 §4.7.2「两态（首点 ⇒ `desc`）」+ §4.7.3 断言「点名称列 ⇒ 首点 `descending`」**自相矛盾**（根因：未对「点名称列」这条断言做路径推演）⇒ 实现取**首点 `desc`**（官方配方 `toggleSorting(false)` 同口径）并订正 design
+- **T11-f f1 实现期纠错（v0.23）**：**F82** 契约行（主 design §7.1/§7.2 R6）**只登记 `sort` 漏 `dir`** ⇒ 若不落服务端，列头升序只作用于**当前页**（已补契约行 v1.57 + §4.7.5 字段）· **F83** §4.7.5 原写 `sort: z.enum(...).default('newest')` **在非法值上 400**，与「静默回落」口径矛盾 ⇒ 订正 `.catch('newest')`。**纪律沉淀**：写「回落」类口径时，必须推演**缺省 / 非法**两条路径是否同源
+- **T11-f 立项期纠错（v0.21 · 实质是两处「判断错误」）**：**F80**「v9 **没有** manual*」—— 根因 `grep dist/*.d.ts` **非递归**（选项在 `dist/features/**`）；**F81**「控制台接排序需把 legacy 升到 v9 原生面」—— 根因**未做探针就下结论**（类型探针 + 运行期 A/B 探针证明 legacy 面**加性**可用）。**纪律沉淀**：涉及库能力的结论，必须 ①递归扫 d.ts ②写类型探针 ③跑运行期 A/B —— 三条未做不得说「没有/不支持」（明细见批 design §4.7.6）
 
 > 执行期判断项（用户未逐条拍板，主动申报）：**F53** 的 tooltip 复用 `label.privileged`；**F56** 的落点选择；**T7 已落文件回改**（F49，纯重构）。
+**排序样本（v0.21 追加）**：见批 design §9.5「排序样本」行（21 条占位写递变 `star_count = i` / `download_count = i×3`）—— 本节不复述。
 
 ## 9. 修订记录
 
+| **v0.28** | 2026-09-20 | sunxuewen-rush | **T11-g（验证效率）落地 —— 用户「连续几条任务时间都有点长，耗时点在哪里？」** ① **归因 = dogfood 复跑为工具时间大头**（硬证据 = 单轮 `time` 实测 212s/179s/45.6s；会话库分桶数字**已撤** —— 重复行 + 时间戳非单调、两版口径互相矛盾，见证据 §14.9 口径自曝）② **分段执行** `SMOKE_ONLY`（14 段守卫 · G19 常驻 · 命中检查）③ **会话复用**（jar + `me.user.id` 判据 · 跨段探针上提 · 顶层登出）④ 实测：段选 **45.6s** / 全跑 **2m59s** ·真登录 **9 → 4** · 全跑 **91/0**（零行为变化）⑤ **F90**（`send()` 回整条 CDP 消息 ⇒ cookie 取错键静默失效）·**F91**（`docs/` 脚本不在 turbo lint 图内）· **F92**（门禁 `test` 行可能是 turbo **缓存回放** ⇒ 报数须标真跑/回放；已 `--force` 补真跑 32.6s · 562/0）⑥ §7.5 增 **T11-g 行（代码 18 维 9.49）** ⑦ 证据 §14.9 新增 |
+| **v0.27** | 2026-09-20 | sunxuewen-rush | **列表加「更新」列（⟷「最新」档）+ F89 订正** —— ① `AssetList` **六列**（末位「更新」= `formatDate(updatedAt)` `YYYY-MM-DD`；列宽 24/26/16/11/11/12；`colSpan` 6）② **五列可点**（`更新 ⟷ newest`；导出 `COLUMN_SORT` = 列→档单一事实源）③ **F89**：列名当档位 ⇒ `?sort=updated`（序与档位脱钩，因 `dir` 仍生效）⇒ `CenterPage.handleHeaderSort` 先译档 ④ i18n **+`colUpdated` ⇒ 335 键** ⑤ dogfood **G20-4 → 六列** + **G22-6c 新增** ⇒ **91 PASS / 0 FAIL** · `m4a-dogfood` **38/0** ⑥ f2 复评 **9.46** |
+| **v0.26** | 2026-09-20 | sunxuewen-rush | **T11-f 排序控件形态定稿 = 官方 `Select`（用户线框四案对比后拍板「方案 B」）** —— ① 控件：`Label「排序」+ SelectTrigger#market-sort`（`size="sm"` · `w-[160px]` · `role=combobox`）取代 chips ×5 ⇒ 常驻宽 **274 → 160px**、换档点击 **1 → 2 次** ② **F87**：104px 定宽在 EN `Most downloads`（106px）下截断 ⇒ 沿控制台 `#assets-status-filter` 同宽先例改 160 ③ i18n **+`sortLabel` ⇒ 334 键**（实测）④ G22 断言随形态同步 + `160x32` 尺寸真值 ⇒ **90 PASS / 0 FAIL** · `m4a-dogfood` **38/0** ⑤ f2 复评 **9.40** |
+| **v0.25** | 2026-09-20 | sunxuewen-rush | **T11-f 收口（f3 文档回填 + f4 验证）** —— ① **F85**（`m4a-dogfood` 排序栏断言随形态变更改写 ⇒ **38/0**）② **F86**（覆盖探针口径含 `dist/**` ⇒ 7 例假失败；`--coverage src/` 反证 **562/0**）③ **G22×13** 落地 ⇒ 本批 dogfood **77 → 90 PASS / 0 FAIL / 0 超时 / NO JS ERRORS** ④ 覆盖 **不降**（95.60/96.29 · lines +0.07）⑤ 证据 `docs/smoke/2026-09-18-m4b4-personal-b.md` **§14** + 3 图 ⑥ 打分 f3 **9.46** / f4 **9.47** | 
+| **v0.24** | 2026-09-20 | sunxuewen-rush | **T11-f f2（门户 UI 排序）实现完成** —— ① **五档 chips**（官方 `ToggleGroup variant="chip" size="chip"` · 计数行内**搜索钮左侧** · 取代静态文本）② **列表列头可点**（`AssetList` 新增 `SortableHead`：官方 `Button ghost/sm` + 方向图标 + `th[aria-sort]`；**描述列不可点**）③ `useMarketQuery` **加性** `sort`/`dir` 维度（`setSort` 清 `dir` + `dropPage`；默认档删参数）④ `api/assets.ts` 透传 ⑤ i18n **+5 / 退役 `sortRecent`** ⇒ **实测 333 键**（12 组 · en 零中文泄漏）⑥ **F84** 登记 + design 订正（列头首点恒 `desc`）⑦ 匿名 CDP 实测 6 组全绿 · `doc-audit` 64/0 · 活口径 0 · f2 自检 **9.37** | 
+| **v0.23** | 2026-09-20 | sunxuewen-rush | **T11-f f1（服务端排序）实现完成** —— ① `assets/service.ts`：`ASSET_SORT_VALUES` / `ASSET_SORT_DIRS` / 类型守卫 / `assetSortQueryFields`（单点）+ 白名单 `orderBy` 映射（全档带 tiebreaker；`name`/`author` 相关子查询零 join）+ `ListAssetsOptions` 增 `sort`/`dir` ② `http/assets.ts` + `http/me.ts`：schema spread 复用 + 透传 ③ 测试：`service.test.ts` **+8 例**（五档真值 / `dir` 反向 / 非法回落 / tiebreaker / 零 join 形状）· `http/assets.test.ts` **+3 例**（白名单放行 / 非法回落逐项一致 / 计数单调）· `http/me.test.ts` **+1 例**（不传 ⇒ 现状序反证 + 只改序不改集合）④ 顺带修 `service.test.ts` 清理链序（`asset_version` FK 无级联 ⇒ 先删版本，23503 复现）⑤ **F82**（契约漏 `dir`）/ **F83**（`.default` 写法会 400）登记 + 规格订正 |
+| **v0.22** | 2026-09-20 | sunxuewen-rush | **T11-f 任务清单补档（零实现改动）** —— 用户追问「design 和 plan 都写完了么？」自查：design §4.7 六小节已全（v1.23），**plan 缺实现任务清单**（仅 §7.5/§7.6 立项与留痕行）⇒ ① §2 增 **T11-f 行**（层 = server + web）② §2 执行序补 f1→f4 ③ **§3 新增 T11-f 明细**（四子步各带 文件 / 动作 / 验收断言 / 门禁）④ §7.5 T11-f 状态 → 📋 已立案 ⑤ §9 本行；**根因** = 沿用了 T11-d/T11-e「验收期笔不进 §3」先例，而本笔**含服务端契约变更**（跨包 + 改 ORDER BY）⇒ 按 `docs/plans/README.md`「文件级任务 + 验收断言」职责应立 Task，且出口件② 判据需 Task 存在 · 文档面 8 维自检 **9.47**（完整性 9.5 · 一致性 9.5 · 清晰度 9.5 · 可实施性 9.4 · 设计纯粹性 9.5 · 边界覆盖 9.5 · 实施精度 9.4 · 跨平台 9.5）|
+| **v0.21** | 2026-09-20 | sunxuewen-rush | **验收期第三笔 T11-f「资产排序」立项（零实现改动）** —— ① §7.5 增 T11-f 行（实现中）② §7.6 追加 **F80/F81** 纠错留痕 + 纪律沉淀③ §5 增排序样本指针④ §9 本行⑤ 步序 f1→f4（服务端 → 门户 chips/列头 → 契约 → 验证 G22 ×7）；**含服务端契约变更 · 零迁移 · 新建件 0** |
 | **v0.20** | 2026-09-18 | sunxuewen-rush | **验收期 UI 调整轮第二笔（T11-e · 门户视图切换 + 折叠搜索）** —— ① **视图切换**（官方 `ToggleGroup` · 组件 state **不记忆** ⇒ 同页翻页保持、离开回网格）② 列表形态 **Item → Table**（官方 `Table` · 5 列 · 列宽百分比 · `py-4` 行高 55 · 描述 `line-clamp-3` 最长 93 · 首列 stretched link 整行热区）③ **去卡化**（面板除边框/白底）④ **折叠搜索**（官方 `Collapsible`+`InputGroup` · 工具条下方撑满 · 展开自动聚焦）⑤ **删页头搜索**（去重复入口）⑥ 件表 **新建 17 / 改造 20** · **§9.1「CenterPage 零 diff」改为「零回归」** ⑦ i18n **+6 ⇒ 329 键** ⑧ 造数 **+21 条 mcp 占位** ⑨ dogfood **77 PASS / 0 FAIL** · `m4a` **37/0** ⑩ **F68–F73** 登记 ⑪ 提交前自检 9.24 / 文档 5.25（补档后重评） |
 | **v0.19** | 2026-09-18 | sunxuewen-rush | **提交与 CI 回填** —— 本批三 commit 已推送 `origin/main`（`a918930..f2485aa`）· GitHub Actions run `35366866235` **success**（12 步全过）；§7 落地记录「提交链」回填实号 + 新增 CI 行。零实现改动 |
 | **v0.18** | 2026-09-18 | sunxuewen-rush | **验收期 UI 调整轮（T11-d · 代码 18 维 9.59）** —— 用户逐条拍板：① 门户卡下载图标与详情一致（`⇣` → `AssetStat`）② 去卡片版本号 ③ 星标**纯展示**（与下载同件同款）+ 移到下载右侧；连带 `StarButton` 收敛单一形态、收藏唯一入口 = 详情页、卡片改覆盖层 Link、dogfood **G14b 新增 + G18 改口径** ⇒ **60 PASS / 0 FAIL**；F67 登记 |

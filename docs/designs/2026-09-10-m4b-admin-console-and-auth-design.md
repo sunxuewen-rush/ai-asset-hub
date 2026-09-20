@@ -1,7 +1,9 @@
 # M4b 管理后台与认证设计
 
 > Date: 2026-09-10
-> Updated: 2026-09-18（**v1.55：M4b-4 T8 作废散点订正（文档面）** —— 用户追问「文档也都对应修改了么？」自查：v1.53 声称同步 §9/§12，但其中「**资产管理抽屉**」段仍是活口径 ⇒ **本轮订正**（「资产管理（~~抽屉~~ 已取消）+ 全部动作归详情页管理区 + 入口 = 列表 `Eye` 真链接」）；并**登记 F64**（作废件残留审计**只查关键字不判语义** ⇒ 活口径行漏扫；**合计 14 处**已订正：批 plan 7 · 本文件 2（§9/§12 段 + §2.4 U5 操作列）· 批 design 5 · v0.16/v1.19）)
+> Updated: 2026-09-20（**v1.57：契约行补 `dir`（F82 · 实现期订正）** —— f1 发现列头升降序须服务端消费（否则只作用于当前页）⇒ ① §7.1 资产列表行补 `&dir=` ② §7.2 me 面契约块 + R6 行补 `dir` ③ 依据 = 批 design §4.7.6 F82）
+> v1.56（2026-09-20）：**T11-f 资产排序契约行** —— 用户 2026-09-20 立项（M4b-4 验收期第三笔）⇒ ① **§7.1 资产列表**行补 `&sort=`（值 `newest`(默认)/`downloads`/`stars`/`name`/`author` · 不传 = 现状 `updated_at desc, id desc` 零变化 · 非法值静默回落默认）② **§7.2 `R6`** 行补「与公开面同参数」③ 依据 = 批 design **v1.23 §4.7**（口径 10 条 · UI 规格 · 基础面实证）；**本版为契约登记，零实现改动**）
+> v1.55（M4b-4 T8 作废散点订正（文档面）** —— 用户追问「文档也都对应修改了么？」自查：v1.53 声称同步 §9/§12，但其中「**资产管理抽屉**」段仍是活口径 ⇒ **本轮订正**（「资产管理（~~抽屉~~ 已取消）+ 全部动作归详情页管理区 + 入口 = 列表 `Eye` 真链接」）；并**登记 F64**（作废件残留审计**只查关键字不判语义** ⇒ 活口径行漏扫；**合计 14 处**已订正：批 plan 7 · 本文件 2（§9/§12 段 + §2.4 U5 操作列）· 批 design 5 · v0.16/v1.19）)
 > v1.54（2026-09-18）：**M4b-4 收尾回填** —— ① §2.3 批件登记表 M4b-4 行：⬜ → **✅ 五件已执行**（8 维 **9.69** · T1–T16 全绿 · 五门禁 exit 0（test 537/0）· dogfood **53 PASS / 0 FAIL** · 整体审计无未决项）；件规格订正 **新建 16 / 改造 19 + 3 文档**② §11 i18n **键数实测回填**：全仓 **323 键 / 12 组**（双语差集 0 · **en 值级泄漏 0**）③ **D2/D3 订正落地**：§12 `/dashboard` 线框去 stale 的「含2隐藏」· §7.3 该处引用改为与 U4 拍板一致（省略副文案）④ 发现：本批实现期 **F38–F63** 全部处置（明细见批 design §11.9 + 证据文件）)
 > v1.53（2026-09-18）：**资产管理抽屉取消（用户「简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）** ——
 > ① **§2.4 U6 整条作废**（保留原文作沿革留痕）：**不做抽屉** ⇒ 列表（U5）「操作」列 = **`Eye` 图标钮真链接**，
@@ -560,7 +562,7 @@ src/
 | 令牌吊销 | `DELETE /api/tokens/:id` | **仅本人**（**v1.34**：`SUPER_ADMIN` 分支已收回——令牌彻底私有，对齐 `05 §5`；他人**含超管**视同 404 防枚举）；幂等 204 | 204 | `http/tokens.ts:98-126` |
 | 审计 | `GET /api/audit?action=&targetType=&targetId=&actorId=&requestId=&clientIp=&from=&to=&limit=&offset=` | 管理档 `role >= ADMIN`（token scope `audit:read` 交集） | `{items:[audit_log 全列],total,limit,offset}`，createdAt desc + id desc 稳定分页 | `http/audit.ts:45-55` |
 | 公开统计 | `GET /api/stats` | 匿名 | 公开聚合（活跃资产计数等） | `http/stats.ts:11-14` |
-| 资产列表 | `GET /api/assets?limit=&offset=&type=&q=&label=` | **匿名**（读面恒「活跃资产」面，与 viewer 无关） | `{items:AssetItem[],total,limit,offset}`；项含 latest 投影 + ownerDisplayName | `http/assets.ts:75-83,256-283` · `assets/service.ts:173-177` |
+| 资产列表 | `GET /api/assets?limit=&offset=&type=&q=&label=&sort=&dir=` | **匿名**（读面恒「活跃资产」面，与 viewer 无关） | `{items:AssetItem[],total,limit,offset}`；项含 latest 投影 + ownerDisplayName | `http/assets.ts:75-83,256-283` · `assets/service.ts:173-177` |
 | 资产注册 | `POST /api/assets`（`{slug,type}`） | 登录（`role >= USER`；token scope `asset:publish`） | 201 单条 AssetItem | `http/assets.ts:92-95,221-253` |
 | 资产详情 | `GET /api/assets/:slug` | ACTIVE 匿名；非 ACTIVE **当前仅超管**（其余含 owner/管理档同 404 `asset.not_found`）——**R6-b 后扩为授权集，见 §7.2** | AssetItem + `labels[]`（**v1.8：元素改结构体 `{slug,type,displayName,parentId}`**） | `http/assets.ts:163-176,290-299` |
 | **收藏** | `PUT /api/assets/:slug/star` | **任何登录用户**（社交动作，**不受 `canManageAsset`**）；前置 `assertAssetReadable`（授权集外 404） | `{ starCount, starred: true }`（**幂等**） | **M4b-4（v1.8）** `assets/stars.ts` · `http/assets.ts` |
@@ -615,8 +617,8 @@ src/
 **处置 R6：新增「我名下的资产」读面**（2026-09-18 修正为 owner-only —— 原「我可管理的资产」措辞作废，见下方集合语义）
 
 ```
-GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
-  （requireAuth；默认 status=ACTIVE、limit=20、offset=0）
+GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=&dir=
+  （requireAuth；默认 status=ACTIVE、limit=20、offset=0；`sort`/`dir` 与公开面**同参数、同默认、同回落**）
   200 { items: AssetItem[], total, limit, offset }
 ```
 
@@ -687,7 +689,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 | # | 变更 | 端点/位置 | 说明 |
 |---|------|----------|------|
-| R6 | 新增 | `GET /api/me/assets` | 「**我名下的资产**」读面（§7.2 契约；**2026-09-18 修正为 owner-only**）；公开面零改动 |
+| R6 | 新增 | `GET /api/me/assets` | 「**我名下的资产**」读面（§7.2 契约；**2026-09-18 修正为 owner-only**）；公开面零改动；**T11-f 起同支持 `sort` + `dir`（与公开面同参数、同默认、同回落 —— v1.57 补 `dir`，见批 design §4.7.6 F82）** |
 | R6-b | 修改 | `assertAssetReadable` 授权集 | 非 ACTIVE 详情/版本/文件/下载面：授权集（owner 本人 / 管理档 / 超管）放行，其余仍 404（§7.2；§14 同步 05 §6.4 + 08 §7） |
 
 > **M4b-6 预告（2026-09-18）**：新增「**管理档全站资产列表**」读面（§2.4 U8 · §2.3 服务端改动列已记
@@ -1038,6 +1040,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=
 
 ## 15. 修订记录
 
+| **v1.57** | 2026-09-20 | sunxuewen-rush | **T11-f 契约行补 `dir`（F82 · 实现期订正）** —— ① §7.1 资产列表行 `…&sort=&dir=`（方向覆盖：缺省 ⇒ 档位固有方向）② §7.2 me 面契约块 + R6 行补 `dir`（与公开面同参数、同默认、同回落）③ 根因：**契约只登记 `sort` 漏 `dir`** —— 若不落服务端，列头升序只作用于当前页 | **T11-f 资产排序契约登记（文档面 · 零实现改动）** —— ① §7.1 资产列表行补 `&sort=`（五档白名单 · 默认 `newest` 行为零变化 · 非法值静默回落）② §7.2 R6 行补「与公开面同参数」③ 依据 = 批 design v1.23 §4.7（口径 / UI / 断言 / 基础面四项实证 / F80·F81 纠错留痕）|
 | **v1.55** | 2026-09-18 | sunxuewen-rush | **M4b-4 T8 作废散点订正（文档面）** —— ① §9/§12「**资产管理抽屉**」段（v1.53 漏改）→ 「**资产管理**（~~抽屉~~ 已取消）+ 全部动作**归详情页管理区** + 入口 = 列表操作列 `Eye` 真链接」② **F64 登记**（残留审计只查关键字不判语义 ⇒ 活口径行漏扫；审计脚本已加「活口径谓词」）③ 订正**合计 14 处**（批 plan **v0.16** 7 处 · 本文件 2 处 · 批 design **v1.19** 5 处）④ 文档 15 维自检 **9.22**（④⑪⑫ 扣分：散点复发 + 首轮漏项）⑤ 无代码改动 |
 | **v1.54** | 2026-09-18 | sunxuewen-rush | **M4b-4 收尾回填（执行期）** —— ① §2.3 登记表 M4b-4 行 → **✅ 五件已执行**（design 8 维 9.69 · **T1–T16 全绿**（T8 作废；逐 Task 9.41–9.71）· 五门禁 exit 0（`test` 537 pass / 0 fail）· dogfood **G1–G19 = 53 PASS / 0 FAIL / NO JS ERRORS** + 门户零回归 36/36 + chain-smoke PASS · 整体审计无未决项）；件规格 **新建 16 / 改造 19 + 3 文档**② §11 **键数实测回填**：**323 键 / 12 组**（`assets` 79 · `errors` 35）· 双向差集 0 · **en 值级泄漏 0**（值级守卫新增）③ **D2/D3 订正**：§12 线框去「含2隐藏」；§7.3 引用改「与 U4 拍板一致（省略副文案）」④ 证据 `docs/smoke/2026-09-18-m4b4-personal-b.md` |
 | **v1.53** | 2026-09-18 | sunxuewen-rush | **资产管理抽屉取消（用户「简单一点，这个抽屉不做了，取消，一点预览，直接进入完整详情」）** —— ① **§2.4 U6 整条作废**（⛔ 标注 + 原文保留作沿革留痕）：**不做抽屉** ⇒ 列表（U5）「操作」列 = **`Eye` 图标钮真链接**直跳完整详情页（`/assets/:slug`；与 M4b-3 操作列同款）② 连带同步 6 处：§2.3 拆批表 M4b-4 行 · §2.3 批件登记表预期产出物 · §2.4 U5 操作列描述（~~`⋯` 菜单~~ 已废）· §4 路由表 `/dashboard/assets` 行 · §9 数据流（改为「详情页管理区动作后重取」）· §12 线框 · §11 归属批行 ③ 件表 **新建 15 → 14**（~~`AssetDrawer.tsx`~~）· i18n **删 6 键**（批 design §6.1）④ **`console/Drawer` 件本身保留**（控制台通用形态；视觉基线 §10.1 的 560 宽真值不变）⑤ 真值落批 design **v1.9**（§4.3 取消节 · §11.7 复评 **9.69**）与批 plan **v0.9**（**T8 作废** · T7 改直跳 · **9.64**）⑥ 本版**零实现改动** |

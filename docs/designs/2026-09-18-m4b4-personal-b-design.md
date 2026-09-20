@@ -1,7 +1,14 @@
 # M4b-4 个人面 B：我的资产与工作台 landing —— 批设计
 
 > Date: 2026-09-18
-> Updated: 2026-09-18（**v1.22：验收期 UI 调整轮第二笔（T11-e · 门户视图切换 + 折叠搜索）** —— 用户逐条拍板：① 门户中心三页加**卡片 ⇄ 列表**切换（官方 `ToggleGroup`；`/mcps` 造数 21 条 ⇒ 23 > 20 出分页）② 列表形态**先试官方 `Item` 后弃用** ⇒ 改**官方 `Table` 家族**（5 列 + 表头 · 列宽百分比 · 单元格 `py-4` · 描述 `line-clamp-3`）③ **去卡化**：面板无边框/白底，表格落在页面底上（用户「table 和背景融为一体」）④ **折叠搜索**（用户「参考 ClawHub 切换钮左侧的搜索」）：官方 `Collapsible` + 官方 `InputGroup`，工具条下方撑满宽度⑤ **删页头搜索框**（用户「title 上的搜索就重复设计了，需要去掉」）—— **中心三页内**唯一搜索入口 = 折叠面板（首页 `Hero` 胶囊搜索未动 · F78）⑥ 件表 **新建 16 → 17**（`AssetList.tsx`；~~`ui/shadcn/item.tsx`~~ 落仓后弃用删除）· 改造 **19 → 20**（`CenterPage.tsx`）⑦ i18n **+6 键**（`viewGrid`/`viewList`/`colName`/`colDesc`/`colDownload`/`searchClose`）⇒ 全仓 **329 键 / 12 组**⑧ dogfood **G20（10 条）+ G21（6 条）** ⇒ **77 PASS / 0 FAIL**；`m4a-dogfood` **36 → 37**（搜索入口断言改折叠面板）⑨ 发现 **F68–F73**（官方件落仓后弃用 · 跨批断言口径变更 · 探针锚点雷区 · 登录限流 · 键数漂移 · measure 清单缺件）⑩ 提交前自检：代码 18 维 **9.24**（含 C9 文档未落档拖分）· 文档 8 维 **5.25** ⇒ **不得提交**，本轮补档后重评）
+> Updated: 2026-09-20（**v1.29：T11-g 验证效率：dogfood 分段执行（`SMOKE_ONLY`）+ 会话复用** —— ① §11.9 增 T11-g 行（**9.49**）② §4.7.6 增 **F90/F91** ③ 实测：段选 **45.6s** / 全跑 **2m59s** / 真登录 **9→4** / 全跑 **91/0**（零行为变化）④ **零产品码改动****）
+> v1.28（2026-09-20）：列表加「更新」列（⟷「最新」档）+ 修 F89** —— 用户 2026-09-20「资产列加一个『更新』对应更新时间，和我们的『排序-最新』相对应」⇒ ① `AssetList` 列集合 **5 → 6**（末位「更新」= `formatDate(updatedAt)`）· 列头可点 **4 → 5**（更新 ⟷ `newest`）② **F89**：`handleHeaderSort` 原把**列名当档位** ⇒ 产出 `?sort=updated`（白名单外 ⇒ 序与档位脱钩）⇒ 导出 **`COLUMN_SORT`** 单一事实源，调用方先译档 ③ §6.6 i18n **+`colUpdated` ⇒ 335 键**（实测）④ dogfood **+G22-6c** ⇒ **91 PASS / 0 FAIL** ⑤ §11.9 f2 **9.40 → 9.46**
+> v1.27（2026-09-20）：**T11-f 排序控件形态定稿 = 官方 `Select`（用户拍板「方案 B」）** —— ① 排序控件 **chips ×5 → 官方 `Select`**（`Label`+`SelectTrigger#market-sort` `size="sm"` `w-[160px]`）② §4.7.2/§4.7.5 规格与落点同步 ③ §4.7.6 增 **F87**（104px 定宽在 EN 下截断 ⇒ 改 160px）· **F88**（行数表写了估值 ⇒ 实测回填，F76 同类第 4 次）④ §6.6 i18n **+`sortLabel` ⇒ 334 键**（实测）⑤ §11.9 f2 **9.37 → 9.40** ⑥ dogfood G22 断言随形态同步（仍 **90/0**）· `m4a-dogfood` **38/0**）
+> v1.26（2026-09-20）：**T11-f 收口（f3 文档回填 · f4 验证）** —— ① §4.7.6 增 **F85**（`m4a-dogfood` 断言口径随形态变更）· **F86**（覆盖探针跑进 `dist/**` 陈旧产物 ⇒ 7 例假失败，已反证与本笔无关）② §11.9 T11-f 行 = **f1 9.35 · f2 9.37 · f3 9.46 · f4 9.47** ③ 证据 = `docs/smoke/2026-09-18-m4b4-personal-b.md` **§14**（门禁 / G22×13 / 覆盖探针 / 行数 / 3 张图）)
+> v1.25（2026-09-20）：**T11-f f2（门户 UI）实现 + F84 订正** —— ① §4.7.5 前端行订正列头方向语义（首点 `desc` —— 见 **F84**：原「点异列 = 固有方向」与 §4.7.2/§4.7.3 矛盾）② §4.7.6 增 F84 ③ §6.6 i18n **实测 333 键** 回填 ④ §11.9 T11-f 行补 **f2 均分 9.37** ⑤ 实现落点：`useMarketQuery`（加性 `sort`/`dir`）· `api/assets.ts` · `CenterPage`（chips ×5）· `AssetList`（`SortableHead` 四列）· i18n +5/−1）
+> v1.24（2026-09-20）：**T11-f f1 实现期订正（F82/F83）** —— ① §4.7.5 服务端行补 `dir`（**契约漏项** —— 见 F82）② 两路由 schema 写法订正 `.default` → **`.catch`**（原写法在非法值上 400，与「静默回落」矛盾 —— 见 F83）③ §4.7.6 增 F82/F83 ④ 测试行回填 f1 实际落点）
+> v1.23（2026-09-20）：**验收期第三笔 T11-f「资产排序」立项** —— 用户 2026-09-20「资产排序的设计——收藏/下载/作者/名称 支持排序」+「列表视图表头可点排序，我的倾向是做」；① **服务端**：`GET /api/assets` 与 `GET /api/me/assets` 加白名单 `sort`（`newest`(默认)/`downloads`/`stars`/`name`/`author`）+ 每档 tiebreaker（`<field> DESC, updated_at DESC, id DESC`）· 非法值静默回落 · **零迁移**（不加减索引、不加 COLLATE）② **门户 UI**：工具条加 **5 档排序 chips**（官方 `ToggleGroup variant="chip"`，取代静态文本「排序：最近更新」，不新增行）+ **列表视图列头可点排序**（官方配方 `Button variant="ghost"` + `ArrowUpDown`/`ArrowUp`/`ArrowDown` + `aria-sort` · 两态）③ 排序状态入 URL `?sort=` · **改排序回第 1 页**（官方明写 manual 模式不自动 reset）④ 范围：门户三页 + 服务端两面通吃；**控制台「我的资产」UI 排序登记后续**⑤ 纠错留痕 **F80**（「v9 无 manual*」误判 · 根因 grep 非递归）· **F81**（「legacy 接排序需切原生面」夸大 · 根因未做探针）—— 已用类型探针 + 运行期 A/B 探针实证修正⑥ 本版为**立项+规格**（零实现改动），实现期按 f1→f4 推进）
+> v1.22（验收期 UI 调整轮第二笔（T11-e · 门户视图切换 + 折叠搜索）** —— 用户逐条拍板：① 门户中心三页加**卡片 ⇄ 列表**切换（官方 `ToggleGroup`；`/mcps` 造数 21 条 ⇒ 23 > 20 出分页）② 列表形态**先试官方 `Item` 后弃用** ⇒ 改**官方 `Table` 家族**（5 列 + 表头 · 列宽百分比 · 单元格 `py-4` · 描述 `line-clamp-3`）③ **去卡化**：面板无边框/白底，表格落在页面底上（用户「table 和背景融为一体」）④ **折叠搜索**（用户「参考 ClawHub 切换钮左侧的搜索」）：官方 `Collapsible` + 官方 `InputGroup`，工具条下方撑满宽度⑤ **删页头搜索框**（用户「title 上的搜索就重复设计了，需要去掉」）—— **中心三页内**唯一搜索入口 = 折叠面板（首页 `Hero` 胶囊搜索未动 · F78）⑥ 件表 **新建 16 → 17**（`AssetList.tsx`；~~`ui/shadcn/item.tsx`~~ 落仓后弃用删除）· 改造 **19 → 20**（`CenterPage.tsx`）⑦ i18n **+6 键**（`viewGrid`/`viewList`/`colName`/`colDesc`/`colDownload`/`searchClose`）⇒ 全仓 **329 键 / 12 组**⑧ dogfood **G20（10 条）+ G21（6 条）** ⇒ **77 PASS / 0 FAIL**；`m4a-dogfood` **36 → 37**（搜索入口断言改折叠面板）⑨ 发现 **F68–F73**（官方件落仓后弃用 · 跨批断言口径变更 · 探针锚点雷区 · 登录限流 · 键数漂移 · measure 清单缺件）⑩ 提交前自检：代码 18 维 **9.24**（含 C9 文档未落档拖分）· 文档 8 维 **5.25** ⇒ **不得提交**，本轮补档后重评）
 > v1.21（验收期 UI 调整轮（T11-d）** —— 用户逐条拍板三条：① 门户卡下载图标与详情页一致（退役 `⇣` → lucide `Download`）② **去掉卡片版本号** ③ 卡片星标**改纯展示**（与下载同件同款）+ 位置移到下载右侧 · 连带：`StarButton` 收敛为**单一形态**（撤 `compact`/`form`）· 收藏交互唯一入口 = 详情页 · 卡片改**覆盖层 Link**（整卡可点）· dogfood **G14b（+2）+ G18 改口径** ⇒ **60 PASS / 0 FAIL** · 新增 **F67** 并同步 §3.1 件 15 / G14 / G18 / F59)
 > v1.20（2026-09-18）：**T11-c 覆盖补测轮** —— 用户追问「自测完成并做过 coverage 了么？」自查发现**审计维度缺「覆盖探针」**（F65）+ 实测暴露 **yank 路由层整段零覆盖**且本批 T12 已接其 UI 入口（F66）⇒ ① 新增 `apps/server/src/http/yank-route.test.ts`（**14 例**：鉴权 4 档 / reason 边界 / 状态门 / 坐标 404 / 形态守卫 / token scope 正反）② dogfood 增 **G12b**（真点击撤回分发 ⇒ 状态翻转 + 下载 400 + 重复 400）③ 实测：**全仓 95.60/96.28** · `http/assets.ts` **90.97 → 95.96 lines** · 测试 **537 → 551** · dogfood **53 → 58** ④ **F65/F66 登记**（web 包零测试基建 ⇒ 归 M4b-7/另立项）· 证据 §1/§3/§5/§6 A5/§10 同步)
 > v1.19（2026-09-18）：**T8 作废散点订正（文档面）** —— 用户追问「文档也都对应修改了么？」自查发现 v1.9 的散点扫**只清主口径、漏清活口径**：**14 处**仍按「有抽屉」写（**首轮 8**：批 plan 7 + 主 design 1；**换靶精修谓词再挖 6**：本文件 5 + 主 design 1）⇒ 逐处订正（批 plan **v0.16** / 主 design **v1.55** / **本文件 v1.19**）· **F64 登记**（审计只查关键字不判语义 = 盲区，脚本补「活口径谓词」）· **口径撤回**：T11 收尾「整体审计无未决项」为关键字口径产物 ⇒ 改判「关键字残留 0 · 语义散点 14 处已订正」· 文档 15 维自检 **9.22**)
@@ -376,6 +383,7 @@ M4b 拆 8 批（主 design §2.3）：**顺序即依赖链 1 → 2 → 3 → 4 �
 | 20 | `apps/web/src/components/market/CenterPage.tsx`（M4a 已交付页 —— **§9.1「零 diff」契约自 v1.22 起改为「零回归」**） | **T11-e**：结果计数行加**视图切换**（官方 `ToggleGroup`）+ **折叠搜索**（官方 `Collapsible` + `InputGroup`，工具条下方撑满宽度）；**删页头搜索框**（去重复入口）；载态随视图分派（`AssetListLoading`）；i18n 消费 6 新键 |
 
 > 附注：侧栏条目更名「标签定义」= **i18n 值变更**（`admin.labels` 键名保留；zh/en 各 1 行，已在改造件 #8 覆盖，**不新增文件**）；3 个消费点（`SideNav` / `TopBar` / `main.tsx` 占位标题）随键值一次到位。
+> **件表增量（T11-f · v1.23）**：**新建件 0**（复用官方 `Select`（排序控件 · v1.27）+ 官方 `ToggleGroup`（视图切换）+ 官方 `Button`/lucide 图标）；**改造件 +4** —— `hooks/useMarketQuery.ts`（加性 `sort`/`dir` 维度，照 `status` 先例）· `api/assets.ts`（列表参数透传 `sort`/`dir`）· `components/market/AssetList.tsx`（列头可点排序 · 本表 §3.1 #17 件内增量）· `components/market/CenterPage.tsx`（排序 chips · 本表 §3.2 #20 件内增量）；**脚本 +2** —— `m4b4-seed-assets.ts`（排序样本）· `m4b4-personal-b-dogfood.ts`（**G22 ×13** —— 立项时按 7 条口径登记，实现期细化为 13 条，实测见证据 §14.2）。
 
 ### 3.3 路由（本批形态）
 
@@ -540,6 +548,126 @@ pages/AssetDetail.tsx（改造 · M4a 已交付页 —— 唯一完整视图 + �
   ~~star 批未落地时不渲染~~ **降级口径作废**；未登录点击 ⇒ toast + 跳登录（§5.1 ⑧）
 
 **并发/一致性**：管理区动作成功后 ⇒ **局部重取**（`invalidateCache` + 详情重取；列表页 `retryTick++`），不整页刷新（§4.4）；抽屉内跳详情走 `Link`（路由切换，天然重取）。
+### 4.7 资产排序（**T11-f** · 2026-09-20 立项 · 验收期第三笔）
+
+> 用户 2026-09-20：「资产排序的设计 —— 收藏/下载/作者/名称 支持排序」·「列表视图表头可点排序，我的倾向是做」。
+> **归属** = M4b-4 验收期第三笔（沿 T11-d/T11-e 范式）；与前三笔的**唯一差异**：本笔**含服务端契约变更** ⇒ 契约行（主 design §7.1/§7.2）与规范同步必须先于代码。
+
+> **形态变更（2026-09-20）**：工具条排序控件 **静态文本 → chips ×5（v1.25）→ 官方 `Select`（v1.27）** ——
+> 用户线框四案对比（A 现状 chips / B 官方 `Select` / C 官方 `DropdownMenu` / D chips 独占一行）后拍板 **「方案 B」**：
+> 判据 = 列表视图列头已承担四轴排序 ⇒ chips 常驻宽度（274px）不划算，而网格视图无列头 ⇒ 工具条入口必须保留、只需最省形态。
+>
+> **列集合变更（2026-09-20 · v1.28）**：列表加第 **6** 列「**更新**」（`updatedAt`）—— 用户「资产列加一个『更新』对应更新时间，和我们的『排序-最新』相对应」；列头可点集随之 **4 → 5 列**（「更新」⟷ `newest` 档）。
+
+#### 4.7.1 定值口径（对齐兄弟仓 skillhub + 本仓既有纪律）
+
+| # | 项 | 定值 | 依据（实测坐标） |
+|---|----|------|------|
+| 1 | 参数名 | **`sort`** | skillhub 搜索面同款（ClawHub 兼容名 · `ClawHubCompatAppService.java:195` `sort != null ? sort : "newest"`）|
+| 2 | 档位 | `newest`（默认）/ `downloads` / `stars` / `name` / `author` | 用户指定 4 轴 + 现状默认；**不做 `relevance`**（本仓搜索为 ILIKE，无 ranking）|
+| 3 | 默认 | 不传参 ⇒ `newest` = 现状 `updated_at desc, id desc`（**行为零变化**）| 同 skillhub「默认值写死」|
+| 4 | 非法值 | **静默回落 `newest`** | skillhub 搜索面口径（其 promotion 面用严格 400；搜索面取静默）|
+| 5 | tiebreaker | `<field> DESC, updated_at DESC, id DESC` | 本仓 13 处既有排序**全部带 `id` 破平**（`assets/service.ts:167/248` 等）|
+| 6 | 字段口径 | 下载 = `asset.download_count` · 收藏 = `asset.star_count` · 名称 = `COALESCE(parsed_metadata_json->>'name', slug)` · 作者 = `user.display_name`（空则 `username`）| 实测 schema（冗余列现成）+ 读面投影（latest 版本元数据在 `asset_version.parsed_metadata_json`）|
+| 7 | 中文名称 collation | **保持 DB 默认（code point 序）**，不加 `COLLATE` | 加 COLLATE 需表达式索引/迁移；本笔**零迁移** ⇒ 口径写明、**不作断言** |
+| 8 | 索引 | **零迁移**；`download_count` / `star_count` **无索引** ⇒ 登记「数据量上来再加」 | 实测 `asset` 表仅 `idx_asset_status` / `idx_asset_namespace_status`；现规模（百级）无影响 |
+| 9 | 状态位置 | URL **`?sort=`**（沿用 `useMarketQuery` 同族）· 默认档**删参数**（干净 URL）· **改排序回第 1 页**（`dropPage`）| skillhub 同款；官方 TanStack 指南明写 **manual 模式不自动重置页码** ⇒ 必须自己重置 |
+| 10 | 生效范围 | 门户三页（`/skills` `/mcps` `/agents`）+ **服务端两面通吃**（`GET /api/me/assets` 同参数）| `listViewableAssets` 为门户/我的资产共用单点 |
+
+#### 4.7.2 UI 规格
+
+| 位置 | 形态 | 定值 |
+|------|------|------|
+| 工具条（结果计数行） | **排序 `Select`**（`Label`「排序」+ 收起态显示当前档），取代原静态文本「排序：最近更新」与 v1.25 的 chips ×5 | 官方 `Select`（`ui/shadcn/select.tsx`）· `SelectTrigger#market-sort` + **`size="sm"`（= 32px，与搜索钮/视图钮同高）** + `w-[160px]`（**实测 160×32** —— 沿控制台 `#assets-status-filter` 的 `Label`+`SelectTrigger#id` 先例）；位置 = 计数行内、**搜索钮左侧**（`ml-auto` 贴右）；**不新增行**（两视图**共用同一 `sort` 状态**）。**v1.27 形态变更**：常驻宽度 **274px → 160px**，换档点击成本 **1 → 2 次**（用户 2026-09-20 线框四案对比后拍板「方案 B」）；**宽度 104 → 160 的根因 = F87**（EN 最长选项 `Most downloads` 文本宽 **106px** > 104px 触发器的可用 54px ⇒ 截断）|
+| 列表视图列头 | **可点排序**（**五列**：名称 / 作者 / 下载 / 收藏 / **更新 ⟷ `newest` 档**；**描述列不可点**）| 官方配方：`TableHead` 内官方 `Button variant="ghost" size="sm"` + lucide `ArrowUpDown`（未排）/ `ArrowDown`（降）/ `ArrowUp`（升）+ `th` 的 `aria-sort="none｜ascending｜descending"`；**两态**（首次进该列 ⇒ `desc`，再点 ⇒ `asc`；回默认 = 用工具条 `Select` 选「最新」）。**v1.28 追加「更新」列**（用户 2026-09-20：「资产列加一个『更新』对应更新时间，和我们的『排序-最新』相对应」）：末位（沿控制台 9 列「… 收藏 · **更新** · 操作」序）· 值 = `formatDate(updatedAt)`（`YYYY-MM-DD`，与控制台「更新」列同件）· 列宽 **12%** · **与「最新」档同档**（点它写 `?sort=newest`，**不是** `?sort=updated` —— 见 F89）· 列表列集合 ⇒ **六列**（名称/描述/作者/下载/收藏/更新）|
+
+**交互与边界**
+
+1. 改排序（`Select` 或列头）⇒ 写 `?sort=` + **回第 1 页** + 列表重取（缓存键含 `sort`）
+2. 与 `q` / 标签**正交**：三者可叠加；任一变更均回第 1 页（沿既有口径）
+3. **匿名可用**（读面公开）· 双视图共用同一排序状态（切视图不丢排序）
+4. 空结果 / 单页：`Select` 照常可切换（可切回「最新」）；列头在无数据行时仍可点（不报错）
+5. 竞态：快速连点 ⇒ 走既有 abort + 缓存键（`sort` 参与键）
+6. **非目标**：多列排序 · 排序**记忆**（刷新回默认 `newest`）· **控制台「我的资产」UI 排序**（`console/DataTable` 走 v9 **legacy** 面，加性接法已实证可行（见 §4.7.4），但会牵动 3 张控制台表的回归面 ⇒ 登记后续）· `relevance` 档 · 排序索引/COLLATE 迁移
+
+#### 4.7.3 断言口径（实现期 f4 · dogfood 新增 **G22**）
+
+- 默认无参 ⇒ 请求 URL **不含 `sort`**、列表按 `updated_at desc`（= 现状）
+- 五档逐档：请求 URL 含 `?sort=<档>` + **首条真值对接口**（下载/收藏取 `downloadCount`/`starCount` 最大值；名称按 slug 升序首条；作者按 display_name）
+- 改排序 ⇒ URL 含 `?sort=` **且不含 `page`**（回第 1 页）
+- 非法值（`?sort=bogus`）⇒ 静默回落默认顺序（不报错、不空白）
+- 列头：点名称列 ⇒ `aria-sort="descending"`（首点）→ 再点 `ascending`；URL 同步 `?sort=name&dir=…`
+- **「更新」列（v1.28）**：默认档即「最新」⇒ 该列**恒 active**，点它是**同列反向**（`desc → asc → desc`）；URL **不出现 `?sort=updated`**（列名 ≠ 档位 · 白名单外）· `Select` 仍显示「最新」· 序与接口 `sort=newest&dir=<同向>` 逐项一致
+- 双视图：列表视图切排序后切回网格 ⇒ 排序保持（同一状态）
+- 匿名：排序 `Select` 可用、列头可点
+- **`me` 面零影响反证**：`GET /api/me/assets` 带 `ownerId` 且**不传 `sort`** ⇒ 排序仍为 `updated_at desc`（本批既有断言 G4–G6 不受影响）
+- **深链边界**：`?page=2&sort=name` 直入 ⇒ 服务端按新排序返回第 2 页（合法）；若该页为空 ⇒ 沿用既有空态（**不做**自动回第 1 页 —— 深链非「过滤变更」路径）
+
+#### 4.7.4 基础面实证（立项前已完成，作为设计依据）
+
+| 命题 | 实证方式 | 结果 |
+|------|---------|------|
+| 我们是 v9 | `package.json` 实测 | `@tanstack/react-table@9.2.4` |
+| v9 有 manual 选项 | 递归 grep d.ts | `rowSortingFeature.types.d.ts:189 manualSorting?` · `rowPaginationFeature.types.d.ts:24 manualPagination?` |
+| legacy 面支持排序（类型层） | 类型探针 + `typecheck` | **exit 0**（`getSortedRowModel` + `manualSorting` + 受控 `state.sorting`/`onSortingChange` 全可用）|
+| legacy 面 manual 语义（运行期） | `renderToStaticMarkup` A/B 探针 | A 客户端排序 ⇒ `rows=[a,b,c]`（重排）· B `manualSorting:true` ⇒ `rows=[b,a,c]`（**不重排**）+ `getIsSorted=asc` ⇒ 服务端排序语义正确 |
+| 官方 UI 配方 | 官方 data-table 文档 Sorting 节 | `Button variant="ghost"` + `ArrowUpDown` + `toggleSorting(getIsSorted() === "asc")`（两态）|
+| 官方注册表无排序成品件 | 官方 64 件清单 + 仓内 `ui/shadcn/` | 只有 `table.tsx`；`DataTableColumnHeader` 为**示例代码**（需照抄）|
+| 仓内零先例 | grep | `aria-sort` / `ArrowUpDown` / `toggleSorting` 命中 **0** |
+#### 4.7.5 实现落点（**文件级 · 签名级 · 定死到可照抄**）
+
+**服务端（f1）**
+
+| 落点 | 改动 |
+|------|------|
+| `assets/service.ts` | `ListAssetsOptions` 增 `sort?: AssetSort`（枚举联合）+ `dir?: AssetSortDir`（`'asc' ｜ 'desc'`）· `listViewableAssets` 按**白名单映射** `orderBy`（下表）· **非法/缺省 ⇒ `newest` 分支 + 档位固有方向**（静默回落）· 单点导出 `ASSET_SORT_VALUES` / `ASSET_SORT_DIRS` / `isAssetSort()` / `isAssetSortDir()` / `assetSortQueryFields`（**v1.24 订正**：`dir` 亦由服务端消费 —— 见 F82）|
+| `http/assets.ts` · `http/me.ts` | 两处 query schema **各 spread `...assetSortQueryFields`**（单点复用，防两处漂移）⇒ `sort: z.enum(ASSET_SORT_VALUES).catch('newest')` · `dir: z.enum(ASSET_SORT_DIRS).optional().catch(undefined)` —— **v1.24 订正**：原写 `.default('newest')` **在非法值上会 400**，与 §4.7.1 #4「静默回落」矛盾 ⇒ 一律 `.catch()`（缺省与非法走**同一条回落路径**，见 F83）|
+| `assets/service.test.ts` · `http/assets.test.ts` · `http/me.test.ts` | 新用例：五档顺序真值 · `dir` 反向序 · 非法值/非法方向回落 · tiebreaker 稳定（同 `updated_at` 按 `id`）· 路由层白名单放行 + 回落 · `me` 面不传 ⇒ 现状序（**f1 已落**，见 §4.7.6 F82/F83）|
+
+**ORDER BY 白名单映射（`sort` → 表达式 · 全部带 tiebreaker）**
+
+| `sort` | ORDER BY | 方向直觉 |
+|--------|----------|---------|
+| `newest`（默认） | `asset.updated_at DESC, asset.id DESC`（**= 现状，零变化**）| 最近更新在前 |
+| `downloads` | `asset.download_count DESC, asset.updated_at DESC, asset.id DESC` | 下载多在前 |
+| `stars` | `asset.star_count DESC, asset.updated_at DESC, asset.id DESC` | 收藏多在前 |
+| `name` | `COALESCE(asset_version.parsed_metadata_json ->> 'name', asset.slug) ASC, asset.id DESC`（取 **latest 版本**元数据；空名回退 `slug`）| A→Z（升序）|
+| `author` | `user.display_name ASC NULLS LAST, user.username ASC, asset.id DESC`（join `user`；空名回退用户名）| A→Z（升序）|
+
+> **方向模型（定死）**：档位（`Select` 选项）用**上表固有方向**（不暴露 asc/desc）；`?dir=asc｜desc` **仅由列头可点写入**；**换档（`Select`）⇒ 清 `dir`**（避免「名称 + desc」这类跨控件残留）。`name`/`author` 的 `dir=desc` 为反向序；`newest`/`downloads`/`stars` 的 `dir=asc` 为反向序。
+
+**前端（f2）**
+
+| 落点 | 改动（**签名级**） |
+|------|-------------------|
+| `hooks/useMarketQuery.ts` | `opts` 增 `sort?: { defaultValue: string }`（**照 `status` 先例**：不给 ⇒ 不读不写 `sort`/`dir`）· 返回增 `sort: string`、`setSort(next)`、`dir?: 'asc' ｜ 'desc'`、`setDir(next?)` · `setSort` 内部 **`dropPage`**（改排序回第 1 页）+ **清 `dir`** · 默认档 ⇒ **删 `sort` 参数** |
+| `api/assets.ts` | `fetchAssetList` 拼装 `sort` / `dir`（**透传，不在前端做默认判定**）|
+| `components/market/CenterPage.tsx` | `useMarketQuery({ sort: { defaultValue: 'newest' } })` · 计数行内 **搜索钮左侧**插官方 `Select`（`Label htmlFor="market-sort"` + `SelectTrigger#market-sort size="sm" w-[160px]` + 5 × `SelectItem value=<档>` · v1.27）· **删**静态文本 `sortRecent` · 向 `AssetList` 传 `sortKey={sort}` / `dir={dir}` / `onSortChange={onHeaderSort}`（`handleHeaderSort(column, nextDir)` 内先 **`COLUMN_SORT[column]` 译档** ⇒ 同档走 `setDir` / 异档走 `setSort` —— v1.28 · F89）|
+| `components/market/AssetList.tsx` | `AssetList` **props 显式透传**（**不用 context** —— 决策定死）：`{ sortKey, dir, onSortChange, children }` · 列头**五列**（名称/作者/下载/收藏/**更新**）`TableHead` 内官方 `Button variant="ghost" size="sm"` + 图标（未排 `ArrowUpDown` / 降 `ArrowDown` / 升 `ArrowUp`）+ `th` 的 `aria-sort`（`none ｜ ascending ｜ descending`）· **点同列 = 切 `dir`（`asc ↔ desc`）；点异列 = `desc`（首点降序 —— 官方配方 `toggleSorting(false)` 同口径）** —— **v1.25 订正**：原写「点异列 = 该列固有方向」与 §4.7.2/§4.7.3「首点 ⇒ `descending`」矛盾（见 F84）。**方向判定落在本件**（持 `DEFAULT_DIR` 与有效方向 = 单一事实源），调用方只落 URL。**v1.28**：本件导出 **`COLUMN_SORT`（列 → 档映射 · 单一事实源）**，`CenterPage.handleHeaderSort` 先译档再落 URL —— 否则「更新」列会产出 `?sort=updated`（白名单外 ⇒ 服务端静默回落，但 `dir` 仍生效 ⇒ **序与档位脱钩**，见 **F89**）· 列集合 **六列**（+「更新」= `formatDate(updatedAt)` · 列宽 24/26/16/11/11/12）· 载态骨架 `colSpan` **6** |
+| `i18n/zh.ts` · `en.ts` | §6.6 的 **+5 键 / 退役 1 键** |
+
+**登记落点（非目标项的去处，写死）**：控制台「我的资产」UI 排序 · 排序索引 · 名称 `COLLATE` ⇒ 均见 **§4.7.2 非目标** + `docs/00` §5 M4b-4 行注记；后续触碰时（M4b-6 资产管理面最可能）评估，不另立本笔。
+
+#### 4.7.6 纠错留痕（**F80 / F81** · 立项过程中的两处判断错误，如实入档）
+
+| # | 错误判断 | 根因 | 修正 |
+|---|---------|------|------|
+| **F80** | 「v9 **没有** `manualSorting`/`manualPagination`」 | **方法错**：`grep dist/*.d.ts` **非递归**，只扫顶层；两选项在 `dist/features/**` | 递归 grep 实测两处定义 ⇒ 撤回原判断 |
+| **F81** | 「控制台要接排序，得把 legacy 升到 v9 原生 feature 面、改动面不小」 | **未做探针就下结论** | 类型探针（typecheck 0）+ 运行期 A/B 探针 ⇒ legacy 面**加性**可用，撤回「需切面」说法 |
+
+| **F82** | 契约行（主 design §7.1 / §7.2 R6）只登记 `sort`，**漏 `dir`** | 立项期只按「档位」建模，把列头升/降当成纯 UI 局部状态 | 实现期发现：`dir` 若不落服务端，列头升序**只作用于当前页** ⇒ 契约行补 `&dir=`（主 design v1.57）+ §4.7.5 补字段 |
+| **F83** | §4.7.5 写 `sort: z.enum(...).default('newest')` | 未对「非法值」做**同一条路径**推演（`.default` 只兜缺省，非法值仍 400）| 与 §4.7.1 #4「静默回落」自相矛盾 ⇒ 改 `.catch('newest')`；`dir` 同法 `.catch(undefined)` |
+| **F84** | §4.7.5 写「点异列 = 该列**固有方向**」 | 与 §4.7.2「两态（首次进该列 ⇒ `desc`）」+ §4.7.3 断言「点名称列 ⇒ 首点 `descending`」**同文档互相矛盾**（未做「点名称列」这条断言的路径推演）| 实现取**首点 `desc`**（官方配方 + 两条上游口径一致）⇒ 订正 §4.7.5；`DEFAULT_DIR` 仅用于 chips 驱动时图标/`aria-sort` 真值与同列切换基准 |
+| **F85** | `m4a-dogfood` 的「中心排序栏」断言硬依赖**被取代的静态文本**（`排序：最近更新`）| 跨批交付物改动未同步下游断言（F69 同类：改的是 UI 形态，断言读的是形态文本）| 改写为 **2 条**（旧文本退役反证 + 五档 chips 齐/默认选中）⇒ `m4a-dogfood` **37 → 38**；实现期实测即暴露（非事后补）。**连带**：该脚本产出的 M4a 证据图 5 张随形态变更**重生成**（二进制差异归用户人眼）|
+| **F90** | `stashSession` 存下的是**空 cookie 数组**（会话复用**静默失效**）| `send()` 回的是**整条 CDP 消息**（`{ id, result }`），我按 `res.cookies` 取值 ⇒ 恒 `undefined` ⇒ `?? []` 把空值**静默吞掉**；症状 = 复用「永不命中」而脚本**全绿**（91/0），只有对数才看得出 | 加临时诊断打出 `getAllCookies` 原始返回 ⇒ cookie 在 `result.cookies` ⇒ 改 `all?.result?.cookies ?? all?.cookies ?? []`；并加「存档为空 ⇒ 打印提示」（同类静默失效不再无声）；**实测转绿**：真登录 9 → 4，复用 `extra` 标注「还原 cookie · `me.user.id` 一致」|
+| **F92** | 门禁 `test` 行的「PASS」可能是 **turbo 缓存回放**（`FULL TURBO` / `cache hit, replaying logs`），不是本次真跑 | 我报「门禁全绿」时**未区分真跑与回放**：输入未变的任务被 turbo 直接回放**历史日志**（今日实证：`CI=true bun run test` real **0.107s** · `Cached: 4/4` · `Time: 23ms >>> FULL TURBO`）⇒ 「562 pass」是**上一轮真实运行的日志**，不是本次 | **登记 + 补真跑**：`CI=true bun run test --force` real **32.6s** ⇒ **562 pass / 1 skip / 0 fail** rc=0（真跑）；**纪律** = 报门禁数字必须标注「真跑 / 回放」，收口判定一律 `--force` 或核对 `FULL TURBO` 标记 |
+| **F91** | `docs/smoke/scripts/**` **不在** `bun run lint` 的 turbo 图内 | `lint` 按包定义（`packages/*`），`docs/` 无对应任务 ⇒ 改脚本只受 `format:check`（270 文件）与显式 `biome check` 约束（**改动面常被误以为已被 lint 覆盖**）| **登记 + 本轮显式核**：单文件 `biome check` 基线 11 warning ⇒ 12，**新增 1 条同类**（`SMOKE_ONLY` 未登记 turbo env —— 与本脚本既有 4 条 `SMOKE_*` 同族；脚本非 turbo 任务，登进 `turbo.json` 反而误导）；**未新增告警类** |
+| **F89** | `handleHeaderSort` 把**列名当档位**传给 `setSort`（`?sort=updated`） | 列 → 档映射（`COLUMN_SORT`）只存在于 `AssetList`，调用方拿不到 ⇒ 一律直写列名；此前四列的列名**恰好等于**档名 ⇒ 缺陷不可见 | **加「更新」列时暴露**（列名 `updated` ≠ 档名 `newest`）⇒ 导出 `COLUMN_SORT` 作为单一事实源，调用方先译档；G22-6c 钉死（URL 不含 `sort=updated` + Select 仍「最新」+ 序 = 接口 `newest/<同向>`）|
+| **F88** | 证据 §14.7 权威行数表**先写估值**（未跑 `wc -l`）| **F76 同类第 4 次复发**（纪律已立档仍犯）：行数类数字写成「顺手估」 | ✅ 实测回填（CenterPage 451→**438** · zh 391→**390** · en 386→**385** · dogfood 1303→**1307** · m4a 553→**552**）；**纪律加固**：五件全部纳入 `m4b4-measure.ts` 清单，提交前必跑 |
+| **F87** | `Select` 触发器定宽 **104px** | 只按**中文选项**（≤3 字 ⇒ 42px）估宽，**未按 EN 最长选项**实测 | 实测 EN `Most downloads` 文本 **106px** > 触发器可用 54px ⇒ **截断**（`scrollWidth 106 > clientWidth 54`）⇒ 改 **160px**（沿控制台 `#assets-status-filter` 同宽先例 · 两语均不截断，实测 `clipped:false`）|
+| **F86** | 覆盖探针口径：`bun test --coverage`（不带路径）把 **`dist/**` 陈旧编译产物**当测试跑 ⇒ 状态型用例（限流 / device code）**重复执行** ⇒ **7 例假失败** | 覆盖命令未限定 `src/`；`dist` 是本仓旧构建产物（非最新）| **反证**：`--coverage src/` = 562 pass / 0 fail + 单文件 11/11 ⇒ 与本笔无关；**登记**（与 **F66** web 零测试基建同族）⇒ 建议 coverage 前清 `dist` 或加 ignore |
+
+> **纪律沉淀**：涉及**库能力**的判断，必须①递归扫 d.ts ②能写类型探针就写 ③能跑运行期 A/B 就跑 —— 三条都没做之前，不得在对外结论里出现「没有/不支持」。
 
 ## 5. 服务端改动规格（R6 + R6-b）
 
@@ -843,6 +971,23 @@ return viewer;
 | `market.colDesc` | 描述 | Description | 表头列 2 |
 | `market.colDownload` | 下载 | Downloads | 表头列 4（列 3/5 复用 `market.author` / `market.star`）|
 | `market.searchClose` | 关闭搜索 | Close search | 折叠面板尾部关闭钮（清空 `q` + 收起）|
+### 6.6 既有组 `market` 补键 + 退役一键（T11-f 排序 · v1.23）
+
+| 键 | zh | en | 消费点 |
+|----|----|----|--------|
+| `market.sortLabel` | 排序 | Sort | `Select` 前 `Label`（**v1.27 新增**）|
+| `market.colUpdated` | 更新 | Updated | 列表「更新」列头（**v1.28 新增** · 与控制台 `assets.col.updated` **同词**）|
+| `market.sortNewest` | 最新 | Newest | `Select` 选项 1（默认档）|
+| `market.sortDownloads` | 下载量 | Most downloads | 选项 2 |
+| `market.sortStars` | 星标数 | Most stars | 选项 3 |
+| `market.sortName` | 名称 | Name | 选项 4 |
+| `market.sortAuthor` | 作者 | Author | 选项 5 |
+| ~~`market.sortRecent`~~ | ~~排序：最近更新~~ / ~~Sort: recently updated~~ | — | **退役**：原静态文本被排序控件取代（消费点仅 `CenterPage.tsx` 一处，实测）|
+
+> **净变化（预期值 · 实现期以 `m4b4-measure.ts` + 审计扫描实测回填）**：全仓键数 329 → **333**（+5 新键 −1 退役）；**未消费键 12 → 12（不变）**
+> —— `sortRecent` 原本**有消费者**（`CenterPage.tsx:242`），退役它与消费点**同时消失** ⇒ 未消费清单不受影响；**7 个新键**（五档 + **`sortLabel`**（v1.27 随 `Select`）+ **`colUpdated`**（v1.28 随「更新」列））全部有消费点。**实测键数 = 335 / 12 组**（`m4b4-measure`，en 值级中文泄漏 0）。
+> 列头排序的 `aria-sort` 为**属性**、无文案 ⇒ 不涉 i18n；图标用 lucide（`ArrowUpDown`/`ArrowUp`/`ArrowDown`）。
+
 
 ## 7. 接口变更总览（服务端面）
 
@@ -875,7 +1020,7 @@ return viewer;
 
 ### 9.1 门户零回归（**硬约束 —— 每 Task 收尾必跑**）
 
-- **`m4a-dogfood.ts` 全量 PASS + `NO JS ERRORS`**（M4a 四条门户读面行为语义不变 —— **T11-e 后为 37/37**：
+- **`m4a-dogfood.ts` 全量 PASS + `NO JS ERRORS`**（M4a 四条门户读面行为语义不变 —— **T11-e 后为 37/37 · T11-f 后为 38/38**：
   搜索入口断言由「页头输入框」改「折叠面板两步」（**F69**）；**v1.22 起「`CenterPage.tsx` 零 diff」不再是本批契约**，改为**零回归**）
 - **`m4a-chain-smoke.ts` PASS**
 - **`CenterPage.tsx` 零回归**（**v1.22 口径订正 · F74**）：原表述为「零 diff」—— 该契约**自 T11-e 起解除**（同页已加视图切换与折叠搜索）⇒ 现行契约 = 「门户读面**行为**零变化」：
@@ -910,7 +1055,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | G11 | **详情页管理区 5 档权限矩阵**逐档断言：访客 / 登录非 owner（两卡均不渲染）· owner（无 yank / 无特权标签）· 管理档（有 yank）· 超管（+ 特权标签） |
 | G12 | 详情页版本 Tab 行内动作：**owner 视图「删除」仅 2 态、管理档 4 态**；yank 仅 `PUBLISHED` 行且仅管理档（真码守卫对照） |
 | G13 | 筛选 / 搜索变更 ⇒ `page` **回落 1** + URL 同步（`?status=&q=&page=`） |
-| G14 | 门户零回归 **37/37**（`m4a-dogfood` 实跑基线 —— T11-e 后由 36 → 37，**F69/F75**）· **门户卡星标 = 纯展示**（两枚同款 stat：下载 + 收藏 · 卡内无 `button[aria-pressed]`）· 详情页收藏入口存在 —— 口径随 v1.8 追加、**2026-09-18 随 F67 更新**（见 **G14b**） |
+| G14 | 门户零回归 **38/38**（`m4a-dogfood` 实跑基线 —— T11-e 36 → 37（**F69/F75**）· **T11-f 37 → 38**（排序栏断言随形态改写，**F85**））· **门户卡星标 = 纯展示**（两枚同款 stat：下载 + 收藏 · 卡内无 `button[aria-pressed]`）· 详情页收藏入口存在 —— 口径随 v1.8 追加、**2026-09-18 随 F67 更新**（见 **G14b**） |
 | G15 | **star 幂等**：同一资产连点两次收藏 ⇒ `starCount` 只 +1（`starred` 恒 true）；取消两次同理只 −1 回基线 |
 | G16 | **`starredByMe` 语义**：匿名 / 未收藏 ⇒ `false`；本人收藏后 ⇒ `true`；**他人**收藏同一资产 ⇒ 我的 `starredByMe` 仍 `false`（计数 +1） |
 | G17 | **star 读面一致**（**两处 UI + 接口**）：列表「收藏」列 = 详情页头卡按钮数字 = 接口 `starCount`（~~抽屉统计行~~ 随抽屉取消 · v1.19） |
@@ -918,10 +1063,11 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | G19 | 全场景 **`NO JS ERRORS`** |
 | G20 | **门户视图切换（T11-e · 10 条）**：① `/mcps` 首访默认网格（两枚视图钮 · 网格容器在 · 行容器 0）② 点列表切换成功 ③ 列表形态 20 行 · **行高 55**（官方 `Table` + `py-4` 实测）· **行内 0 button**（纯展示口径不破）④ 表头 5 列文案（名称/描述/作者/下载/收藏）+ 行内五格字段齐 ⑤ **描述上限 = 3 行 + 省略号**（`line-clamp: 3` 真值 + 单元格 `white-space: normal`）⑥ 点下一页 ⇒ URL `?page=2` 且**仍是列表**（视图不受翻页影响）⑦ 离开再回 ⇒ 回默认网格（「不记忆」口径）⑧⑨⑩ 匿名：视图钮照常渲染 + 可切列表 + `/skills` 6 行无分页（正当缺席）|
 | G21 | **折叠搜索（T11-e · 6 条）**：① 收起态 = 图标钮 32×32 · 位于视图切换钮**左侧** · `aria-expanded=false` · 面板未渲染 · 全页可见 input 0 ② 点触发钮展开 ③ 展开态 = 面板在工具条**下方** · 宽度与工具条等宽（±2px）· 两枚 addon · **自动聚焦** · 关闭钮 24px ④ 面板输入 ⇒ URL `?q=` + 计数改「筛选结果」⑤ **页头搜索已移除**（hero 卡内 input = 0 · 全页可见 input = 1）⑥ 关闭钮 ⇒ 清空 q + 收起（可见 input 归 0）|
+| G22 | **资产排序（T11-f · 实测 14 条 · 控件 = 官方 `Select` + 列表五列可点）**：① 默认无参 ⇒ URL 无 `sort` + 顺序 = `updated_at desc` ② 五档逐档 ⇒ URL 含 `?sort=<档>` + 首条真值对接口（下载/收藏取最大值 · 名称按 slug 升序 · 作者按 display_name）③ 改排序 ⇒ URL 含 `sort` **且不含 `page`**（回第 1 页）④ 非法值 `?sort=bogus` ⇒ 静默回落默认（不报错不空白）⑤ 列头：点名称列 ⇒ `aria-sort="descending"` → 再点 `ascending` + URL 同步 ⑥ 双视图：列表切排序 ⇒ 切回网格仍保持 ⑦ 匿名：chips 可用 + 列头可点 |
 
 ### 9.4 出口件 ④（本批验收清单）
 
-沿用 M4b-2 口径（**CDP 自动断言 + 用户认可**）：出口件 ④ = 上表 **G1–G21** 逐组实测 + 用户实机认可结论；
+沿用 M4b-2 口径（**CDP 自动断言 + 用户认可**）：出口件 ④ = 上表 **G1–G22** 逐组实测 + 用户实机认可结论；
 **审美面不在本批范围**（视觉打磨归 **M4b-7**，本批只做**合规核对**：有无错位 / 溢出 / 串色 / 异常）。
 
 ### 9.5 造数需求（**写库须用户授权**；脚本进仓，口令不落库）
@@ -938,6 +1084,7 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **审计** | **≥5 条**审计记录（由造数动作自然产生，或直插 `audit_log`） | 工作台「最近审计」卡 5 行（**§2.1c 条① R2**） |
 | **star**（v1.8 追加） | ①「他人」给 owner 资产挂 **1 个收藏** ② owner 自己收藏 **1 条**（另一资产） | G15/G16/G17 三组断言（覆盖 `starredByMe=false` 而 `starCount=1` 的对照） |
 | **分页占位**（v1.22 追加 · T11-e） | **21 条 `m4b4-seed-page-01`…`-21`**：类型 = **mcp** · owner = `m4b2_mgr` · `ACTIVE` · 各带 `PUBLISHED` 版本 | G20 翻页断言（`/mcps` 2 → **23** > 20 出第二页）。⚠️ **不用 skill 类型**（会打翻 `m4a-dogfood` 的「/skills < limit ⇒ 无分页」与「首屏含 LangGraph 卡」两条基线）· **不挂 owner 名下**（会污染 G5/G6 的 3 行断言）|
+| **排序样本**（v1.23 追加 · T11-f） | 给 21 条占位资产写**可判定递变值**：`star_count = i` · `download_count = i × 3`（i = 1…21）⇒ 下载档与星标档顺序可区分；名称档按 slug（`m4b4-seed-page-01`…`-21`）天然有序 ⇒ 顺带覆盖「空名回退 slug」口径；作者档由两组 owner（`m4b2_user` / `m4b2_mgr`）构成两个可区分值 | G22 四档断言（下载/星标/名称/作者）|
 
 - 口令从 **env** 读（`SMOKE_*_PASSWORD` 惯例）；**仓库内不落任何口令 / 连接串**
 - **首次写库前须用户明确授权**（先例：M4b-2/M4b-3 造数）；幂等 ⇒ 可重放
@@ -1287,6 +1434,9 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **F58** | 🟡 | §3.2 改造件 14 | **门户卡 DOM 结构调整**：原 `<Link>` 包整卡，收藏按钮会落进 `<a>` 内（HTML 禁 interactive content 后代，且点击被导航吞掉）⇒ `<Link>` **收窄到「头像 + 标题 + 描述」主体**、页脚（作者行 + 收藏钮）留链接外 | ✅ 落地并登记；代价 = 整卡点击区少页脚一行；门户 dogfood **36/36** 复跑通过 |
 | **F59** | ⚪ | §5.1 ⑧ · §4.6 | 收藏按钮**两形态**（设计只说「门户卡 + 详情页共用」）：详情页 = `[收藏 N]`（文字 + 数字，R20 原型口径）· 门户卡 = 紧凑 `★ N`（无文字，`aria-label`/`title` 承载） | ✅ 实现期判定（`compact` prop）→ **2026-09-18 收敛为单一形态**：门户卡改**纯展示**（`AssetStat kind="star"`）后 `compact`/`form` 变体已撤，本件只服务详情页头卡（**F67**）|
 | **F60** | 🟡 | §9.3 G15 | G15「同一资产连点两次收藏 ⇒ 计数只 +1」**语义歧义**：UI 为**切换**（已收藏 ⇒ 再点 = 取消）⇒ 连点两次 = 收藏后取消，计数回基线 | ⚠️ **登记**：G15 幂等断言以 **API 两次 `PUT`** 形式落地（T11 脚本），**不得**以「UI 连点两次」判 G15，否则误红 |
+| **T11-f** 资产排序（**f1–f4 全绿** ✅ · **v1.28 定稿 = 官方 `Select` + 列表六列（含「更新」）**） | 代码 18 维 / 文档 8 维 | **f1 9.35 · f2 9.46 · f3 9.46（文档）· f4 9.47** | f2 实测（匿名 CDP + dogfood）：`Select` 五档（显示 + `?sort=` + 序逐项对接口）· 列头**五列**可点（描述列 `clickable:false`）· **「更新」列**（`YYYY-MM-DD` · 恒 active ⇒ 同列反向 `desc→asc→desc` · URL **无** `?sort=updated`）· 两态 + `aria-sort` 同步 · 深链/非法值/回第 1 页/双视图同序/匿名可用 全绿。扣分：**C2 9.0**（排序变更走重取，无计时实测）· **B2 9.3**（EN 宽度已验；**六列在窄视口（≤900px）的挤压未实测**）· **C5 9.0**（web 包零测试基建 —— F66 归 M4b-7）· 实现期缺陷 **F82–F89** 全部入档 |
+| **T11-g** 验证效率（dogfood 分段执行 + 会话复用） | 代码 18 维 | **9.49** | **A1 9.0**（会话复用的**失败回落分支**未实测 —— 只跑过命中路径）· **C5 9.0**（脚本自身无自动化回归入口）· **C4 9.0**（守卫 + 段头注释 + `SECTION_IDS` 三处手工同维护；段包块使全文 reindent ⇒ `git blame` 噪声变大，语义 diff 须用 `git diff -w`：452/-60）· C7 9.3（段级粒度 · 跨段共享量需手工上提）| 依据 = **实测**：段选 45.6s（原 3.5~5 分）· 全跑 2m59s · 真登录 9→4 · 全跑 91/0 零行为变化 · 打错组名 3.1s FAIL |
+
 
 **T11-e 实现期发现（v1.22 · 逐条处置）**
 
@@ -1309,12 +1459,21 @@ bun install --frozen-lockfile → typecheck → lint → format:check → 文档
 | **F79** | 🟡 | `AssetList.tsx:6` vs `:66` | **同文件声明自相矛盾**：件头写「表头底色、单元格内距**全部走官方默认**（零外观覆盖）」，而行内注释写「`bg-muted/50` = 本件**唯一观感类覆盖**」；真码另有**布局类覆盖 3 项**（`table-fixed` / 百分比列宽 / `py-4`）—— 件头是**首版**写的，后续两次调整（行距加宽 / 表头底纹）未同步 | ✅ 件头改为逐条交代「布局类 3 + 观感类 1」，并写明「与控制台 `DataTable` 零外观覆盖纪律的唯一差异 = 表头底纹」|
 | **F78** | ⚪ | §8 · v1.22 行 | **范围表述过宽**：写「唯一搜索入口 = 折叠面板」未限定范围，而门户首页 `Hero`（`pages/Home.tsx`）的官方 `InputGroup` 胶囊搜索**仍在**（M4a 落地页入口）| ✅ 两处限定为「**中心三页内**唯一入口」（并注明首页未动）|
 
+| **F80/F81** | 🟡 | T11-f 立项（2026-09-20） | 两处**判断错误**：F80「v9 无 manual*」（根因 grep 非递归）· F81「legacy 接排序需切原生面」（根因未做探针）| ✅ 已用**类型探针 + 运行期 A/B 探针**实证修正 —— **明细与纪律沉淀见 §4.7.6**（本节不复述）|
+
 **换靶实测通过项（留证）**：`errors` 组 **28 → 35 键**（+7，与 §6.3 声明一致 ✓，先前的 33 是计数法漏了两处非引号键）·
 `canManageAsset` = `owner ∨ role ≥ ADMIN`（`assets/manage.ts:19-20` 真码）⇒「R6-b 与 canManageAsset 同集」声明**成立** ✓ ·
 门户 `components/market/CenterPage.*` **零 diff**（`useMarketQuery` 加性维度未触达）✓ · `assets` 组键数 **62 = design 表 62** ✓
 
 ## 12. 修订记录
 
+| **v1.29** | 2026-09-20 | sunxuewen-rush | **T11-g（验证效率）—— dogfood 分段执行 + 会话复用** （用户「连续几条任务时间都有点长，耗时点在哪里？」· 归因结论 = dogfood 复跑为工具时间大头；**分桶数字口径已撤**，只留直接 `time` 实测 —— 见证据 §14.9）① **§11.9** 增 T11-g 行（代码 18 维 **9.49**）② **§4.7.6** 增 **F90**（`send()` 回整条 CDP 消息 ⇒ cookie 键取错 ⇒ 复用静默失效，诊断实证后改正）· **F91**（`docs/` 脚本不在 turbo lint 图内）· **F92**（门禁 `test` 行可能是 turbo **缓存回放** ⇒ 报数须标真跑/回放；已 `--force` 补真跑 32.6s / 562 pass / 0 fail）③ 实现：`SMOKE_ONLY` 14 段守卫 + 命中检查 + 跨段探针上提 + `jar`/`me.user.id` 会话复用；**零产品码改动** ④ 实测：段选 **45.6s**（原 3.5~5 分）· 全跑 **2m59s** · 真登录 **9 → 4** · 全跑 **91/0**（零行为变化）· 打错组名 3.1s FAIL 并列可选段 |
+| **v1.28** | 2026-09-20 | sunxuewen-rush | **列表加「更新」列（⟷「最新」档）+ F89 订正** —— ① `AssetList` **六列**（名称/描述/作者/下载/收藏/**更新**）· 列宽 24/26/16/11/11/12 · 载态 `colSpan` 6 ② 列头可点 **五列**（`updated ⟷ newest`；`formatDate` 与控制台「更新」列同件；i18n `market.colUpdated` 同词）③ **F89**：`handleHeaderSort` 把列名当档位 ⇒ `?sort=updated`（服务端白名单外静默回落，但 `dir` 仍生效 ⇒ 序与档位脱钩）⇒ 导出 `COLUMN_SORT` 单一事实源 + `CenterPage` 先译档 ④ dogfood **G20-4 改六列** + **G22-6c 新增**（URL 无 `sort=updated` · Select 仍「最新」· `desc→asc→desc` 序对接口）⇒ **91 PASS / 0 FAIL** ⑤ i18n **+`colUpdated` ⇒ 335 键**（实测）⑥ f2 复评 **9.46** |
+| **v1.27** | 2026-09-20 | sunxuewen-rush | **T11-f 排序控件形态定稿 = 官方 `Select`（用户拍板）** —— ① 线框四案对比（`/tmp` 原型物料不进仓）后用户选 **B**：`Label「排序」+ SelectTrigger#market-sort`（`size="sm"` · **`w-[160px]`** · `role=combobox`）取代 chips ×5 ② **实测**：常驻宽 **274 → 160px**、换档点击 **1 → 2 次**、中英均**不截断** ③ **F87**（104px 定宽在 EN `Most downloads`=106px 下截断）⇒ 沿控制台 `#assets-status-filter` 同宽先例改 160 ④ i18n **+`sortLabel` ⇒ 334 键**（实测 · 未消费 12 不变）⑤ G22 断言同步（Select 显示 + `160x32` 尺寸真值）⇒ **90 PASS / 0 FAIL** · `m4a-dogfood` **38/0** ⑥ f2 自检 **9.40**（形态变更后复评：+0.03 = 常驻宽度 -114px 且两语无截断）|
+| **v1.26** | 2026-09-20 | sunxuewen-rush | **T11-f 收口：f3 文档回填 + f4 验证（全绿）** —— ① `m4a-dogfood` 断言改写（**F85**）⇒ **38/0** ② 本批 dogfood **90 PASS / 0 FAIL / 0 超时 / NO JS ERRORS**（+**G22×13**）③ 覆盖探针：全仓 **95.60/96.29**（lines **+0.07**）· `http/assets.ts` **95.98** · `assets/service.ts` 100/97.49 · `http/me.ts` 100/100 ⇒ **不降** ④ **F86**（`--coverage` 含 `dist/**` ⇒ 7 例假失败；`--coverage src/` = 562/0 反证）⑤ 证据回填 `docs/smoke/…personal-b.md` **§14** ⑥ f3 文档 **9.46** · f4 **9.47** ⑦ i18n 实测 **333 键** | 
+| **v1.25** | 2026-09-20 | sunxuewen-rush | **T11-f f2（门户 UI 排序）实现 + F84 订正** —— ① **chips ×5**（官方 `ToggleGroup variant="chip"` · 计数行内搜索钮左侧 · 取代静态文本）② **列头可点**（`AssetList` 内新 `SortableHead`：官方 `Button ghost/sm` + `ArrowUpDown/Up/Down` + `th[aria-sort]`；**描述列不可点**）③ `useMarketQuery` **加性** `sort`/`dir`（`setSort` 清 `dir` + `dropPage`；`dir` 缺省 ⇒ 档位固有方向）④ `api/assets.ts` 透传 ⑤ i18n `market` **+5 / 退役 `sortRecent`** ⇒ **实测 333 键**（未消费不变）⑥ **F84**：列头首点恒 `desc`（原 §4.7.5「点异列 = 固有方向」与 §4.7.2/§4.7.3 自相矛盾）⇒ 订正 ⑦ f2 自检 **9.37**（A 9.38 · B 9.38 · C 9.35）| 
+| **v1.24** | 2026-09-20 | sunxuewen-rush | **T11-f f1（服务端）实现期订正** —— ① **F82**：契约漏 `dir` ⇒ 主 design v1.57 补 `&dir=` + §4.7.5 补 `dir?: AssetSortDir` ② **F83**：`.default('newest')` 写法在非法值上 400 ⇒ 订正 `.catch('newest')` / `dir: …optional().catch(undefined)` ③ 测试行回填 f1 实际落点（service + 两路由）。**实现口径**：白名单映射（全档带 tiebreaker）+ `name`/`author` 相关子查询（零 join）· 零迁移 · 零新依赖 |
+| **v1.23** | 2026-09-20 | sunxuewen-rush | **验收期第三笔 T11-f「资产排序」立项（零实现改动）** —— ① 新增 **§4.7**（定值口径 10 条 · UI 规格 · 交互边界 · G22 断言口径 · **基础面实证** · **F80/F81 纠错留痕 + 纪律沉淀**）② **§6.6** i18n：`market` +5 键、**退役 `sortRecent`**（净 329 → **333** 键（**实测**：`m4b4-measure` = 12 组 · zh=333 / en=333 · en 值级中文泄漏 **0**） · 未消费 **12 不变** —— 退役键原有消费者）③ §3.3 前补**件表增量**（新建 **0** / 改造 **+4** / 脚本 +2）④ §9.3 增 **G22**（7 条）· §9.4 区间 **G1–G22** ⑤ §9.5 造数增**排序样本**（21 条占位写递变下载/星标值）⑥ §11.9 增 **T11-f 行**（实现中）⑦ 主 findings 表加 **F80/F81** 指针行 |
 | **v1.22** | 2026-09-18 | sunxuewen-rush | **验收期 UI 调整轮第二笔（T11-e · 门户视图切换 + 折叠搜索 · 提交前自检 9.24 / 文档 5.25 ⇒ 补档轮）** —— ① **视图切换**：官方 `ToggleGroup`（`outline`/`sm`/`spacing=0` · `LayoutGrid`/`List` 图标 16px · 单钮 42×32）置于结果计数行右端；`ViewMode` = 组件 state（**不落 URL/存储** —— 用户「不用记忆」）⇒ 同页翻页/搜索/筛标签保持视图，离开/刷新/后退回网格（G20 断言）② **列表形态三易其形**（留痕）：官方 `Item`（弃用 · F68）→ 官方 **`Table`**（`table-fixed` · 5 列 · 列宽百分比 26/30/20/12/12 · 单元格 `py-4` ⇒ 行高 55 · 描述 `line-clamp-3` + `whitespace-normal` ⇒ 最长 93px · 整行热区 = 首列 stretched link）③ **去卡化**（用户「table 和背景融为一体」）：面板除边框/白底/圆角，表格落在页面底上，只留官方行分隔线与表头底纹④ **折叠搜索**（用户「参考 ClawHub 切换钮左侧的搜索」）：官方 `Collapsible` + 官方 `InputGroup`（放大镜 addon + 无边框输入 + `InputGroupButton size="icon-xs"` 关闭钮）；位置 = 工具条下方、宽度与工具条等宽（实测 693/693）；展开**自动聚焦**（有意偏离 ClawHub，1 行）⑤ **删页头搜索框**（用户「title 上的搜索就重复设计了，需要去掉」）⇒ 唯一入口 = 折叠面板；hero 卡内 input = 0（G21-5 反证）⑥ 件表 **新建 16 → 17** / 改造 **19 → 20**（`CenterPage.tsx`；**§9.1「CenterPage 零 diff」契约改为「零回归」**）⑦ i18n **+6 键** ⇒ **329 键 / 12 组**（双语差集 0 · 未消费键 12 = 基线）⑧ 造数 **+21 条 mcp 分页占位**（类型/owner 选择有据 —— F/§9.5）⑨ dogfood **77 PASS / 0 FAIL**（G20×10 + G21×6）· `m4a-dogfood` **37 PASS / 0 FAIL** ⑩ 发现 **F68–F73** ⑪ 零服务端改动 · 零新依赖 |
 | **v1.21** | 2026-09-18 | sunxuewen-rush | **验收期 UI 调整轮（T11-d · 代码 18 维 9.59）** —— ① 门户卡下载图标 → `AssetStat`（与详情页/列表列同件）· 退役 `⇣` 字形 ② **去卡片版本号** ③ 星标 → `AssetStat kind="star"` **纯展示**（与下载实测同款：font 11px · color `#64748b` · icon 14×14 · gap 4px），位置 = 下载右侧；**交互只留详情页** ④ 连带收敛：`StarButton` 撤 `compact`/`form`（单一形态 · 避免死代码）；卡片改**覆盖层 Link**（整卡可点含页脚 · 无嵌套 interactive content 顾虑）⑤ dogfood：**G18 改指详情页** + 新增 **G14b**（纯展示反证 + 点击穿透）⇒ **60 PASS / 0 FAIL** · 总用例 **551** 不变 ⑥ **F67 登记** + §3.1 件 15 / G14 / G18 / F59 同步 |
 | **v1.20** | 2026-09-18 | sunxuewen-rush | **T11-c 覆盖补测轮（代码 18 维 9.64）** —— ① **F65 登记**：整体审计**缺「覆盖探针」维度**（skill 明列换靶角度未用，T11 据此判全绿 ⇒ 口径缺口）② **F66 登记 + 已闭**：`POST /:slug/versions/:version/yank` **路由层整段零覆盖**（`http/assets.ts:683-713`；服务层本就 100%；本批 T12 首接 UI 入口）⇒ 新增 **`apps/server/src/http/yank-route.test.ts` 14 例** + dogfood **G12b** 真点击端到端；**web 包零测试基建**（14 个前端文件覆盖 0）⇒ 归 **M4b-7 / 另立项** ③ 实测：全仓 **95.60/96.28** · `http/assets.ts` **90.97 → 95.96** · 测试 **537 → 551** · dogfood **53 → 58** ④ 补测期自身两缺陷留痕：清理链序（`asset_version.asset_id` FK **无 onDelete** ⇒ 必须先删版本）+ 对话框探测器（官方 `AlertDialog` 而非 `Dialog`）⑤ 证据 §1/§3/§4/§5/§6 A5/§8/§10 同步 |
