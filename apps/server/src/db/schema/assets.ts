@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   bigserial,
@@ -64,6 +65,25 @@ export const asset = pgTable(
     // 01 §3.3 → M4-pre §2.3：全局唯一坐标（跨类型唯一，type 不在唯一键）
     unique('uq_asset_slug').on(t.slug),
     index('idx_asset_status').on(t.status),
+    /*
+     * 排序读路径索引（T11-j `j4` · D0-6 · 跨批 design §1.6）：
+     * 三档排序键**全在本表列上** ⇒ 用**部分索引**（谓词 `status='ACTIVE'`，与门户/中心页
+     * 的公开面读路径精确对齐）；`idx_asset_status` **保留**（另服务 status 过滤 · 净 +3）。
+     * 实测（20 万行合成表）：三档 LIMIT 20 由 7.9–9.0 ms 降至 0.02–0.03 ms（≈265–433×）；
+     * `status+type` 联合谓词**仍命中**（前缀沿用）；`count(*)` 与「owner 收窄 + status=ALL」
+     * **不受益**（谓词不匹配 —— 后者是控制台默认态，已登记为可接受）。
+     * 迁移为**普通 `CREATE INDEX`**（锁窗口实测 ≈0.09 s）；>1000 万行或零停机需求 ⇒ 改手写
+     * 非事务 `CONCURRENTLY`（跨批 design §1.6 R5）。
+     */
+    index('idx_asset_newest')
+      .on(t.updatedAt.desc(), t.id.desc())
+      .where(sql`${t.status} = 'ACTIVE'`),
+    index('idx_asset_downloads')
+      .on(t.downloadCount.desc(), t.updatedAt.desc(), t.id.desc())
+      .where(sql`${t.status} = 'ACTIVE'`),
+    index('idx_asset_stars')
+      .on(t.starCount.desc(), t.updatedAt.desc(), t.id.desc())
+      .where(sql`${t.status} = 'ACTIVE'`),
   ],
 );
 

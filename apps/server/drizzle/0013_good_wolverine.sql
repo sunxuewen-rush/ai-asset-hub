@@ -1,0 +1,3 @@
+CREATE INDEX "idx_asset_newest" ON "asset" USING btree ("updated_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "asset"."status" = 'ACTIVE';--> statement-breakpoint
+CREATE INDEX "idx_asset_downloads" ON "asset" USING btree ("download_count" DESC NULLS LAST,"updated_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "asset"."status" = 'ACTIVE';--> statement-breakpoint
+CREATE INDEX "idx_asset_stars" ON "asset" USING btree ("star_count" DESC NULLS LAST,"updated_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "asset"."status" = 'ACTIVE';
