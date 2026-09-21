@@ -309,20 +309,20 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | 脚本 | 结果 |
 |------|------|
 | `m4b4-personal-b-dogfood.ts` | **89 PASS / 0 FAIL / 0 CDP 超时 / NO JS ERRORS**（**T11-j 后** —— 原 91：−G22-6 · +G20-10 · G22-3 四档→两档）**（T11-f 时 = 91 = 原 77 + G22×14**；T11-g 后：**SMOKE_ONLY=G22 ⇒ 45.6s** 命中 14 条 + 命中检查 + G19 · 全跑 **2m59s** · 真登录 **9 → 4**）|
-| `m4a-dogfood.ts`（门户零回归） | **38 PASS / 0 FAIL**（原 37 → 38：原 1 条「中心排序栏」静态文本断言拆为 **2 条**（旧文本退役 + 控件形态 = 官方 `Select` `role=combobox` + 默认档「最新」）—— **F85 跨口径变更**，**v1.27 随形态再改 1 次**）|
+| `m4a-dogfood.ts`（门户零回归） | **38 PASS / 0 FAIL**（原 37 → 38：原 1 条「中心排序栏」静态文本断言拆为 **2 条**（旧文本退役 + 控件形态 —— **`j6` 起 = 纯图标无框钮**（`aria-label=排序` · **32×32** · `border 0px` · 无文案））—— **F85 跨口径变更**，**v1.27 随形态再改 1 次**）|
 | 服务端用例 | **+12 例**：`assets/service.test.ts` **+8**（五档真值 / `dir` 反向 / 非法回落 / tiebreaker / 零 join 形状）· `http/assets.test.ts` **+3**（白名单放行 / 非法回落逐项一致 / 计数单调）· `http/me.test.ts` **+1**（不传 ⇒ 现状序 + 只改序不改集合）|
 
-**G22 明细（13 条 · 全绿）**：G22-1 默认档干净 URL + 「最新」选中 · G22-2 默认序 = 接口默认序 · G22-3 ×**2**（下载量/星标数两档 = URL + 列表序与接口**逐项一致** · T11-j j3 收敛）· G22-4 改排序**回第 1 页**（`?page=2` → `?sort=stars`）· G22-5 非法值静默回落 + chip 归一 · ~~G22-6 列头同列两态~~（随 T11-j j3 **整条删除** —— 同列反向由 G22-6c 承载）· G22-6b 点异列**首点 `desc`**（F84 口径）· G22-7 **三列可点 / 描述 · 名称 · 作者不可点** · G22-8 双视图同序 · G22-9 **匿名可用**（本段全程 `me=401`）· **G22-6c** 点「更新」列 ⟺「最新」档（URL 无 `sort=updated` · Select 仍「最新」· 同列 `desc→asc→desc` 序与接口一致）。
+**G22 明细（13 条 · 全绿）**：G22-1 默认档干净 URL + 纯图标无框钮（32×32 · border 0 · 无文案）+ 菜单三档勾「最新」 · G22-2 默认序 = 接口默认序 · G22-3 ×**2**（下载量/星标数两档 = URL + 列表序与接口**逐项一致** · T11-j j3 收敛）· G22-4 改排序**回第 1 页**（`?page=2` → `?sort=stars`）· G22-5 非法值静默回落 + chip 归一 · ~~G22-6 列头同列两态~~（随 T11-j j3 **整条删除** —— 同列反向由 G22-6c 承载）· G22-6b 点异列**首点 `desc`**（F84 口径）· G22-7 **三列可点 / 描述 · 名称 · 作者不可点** · G22-8 双视图同序 · G22-9 **匿名可用**（本段全程 `me=401`）· **G22-6c** 点「更新」列 ⟺「最新」档（URL 无 `sort=updated` · **菜单仍勾「最新」**（`j6` 起）· 同列 `desc→asc→desc` 序与接口一致）。
 
 ### 14.3 观感/形态实测真值（浏览器 CDP）
 
 | 项 | 实测值 |
 |----|--------|
-| 排序控件（**v1.27 = 官方 `Select`**） | `Label「排序」+ SelectTrigger#market-sort` · **实测 160×32**（`size="sm"`）· `role=combobox` · 收起态显示当前档（默认「最新」）· 选项 = 最新/下载量/星标数/名称/作者 · 计数行内 **搜索钮左侧**（`ml-auto`）· **常驻宽 274 → 160px**（对比 chips 版）· 换档点击 **1 → 2 次**（用户 2026-09-20 线框四案对比后拍板「方案 B」）|
+| 排序控件（**v1.28 `j6` 起 = 纯图标无框钮 + 官方 `DropdownMenu`**；v1.27 曾为官方 `Select`） | **`Button variant="ghost" size="icon-sm"` + lucide `ArrowUpDown`** · **实测 32×32 · `border 0px` · 钮内无文案** · `aria-label=排序` · 点开官方 `DropdownMenu`（**`RadioGroup` 三档** · 当前档 `aria-checked=true`）· **当前档靠 tooltip（`排序 · 最新`）+ 菜单勾选**（无框纯图标 ⇒ 不再常驻显示档位 —— 选型矩阵**已登记**代价）· 计数行内右侧控件群**首项**（容器承担 `ml-auto`）· 常驻宽 **160 → 32px**（省 128px）· 换档点击仍 **2 次**（用户 2026-09-21 线框三方向取「方向 1 纯图标」）|
 | 列头按钮 | 官方 `Button` ghost `size=sm` + 图标（未排 `ArrowUpDown` / 降 `ArrowDown` / 升 `ArrowUp`）· `th[aria-sort]` = `none ｜ ascending ｜ descending` · **描述列无按钮** |
 | 两态语义 | **首点该列 ⇒ `desc`**（含异列）· **再点同列 ⇒ `asc`** ⇒ URL `?sort=downloads&dir=desc → …&dir=asc` |
-| 方向真值（`Select` 驱动 · URL 无 `dir`） | `?sort=downloads` ⇒ 下载列 `aria-sort=descending`；`?sort=stars` ⇒ 星标列 `descending`（**三档固有方向均为 `desc`** —— T11-j j3 收敛后 `asc` 固有方向已无档位）|
-| 非法值 | `?sort=bogus` ⇒ `Select` 归一「最新」· 顺序 = 接口默认序 · **200**（不 400 / 不空白）|
+| 方向真值（排序入口驱动 · URL 无 `dir` —— `j6` 换件后**语义不变**） | `?sort=downloads` ⇒ 下载列 `aria-sort=descending`；`?sort=stars` ⇒ 星标列 `descending`（**三档固有方向均为 `desc`** —— T11-j j3 收敛后 `asc` 固有方向已无档位）|
+| 非法值 | `?sort=bogus` ⇒ **菜单归一勾「最新」**（`j6` 起 · 原为 `Select` 显示「最新」）· 顺序 = 接口默认序 · **200**（不 400 / 不空白）|
 | 双语宽度（**F87**） | 定宽 **160px**：zh（最长「星标数」42px）与 EN（最长 `Most downloads` **106px**）均 `clipped:false`；**104px 版在 EN 下截断**（`scrollWidth 106 > clientWidth 54`）|
 | 展开态 | 点触发钮 ⇒ `[role=option]` 面板 **五档齐**（最新/下载量/星标数/名称/作者）· 选中项高亮 |
 | 双视图 | 列表视图改排序 → 切回网格 ⇒ URL + chip 选中 + 顺序**均保持**（同一状态）|
@@ -372,7 +372,7 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | `docs/smoke/scripts/m4a-dogfood.ts` | **856**（T11-i ×11 断言后实测：552 → 663 → **856**）|
 | `apps/web/src/components/market/Hero.tsx`（**跨批** · M4a 交付物） | **166**（两态 + v0.25 聚焦判据；**实测**）|
 
-新增证据图 **5 张**（v1.27 命名对齐内容）：`docs/smoke/m4b4-24-sort-select.png`（默认 Select 收起态）· `m4b4-25-sort-bogus-fallback.png` · `m4b4-26-sort-header-desc.png` · `m4b4-27-sort-grid-preserved.png` · `m4b4-28-sort-updated-column.png`（「更新」列 ⟺ 最新档）。
+新增证据图 **5 张**（v1.27 命名对齐内容；**`j6` 起首张改名** `m4b4-24-sort-icon.png`，见 §14.16）：`docs/smoke/m4b4-24-sort-icon.png`（默认纯图标钮收起态）· `m4b4-25-sort-bogus-fallback.png` · `m4b4-26-sort-header-desc.png` · `m4b4-27-sort-grid-preserved.png` · `m4b4-28-sort-updated-column.png`（「更新」列 ⟺ 最新档）。
 > ⚠️ 脚本每次运行都会重写 §12/§13 时点的旧图 ⇒ 本笔收尾**已把已跟踪旧图恢复为各节时点态**（`git checkout`），故它们**不入本笔 diff**；本笔只新增上述 4 张。
 > ⚠️（**v1.32 追加**）T11-h v0.25 收尾同法处理：`2-skills` / `2b-skills-search` / `2c-skills-filter` / `7-locale-en` 四张**已恢复时点态**；**仅 `1-home.png` 保留新态** —— 首页搜索形态确实变更（右钮两态 + 聚焦判据）⇒ 该图新态即当前真值。
 
@@ -603,9 +603,30 @@ i18n **347 键 / 12 组**（**本笔零改动**）· `THIRD-PARTY-NOTICES.md` �
 
 **证据图（本轮重拍 · 变化图）**：`m4b4-20-mcps-list-view.png`（**列表 7 列**）· `m4b4-20-skills-list-view-anon.png`（匿名列表）· `m4b4-03-my-assets.png` / `m4b4-28-sort-updated-column.png`（排序头）· 原 `26-sort-header-desc.png` **不再产出**（G22-6 删除）。
 
+### 14.16 T11-j `j6` 追加笔（工具条去框化 + 名称列色块 · 2026-09-21 实跑）
+
+**两条用户拍板**：①「**列显示不要外框（和搜索没有外框一样）** · **简化排序成图标的形式，也没有外框**」⇒ 出**线框三方向**（`/tmp/aih-table-alignment/j6-styleboard-v2.html` + 3 张实拍）对比后取 **方向 1「纯图标」**；②「**资产名称列除了文字，可以像卡片一样加一下图标么**」⇒ 按推荐 = **色块 24px · 列宽不动**（控制台名称列归 `T11-k`）。
+
+**断言 / 门禁（实测）**
+
+| 项 | 真值 |
+|----|------|
+| `m4b4-personal-b-dogfood.ts` | **89 PASS / 0 FAIL**（脚本 **1546 → 1585**：`G22-1` / `G22-3` / `G22-5` / `G22-6c` / `G22-8` 五条改口径 · `G21-3` 工具条容器上移一层 · 新增 `closeMenu` 助手）|
+| `m4a-dogfood.ts`（门户零回归） | **60 PASS / 0 FAIL**（**979 行**：中心排序栏 + `/search` 排序钮两条改口径）|
+| 运行期探针（去框化） | **8 PASS / 0 FAIL** —— 三枚动作钮 **`border 0px` · 各 32×32** · 排序钮**无文案** · 视图切换**保留 1px 框** · 控件群右边缘 **1416 恒定** · 真指针开菜单 = **3 档 radio（勾「最新」）** · 点「下载量」⇒ **`?sort=downloads`（不带 `dir`）** · 网格态列显示**不渲染** |
+| 运行期探针（色块） | **5 PASS / 0 FAIL** —— 名称格 **24×24 · `aria-hidden=true`** · 名称格**零 `a`** · 名称 span `overflow hidden` 且**格内不溢列宽**（`scrollWidth − clientWidth = 0`）· **同资产卡片/列表同色**（`rgb(8,145,178)` / `rgb(245,158,11)` / `rgb(5,150,105)` 三例逐项一致）· 卡片仍 **40px** |
+| 页内快速门禁 | `typecheck` / `format:check` / `lint` 全绿（`format` 覆盖 **278** 文件）|
+| i18n | **+3 键**（`colShow` / `colRequired` / `colReset`）⇒ 实测 **350 键**（zh ⇄ en 同数 · 12 组 · `market` 组 **81**）|
+
+**证据图**：`docs/smoke/m4b4-24-sort-icon.png`（改名自 `m4b4-24-sort-select.png`）· `m4b4-25-sort-bogus-fallback.png` · `m4b4-27-sort-grid-preserved.png` · `m4b4-28-sort-updated-column.png`（随形态重生成）；线框与探针图共 5 张落**仓外**（`/tmp/aih-table-alignment/`，原型物料不进仓）。
+
+**本轮新发现（编号对齐 plan §7.6）**：**F121** 单一源清单漏「操作」槽列（菜单 6 项 ≠ 拍板七项）· **F122** 控件群多一层容器 ⇒ `G21-3` 工具条宽度探针抓内层（171 ≠ 1129）· **F123** 探针模板串内注释带反引号 ⇒ 字符串截断（**与 F70 同族复发**）。
+
+---
+
 ### 14.8 未决 / 待用户拍板
 
-- **观感**（须人眼）：① **排序控件形态已定**（用户线框四案对比后拍板官方 `Select`）② 待看余项 = 列头按钮与表头左对齐（官方 `Button` 自带内距）· 方向图标尺寸 · 排序 `Select` 与搜索/视图钮的视觉重量平衡
+- **观感**（须人眼）：① **排序控件形态已定**（用户线框四案对比后拍板官方 `Select`）② 待看余项 = 列头按钮与表头左对齐（官方 `Button` 自带内距）· 方向图标尺寸 · ~~排序 `Select` 与搜索/视图钮的视觉重量平衡~~（**`j6` 已收口** —— 三枚动作钮统一无框图标 · 视图切换独占边框 ⇒ §14.16）
 - **登记后续**（非目标 · 见批 design §4.7.2）：控制台「我的资产」UI 排序（`DataTable` legacy 面加性接法已实证可行）· 排序索引（`download_count`/`star_count` 无索引）· 名称 `COLLATE`（中文 collation 按 code point 序）· 排序**记忆**
 - **F86 关联**：`test --coverage` 全量口径会跑 `dist/**`；建议后续清 `dist` 或加 ignore（归测试基建，与 F66 同族）
 - **提交**：✅ **已提交推送 3 笔**（`72e48db` `feat(server)` → `434043b` `feat(web)` → `ced0d6a` `test(docs)`）· CI run **`35499952284`** = **success**（12 步全 success）；收口审计的活口径订正（**F93**）随第 4 笔 `docs(m4b4)` 落地

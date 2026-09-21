@@ -478,7 +478,7 @@ async function main() {
     const txt = document.body.innerText;
     const chips = [...document.querySelectorAll('[data-slot="toggle-group-item"]')].map((x) => x.innerText.trim());
     return JSON.stringify({ title: !!document.querySelector('h1'), count: /共 [0-9]+ 个结果/.test(txt),
-      chips: chips.slice(0, 4), sort: !!document.querySelector('#search-sort'),
+      chips: chips.slice(0, 4), sort: !!document.querySelector('button[aria-label="排序"]'),
       cards: document.querySelectorAll('a[href^="/assets/"]').length });
   })()`)) as string,
   ) as {
@@ -739,33 +739,37 @@ async function main() {
     }),
   );
   // ⚠ 2026-09-20 口径变更（M4b-4 验收期第三笔 T11-f · 两轮）：原断言 = 静态文本「排序：最近更新」
-  //   → v1.25 改 chips ×5 → **v1.27 用户线框对比后拍板改官方 `Select`**（跨批交付物改动，同类 F69/F85）
-  //   ⇒ 断言改为「排序控件存在且形态正确」：① 旧静态文本**已消失** ② `#market-sort` = 官方 `Select`
-  //   （`role=combobox`）③ 显示「最新」= 默认档 ④ 有配套 `label[for=market-sort]`（可访问名 = 排序）。
-  //   五档选项齐由**本批 G22-3 逐档**覆盖（跨批脚本不驱动 radix 面板，避免脆弱耦合）。
+  //   → v1.25 改 chips ×5 → **v1.27 用户线框对比后拍板改官方 `Select`**（跨批交付物改动，同类 F69/F85）。
+  //   ★ **2026-09-21 再变更（M4b-4 验收期第六笔 T11-j `j6` · 用户拍板「方向 1 纯图标」）**：
+  //   `Select`（160px）→ **纯图标无框钮（32px）+ 官方 `DropdownMenu` 三档** ⇒ 断言改为
+  //   「**纯图标无框钮存在且几何正确**」：① 旧静态文本已消失 ② `button[aria-label=排序]` 在
+  //   ③ **32×32 且 `border 0`**（无框）④ 钮内**无文案**（纯图标）。
+  //   档位齐 / 勾选态 / URL 换档由 **M4b-4 G22 段**覆盖（跨批脚本不驱动 radix 面板，避免脆弱耦合）。
   const sortState = (await evalJs(`(() => {
-    const trig = document.querySelector('#market-sort');
+    const b = document.querySelector('button[aria-label="排序"]');
+    const st = b ? getComputedStyle(b) : null;
+    const r = b ? b.getBoundingClientRect() : null;
     return {
       legacyText: (document.body.innerText || '').includes('排序：最近更新'),
-      hasTrigger: !!trig,
-      role: trig ? trig.getAttribute('role') : null,
-      value: trig ? (trig.querySelector('[data-slot="select-value"]')?.textContent || '').trim() : null,
-      hasLabel: !!document.querySelector('label[for="market-sort"]'),
+      hasBtn: !!b,
+      box: r ? Math.round(r.width) + 'x' + Math.round(r.height) : null,
+      border: st ? st.borderTopWidth : null,
+      text: b ? (b.innerText || '').trim() : null,
     };
   })()`)) as {
     legacyText: boolean;
-    hasTrigger: boolean;
-    role: string | null;
-    value: string | null;
-    hasLabel: boolean;
+    hasBtn: boolean;
+    box: string | null;
+    border: string | null;
+    text: string | null;
   };
   ok('中心排序栏：静态文本已退役（T11-f）', sortState.legacyText === false);
   ok(
-    '中心排序栏：形态 = 官方 Select（`role=combobox` + `label[for]`）· 默认档显示「最新」',
-    sortState.hasTrigger &&
-      sortState.role === 'combobox' &&
-      sortState.value === '最新' &&
-      sortState.hasLabel,
+    '中心排序栏：形态 = **纯图标无框钮**（`aria-label=排序` · 32×32 · border 0 · 无文案）—— T11-j `j6` 方向 1',
+    sortState.hasBtn &&
+      sortState.box === '32x32' &&
+      sortState.border === '0px' &&
+      sortState.text === '',
     JSON.stringify(sortState),
   );
   await shot('2-skills');

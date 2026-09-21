@@ -13,14 +13,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/shadcn/input-group';
-import { Label } from '@/components/ui/shadcn/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/shadcn/select';
+import {} from '@/components/ui/shadcn/select';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../../api/assets.js';
@@ -35,16 +28,12 @@ import { ErrorState } from '../ui/ErrorState.js';
 import { Pagination } from '../ui/Pagination.js';
 import { TypeIcon } from '../ui/TypeIcon.js';
 import { AssetCard, AssetGrid } from './AssetCard.js';
-import { AssetList } from './AssetList.js';
+import { AssetList, PORTAL_COLUMNS } from './AssetList.js';
+import { ColumnVisibilityMenu } from './ColumnVisibilityMenu.js';
 import { FilterStrip } from './FilterStrip.js';
+import { SortMenu } from './SortMenu.js';
 // 排序档位常量（T11-i A 上提）：与 `/search` 结果页**同源**（design §8.12「常量上提」—— 本件改 import，行为零变化）
-import {
-  isSortKey,
-  PAGE_SIZE,
-  SORT_LABEL_KEYS,
-  SORT_OPTIONS,
-  type SortKey,
-} from './sortOptions.js';
+import { isSortKey, PAGE_SIZE, type SortKey } from './sortOptions.js';
 
 /**
  * 视图形态（T11-e）：默认**网格**；`list` = 单列行列表（`AssetList`）。
@@ -175,6 +164,8 @@ export function CenterPage({ type }: { type: AssetType }) {
    * ⚠️ v1.22 前页头亦有搜索框、两者同源；页头搜索移除后本面板为**中心三页唯一搜索入口**（首页 `Hero` 的胶囊搜索属落地页入口，未动）。
    */
   const [searchOpen, setSearchOpen] = useState(false);
+  /** 列显示（`j6` · 受控 · **不持久化** —— 与「视图切换不记忆」同口径） */
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLInputElement>(null);
   // 展开即聚焦输入框（ClawHub 实测不聚焦；本仓**有意 +1 行**：少一次点击，触屏/键盘都更顺）
   useEffect(() => {
@@ -280,68 +271,60 @@ export function CenterPage({ type }: { type: AssetType }) {
               ? t('market', 'filteredCount', { n: list?.total ?? 0 })
               : t('market', meta.total, { n: list?.total ?? 0 })}
           </span>
-          {/* 排序 **Select**（T11-f · **2026-09-20 用户拍板「方案 B」** —— 线框四案对比后选官方 `Select`）：
-              ① 官方件（`ui/shadcn/select.tsx` · `size="sm"` = 32px ⇒ 与搜索钮/视图钮**同高**）
-              ② 位置 = 计数行内 **搜索钮左侧**、`ml-auto` 贴右 · **不新增行**（两视图共用同一 `sort` 状态）
-              ③ 形态沿控制台「我的资产」页 `#assets-status-filter` 先例：`Label` + `SelectTrigger#id`
-              ④ 取代原静态文本「排序：最近更新」（v1.23 退役键 `sortRecent`）与 v1.25 的 chips 版
-              ⇒ 换档点击成本 1 → 2 次，换得常驻宽度 274px → 160px（design §4.7.2 v1.27）。
-              ⚠️ 宽度 = **160px**（沿控制台 `#assets-status-filter` 同宽先例）：EN 下最长选项 `Most downloads`
-              文本宽 **106px** ⇒ 104px 触发器会**截断**（实测 `scrollWidth 106 > clientWidth 54`），160px 容得下。 */}
-          <Select value={sort} onValueChange={(next) => query.setSort?.(next)}>
-            <Label htmlFor="market-sort" className="ml-auto text-muted-foreground">
-              {t('market', 'sortLabel')}
-            </Label>
-            <SelectTrigger id="market-sort" size="sm" className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {t('market', SORT_LABEL_KEYS[option])}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* 折叠搜索触发钮（T11-e）：官方 `Button`（ghost · icon-sm）—— 位置在视图切换钮**左侧**，
+          {/* 右侧控件群（`j6`）：`ml-auto` 由**本容器**承担 ⇒ 组内控件随视图条件增删时整组不横跳 */}
+          <div className="ml-auto flex items-center gap-3">
+            {/* 列显示入口（`j6` · 方向 1「纯图标」）：**仅列表视图渲染** —— 网格/卡片形态没有列的概念 */}
+            {view === 'list' && (
+              <ColumnVisibilityMenu
+                items={PORTAL_COLUMNS}
+                value={columnVisibility}
+                onChange={setColumnVisibility}
+                label={t('market', 'colShow')}
+              />
+            )}
+            {/* 排序（`j6` · 2026-09-21 用户拍板「方向 1 纯图标」）：图标钮 + 官方 `DropdownMenu` 三档 radio
+              —— 取代 T11-f 的官方 `Select`（160px ⇒ 32px；代价「当前档不可见」已登记，靠 tooltip 补足） */}
+            <SortMenu value={sort} onChange={(next) => query.setSort?.(next)} />
+            {/* 折叠搜索触发钮（T11-e）：官方 `Button`（ghost · icon-sm）—— 位置在视图切换钮**左侧**，
               与 ClawHub 同位；`aria-expanded` 由官方 `CollapsibleTrigger` 自动给出 */}
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t('market', 'searchBtn')}
-              title={t('market', 'searchBtn')}
-            >
-              <Search />
-            </Button>
-          </CollapsibleTrigger>
-          {/* 视图切换（T11-e）：官方 ToggleGroup —— 形态/色值走官方 variant，**不覆盖 className**。
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('market', 'searchBtn')}
+                title={t('market', 'searchBtn')}
+              >
+                <Search />
+              </Button>
+            </CollapsibleTrigger>
+            {/* 视图切换（T11-e）：官方 ToggleGroup —— 形态/色值走官方 variant，**不覆盖 className**。
             `type="single"` 下再点当前项会回调空串 ⇒ 以 `if (next)` 守住「两态必居其一」。 */}
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            spacing={0}
-            value={view}
-            onValueChange={(next) => {
-              if (next) setView(next as ViewMode);
-            }}
-          >
-            <ToggleGroupItem
-              value="grid"
-              aria-label={t('market', 'viewGrid')}
-              title={t('market', 'viewGrid')}
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              spacing={0}
+              value={view}
+              onValueChange={(next) => {
+                if (next) setView(next as ViewMode);
+              }}
             >
-              <LayoutGrid />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="list"
-              aria-label={t('market', 'viewList')}
-              title={t('market', 'viewList')}
-            >
-              <List />
-            </ToggleGroupItem>
-          </ToggleGroup>
+              <ToggleGroupItem
+                value="grid"
+                aria-label={t('market', 'viewGrid')}
+                title={t('market', 'viewGrid')}
+              >
+                <LayoutGrid />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="list"
+                aria-label={t('market', 'viewList')}
+                title={t('market', 'viewList')}
+              >
+                <List />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </div>
         {/* 折叠搜索面板（T11-e）：工具条**下方** · 宽度撑满 —— 官方 `InputGroup`
             （放大镜 addon + 无边框输入 + 尾部关闭钮），对应 ClawHub 的 `.browse-search-control` */}
@@ -387,6 +370,8 @@ export function CenterPage({ type }: { type: AssetType }) {
             items={NO_ITEMS}
             loading
             sorting={{ key: sort, dir, onChange: handleHeaderSort }}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
           />
         ))}
       {error && <ErrorState error={error} onRetry={() => setRetryTick((tick) => tick + 1)} />}
@@ -405,6 +390,8 @@ export function CenterPage({ type }: { type: AssetType }) {
             <AssetList
               items={list.items}
               sorting={{ key: sort, dir, onChange: handleHeaderSort }}
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
             />
           )}
           {/* 分页：**仅多页时渲染**（`total > PAGE_SIZE`）—— 单页显示「1 / 1 · 每页 20」是噪音。

@@ -1,26 +1,16 @@
 import { LayoutGrid, List } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Label } from '@/components/ui/shadcn/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/shadcn/select';
+import {} from '@/components/ui/shadcn/select';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../api/assets.js';
 import type { AssetItem, AssetType } from '../api/types.js';
 import { AssetCard, AssetGrid } from '../components/market/AssetCard.js';
-import { AssetList } from '../components/market/AssetList.js';
-import {
-  isSortKey,
-  PAGE_SIZE,
-  SORT_LABEL_KEYS,
-  SORT_OPTIONS,
-} from '../components/market/sortOptions.js';
+import { AssetList, PORTAL_COLUMNS } from '../components/market/AssetList.js';
+import { ColumnVisibilityMenu } from '../components/market/ColumnVisibilityMenu.js';
+import { SortMenu } from '../components/market/SortMenu.js';
+import { isSortKey, PAGE_SIZE } from '../components/market/sortOptions.js';
 import { EmptyState } from '../components/ui/EmptyState.js';
 import { ErrorState } from '../components/ui/ErrorState.js';
 import { Pagination } from '../components/ui/Pagination.js';
@@ -70,6 +60,8 @@ export function Search() {
   const [params, setParams] = useSearchParams();
   const [view, setView] = useState<ViewMode>('grid');
   const [retryTick, setRetryTick] = useState(0);
+  /** 列显示（`j6` · 受控 · **不持久化** —— 与「视图切换不记忆」同口径） */
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
 
   const rawType = params.get('type');
   const tab: TypeTab = isTypeTab(rawType) ? rawType : 'all';
@@ -156,49 +148,48 @@ export function Search() {
           ))}
         </ToggleGroup>
 
-        {/* 排序（沿门户配方：官方 `Select` `size="sm"` 32px · 宽 160px · `Label` + `id`） */}
-        <Select value={sort} onValueChange={(next) => query.setSort?.(next)}>
-          <Label htmlFor="search-sort" className="ml-auto text-muted-foreground">
-            {t('market', 'sortLabel')}
-          </Label>
-          <SelectTrigger id="search-sort" size="sm" className="w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_OPTIONS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {t('market', SORT_LABEL_KEYS[option])}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* 右侧控件群（`j6`）：`ml-auto` 由容器承担 ⇒ 组内条件渲染（列显示仅列表视图）不横跳 */}
+        <div className="ml-auto flex items-center gap-3">
+          {/* 列显示入口（`j6` · 方向 1「纯图标」）：**仅列表视图渲染** */}
+          {view === 'list' && (
+            <ColumnVisibilityMenu
+              items={PORTAL_COLUMNS}
+              value={columnVisibility}
+              onChange={setColumnVisibility}
+              label={t('market', 'colShow')}
+            />
+          )}
 
-        {/* 视图切换（沿门户：官方 `ToggleGroup`，`type="single"` 下点当前项回调空串 ⇒ 以 `if (next)` 守住两态必居其一） */}
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
-          spacing={0}
-          value={view}
-          onValueChange={(next) => {
-            if (next) setView(next as ViewMode);
-          }}
-        >
-          <ToggleGroupItem
-            value="grid"
-            aria-label={t('market', 'viewGrid')}
-            title={t('market', 'viewGrid')}
+          {/* 排序（`j6` · 方向 1「纯图标」）：图标钮 + 官方 `DropdownMenu` 三档 radio（取代官方 `Select`） */}
+          <SortMenu value={sort} onChange={(next) => query.setSort?.(next)} />
+
+          {/* 视图切换（沿门户：官方 `ToggleGroup`，`type="single"` 下点当前项回调空串 ⇒ 以 `if (next)` 守住两态必居其一） */}
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={view}
+            onValueChange={(next) => {
+              if (next) setView(next as ViewMode);
+            }}
           >
-            <LayoutGrid />
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="list"
-            aria-label={t('market', 'viewList')}
-            title={t('market', 'viewList')}
-          >
-            <List />
-          </ToggleGroupItem>
-        </ToggleGroup>
+            <ToggleGroupItem
+              value="grid"
+              aria-label={t('market', 'viewGrid')}
+              title={t('market', 'viewGrid')}
+            >
+              <LayoutGrid />
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="list"
+              aria-label={t('market', 'viewList')}
+              title={t('market', 'viewList')}
+            >
+              <List />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
 
       {q === '' && <EmptyState message={t('market', 'searchAllHint')} />}
@@ -214,6 +205,8 @@ export function Search() {
           <AssetList
             items={NO_ITEMS}
             loading
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
             sorting={{ key: sort, dir, onChange: handleHeaderSort }}
           />
         ))}
@@ -235,6 +228,8 @@ export function Search() {
             <AssetList
               items={list.items}
               sorting={{ key: sort, dir, onChange: handleHeaderSort }}
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
             />
           )}
           {/* 分页：与门户同口径 —— 仅多页时渲染（`total > PAGE_SIZE`） */}

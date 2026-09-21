@@ -244,9 +244,16 @@ export function DataTable<TData extends RowDataLike>({
   selectionLabels?: SelectionLabels;
 }) {
   const selectable = enableRowSelection === true;
+  /* 保护列（`meta.hidable === false`）⇒ **硬禁隐藏**（T11-j `j6`）：此前 `hidable` 只是声明、无人消费。
+     动作槽列不在 `columns` 内 ⇒ 天然不受可见集影响（`操作` 列的保护由此成立 —— design §2.8 D0-7）。 */
+  const gatedColumns = columns.map((column) =>
+    (column.meta as ColumnUiMeta | undefined)?.hidable === false
+      ? { ...column, enableHiding: false }
+      : column,
+  );
   const tableColumns: Array<LegacyColumnDef<TData, unknown>> = selectable
-    ? [selectionColumn<TData>(selectionLabels), ...columns]
-    : columns;
+    ? [selectionColumn<TData>(selectionLabels), ...gatedColumns]
+    : gatedColumns;
 
   // 受控状态按「传了才带」（缺省 ⇒ TanStack 自持 ⇒ 与迁移前行为一致）
   const state: Record<string, unknown> = {};

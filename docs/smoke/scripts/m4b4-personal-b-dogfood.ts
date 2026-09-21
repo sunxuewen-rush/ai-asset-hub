@@ -4,7 +4,7 @@
  * 覆盖：工作台三卡（角色裁剪 / 请求数 / 独立三态）· 我的资产（九列 / 显式 status=ALL / owner-only 集合 /
  *       直跳详情）· 详情页管理区（**5 档权限矩阵** / 版本行内动作 2 态 vs 4 态 / yank）·
  *       标签结构体渲染 · star 全链（幂等 / starredByMe / 三处一致 / 未登录拦截）· 跨页未登录归位
- *       · **G20/G21**（T11-e：视图切换 / 折叠搜索）· **G22**（T11-f：排序 `Select` / 列头两态 / 匿名可用）
+ *       · **G20/G21**（T11-e：视图切换 / 折叠搜索）· **G22**（T11-f：排序控件 / 列头两态 / 匿名可用 —— 控件形态于 **T11-j `j6`** 由官方 `Select` 换为**纯图标钮 + 菜单**）
  *
  * 前置：dev 三件在线（`:3000` API / `:5173` web / `:9222` Edge CDP）
  *       + 造数已跑：`SMOKE_M4B2_PASSWORD=… bun --env-file=apps/server/.env docs/smoke/scripts/m4b4-seed-assets.ts`
@@ -1180,7 +1180,8 @@ if (want('G21')) {
     const PROBE = `(() => {
     const t = ${TRIG};
     const v = ${VIEWBTN};
-    const bar = t && t.parentElement;
+    /* 工具条 = 搜索钮 → 「右侧控件群」容器 → 工具条（j6 起控件群多包了一层容器） */
+    const bar = t && t.parentElement && t.parentElement.parentElement;
     const g = [...${PAGE}.querySelectorAll('[data-slot="input-group"]')].find((x) => x.getBoundingClientRect().width > 0);
     const inp = g && g.querySelector('input');
     return JSON.stringify({
@@ -1309,7 +1310,9 @@ if (want('G21')) {
 /* ═══════════════ G22 · 资产排序（**T11-f** · 2026-09-20）
    —— 用户：「资产排序的设计——收藏/下载/作者/名称 支持排序」+「列表视图表头可点排序，我的倾向是做」。
    契约（批 design §4.7 · **v1.27 起形态 = 官方 `Select`** —— 用户 2026-09-20 线框对比后拍板「方案 B」）：
-   控件 = `Label「排序」+ SelectTrigger#market-sort`（`size="sm"` = **160×32**（与 EN 最长选项 `Most downloads`=106px 相容）· 计数行内 · 搜索钮左侧 · 默认档删参数）·
+   控件 = **纯图标无框钮 + 官方 `DropdownMenu` 三档 radio**（`j6` 方向 1 · 2026-09-21 用户拍板：
+   「列显示不要外框（同搜索）· 排序简化成图标形式、也没有外框」—— 取代 T11-f 的 `Label「排序」+ Select#market-sort`（160×32）·
+   换案依据 = 选型矩阵已登记案（32px · 2 次点击 · **当前档不可见** ⇒ 靠 tooltip + 菜单勾选补足））·
    URL `?sort=` / `?dir=` · **非法值静默回落** · **改排序回第 1 页** ·
    列表列头**四列可点**（名称/作者/下载/收藏；描述列不可点 · **首点 `desc`**、再点反向 —— F84 口径）· **匿名可用**。
    ⚠️ 本段**全程不登录**（顺带证明「匿名可用」）；`me` 面同参数的反证（不传 ⇒ 现状序 / 非法回落）归**服务端测试**
@@ -1318,17 +1321,21 @@ if (want('G22')) {
   {
     const API = 'http://localhost:3000';
     const PAGE_SLUGS = `[...document.querySelectorAll('a[href^="/assets/"]')].map((a) => decodeURIComponent(a.getAttribute('href').replace('/assets/', '')))`;
-    /** 排序控件现值（Select 收起态显示文案 + `role`/尺寸真值） */
+    /** 排序控件真值（`j6` 方向 1：**纯图标无框钮** + 菜单勾选；取代 T11-f 的 `Select`） */
     const SEL = `(() => {
-    const el = document.querySelector('#market-sort');
-    return el
-      ? JSON.stringify({
-          role: el.getAttribute('role'),
-          value: (el.querySelector('[data-slot="select-value"]')?.textContent || '').trim(),
-          box: Math.round(el.getBoundingClientRect().width) + 'x' + Math.round(el.getBoundingClientRect().height),
-          hasLabel: !!document.querySelector('label[for="market-sort"]'),
-        })
-      : null;
+    const el = document.querySelector('button[aria-label="排序"]');
+    if (!el) return null;
+    const st = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    const menu = [...document.querySelectorAll('[role="menuitemradio"]')];
+    const on = menu.find((m) => m.getAttribute('aria-checked') === 'true');
+    return JSON.stringify({
+      box: Math.round(r.width) + 'x' + Math.round(r.height),
+      border: st.borderTopWidth,
+      text: (el.innerText || '').trim(),
+      menuCount: menu.length,
+      checked: on ? (on.innerText || '').trim() : null,
+    });
   })()`;
     const HEAD_SORT = (label: string) =>
       `(() => { const th = [...document.querySelectorAll('th')].find((x) => (x.textContent || '').trim() === ${JSON.stringify(label)}); return th ? (th.getAttribute('aria-sort') ?? 'null') : 'no-th'; })()`;
@@ -1349,31 +1356,45 @@ if (want('G22')) {
         ? (JSON.parse(raw) as { role: string; value: string; box: string; hasLabel: boolean })
         : null;
     };
-    /** 换档（官方 `Select`：**真指针**开触发钮 → 真指针点 `[role=option]` —— 沿 G13 先例） */
+    /** 换档（`j6` 方向 1：**真指针**开图标钮 → 真指针点 `[role=menuitemradio]` —— 沿 G13 先例） */
     const selectSort = async (label: string) => {
-      const opened = await realClickExpr(`document.querySelector('#market-sort')`);
+      const opened = await realClickExpr(`document.querySelector('button[aria-label="排序"]')`);
       await sleep(700);
       const picked = await realClickExpr(
-        `(() => [...document.querySelectorAll('[role="option"]')].find((o) => (o.innerText || '').trim() === ${JSON.stringify(label)}))()`,
+        `(() => [...document.querySelectorAll('[role="menuitemradio"]')].find((o) => (o.innerText || '').trim() === ${JSON.stringify(label)}))()`,
       );
       await sleep(1900);
       return opened && picked;
     };
     const same = (a: string[], b: string[]) => JSON.stringify(a) === JSON.stringify(b);
+    /** 关菜单：真指针点计数行空白（Radix 菜单在外点 pointerdown 时收起） */
+    const closeMenu = async () => {
+      await realClickExpr(
+        `[...document.querySelectorAll('span')].find((x) => (x.innerText || '').includes('个技能'))`,
+      );
+      await sleep(500);
+    };
 
-    // G22-1 默认档：干净 URL + Select 显示「最新」
+    // G22-1 默认档：干净 URL + **纯图标无框钮** + 菜单三档勾「最新」（`j6` 方向 1）
     await nav(`${APP}/skills`, 3000);
     const dUrl = await curUrl();
-    const dSel = await selValue();
+    const dClosed = await selValue();
+    const dOpened = await realClickExpr(`document.querySelector('button[aria-label="排序"]')`);
+    await sleep(800);
+    const dOpen = await selValue();
+    await closeMenu();
     ok(
-      'G22-1 默认档：URL 不含 `sort`（干净 URL）· 排序 `Select` 显示「最新」（`role=combobox` · 160×32）',
+      'G22-1 默认档：URL 不含 `sort`（干净 URL）· 排序 = **纯图标无框钮**（32×32 · border 0 · 无文案）· 菜单三档勾「最新」',
       dUrl === '/skills' &&
-        dSel?.value === '最新' &&
-        dSel?.role === 'combobox' &&
-        dSel.box === '160x32',
-      `${dUrl} · ${JSON.stringify(dSel)}`,
+        dClosed?.box === '32x32' &&
+        dClosed?.border === '0px' &&
+        dClosed?.text === '' &&
+        dOpened === true &&
+        dOpen?.menuCount === 3 &&
+        dOpen?.checked === '最新',
+      `${dUrl} · 闭态 ${JSON.stringify(dClosed)} · 开态 ${JSON.stringify(dOpen)}`,
     );
-    await shot('24-sort-select');
+    await shot('24-sort-icon');
 
     // G22-2 默认序 = 接口默认序（行为零变化）
     const dRows = (await evalJs(PAGE_SLUGS)) as string[];
@@ -1384,7 +1405,7 @@ if (want('G22')) {
       `页面 ${dRows.length} 行 · 接口 ${dApi.length} 行 · 首条 ${dRows[0]}`,
     );
 
-    // G22-3 四档逐档：Select 显示 + URL 写入 + 列表序与接口**逐项一致**
+    // G22-3 两档逐档（`j3` 收敛后）：菜单勾选 + URL 写入 + 列表序与接口**逐项一致**
     // T11-j j3 收敛（D0-8）：`名称` / `作者` 两档下线 ⇒ 由四档降为**两档**（白名单 = `SORT_OPTIONS`）
     for (const [label, key] of [
       ['下载量', 'downloads'],
@@ -1394,11 +1415,18 @@ if (want('G22')) {
       const u = await curUrl();
       const rows = (await evalJs(PAGE_SLUGS)) as string[];
       const expect = await apiSlugs(`&sort=${key}`);
-      const shown = (await selValue())?.value;
+      const reopened = await realClickExpr(`document.querySelector('button[aria-label="排序"]')`);
+      await sleep(800);
+      const shown = (await selValue())?.checked;
+      await closeMenu();
       ok(
-        `G22-3 ${label}档：Select 显示「${label}」· URL = \`?sort=${key}\` 且列表序与接口逐项一致`,
-        picked && shown === label && u === `/skills?sort=${key}` && same(rows, expect),
-        `${u} · 显示 ${shown} · 首条 ${rows[0]}（接口 ${expect[0]}）`,
+        `G22-3 ${label}档：菜单勾「${label}」· URL = \`?sort=${key}\` 且列表序与接口逐项一致`,
+        picked &&
+          reopened === true &&
+          shown === label &&
+          u === `/skills?sort=${key}` &&
+          same(rows, expect),
+        `${u} · 菜单勾 ${shown} · 首条 ${rows[0]}（接口 ${expect[0]}）`,
       );
     }
 
@@ -1417,11 +1445,18 @@ if (want('G22')) {
     // G22-5 非法值静默回落（不空白、不报错、控件归一）
     await nav(`${APP}/skills?sort=bogus`, 3000);
     const bUrl = await curUrl();
-    const bSel = (await selValue())?.value;
+    const bOpened = await realClickExpr(`document.querySelector('button[aria-label="排序"]')`);
+    await sleep(800);
+    const bSel = (await selValue())?.checked; // 归一后的档 = 菜单勾选项
+    await closeMenu();
     const bRows = (await evalJs(PAGE_SLUGS)) as string[];
     ok(
-      'G22-5 非法值（`?sort=bogus`）⇒ 静默回落默认序 + Select 归一「最新」（不空白 / 不报错 / 不 400）',
-      bUrl === '/skills?sort=bogus' && bSel === '最新' && bRows.length > 0 && same(bRows, dApi),
+      'G22-5 非法值（`?sort=bogus`）⇒ 静默回落默认序 + 菜单归一勾「最新」（不空白 / 不报错 / 不 400）',
+      bUrl === '/skills?sort=bogus' &&
+        bOpened === true &&
+        bSel === '最新' &&
+        bRows.length > 0 &&
+        same(bRows, dApi),
       `${bUrl} · 显示 ${bSel} · ${bRows.length} 行`,
     );
     await shot('25-sort-bogus-fallback');
@@ -1465,18 +1500,18 @@ if (want('G22')) {
     await evalJs(CLICK_VIEW('网格视图'));
     await sleep(1300);
     const gUrl = await curUrl();
-    const gSel = (await selValue())?.value;
+    const gBtn = await selValue();
     const gRows = (await evalJs(PAGE_SLUGS)) as string[];
     ok(
-      'G22-8 双视图同序：列表视图改排序后切回网格 ⇒ 排序保持（URL + Select 显示 + 顺序均一致）',
-      gUrl === '/skills?sort=downloads&dir=desc' && gSel === '下载量' && same(gRows, dlApi),
-      `${gUrl} · 显示 ${gSel} · 首条 ${gRows[0]}`,
+      'G22-8 双视图同序：列表视图改排序后切回网格 ⇒ 排序保持（URL + 图标钮仍在 + 顺序均一致）',
+      gUrl === '/skills?sort=downloads&dir=desc' && gBtn?.box === '32x32' && same(gRows, dlApi),
+      `${gUrl} · 钮 ${JSON.stringify(gBtn)} · 首条 ${gRows[0]}`,
     );
     await shot('27-sort-grid-preserved');
 
     // G22-6c 点「更新」列 ⟷ **「最新」档**（用户 2026-09-20：「资产列加一个『更新』…和我们的『排序-最新』相对应」）
     //   语义（注意）：默认档即「最新」⇒ 「更新」列**恒为 active**，点它是**同列反向**（不是首点 desc）
-    //   ① URL 不出现 `?sort=updated`（列名 ≠ 档位；`updated` 在白名单外）② Select 仍显示「最新」
+    //   ① URL 不出现 `?sort=updated`（列名 ≠ 档位；`updated` 在白名单外）② 菜单仍勾「最新」
     //   ③ `aria-sort` 与该向的接口序逐项一致 ④ 再点 ⇒ 反向
     await nav(`${APP}/skills`, 3000);
     await evalJs(CLICK_VIEW('列表视图'));
@@ -1486,7 +1521,10 @@ if (want('G22')) {
     await sleep(1900);
     const upd1Url = await curUrl();
     const upd1Sort = (await evalJs(HEAD_SORT('更新'))) as string;
-    const upd1Sel = (await selValue())?.value;
+    const updOpened = await realClickExpr(`document.querySelector('button[aria-label="排序"]')`);
+    await sleep(800);
+    const upd1Sel = (await selValue())?.checked; // 「更新」列 ⟷ 「最新」档：菜单仍勾「最新」
+    await closeMenu();
     const upd1Rows = (await evalJs(PAGE_SLUGS)) as string[];
     const upd1Api = await apiSlugs('&sort=newest&dir=asc');
     await evalJs(CLICK_HEAD('更新'));
@@ -1495,9 +1533,10 @@ if (want('G22')) {
     const upd2Rows = (await evalJs(PAGE_SLUGS)) as string[];
     const upd2Api = await apiSlugs('&sort=newest&dir=desc');
     ok(
-      'G22-6c 点「更新」列 ⇒ **仍属「最新」档**（URL 无 `?sort=updated` · Select 显示「最新」· 同列反向 desc→asc→desc 且序与接口逐项一致）',
+      'G22-6c 点「更新」列 ⇒ **仍属「最新」档**（URL 无 `?sort=updated` · 菜单勾「最新」· 同列反向 desc→asc→desc 且序与接口逐项一致）',
       updInit === 'descending' &&
         !upd1Url.includes('sort=updated') &&
+        updOpened === true &&
         upd1Sel === '最新' &&
         upd1Sort === 'ascending' &&
         same(upd1Rows, upd1Api) &&
@@ -1512,7 +1551,7 @@ if (want('G22')) {
       .then((r) => r.status)
       .catch(() => 0)) as number;
     ok(
-      'G22-9 **匿名可用**：本段全程未登录（`/api/auth/me` = 401）而排序 Select / 列头全部生效',
+      'G22-9 **匿名可用**：本段全程未登录（`/api/auth/me` = 401）而排序钮 / 列头全部生效',
       meStatus === 401,
       `me=${meStatus}`,
     );
