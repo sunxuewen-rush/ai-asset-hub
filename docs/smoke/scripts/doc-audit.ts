@@ -85,7 +85,13 @@ console.log(`=== 文档体检 doc-audit（文档 ${docs.length} 份 · 源码 ${
 for (const rel of docs) {
   const text: string = readFileSync(join(ROOT, rel), 'utf8');
   const lines = text.split('\n');
-  const headLine = lines.find((l) => l.startsWith('> Updated:'));
+  /*
+   * 头部版本行 = **全部** `> Updated:` 行（不是第一行）。
+   * F-111（2026-09-21）：原实现 `lines.find(...)` 只取第一行 ⇒「头部版本数 ≤3」恒 ≤1、
+   * 「头部长度 ≤1500」只量第一行 ⇒ 头部堆到 10 行照样 PASS（假绿 —— 与 F64/F93 同族盲区）。
+   */
+  const headLines = lines.filter((l) => l.startsWith('> Updated:'));
+  const headLine = headLines[0];
 
   // A. 版本头 vs 修订表
   if (headLine) {
@@ -99,12 +105,14 @@ for (const rel of docs) {
         `[A] ${rel} 头部最新版 v${hv[0]} 在修订表内`,
         `表内 ${rv.length} 版：${rv.slice(0, 5).join(', ')}…`,
       );
-      ok(
-        hv.length <= 3,
-        `[A] ${rel} 头部版本数 ≤3（当前 ${hv.length}）`,
-        '口径：头部只留最近 1-2 版，完整历史见修订表',
-      );
     }
+    ok(
+      headLines.length <= 3,
+      `[A] ${rel} 头部版本行 ≤3（当前 ${headLines.length}）`,
+      `口径：头部只留最近 1-2 版，完整历史见修订表｜本文件头部行：${headLines
+        .map((l) => (l.match(/v(\d+\.\d+)/) ?? [])[1] ?? '?')
+        .join(', ')}`,
+    );
   }
 
   // B. 死路径引用（更名/旧名/沿革 史实行豁免）
@@ -116,9 +124,11 @@ for (const rel of docs) {
     }
   }
 
-  // C. 头部长度
-  if (headLine && headLine.length > 1500) {
-    ok(false, `[C] ${rel} 头部长度 ${headLine.length} ≤1500`, '疑似又在头部堆历史');
+  // C. 头部长度（**每一条** `Updated:` 行都量 —— F-111：原只量第一行）
+  for (const [i, l] of headLines.entries()) {
+    if (l.length > 1500) {
+      ok(false, `[C] ${rel} 头部第 ${i + 1} 行长度 ${l.length} ≤1500`, '疑似又在头部堆历史');
+    }
   }
 }
 
