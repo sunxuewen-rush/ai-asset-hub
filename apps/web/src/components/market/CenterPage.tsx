@@ -1,5 +1,5 @@
 import { LayoutGrid, List, Search, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/shadcn/button';
 import { Card, CardHeader } from '@/components/ui/shadcn/card';
 import {
@@ -23,13 +23,13 @@ import { useApi } from '../../hooks/useApi.js';
 import type { SortDir } from '../../hooks/useMarketQuery.js';
 import { useMarketQuery } from '../../hooks/useMarketQuery.js';
 import { useI18n } from '../../i18n/I18nProvider.js';
+import { type ColumnToggleItem, ColumnVisibilityMenu } from '../ui/ColumnVisibilityMenu.js';
 import { EmptyState } from '../ui/EmptyState.js';
 import { ErrorState } from '../ui/ErrorState.js';
 import { Pagination } from '../ui/Pagination.js';
 import { TypeIcon } from '../ui/TypeIcon.js';
 import { AssetCard, AssetGrid } from './AssetCard.js';
 import { AssetList, PORTAL_COLUMNS } from './AssetList.js';
-import { ColumnVisibilityMenu } from './ColumnVisibilityMenu.js';
 import { FilterStrip } from './FilterStrip.js';
 import { SortMenu } from './SortMenu.js';
 // 排序档位常量（T11-i A 上提）：与 `/search` 结果页**同源**（design §8.12「常量上提」—— 本件改 import，行为零变化）
@@ -166,6 +166,20 @@ export function CenterPage({ type }: { type: AssetType }) {
   const [searchOpen, setSearchOpen] = useState(false);
   /** 列显示（`j6` · 受控 · **不持久化** —— 与「视图切换不记忆」同口径） */
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  /** 菜单项 = 列集合**单一源**（`PORTAL_COLUMNS`）+ 已解 i18n 的列名 */
+  const columnItems = useMemo<ColumnToggleItem[]>(
+    () =>
+      PORTAL_COLUMNS.map((column) => ({
+        key: column.key,
+        label: t('market', column.labelKey),
+        hidable: column.hidable,
+      })),
+    [t],
+  );
+  /** 已隐藏列数（`> 0` ⇒ 触发钮显角标 —— 无框图标钮的「有值」表达 · `j6` 口径） */
+  const hiddenColumnCount = Object.values(columnVisibility).filter(
+    (visible) => visible === false,
+  ).length;
   const searchRef = useRef<HTMLInputElement>(null);
   // 展开即聚焦输入框（ClawHub 实测不聚焦；本仓**有意 +1 行**：少一次点击，触屏/键盘都更顺）
   useEffect(() => {
@@ -276,10 +290,15 @@ export function CenterPage({ type }: { type: AssetType }) {
             {/* 列显示入口（`j6` · 方向 1「纯图标」）：**仅列表视图渲染** —— 网格/卡片形态没有列的概念 */}
             {view === 'list' && (
               <ColumnVisibilityMenu
-                items={PORTAL_COLUMNS}
+                items={columnItems}
                 value={columnVisibility}
                 onChange={setColumnVisibility}
                 label={t('market', 'colShow')}
+                labels={{
+                  required: t('market', 'colRequired'),
+                  reset: t('market', 'colReset'),
+                }}
+                badgeCount={hiddenColumnCount}
               />
             )}
             {/* 排序（`j6` · 2026-09-21 用户拍板「方向 1 纯图标」）：图标钮 + 官方 `DropdownMenu` 三档 radio

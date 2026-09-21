@@ -301,6 +301,7 @@ export function Tokens() {
           onRetry={refresh}
           emptyMessage={t('tokens', 'empty.none')}
           rowActionsLabel={t('tokens', 'col.actions')}
+          rowActionsHeader={t('tokens', 'col.actions')}
           rowActions={(row) => (
             <div className="flex items-center justify-end gap-0.5">
               <Button

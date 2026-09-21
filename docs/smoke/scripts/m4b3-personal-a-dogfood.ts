@@ -828,6 +828,164 @@ ok(
   JSON.stringify(g6),
 );
 
+/* ═══════════ G16–G19 「我的资产」表格族统一（T11-k k1：排序头 / 列开关 / 视图切换 / 搜索） ═══════════
+   ⚠ 本段**必须在 G7 之前**（G7 会清 cookie，序比对需要会话）。
+   序比对走接口（带会话 cookie）⇒ 只依赖本账号自己的数据（AGENTS.md「测试只依赖自己造的数据」）。 */
+const sessToken = (
+  (await send('Network.getAllCookies')).result?.cookies as Array<{ name: string; value: string }>
+).find((c) => c.name === 'better-auth.session_token')?.value;
+const apiOrder = async (q: string) => {
+  const r = await fetch(`http://localhost:3000/api/me/assets?limit=20${q}`, {
+    headers: { cookie: `better-auth.session_token=${sessToken}` },
+  });
+  const j = (await r.json()) as { items?: Array<{ slug: string }> };
+  return (j.items ?? []).map((i) => i.slug);
+};
+const pageSlugs = () =>
+  evalJs(
+    `[...document.querySelectorAll('tbody a[href^="/assets/"]')].map((a) => a.getAttribute('href').replace('/assets/', ''))`,
+  ) as Promise<string[]>;
+const G_SORT_BTN = `[...document.querySelectorAll('button[aria-label="排序"]')][0]`;
+const G_COL_BTN = `document.querySelector('button[aria-label="列显示"]')`;
+const G_SEARCH_BTN = `[...document.querySelectorAll('button[aria-label="搜索"]')].find((b) => b.hasAttribute('aria-expanded'))`;
+
+await nav(`${APP}/dashboard/assets`, 3000);
+const g16head = JSON.parse(
+  (await evalJs(
+    `JSON.stringify([...document.querySelectorAll('thead th')].map((th) => ({ text: (th.textContent || '').trim(), btn: !!th.querySelector('button') })))`,
+  )) as string,
+) as Array<{ text: string; btn: boolean }>;
+ok(
+  'G16 表头 9 列 · 「操作」**可见** · **仅** 下载/收藏/更新 三列可点（D0-5 列表态只列头可点）',
+  g16head.length === 9 &&
+    g16head[8].text === '操作' &&
+    g16head
+      .filter((h) => h.btn)
+      .map((h) => h.text)
+      .join('/') === '下载/收藏/更新',
+  JSON.stringify(g16head.map((h) => `${h.text}${h.btn ? ':btn' : ''}`)),
+);
+
+const g17probe = async (col: string, sortKey: string, dir: string) => {
+  await realClickExpr(
+    `[...document.querySelectorAll('thead th button')].find((b) => (b.closest('th').textContent || '').trim().startsWith(${JSON.stringify(col)}))`,
+  );
+  await sleep(1900);
+  const aria = (await evalJs(
+    `(() => { const t = [...document.querySelectorAll('thead th')].find((x) => (x.textContent || '').trim().startsWith(${JSON.stringify(col)})); return t ? t.getAttribute('aria-sort') : null; })()`,
+  )) as string;
+  return {
+    url: (await evalJs(`location.pathname + location.search`)) as string,
+    aria,
+    rows: (await pageSlugs()).join('|'),
+    api: (await apiOrder(`&sort=${sortKey}&dir=${dir}`)).join('|'),
+  };
+};
+const g17a = await g17probe('下载', 'downloads', 'desc');
+const g17b = await g17probe('下载', 'downloads', 'asc');
+ok(
+  'G17 列头两态 + URL 同步 + 列表序与接口**逐项一致**（首点 `desc` · 再点 `asc`）',
+  g17a.url === '/dashboard/assets?sort=downloads&dir=desc' &&
+    g17a.aria === 'descending' &&
+    g17a.rows === g17a.api &&
+    g17b.url === '/dashboard/assets?sort=downloads&dir=asc' &&
+    g17b.aria === 'ascending' &&
+    g17b.rows === g17b.api,
+  `${g17a.url} [${g17a.aria}] · ${g17b.url} [${g17b.aria}] · 序一致=${g17a.rows === g17a.api && g17b.rows === g17b.api}`,
+);
+
+await realClickExpr(G_COL_BTN);
+await sleep(800);
+const g18menu = JSON.parse(
+  (await evalJs(
+    `(() => { const its = [...document.querySelectorAll('[role="menuitemcheckbox"]')]; return JSON.stringify({ n: its.length, disabled: its.filter((i) => i.getAttribute('data-disabled') !== null || i.hasAttribute('disabled')).length, checked: its.filter((i) => i.getAttribute('aria-checked') === 'true').length, required: its.filter((i) => (i.textContent || '').includes('必显')).length }); })()`,
+  )) as string,
+) as { n: number; disabled: number; checked: number; required: number };
+await realClickExpr(
+  `[...document.querySelectorAll('[role="menuitemcheckbox"]')].find((i) => (i.textContent || '').trim() === '类型')`,
+);
+await sleep(900);
+const g18hidden = JSON.parse(
+  (await evalJs(
+    `(() => { const ths = [...document.querySelectorAll('thead th')]; const badge = [...document.querySelectorAll('span')].find((s) => /^[0-9]+$/.test((s.textContent || '').trim()) && (s.className || '').includes('rounded-full')); return JSON.stringify({ cols: ths.length, hasType: ths.some((t) => (t.textContent || '').trim() === '类型'), badge: badge ? (badge.textContent || '').trim() : null }); })()`,
+  )) as string,
+) as { cols: number; hasType: boolean; badge: string | null };
+await realClickExpr(
+  `[...document.querySelectorAll('[role="menuitem"]')].find((i) => (i.textContent || '').trim() === '重置为默认')`,
+);
+await sleep(900);
+await realClickExpr(
+  `[...document.querySelectorAll('[role="menuitemcheckbox"]')].find((i) => (i.textContent || '').trim().startsWith('名称'))`,
+);
+await sleep(700);
+const g18reset = JSON.parse(
+  (await evalJs(
+    `(() => { const ths = [...document.querySelectorAll('thead th')]; return JSON.stringify({ cols: ths.length, first: (ths[0]?.textContent || '').trim() }); })()`,
+  )) as string,
+) as { cols: number; first: string };
+ok(
+  'G18 列开关：**9 项**（8 数据列 + 动作槽）· 保护列 **2** 置灰「必显」· 勾掉「类型」⇒ 表头少一列 + **角标 1** · 重置 ⇒ 回 9 · 保护列「名称」**关不掉**',
+  g18menu.n === 9 &&
+    g18menu.disabled === 2 &&
+    g18menu.required === 2 &&
+    g18menu.checked === 9 &&
+    g18hidden.cols === 8 &&
+    !g18hidden.hasType &&
+    g18hidden.badge === '1' &&
+    g18reset.cols === 9 &&
+    g18reset.first === '名称',
+  JSON.stringify({ menu: g18menu, hidden: g18hidden, reset: g18reset }),
+);
+
+// 注：G18 末点的「重置为默认」是 `DropdownMenuItem` ⇒ **会关闭菜单**（`CheckboxItem` 才 keep-open）
+// ⇒ 此处不再点触发钮（否则把菜单重新打开，后续点击被遮罩吃掉 —— 第二跑实测踩到）
+const g19list = JSON.parse(
+  (await evalJs(
+    `(() => JSON.stringify({ th: document.querySelectorAll('thead th').length, colBtn: !!(${G_COL_BTN}), sortBtn: !!(${G_SORT_BTN}) }))()`,
+  )) as string,
+) as { th: number; colBtn: boolean; sortBtn: boolean };
+await realClickExpr(`document.querySelector('button[aria-label="网格视图"]')`);
+await sleep(1600);
+const g19grid = JSON.parse(
+  (await evalJs(
+    `(() => { const c = document.querySelector('a[href^="/assets/"]')?.closest('[data-slot="card"]'); const av = c ? c.querySelector('[data-slot="avatar"]') : null; return JSON.stringify({ th: document.querySelectorAll('thead th').length, cards: document.querySelectorAll('a[href^="/assets/"]').length, colBtn: !!(${G_COL_BTN}), sortBtn: !!(${G_SORT_BTN}), avatar: av ? Math.round(av.getBoundingClientRect().width) : null, pills: [...document.querySelectorAll('[data-slot="card"] span')].filter((s) => ['活跃', '已隐藏', '已归档'].includes((s.textContent || '').trim())).length }); })()`,
+  )) as string,
+) as {
+  th: number;
+  cards: number;
+  colBtn: boolean;
+  sortBtn: boolean;
+  avatar: number | null;
+  pills: number;
+};
+await shot('05-console-grid');
+await realClickExpr(`document.querySelector('button[aria-label="列表视图"]')`);
+await sleep(1500);
+await realClickExpr(G_SEARCH_BTN);
+await sleep(800);
+const g19search = JSON.parse(
+  (await evalJs(
+    `(() => { const b = ${G_SEARCH_BTN}; const ins = [...document.querySelectorAll('[data-slot="input-group-control"]')]; const last = ins[ins.length - 1]; return JSON.stringify({ expanded: b ? b.getAttribute('aria-expanded') : null, groups: ins.length, focus: document.activeElement === last, w: last ? Math.round(last.getBoundingClientRect().width) : null }); })()`,
+  )) as string,
+) as { expanded: string | null; groups: number; focus: boolean; w: number | null };
+ok(
+  'G19 视图切换（默认列表 · 两钮互斥 · 卡片 40px 色块 + 状态徽标 · 切回列表）+ 搜索对齐（点开 ⇒ 面板撑满 + 自动聚焦）',
+  g19list.th === 9 &&
+    g19list.colBtn &&
+    !g19list.sortBtn &&
+    g19grid.th === 0 &&
+    g19grid.cards > 0 &&
+    !g19grid.colBtn &&
+    g19grid.sortBtn &&
+    g19grid.avatar === 40 &&
+    g19grid.pills > 0 &&
+    g19search.expanded === 'true' &&
+    g19search.groups === 2 &&
+    g19search.focus &&
+    (g19search.w ?? 0) > 900,
+  JSON.stringify({ list: g19list, grid: g19grid, search: g19search }),
+);
+
 /* ═══════════ G7 未登录直访两页 ⇒ 归位登录（保 next） ═══════════ */
 const cookies = (await send('Network.getAllCookies')).result?.cookies as Array<{
   name: string;

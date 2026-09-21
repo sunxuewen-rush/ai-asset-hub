@@ -238,6 +238,7 @@ export function Submissions() {
           onRetry={onRetry}
           emptyMessage={t('submissions', 'empty.filtered')}
           rowActionsLabel={t('submissions', 'col.actions')}
+          rowActionsHeader={t('submissions', 'col.actions')}
           rowActions={(row) => (
             <div className="flex items-center justify-end gap-0.5">
               <Button

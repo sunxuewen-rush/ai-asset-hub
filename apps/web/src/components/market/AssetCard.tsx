@@ -22,7 +22,18 @@ import { AssetAvatar } from '../ui/AssetAvatar.js';
  * → ② 内容层 `relative z-10 pointer-events-none`（纯展示，点击一律穿透到 ①）。取舍：卡内**文本拖选**失效。
  * 卡内**无任何可交互元素**（星标已改纯展示）⇒ 无 nested interactive content 问题。
  */
-export function AssetCard({ item }: { item: AssetItem }) {
+export function AssetCard({
+  item,
+  status,
+}: {
+  item: AssetItem;
+  /**
+   * **可选状态徽标槽**（`T11-k` 追加）：控制台卡片视图需要「活跃/隐藏/归档」——
+   * 门户不传 ⇒ 零变化（`AssetCard` 仍是纯展示卡）。传 `ReactNode` 而非布尔量 ⇒
+   * 件内不取 i18n、不绑 `StatusPill`（调用方决定形态）。
+   */
+  status?: ReactNode;
+}) {
   const to = `/assets/${encodeURIComponent(item.slug)}`;
   const displayName = item.latestName ?? item.slug;
   return (
@@ -42,6 +53,7 @@ export function AssetCard({ item }: { item: AssetItem }) {
             {/* 元信息行：下载 + 收藏（两者**同件同款 · 纯展示**——图标一律无色、不表达收藏态，
                 与列表「收藏」列 / 详情页元信息卡同口径） */}
             <div className="flex min-w-0 items-center gap-3.5 text-[11px]">
+              {status ? <span className="shrink-0">{status}</span> : null}
               <AssetStat kind="download" count={item.downloadCount} />
               <AssetStat kind="star" count={item.starCount} />
             </div>
