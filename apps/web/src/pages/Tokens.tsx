@@ -31,9 +31,9 @@ import {
   updateToken,
 } from '@/api/tokens';
 import { ConfirmDialog } from '@/components/console/ConfirmDialog';
-import { DataTable } from '@/components/console/DataTable';
 import { PageHeader } from '@/components/console/PageHeader';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { DataTable } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/shadcn/badge';
 import { Button } from '@/components/ui/shadcn/button';
 import {

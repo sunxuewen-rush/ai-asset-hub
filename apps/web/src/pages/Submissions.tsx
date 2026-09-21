@@ -29,9 +29,9 @@ import {
   withdrawReview,
 } from '@/api/reviews';
 import { ConfirmDialog } from '@/components/console/ConfirmDialog';
-import { DataTable } from '@/components/console/DataTable';
 import { PageHeader } from '@/components/console/PageHeader';
 import { StatusPill } from '@/components/console/StatusPill';
+import { DataTable } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
 import { Button } from '@/components/ui/shadcn/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/shadcn/empty';

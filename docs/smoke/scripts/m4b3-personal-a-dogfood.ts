@@ -16,6 +16,11 @@
  *
  * ⚠️ 唯一夹具点（**G1(b)**）：当前账号已有造数数据 ⇒「从未提交」空态用**浏览器侧空响应夹具**渲染（脚本内 `Page.addScriptToEvaluateOnNewDocument`，
  *    跑完即移除）。其余断言**全部走真实后端**。
+ *
+ * ⚠️ **G6 判据说明（2026-09-21 · 假失败订正）**：令牌 Key 列在**行无 `start`** 时显示占位符「—」
+ *    ⇒ 该占位符**不构成身份**。故两处身份比对（已吊销行**泄漏** / 有效行**缺失**）**先剔除无 `start` 的行**再比；
+ *    **行数净判据**（`页面行数 == 有效行数`）不受影响 ⇒ **覆盖面不降**（造数留下的 `m4b3-seed-legacy`
+ *    即无 `start`：已吊销 2 行 + 有效 4 行 —— 订正前恒判「泄漏」，与改动无关的**长期假红**）。
  */
 import { appendFileSync, writeFileSync } from 'node:fs';
 
@@ -792,7 +797,8 @@ const g6 = JSON.parse(
     const created = await fetch('/api/tokens', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'm4b3-dogfood-revoked' }) }).then((r) => r.json());
     if (created?.id) await fetch('/api/tokens/' + created.id, { method: 'DELETE' });
     const api = await fetch('/api/tokens').then((r) => r.json());
-    const rowKey = (i) => (i.start ? String(i.start).slice(0, 12) : '—');
+    // 无 start ⇒ 返回 null（占位符不是身份；比对前剔除 —— 见件头 G6 判据说明）
+    const rowKey = (i) => (i.start ? String(i.start).slice(0, 12) : null);
     const items = api.items.map((i) => ({ n: i.name, key: rowKey(i), revoked: i.revokedAt !== null }));
     const dom = [...document.querySelectorAll('tbody tr')].map((r) => r.querySelectorAll('td')[1].innerText.trim().slice(0, 12));
     return JSON.stringify({
@@ -800,8 +806,8 @@ const g6 = JSON.parse(
       revokedTotal: items.filter((i) => i.revoked).length,
       enabledTotal: items.filter((i) => !i.revoked).length,
       domCount: dom.length,
-      revokedLeaked: items.filter((i) => i.revoked).map((i) => i.key).filter((k) => dom.includes(k)),
-      enabledMissing: items.filter((i) => !i.revoked).map((i) => i.key).filter((k) => !dom.includes(k)),
+      revokedLeaked: items.filter((i) => i.revoked && i.key !== null).map((i) => i.key).filter((k) => dom.includes(k)),
+      enabledMissing: items.filter((i) => !i.revoked && i.key !== null).map((i) => i.key).filter((k) => !dom.includes(k)),
     });
   })()`)) as string,
 ) as {
@@ -813,7 +819,7 @@ const g6 = JSON.parse(
   enabledMissing: string[];
 };
 ok(
-  'G6 只显有效：接口 `revokedAt !== null` 的行**零泄漏**、有效行**零缺失**（本页无「状态」列 —— 与 §4.2 最终设计一致）',
+  'G6 只显有效：接口 `revokedAt !== null` 的行**零泄漏**、有效行**零缺失**（本页无「状态」列 —— 与 §4.2 最终设计一致；**无 `start` 的行不参与 key 比对** —— 占位符不构成身份，行数口径另由 domCount 兜住）',
   !g6.statusColumn &&
     g6.revokedTotal >= 1 &&
     g6.revokedLeaked.length === 0 &&
