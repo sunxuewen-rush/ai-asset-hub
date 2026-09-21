@@ -12,15 +12,9 @@ import {
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../api/assets.js';
-import type { AssetType } from '../api/types.js';
+import type { AssetItem, AssetType } from '../api/types.js';
 import { AssetCard, AssetGrid } from '../components/market/AssetCard.js';
-import {
-  AssetList,
-  AssetListLoading,
-  AssetListRow,
-  COLUMN_SORT,
-  type SortColumn,
-} from '../components/market/AssetList.js';
+import { AssetList } from '../components/market/AssetList.js';
 import {
   isSortKey,
   PAGE_SIZE,
@@ -62,6 +56,8 @@ const TYPE_LABEL_KEYS = {
 
 /** 载态骨架槽位（沿门户：8 壳 = 1440 断点首屏可见量） */
 const LOADING_SLOTS = ['sk1', 'sk2', 'sk3', 'sk4', 'sk5', 'sk6', 'sk7', 'sk8'];
+/** 载态时传给 `AssetList` 的空数据（模块级常量 · 同门户） */
+const NO_ITEMS: readonly AssetItem[] = [];
 
 /** URL 值归一（非法 / 缺省 ⇒ `all`；与服务端「静默回落」同口径） */
 function isTypeTab(value: string | null): value is TypeTab {
@@ -109,9 +105,12 @@ export function Search() {
     [type, q, page, sort, dir, retryTick],
   );
 
-  /** 列头可点排序（沿门户：方向判定在 `AssetList`，本处只落 URL） */
-  function handleHeaderSort(column: SortColumn, nextDir: SortDir) {
-    const key = COLUMN_SORT[column];
+  /**
+   * 列头可点排序（沿门户：**档位由列 `meta.sortKey` 携带**，本处只落 URL）。
+   * 同列 ⇒ 反向（`setDir`）；异列 ⇒ `setSort(档, 'desc')`。白名单外加一道 `isSortKey` 兜底。
+   */
+  function handleHeaderSort(key: string, nextDir: SortDir) {
+    if (!isSortKey(key)) return;
     if (key === sort) query.setDir?.(nextDir);
     else query.setSort?.(key, nextDir);
   }
@@ -212,7 +211,11 @@ export function Search() {
             ))}
           </AssetGrid>
         ) : (
-          <AssetListLoading />
+          <AssetList
+            items={NO_ITEMS}
+            loading
+            sorting={{ key: sort, dir, onChange: handleHeaderSort }}
+          />
         ))}
       {q !== '' && error && (
         <ErrorState error={error} onRetry={() => setRetryTick((tick) => tick + 1)} />
@@ -229,11 +232,10 @@ export function Search() {
               ))}
             </AssetGrid>
           ) : (
-            <AssetList sortKey={sort} dir={dir} onSortChange={handleHeaderSort}>
-              {list.items.map((item) => (
-                <AssetListRow key={item.id} item={item} />
-              ))}
-            </AssetList>
+            <AssetList
+              items={list.items}
+              sorting={{ key: sort, dir, onChange: handleHeaderSort }}
+            />
           )}
           {/* 分页：与门户同口径 —— 仅多页时渲染（`total > PAGE_SIZE`） */}
           {list.total > PAGE_SIZE ? (

@@ -211,8 +211,14 @@ export function DataTable<TData extends RowDataLike>({
    * 列宽归 preset 本地布局（`meta.headClassName`）。
    */
   tableClassName?: string;
-  /** 行级属性/类透传（门户挂 `data-asset-row` 作 dogfood 稳定锚点） */
-  rowProps?: (row: TData) => ComponentProps<'tr'>;
+  /**
+   * 行级属性/类透传（门户挂 `data-asset-row` 作 dogfood 稳定锚点）。
+   *
+   * ⚠️ **类型补口（T11-j j2 落地期发现）**：`ComponentProps<'tr'>` **不放行 `data-*`**（TS 只在
+   * JSX 字面量里认 `data-` 前缀，对象字面量不算）⇒ 设计明写「门户挂 `data-asset-row`」却传不进去。
+   * 故与 `data-${string}` 求交：既保住原生 `tr` 属性类型，又放行 `data-*` **仅此一类**（不放行任意键）。
+   */
+  rowProps?: (row: TData) => ComponentProps<'tr'> & { [key: `data-${string}`]: string | undefined };
   /** 排序头能力（design §2.4）；不传 ⇒ 全部表头**纯文本**（= 控制台现状形态） */
   sorting?: TableSortingProps;
   /** 行内动作槽：给定则**追加一列**（`rowActionsHeader` 缺省时表头留空 + `sr-only` 标签） */

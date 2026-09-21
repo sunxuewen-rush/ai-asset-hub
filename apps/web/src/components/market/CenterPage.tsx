@@ -25,7 +25,7 @@ import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../../api/assets.js';
 import { fetchStats } from '../../api/stats.js';
-import type { AssetType } from '../../api/types.js';
+import type { AssetItem, AssetType } from '../../api/types.js';
 import { useApi } from '../../hooks/useApi.js';
 import type { SortDir } from '../../hooks/useMarketQuery.js';
 import { useMarketQuery } from '../../hooks/useMarketQuery.js';
@@ -35,17 +35,16 @@ import { ErrorState } from '../ui/ErrorState.js';
 import { Pagination } from '../ui/Pagination.js';
 import { TypeIcon } from '../ui/TypeIcon.js';
 import { AssetCard, AssetGrid } from './AssetCard.js';
-import {
-  AssetList,
-  AssetListLoading,
-  AssetListRow,
-  COLUMN_SORT,
-  type SortColumn,
-  type SortKey,
-} from './AssetList.js';
+import { AssetList } from './AssetList.js';
 import { FilterStrip } from './FilterStrip.js';
 // 排序档位常量（T11-i A 上提）：与 `/search` 结果页**同源**（design §8.12「常量上提」—— 本件改 import，行为零变化）
-import { isSortKey, PAGE_SIZE, SORT_LABEL_KEYS, SORT_OPTIONS } from './sortOptions.js';
+import {
+  isSortKey,
+  PAGE_SIZE,
+  SORT_LABEL_KEYS,
+  SORT_OPTIONS,
+  type SortKey,
+} from './sortOptions.js';
 
 /**
  * 视图形态（T11-e）：默认**网格**；`list` = 单列行列表（`AssetList`）。
@@ -61,6 +60,8 @@ type ViewMode = 'grid' | 'list';
  * （`AssetGrid` 4 列 × 2 行）。槽位名做 `key`（`noArrayIndexKey` 规则：禁数组下标做 key）。
  */
 const LOADING_SLOTS = ['sk1', 'sk2', 'sk3', 'sk4', 'sk5', 'sk6', 'sk7', 'sk8'];
+/** 载态时传给 `AssetList` 的空数据（模块级常量：避免每次渲染新建空数组） */
+const NO_ITEMS: readonly AssetItem[] = [];
 
 type MarketKey =
   | 'centerTitleSkill'
@@ -220,17 +221,16 @@ export function CenterPage({ type }: { type: AssetType }) {
   }
 
   /**
-   * 列头可点排序（T11-f · 两态）：**方向判定在 `AssetList`**（该件持有 `DEFAULT_DIR` 与当前有效方向
-   * ⇒ 单一事实源），本处只把结果落 URL —— 点**同列** ⇒ 写 `dir` 反向（`setDir`）；点**异列** ⇒
-   * `setSort(列, 'desc')`（**首点降序**，官方配方 `toggleSorting(false)` 同口径）。两者内部均回第 1 页。
-   * 回默认档 = 点工具条 chips「最新」（列头无「最新」列可比）。
+   * 列头可点排序（两态）：**档位由列 `meta.sortKey` 直接携带**（D5 —— 统一件回调给的就是档位），
+   * 本处不再译档，只把结果落 URL：点**同列** ⇒ 写 `dir` 反向（`setDir`）；点**异列** ⇒
+   * `setSort(档, 'desc')`（**首点降序**，官方配方 `toggleSorting(false)` 同口径）。两者内部均回第 1 页。
+   * 回默认档 = 点工具条 `Select`「最新」（列头无「最新」列可比）。
    *
-   * **F84 订正**：v1.23 原写「点异列 ⇒ 该列固有方向」，与 §4.7.3 断言「点名称列 ⇒ 首点 `descending`」矛盾。
+   * ⚠️ **F89 复发防线**：`key` 来自件回调（已由 `meta.sortKey` 归一）⇒ 不再有「把列名当档位」
+   * 的失配（旧 `COLUMN_SORT` 译档表已退役）；此处仍以 `isSortKey` 兜一道，白名单外**不落 URL**。
    */
-  function handleHeaderSort(column: SortColumn, nextDir: SortDir) {
-    // ★ 列 → 档（`COLUMN_SORT` 单一事实源）：`updated` 列落的是 `?sort=newest` —— 直写列名会产出
-    //   `?sort=updated`（服务端白名单外 ⇒ 静默回落 newest，但 `dir` 仍生效 ⇒ 序与档位脱钩）
-    const key: SortKey = COLUMN_SORT[column];
+  function handleHeaderSort(key: string, nextDir: SortDir) {
+    if (!isSortKey(key)) return;
     if (key === sort) query.setDir?.(nextDir);
     else query.setSort?.(key, nextDir);
   }
@@ -383,7 +383,11 @@ export function CenterPage({ type }: { type: AssetType }) {
             ))}
           </AssetGrid>
         ) : (
-          <AssetListLoading />
+          <AssetList
+            items={NO_ITEMS}
+            loading
+            sorting={{ key: sort, dir, onChange: handleHeaderSort }}
+          />
         ))}
       {error && <ErrorState error={error} onRetry={() => setRetryTick((tick) => tick + 1)} />}
       {!loading && !error && list && list.items.length === 0 && (
@@ -398,11 +402,10 @@ export function CenterPage({ type }: { type: AssetType }) {
               ))}
             </AssetGrid>
           ) : (
-            <AssetList sortKey={sort} dir={dir} onSortChange={handleHeaderSort}>
-              {list.items.map((item) => (
-                <AssetListRow key={item.id} item={item} />
-              ))}
-            </AssetList>
+            <AssetList
+              items={list.items}
+              sorting={{ key: sort, dir, onChange: handleHeaderSort }}
+            />
           )}
           {/* 分页：**仅多页时渲染**（`total > PAGE_SIZE`）—— 单页显示「1 / 1 · 每页 20」是噪音。
               ⚠️ 2026-09-16（M4b-3 T6 自检发现）：本件此前**无条件**渲染分页（`Pagination` 只在 `total <= 0`

@@ -76,6 +76,8 @@ export const zh = {
     colDesc: '描述',
     colDownload: '下载',
     colUpdated: '更新',
+    colActions: '操作',
+    actionOpen: '打开详情',
     searchClose: '关闭搜索',
     allLabel: '全部',
     noResult: '没有找到匹配的资产',

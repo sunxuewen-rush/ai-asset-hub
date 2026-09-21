@@ -77,6 +77,8 @@ export const en: Dict = {
     colDesc: 'Description',
     colDownload: 'Downloads',
     colUpdated: 'Updated',
+    colActions: 'Actions',
+    actionOpen: 'View details',
     searchClose: 'Close search',
     allLabel: 'All',
     noResult: 'No matching assets found',
