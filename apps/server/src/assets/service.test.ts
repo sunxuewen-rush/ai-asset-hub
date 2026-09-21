@@ -190,7 +190,7 @@ describe('listAssets', () => {
   });
 });
 
-describe('listViewableAssets · sort（T11-f：白名单五档 + 方向覆盖 + 静默回落）', () => {
+describe('listViewableAssets · sort（T11-f：白名单**三档** + 方向覆盖 + 静默回落 · T11-j `j3` 收敛）', () => {
   // fixture 四件（`ast-sort-*`）：下载 / 收藏 / 名称 / 作者四维互异；`q='ast-sort'` 收窄 ⇒
   // 断言只依赖本组数据（AGENTS.md：断言不依赖「库里只有本文件的数据」）
   const SORT_Q = 'ast-sort';
@@ -277,40 +277,24 @@ describe('listViewableAssets · sort（T11-f：白名单五档 + 方向覆盖 + 
     expect(slugsOf(items)).toEqual(['ast-sort-a1', 'ast-sort-a3', 'ast-sort-a2', 'ast-sort-a4']);
   });
 
-  it('name ⇒ 名称升序（latest 版本投影；无版本 ⇒ 回退 slug）', async () => {
-    const { items } = await listViewableAssets(db, {
-      limit: 20,
-      offset: 0,
-      q: SORT_Q,
-      sort: 'name',
-    });
-    // alpha(a2) < ast-sort-a4(a4 回退 slug) < bravo(a3) < zulu(a1)
-    expect(slugsOf(items)).toEqual(['ast-sort-a2', 'ast-sort-a4', 'ast-sort-a3', 'ast-sort-a1']);
-  });
-
-  it('author ⇒ owner 显示名升序（同名组按 `id desc` 破平）', async () => {
-    const { items } = await listViewableAssets(db, {
-      limit: 20,
-      offset: 0,
-      q: SORT_Q,
-      sort: 'author',
-    });
-    expect(slugsOf(items)).toEqual(['ast-sort-a1', 'ast-sort-a4', 'ast-sort-a2', 'ast-sort-a3']);
-  });
-
-  it('dir 覆盖：`desc` 反向 name 序 · `asc` 反向 downloads 序（列头两态）', async () => {
+  // ⚠️ **T11-j `j3` 下线留痕**（D0-8）：原三条 `name` / `author` 档用例已删 ——
+  //    「`name` ⇒ 名称升序（latest 投影 · 无版本回退 slug）」·「`author` ⇒ owner 显示名升序」·
+  //    「`name` / `author` 档零 join ⇒ 返回形状与行数不变」；理由与依据见批 design §1.5 / §8 与
+  //    M4b-4 plan §3 `j3`（键不在表列上 · `en_US.utf8` 码点序 ⇒ 排出来就是错的）。
+  it('dir 覆盖：显式 `desc` / `asc` 两态均生效（downloads 档双向 · 列头两态）', async () => {
+    // `j3` 换档（原为 `name` 档 —— 随 D0-8 下线，见批 design §1.5）
     const desc = await listViewableAssets(db, {
       limit: 20,
       offset: 0,
       q: SORT_Q,
-      sort: 'name',
+      sort: 'downloads',
       dir: 'desc',
     });
     expect(slugsOf(desc.items)).toEqual([
-      'ast-sort-a1',
-      'ast-sort-a3',
-      'ast-sort-a4',
       'ast-sort-a2',
+      'ast-sort-a3',
+      'ast-sort-a1',
+      'ast-sort-a4',
     ]);
     const asc = await listViewableAssets(db, {
       limit: 20,
@@ -336,20 +320,5 @@ describe('listViewableAssets · sort（T11-f：白名单五档 + 方向覆盖 + 
       dir: 'sideways' as AssetSortDir,
     });
     expect(slugsOf(items)).toEqual(['ast-sort-a4', 'ast-sort-a3', 'ast-sort-a2', 'ast-sort-a1']);
-  });
-
-  it('name / author 档零 join ⇒ 返回形状与行数不变（无重复行）', async () => {
-    for (const sort of ['name', 'author'] as const) {
-      const { items, total } = await listViewableAssets(db, {
-        limit: 20,
-        offset: 0,
-        q: SORT_Q,
-        sort,
-      });
-      expect(items).toHaveLength(4);
-      expect(total).toBe(4);
-      expect(new Set(items.map((i) => i.id)).size).toBe(4);
-      expect(items.every((i) => i.slug.startsWith(SORT_Q))).toBe(true);
-    }
   });
 });

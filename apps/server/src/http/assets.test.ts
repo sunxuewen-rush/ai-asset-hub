@@ -482,16 +482,10 @@ describe('GET /api/assets 列表（读面过滤；M4a R4 匿名放行）', () =>
     expect(body.items.filter((i) => i.slug === 'ast-priv-mcp').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('T11-f 排序：五档白名单放行（200）· `?dir=` 组合放行', async () => {
-    for (const q of [
-      'sort=newest',
-      'sort=downloads',
-      'sort=stars',
-      'sort=name',
-      'sort=author',
-      'sort=name&dir=asc',
-      'sort=downloads&dir=desc',
-    ]) {
+  it('T11-f 排序：**三档**白名单放行（200）· `?dir=` 组合放行', async () => {
+    // ⚠️ T11-j `j3` 收敛（D0-8）：原清单 7 项含 `sort=name` / `sort=author` —— 两档下线后它们**仍返 200**
+    //    但语义已从「白名单放行」变成「静默回落」（回落口径由下一条用例专职覆盖）⇒ 本清单只列三档正例。
+    for (const q of ['sort=newest', 'sort=downloads', 'sort=stars', 'sort=downloads&dir=desc']) {
       const res = await getReq(`/api/assets?limit=20&${q}`);
       expect(res.status).toBe(200);
     }

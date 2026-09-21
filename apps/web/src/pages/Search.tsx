@@ -36,7 +36,7 @@ import { useI18n } from '../i18n/I18nProvider.js';
  * 与门户三页的分工（用户 2026-09-20 口径）：**顶栏/首页 = 全资产快速通道**·**`/skills` 等资产页 = 只搜本类型**。
  *
  * · URL 参数：`?q=`（关键词）· `?type=`（`all`(默认) / `skill` / `mcp` / `agent`）· `?sort=&dir=`（**复用
- *   `sortOptions` 五档白名单**）· `?page=`（`useMarketQuery` 统一防抖 / 回页 / URL 同步）
+ *   `sortOptions` 三档白名单**）· `?page=`（`useMarketQuery` 统一防抖 / 回页 / URL 同步）
  * · **零后端改动**：`type` 本就可选（`api/assets.ts:13`）⇒ 不传即全类型
  * · **页内不放第二个搜索框**（与顶栏重复 —— T11-e 已因「重复入口」删过页头搜索）；改词直接用顶栏框
  * · 类型 chips / 排序 / 视图切换 = 官方 `ToggleGroup` / `Select`（沿门户同款配方）· 列表 / 网格 / 分页复用现有件

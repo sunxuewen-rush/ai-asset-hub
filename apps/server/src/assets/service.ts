@@ -20,8 +20,10 @@ import { AssetError, assetErrorCodes } from './errors.js';
 /** PG 唯一约束冲突（slug 并发兜底） */
 const PG_UNIQUE_VIOLATION = '23505';
 
-/** T11-f 排序白名单（**单点导出** —— 两路由 schema spread 复用，防两处漂移；design §4.7.5） */
-export const ASSET_SORT_VALUES = ['newest', 'downloads', 'stars', 'name', 'author'] as const;
+/** T11-f 排序白名单（**单点导出** —— 两路由 schema spread 复用，防两处漂移）。
+ * **T11-j `j3` 收敛 5 → 3**（D0-8）：`name` / `author` 两档**下线** —— 二者键都不在 `asset` 表列上
+ * （走相关子查询），且 `en_US.utf8` 下中文排的是码点序（**排出来就是错的**）；「按名字找」交给检索。 */
+export const ASSET_SORT_VALUES = ['newest', 'downloads', 'stars'] as const;
 export type AssetSort = (typeof ASSET_SORT_VALUES)[number];
 
 /** T11-f 方向覆盖（**仅列头可点写入**；缺省 ⇒ 档位固有方向；design §4.7.2 方向模型） */
@@ -45,22 +47,19 @@ export const assetSortQueryFields = {
   dir: z.enum(ASSET_SORT_DIRS).optional().catch(undefined),
 };
 
-/** 档位固有方向（design §4.7.5 映射表）：下载/收藏/最新 = `desc`；名称/作者 = `asc` */
+/** 档位固有方向（design §4.7.5 映射表）：**三档全为 `desc`**（`name` / `author` 随 `j3` 下线） */
 const ASSET_SORT_DEFAULT_DIR: Record<AssetSort, AssetSortDir> = {
   newest: 'desc',
   downloads: 'desc',
   stars: 'desc',
-  name: 'asc',
-  author: 'asc',
 };
 
 /**
  * `sort` / `dir` → ORDER BY（**白名单映射** · design §4.7.5）：
  * - 全档带 tiebreaker（`updated_at desc` + `id desc` 收尾 ⇒ 分页稳定，沿本仓既有口径）
  * - 非法/缺省档位 ⇒ `newest`（**静默回落** —— §4.7.1 #3/#4）；`dir` 缺省/非法 ⇒ 档位固有方向
- * - `name` / `author` 走**相关子查询**（零 join ⇒ 返回形状与行数不变）：名称取 latest 版本投影
- *   （`asset.latest_version_id` → `parsed_metadata_json->>'name'`，空名回退 `slug`）；
- *   作者取 owner 显示名（空名组有序于 `nulls last`，再按用户名）
+ * - 三档**键全在 `asset` 表列上**（`updated_at` / `download_count` / `star_count`）⇒ **零子查询、零 join**；
+ *   `name` / `author` 两档（各带一条相关子查询）随 **D0-8** 于 `j3` 下线
  */
 function sortOrderBy(sort: AssetSort | undefined, dir: AssetSortDir | undefined): SQL {
   const key: AssetSort = isAssetSort(sort) ? sort : 'newest';
@@ -71,10 +70,6 @@ function sortOrderBy(sort: AssetSort | undefined, dir: AssetSortDir | undefined)
       return sql`${asset.downloadCount} ${primary}, ${asset.updatedAt} desc, ${asset.id} desc`;
     case 'stars':
       return sql`${asset.starCount} ${primary}, ${asset.updatedAt} desc, ${asset.id} desc`;
-    case 'name':
-      return sql`coalesce(nullif((select v.parsed_metadata_json ->> 'name' from ${assetVersion} v where v.id = ${asset.latestVersionId}), ''), ${asset.slug}) ${primary} nulls last, ${asset.id} desc`;
-    case 'author':
-      return sql`(select nullif(u.name, '') from ${user} u where u.id = ${asset.ownerId}) ${primary} nulls last, (select u.username from ${user} u where u.id = ${asset.ownerId}) ${primary}, ${asset.id} desc`;
     case 'newest':
       return sql`${asset.updatedAt} ${primary}, ${asset.id} desc`;
   }
@@ -101,7 +96,7 @@ export interface ListAssetsOptions {
   q?: string;
   /** label 多值 OR（06 §4——命中挂载任一 label 即命中；slug 入参，服务层解 id） */
   labelSlugs?: string[];
-  /** T11-f 排序档位（design §4.7.5）：白名单五档；**缺省/非法（服务层兜底）⇒ `newest`（= 现状排序，零变化）** */
+  /** T11-f 排序档位（design §4.7.5）：白名单**三档**（`j3` 收敛，原五档）；**缺省/非法（服务层兜底）⇒ `newest`（= 现状排序，零变化）** */
   sort?: AssetSort;
   /** T11-f 方向覆盖（design §4.7.2：仅列表列头可点写入；缺省 ⇒ 档位固有方向） */
   dir?: AssetSortDir;
@@ -309,7 +304,7 @@ export async function listViewableAssets(
     .select()
     .from(asset)
     .where(where)
-    // T12 默认 updated_at desc（最近更新优先；id desc 破平）· T11-f 起参数化：白名单五档 + 方向覆盖
+    // T12 默认 updated_at desc（最近更新优先；id desc 破平）· T11-f 起参数化：白名单三档 + 方向覆盖
     .orderBy(sortOrderBy(opts.sort, opts.dir))
     .limit(opts.limit)
     .offset(opts.offset);

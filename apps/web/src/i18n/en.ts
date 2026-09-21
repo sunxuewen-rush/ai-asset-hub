@@ -69,8 +69,6 @@ export const en: Dict = {
     sortNewest: 'Newest',
     sortDownloads: 'Most downloads',
     sortStars: 'Most stars',
-    sortName: 'Name',
-    sortAuthor: 'Author',
     viewGrid: 'Grid view',
     viewList: 'List view',
     colName: 'Name',

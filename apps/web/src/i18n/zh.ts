@@ -68,8 +68,6 @@ export const zh = {
     sortNewest: '最新',
     sortDownloads: '下载量',
     sortStars: '星标数',
-    sortName: '名称',
-    sortAuthor: '作者',
     viewGrid: '网格视图',
     viewList: '列表视图',
     colName: '名称',
