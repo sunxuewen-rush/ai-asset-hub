@@ -604,6 +604,7 @@ if (want('G10', 'G4', 'G5', 'G6', 'G7', 'G9')) {
       typeColorBlocks: number;
       chips: string[];
       hrefs: string[];
+      ownRows: number;
     }>(
       await evalJs(`(() => {
       const c = ${CONTENT};
@@ -617,6 +618,12 @@ if (want('G10', 'G4', 'G5', 'G6', 'G7', 'G9')) {
           .filter((s) => (s.getAttribute('class') ?? '').includes('rounded-full'))
           .map((s) => s.innerText.trim()),
         hrefs: [...c.querySelectorAll('tbody tr a[href^="/assets/"]')].map((a) => a.getAttribute('href')),
+        /** 本批夹具行数（T11-j j5 · F119）：按行内操作列 href 前缀锚定 —— 不按全表行数断言（跨批夹具共存时必假红） */
+        ownRows: [...c.querySelectorAll('tbody tr')].filter((tr) =>
+          (tr.querySelector('a[href^="/assets/"]')?.getAttribute('href') ?? '').startsWith(
+            '/assets/m4b4-seed-',
+          ),
+        ).length,
       });
     })()`),
     );
@@ -626,12 +633,12 @@ if (want('G10', 'G4', 'G5', 'G6', 'G7', 'G9')) {
       snap?.heads.join(',') ?? 'n/a',
     );
     ok(
-      'G6 三态各一行（ACTIVE/HIDDEN/ARCHIVED）',
-      snap?.rows === 3 &&
+      'G6 本批三态各一行（ACTIVE/HIDDEN/ARCHIVED · 按本批 `m4b4-seed-` 前缀锚定）',
+      snap?.ownRows === 3 &&
         snap.body.includes('活跃') &&
         snap.body.includes('已隐藏') &&
         snap.body.includes('已归档'),
-      `rows=${snap?.rows ?? 'n/a'}`,
+      `ownRows=${snap?.ownRows ?? 'n/a'} · 全表 rows=${snap?.rows ?? 'n/a'}`,
     );
     ok(
       'G6 类型列无色（反证：无 bg-type-* 色块）',
@@ -993,12 +1000,16 @@ if (want('G20')) {
     const rows = [...document.querySelectorAll('[data-asset-row]')];
     let rowButtons = 0;
     for (const r of rows) rowButtons += r.querySelectorAll('button').length;
+    /** 行内进详情锚点数（T11-j j5：操作列 = 真链接；Button asChild 渲染为 a 而非 button） */
+    let rowAnchors = 0;
+    for (const r of rows) rowAnchors += r.querySelectorAll('a[href^="/assets/"]').length;
     return JSON.stringify({
       toggleCount: btns.length,
       on: btns.filter((b) => b.getAttribute('data-state') === 'on').map((b) => b.getAttribute('aria-label')),
       grid: document.querySelector('div.grid.grid-cols-4') !== null,
       rows: rows.length,
       rowButtons,
+      rowAnchors,
       rowHeight: rows[0] ? Math.round(rows[0].getBoundingClientRect().height) : null,
       pagination: document.querySelector('nav[aria-label="pagination"]') !== null,
       url: location.pathname + location.search,
@@ -1010,6 +1021,7 @@ if (want('G20')) {
       grid: boolean;
       rows: number;
       rowButtons: number;
+      rowAnchors: number;
       rowHeight: number | null;
       pagination: boolean;
       url: string;
@@ -1038,31 +1050,34 @@ if (want('G20')) {
     await sleep(1600);
     const s2 = await viewState();
     ok(
-      'G20-3 列表形态：20 行（= limit）· 行高 ≥55（单行描述 55；描述最多 3 行时更高）· 行内 **0 button**（下载/收藏纯展示口径不破）',
+      'G20-3 列表形态：20 行（= limit）· 行高 ≥55 · 行内**恰 1 个进详情入口**（`a[href^="/assets/"]`）且 **0 个 `button`**（下载/收藏纯展示口径不破 —— T11-j 起进详情入口 = 操作列真链接）',
       s2?.on.length === 1 &&
         s2.on[0] === '列表视图' &&
         !s2.grid &&
         s2.rows === 20 &&
         (s2.rowHeight ?? 0) >= 55 &&
+        s2.rowAnchors === 20 &&
         s2.rowButtons === 0,
       JSON.stringify(s2),
     );
     ok(
-      'G20-4 表头 **6 列**（名称/描述/作者/下载/收藏/**更新**）+ 行内六格字段齐（名称链接 · 描述 · 作者 · 两枚 stat · 更新时间 `YYYY-MM-DD`）',
+      'G20-4 表头 **7 列**（名称/描述/作者/下载/收藏/更新/**操作**）+ 字段齐（**名称纯文本** · 描述 · 作者 · 两枚 stat · `YYYY-MM-DD` · 末格真链接）',
       (await evalJs(`(() => {
       const heads = [...document.querySelectorAll('thead th')].map((h) => h.innerText.trim()).join('|');
       const row = document.querySelector('[data-asset-row]');
       if (!row) return false;
       const tds = [...row.querySelectorAll('td')];
-      if (tds.length !== 6) return false;
+      if (tds.length !== 7) return false;
       return (
-        heads === '名称|描述|作者|下载|收藏|更新' &&
-        tds[0].querySelector('a[href^="/assets/"]') !== null &&
+        heads === '名称|描述|作者|下载|收藏|更新|操作' &&
+        (tds[0].innerText || '').length > 0 &&
+        tds[0].querySelector('a') === null &&
         (tds[1].innerText || '').length > 0 &&
         (tds[2].innerText || '').includes('m4b2_mgr') &&
         tds[3].querySelector('span.tabular-nums') !== null &&
         tds[4].querySelector('span.tabular-nums') !== null &&
-        /^\\d{4}-\\d{2}-\\d{2}$/.test((tds[5].innerText || '').trim())
+        /^\\d{4}-\\d{2}-\\d{2}$/.test((tds[5].innerText || '').trim()) &&
+        tds[6].querySelector('a[href^="/assets/"]') !== null
       );
     })()`)) === true,
     );
@@ -1131,6 +1146,22 @@ if (want('G20')) {
       JSON.stringify(s5),
     );
     await shot('20-skills-list-view-anon');
+
+    // G20-10 操作列真链接（T11-j j5 新增）：点 ⇒ 真跳 `/assets/:slug`（真指针路径）
+    const opHref = (await evalJs(`(() => {
+    const a = document.querySelector('[data-asset-row] a[href^="/assets/"]');
+    if (!a) return null;
+    const href = a.getAttribute('href');
+    a.click();
+    return href;
+  })()`)) as string | null;
+    await sleep(1800);
+    const opPath = (await evalJs('location.pathname + location.search')) as string;
+    ok(
+      'G20-10 操作列 = **真链接**：点行内操作钮 ⇒ `pathname` = `/assets/:slug`（列表 ↔ 详情零中间态 · D6）',
+      typeof opHref === 'string' && opHref.startsWith('/assets/') && opPath.startsWith('/assets/'),
+      `href=${opHref} → pathname=${opPath}`,
+    );
   }
 }
 
@@ -1354,11 +1385,10 @@ if (want('G22')) {
     );
 
     // G22-3 四档逐档：Select 显示 + URL 写入 + 列表序与接口**逐项一致**
+    // T11-j j3 收敛（D0-8）：`名称` / `作者` 两档下线 ⇒ 由四档降为**两档**（白名单 = `SORT_OPTIONS`）
     for (const [label, key] of [
       ['下载量', 'downloads'],
       ['星标数', 'stars'],
-      ['名称', 'name'],
-      ['作者', 'author'],
     ] as const) {
       const picked = await selectSort(label);
       const u = await curUrl();
@@ -1396,25 +1426,15 @@ if (want('G22')) {
     );
     await shot('25-sort-bogus-fallback');
 
-    // G22-6 列头两态（切列表视图）：同列切换 asc → desc
-    await nav(`${APP}/skills?sort=name&dir=asc`, 3000);
-    await evalJs(CLICK_VIEW('列表视图'));
-    await sleep(1600);
-    const ascState = (await evalJs(HEAD_SORT('名称'))) as string;
-    await evalJs(CLICK_HEAD('名称'));
-    await sleep(1900);
-    const descState = (await evalJs(HEAD_SORT('名称'))) as string;
-    const descUrl = await curUrl();
-    ok(
-      'G22-6 列头两态：`?dir=asc` ⇒ 名称列 `aria-sort=ascending`；**点同列** ⇒ `descending` + URL `dir=desc`',
-      ascState === 'ascending' &&
-        descState === 'descending' &&
-        descUrl === '/skills?sort=name&dir=desc',
-      `${ascState} → ${descState} · ${descUrl}`,
-    );
-    await shot('26-sort-header-desc');
+    // ⚠️ 原 G22-6（名称列两态）随 T11-j j3 **整条删除** —— 该档已下线；
+    //    同列反向的两态语义由 **G22-6c**（更新列 desc→asc→desc）完整承载 ⇒ 覆盖不降（design §7.1 第 6 项）。
+    //    「异列首点 desc」由 G22-6b 承载。原截图 `26-sort-header-desc` 不再产出（证据件已同步）。
 
     // G22-6b 点异列 ⇒ 首点 `desc`（F84 订正口径）
+    // ⚠️ 前置：切到**列表视图**（原由 G22-6 的导航顺带完成；该条随 j3 删除后本处自补 —— 否则无 thead 可比）
+    await nav(`${APP}/skills`, 3000);
+    await evalJs(CLICK_VIEW('列表视图'));
+    await sleep(1600);
     await evalJs(CLICK_HEAD('下载'));
     await sleep(1900);
     const dlState = (await evalJs(HEAD_SORT('下载'))) as string;
@@ -1429,17 +1449,15 @@ if (want('G22')) {
       `${dlUrl} · ${dlState}`,
     );
 
-    // G22-7 描述列不可点（五列可点 = 名称/作者/下载/收藏/更新）
+    // G22-7 列头可点（T11-j j3 起三列 = 下载/收藏/更新；描述 · 名称 · 作者不可点）
     const thMap = (await evalJs(
       `JSON.stringify([...document.querySelectorAll('th')].map((x) => ((x.textContent || '').trim() + ':' + (x.querySelector('button') ? 'btn' : 'text'))))`,
     )) as string;
     ok(
-      'G22-7 列头可点 = 名称 / 作者 / 下载 / 收藏 / **更新** 五列（**描述列不可点**）',
-      thMap.includes('描述:text') &&
-        !thMap.includes('描述:btn') &&
-        ['名称:btn', '作者:btn', '下载:btn', '收藏:btn', '更新:btn'].every((s) =>
-          thMap.includes(s),
-        ),
+      'G22-7 列头可点 = 下载 / 收藏 / **更新** 三列（**描述 · 名称 · 作者**三列不可点 —— T11-j j3 档收敛）',
+      ['描述:text', '名称:text', '作者:text'].every((s) => thMap.includes(s)) &&
+        ['描述:btn', '名称:btn', '作者:btn'].every((s) => !thMap.includes(s)) &&
+        ['下载:btn', '收藏:btn', '更新:btn'].every((s) => thMap.includes(s)),
       thMap,
     );
 

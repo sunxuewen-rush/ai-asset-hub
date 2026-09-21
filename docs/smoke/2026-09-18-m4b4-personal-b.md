@@ -139,7 +139,7 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 | ① | 批 design 8 维 ≥9 | ✅ **定稿 9.69**（v1.10）+ **执行期 converge 重评见 §9** |
 | ② | **T1–T16**（**T8 已作废**）Task 全绿 | ✅ 15/15（逐 Task 均分 **9.41–9.71**；本轮 T12 9.43 / T16 9.41 / T6 9.43） |
 | ③ | 五门禁逐项 exit 0 | ✅ §1（8 步全绿） |
-| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ✅ **用户实机观感**（2026-09-20「观感 ok」—— 排序控件 / 可点列头 / 「更新」列）；**现行 = G1–G22 = 91 PASS / 0 FAIL**（T11-f · §14.2；T11-e 时点 **G1–G21 = 77** · §13.2）|
+| ④ | dogfood / 观感（合规核对，审美归 M4b-7） | ✅ §3（G1–G19 + **G12b** + **G14b** = **60 PASS / 0 FAIL / NO JS ERRORS**）+ ✅ **用户实机观感**（2026-09-20「观感 ok」—— 排序控件 / 可点列头 / 「更新」列）；**现行 = G1–G22 = **89** PASS / 0 FAIL**（T11-j 门户笔：−G22-6 · +G20-10 · G22-3 四档→两档）（T11-f · §14.2；T11-e 时点 **G1–G21 = 77** · §13.2）|
 | ⑤ | 整体审计 | ✅ §5 —— **关键字残留 0**；**语义散点 14 处已订正**（F64 · 口径已撤回，见 §5 / §6 A4 · **换靶第二轮** 补抓 6 处）；4 条登记留存均写明归属 |
 
 ## 9. 文档-代码对齐重评（converge）
@@ -308,11 +308,11 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 
 | 脚本 | 结果 |
 |------|------|
-| `m4b4-personal-b-dogfood.ts` | **91 PASS / 0 FAIL / 0 CDP 超时 / NO JS ERRORS**（原 77 + **G22×14**；T11-g 后：**SMOKE_ONLY=G22 ⇒ 45.6s** 命中 14 条 + 命中检查 + G19 · 全跑 **2m59s** · 真登录 **9 → 4**）|
+| `m4b4-personal-b-dogfood.ts` | **89 PASS / 0 FAIL / 0 CDP 超时 / NO JS ERRORS**（**T11-j 后** —— 原 91：−G22-6 · +G20-10 · G22-3 四档→两档）**（T11-f 时 = 91 = 原 77 + G22×14**；T11-g 后：**SMOKE_ONLY=G22 ⇒ 45.6s** 命中 14 条 + 命中检查 + G19 · 全跑 **2m59s** · 真登录 **9 → 4**）|
 | `m4a-dogfood.ts`（门户零回归） | **38 PASS / 0 FAIL**（原 37 → 38：原 1 条「中心排序栏」静态文本断言拆为 **2 条**（旧文本退役 + 控件形态 = 官方 `Select` `role=combobox` + 默认档「最新」）—— **F85 跨口径变更**，**v1.27 随形态再改 1 次**）|
 | 服务端用例 | **+12 例**：`assets/service.test.ts` **+8**（五档真值 / `dir` 反向 / 非法回落 / tiebreaker / 零 join 形状）· `http/assets.test.ts` **+3**（白名单放行 / 非法回落逐项一致 / 计数单调）· `http/me.test.ts` **+1**（不传 ⇒ 现状序 + 只改序不改集合）|
 
-**G22 明细（13 条 · 全绿）**：G22-1 默认档干净 URL + 「最新」选中 · G22-2 默认序 = 接口默认序 · G22-3 ×4（下载量/星标数/名称/作者四档 = URL + 列表序与接口**逐项一致**）· G22-4 改排序**回第 1 页**（`?page=2` → `?sort=stars`）· G22-5 非法值静默回落 + chip 归一 · G22-6 列头同列两态（`ascending → descending`）· G22-6b 点异列**首点 `desc`**（F84 口径）· G22-7 四列可点 / 描述列不可点 · G22-8 双视图同序 · G22-9 **匿名可用**（本段全程 `me=401`）· **G22-6c** 点「更新」列 ⟺「最新」档（URL 无 `sort=updated` · Select 仍「最新」· 同列 `desc→asc→desc` 序与接口一致）。
+**G22 明细（13 条 · 全绿）**：G22-1 默认档干净 URL + 「最新」选中 · G22-2 默认序 = 接口默认序 · G22-3 ×**2**（下载量/星标数两档 = URL + 列表序与接口**逐项一致** · T11-j j3 收敛）· G22-4 改排序**回第 1 页**（`?page=2` → `?sort=stars`）· G22-5 非法值静默回落 + chip 归一 · ~~G22-6 列头同列两态~~（随 T11-j j3 **整条删除** —— 同列反向由 G22-6c 承载）· G22-6b 点异列**首点 `desc`**（F84 口径）· G22-7 **三列可点 / 描述 · 名称 · 作者不可点** · G22-8 双视图同序 · G22-9 **匿名可用**（本段全程 `me=401`）· **G22-6c** 点「更新」列 ⟺「最新」档（URL 无 `sort=updated` · Select 仍「最新」· 同列 `desc→asc→desc` 序与接口一致）。
 
 ### 14.3 观感/形态实测真值（浏览器 CDP）
 
@@ -320,8 +320,8 @@ M4b-4 造数完成（4 账号 / 4 资产 / 6 版本 / 2 标签挂载 / 2 star）
 |----|--------|
 | 排序控件（**v1.27 = 官方 `Select`**） | `Label「排序」+ SelectTrigger#market-sort` · **实测 160×32**（`size="sm"`）· `role=combobox` · 收起态显示当前档（默认「最新」）· 选项 = 最新/下载量/星标数/名称/作者 · 计数行内 **搜索钮左侧**（`ml-auto`）· **常驻宽 274 → 160px**（对比 chips 版）· 换档点击 **1 → 2 次**（用户 2026-09-20 线框四案对比后拍板「方案 B」）|
 | 列头按钮 | 官方 `Button` ghost `size=sm` + 图标（未排 `ArrowUpDown` / 降 `ArrowDown` / 升 `ArrowUp`）· `th[aria-sort]` = `none ｜ ascending ｜ descending` · **描述列无按钮** |
-| 两态语义 | **首点该列 ⇒ `desc`**（含异列）· **再点同列 ⇒ `asc`** ⇒ URL `?sort=name&dir=desc → …&dir=asc` |
-| 方向真值（`Select` 驱动 · URL 无 `dir`） | `?sort=downloads` ⇒ 下载列 `aria-sort=descending`；`?sort=name` ⇒ 名称列 `ascending`（= 档位固有方向）|
+| 两态语义 | **首点该列 ⇒ `desc`**（含异列）· **再点同列 ⇒ `asc`** ⇒ URL `?sort=downloads&dir=desc → …&dir=asc` |
+| 方向真值（`Select` 驱动 · URL 无 `dir`） | `?sort=downloads` ⇒ 下载列 `aria-sort=descending`；`?sort=stars` ⇒ 星标列 `descending`（**三档固有方向均为 `desc`** —— T11-j j3 收敛后 `asc` 固有方向已无档位）|
 | 非法值 | `?sort=bogus` ⇒ `Select` 归一「最新」· 顺序 = 接口默认序 · **200**（不 400 / 不空白）|
 | 双语宽度（**F87**） | 定宽 **160px**：zh（最长「星标数」42px）与 EN（最长 `Most downloads` **106px**）均 `clipped:false`；**104px 版在 EN 下截断**（`scrollWidth 106 > clientWidth 54`）|
 | 展开态 | 点触发钮 ⇒ `[role=option]` 面板 **五档齐**（最新/下载量/星标数/名称/作者）· 选中项高亮 |
@@ -581,6 +581,27 @@ i18n **347 键 / 12 组**（**本笔零改动**）· `THIRD-PARTY-NOTICES.md` �
 
 **证据图**：`docs/smoke/m4b4-34-command-palette.png`（重拍 · 含条目箭头与浅色触发器图标）·
 `m4b4-32-topbar-search.png` / `m4b4-33-search-all-page.png` 随壳层变更由 dogfood 复跑重拍。
+
+### 14.15 T11-j 门户笔（表格族统一 · `j1`–`j5` · 2026-09-21 实跑）
+
+**门禁（CI 同序八步 · 全绿）**：`typecheck` / `lint` / `format:check`（276 文件）/ **`doc-audit` 66 PASS** / `build` / `db:migrate`（含新迁移 `0013_good_wolverine.sql`）/ `CI=true test` **559 pass · 1 skip · 0 fail**（T11-j 前 562 ⇒ −3 = 被删 3 个排序用例，逐一对上）。
+
+**行为断言（实跑）**：
+| 脚本 | 结果 | 说明 |
+|------|------|------|
+| `m4b4-personal-b-dogfood.ts` | **89 PASS / 0 FAIL / 0 CDP 超时 / NO JS ERRORS** | T11-j 后：**−G22-6**（随 j3 删）· **+G20-10**（操作列真链接）· **G22-3 四档→两档** · `G20-3` 改真值口径（**1 锚点 / 0 button**）· `G20-4` **6 → 7 格** · `G22-7` **五列 → 三列** · `G6` 改**本批前缀锚定**（`m4b4-seed-`，隔离 m4b3 夹具） |
+| `m4a-dogfood.ts` | **60 PASS / 0 FAIL · exit 0** | 门户卡 / 网格面**零回归**（与 T11-i 基线 60/0 逐项一致） |
+| `m4b3-personal-a-dogfood.ts` | **39 PASS / 0 FAIL**（j1 轮） | 控制台三页零回归（原 38/1 —— `G6` 假红随判据订正消失） |
+
+**观感 / 形态真值（CDP 实测）**：列表形态 **7 列** `["名称","描述","作者","下载","收藏","更新","操作"]` · 表头底纹 `rgba(0,0,0,0)`（**D3 去底纹**）· `table-fixed` + 名称列 **251/1140 = 22.0%** · 表头 **40** / 行高 **65**（`h-10` + `py-4`）· 行内 **恰 1 个进详情锚点 / 0 个 `button`** · 默认档 ⇒ **更新列 `aria-sort=descending`**（D5：列 ⟷ 档由 `meta.sortKey` 携带）· 点「下载」列 ⇒ `?sort=downloads&dir=desc` 且 `aria-sort` 迁移 · 载态 = 表头 7 列 + 3 排序钮 + 骨架 5 行（`colSpan=7`）· 点操作钮 ⇒ `/assets/:slug`。
+
+**i18n**：**347 键 / 12 组**（`j2` +2 `colActions`/`actionOpen` 与 `j3` −2 `sortName`/`sortAuthor` **相抵 = 净零**）· zh/en **双向差集 0**（脚本实测）。
+
+**索引（`j4` · 20 万行独立表 · 残留 0）**：三档 `LIMIT 20` **8.666/7.944/9.013 ms → 0.020/0.030/0.030 ms**（≈265–433×）· `status+type` 前缀**命中**（6.290 → 0.016 ms）· `count(*)` 与「owner + `status=ALL`」**不受益**（与登记口径一致）· 建三条索引 **93.1 ms** · 真库 `\d asset` = **6 条**索引。
+
+**本轮缺陷（F-10…F-18 / F109…F118 族 · 明细见批 design §13 与批 plan §7.6）**：F-10（勾选框无 a11y 名）· F-11（`m4b3 G6` 假失败）· F-12（`rowProps` 类型不放行 `data-*`）· F-13（操作钮断言真值 = 1 锚点 / 0 button）· F-14（载态取样不能用慢网）· F-15（`assets.test.ts` 白名单清单 7 → 4）· F-16（实验须自证数据入表）· F-17（小表 `Seq Scan` 是规划器自由选择）· F-18（档名级陈旧引用）· **F-19**（`m4b4 G6` 按全表行数断言 ⇒ 被 m4b3 跨批夹具污染 ⇒ 改本批前缀锚定）· F111（`doc-audit` 头部判据假绿）。
+
+**证据图（本轮重拍 · 变化图）**：`m4b4-20-mcps-list-view.png`（**列表 7 列**）· `m4b4-20-skills-list-view-anon.png`（匿名列表）· `m4b4-03-my-assets.png` / `m4b4-28-sort-updated-column.png`（排序头）· 原 `26-sort-header-desc.png` **不再产出**（G22-6 删除）。
 
 ### 14.8 未决 / 待用户拍板
 
