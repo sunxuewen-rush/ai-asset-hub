@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Hono } from 'hono';
 import { AssetError } from '../assets/errors.js';
+import { __resetCompareCache } from '../assets/version-compare.js';
 import { assertSafeReadPath } from '../assets/version-content.js';
 import { createVersion } from '../assets/versions.js';
 import { createAuditWriter } from '../audit/audit.js';
@@ -743,7 +744,7 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
   });
 });
 
-describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () => {
+describe('R9 版本对比（M4a → M4b-5 F156——GET versions/compare `patch` 文本）', () => {
   beforeAll(async () => {
     // 懒建：两 PUBLISHED 版本（v1.0.0 基线 / v1.1.0：SKILL.md 改 2 行 + new.mjs 新增 + old.md 删除）
     const [a] = await db
@@ -793,56 +794,80 @@ describe('R9 版本对比（M4a——GET versions/compare 行级 hunks）', () =
     ]);
   });
 
-  it('MODIFIED 行级 hunks：DELETE+ADD 行号正确', async () => {
+  it('MODIFIED：patch 段 = 3 行头 + 全文件单 hunk（逐行与退役前等价）', async () => {
     const res = await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=1.1.0');
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       files: Array<{
         path: string;
         changeType: string;
-        hunks?: Array<{
-          lines: Array<{
-            type: string;
-            oldLineNumber: number | null;
-            newLineNumber: number | null;
-            content: string;
-          }>;
-        }>;
+        patch?: string;
       }>;
     };
     const skill = body.files.find((f) => f.path === 'SKILL.md');
     expect(skill?.changeType).toBe('MODIFIED');
-    const lines = skill?.hunks?.[0]?.lines ?? [];
-    expect(lines.length).toBe(7);
-    const delB = lines.find((l) => l.type === 'DELETE' && l.content === 'line b');
-    expect(delB?.oldLineNumber).toBe(3);
-    expect(delB?.newLineNumber).toBeNull();
-    const addBNew = lines.find((l) => l.type === 'ADD' && l.content === 'line b NEW');
-    expect(addBNew?.oldLineNumber).toBeNull();
-    expect(addBNew?.newLineNumber).toBe(3);
-    const addD = lines.find((l) => l.type === 'ADD' && l.content === 'line d');
-    expect(addD?.newLineNumber).toBe(5);
-    const ctxEnd = lines.find((l) => l.type === 'CONTEXT' && l.content === '## End');
-    expect(ctxEnd?.oldLineNumber).toBe(5);
-    expect(ctxEnd?.newLineNumber).toBe(6);
+    const patch = (skill?.patch ?? '').replace(/\n$/, ''); // patch 以换行结尾（段间分隔）
+    const lines = patch.split('\n');
+    // 段首规范（批 design §2.1e G-Q11）：3 行头
+    expect(lines[0]).toBe('diff --git a/SKILL.md b/SKILL.md');
+    expect(lines[1]).toBe('--- a/SKILL.md');
+    expect(lines[2]).toBe('+++ b/SKILL.md');
+    // 不产 index 行（手中只有 sha256，非 git blob sha）
+    expect(patch).not.toMatch(/^index /m);
+    // 全文件单 hunk（context: Infinity）
+    expect(lines[3]).toBe('@@ -1,5 +1,6 @@');
+    // 逐行等价（退役前 7 行级口径 → 同序 hunk 体）
+    expect(lines.slice(4)).toEqual([
+      ' # Title',
+      ' line a',
+      '-line b',
+      '+line b NEW',
+      ' line c',
+      '+line d',
+      ' ## End',
+    ]);
   });
 
-  it('ADDED/DELETED 文件 + 未变文件不列', async () => {
+  it('ADDED/DELETED 用 /dev/null + 未变文件不列 + 段序 = files[] 序', async () => {
     const res = await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=1.1.0');
     const body = (await res.json()) as {
       files: Array<{
         path: string;
         changeType: string;
-        hunks?: Array<{ lines: Array<{ type: string }> }>;
+        patch?: string;
       }>;
     };
     expect(body.files.map((f) => f.path).sort()).toEqual(['SKILL.md', 'new.mjs', 'old.md']);
     const added = body.files.find((f) => f.path === 'new.mjs');
     expect(added?.changeType).toBe('ADDED');
-    expect(added?.hunks?.[0]?.lines).toHaveLength(1); // export const v = 1; 全 ADD
+    expect(added?.patch?.split('\n')[0]).toBe('diff --git a/new.mjs b/new.mjs');
+    expect(added?.patch).toContain('--- /dev/null'); // 新增 ⇒ 源侧 /dev/null
+    expect(added?.patch).toContain('+++ b/new.mjs');
+    expect(added?.patch).toContain('+export const v = 1;'); // 全 ADD
     const deleted = body.files.find((f) => f.path === 'old.md');
     expect(deleted?.changeType).toBe('DELETED');
-    expect(deleted?.hunks?.[0]?.lines?.[0]?.type).toBe('DELETE');
+    expect(deleted?.patch).toContain('+++ /dev/null'); // 删除 ⇒ 目标侧 /dev/null
+    expect(deleted?.patch).toContain('-# old'); // 全 DELETE
+    expect(deleted?.patch).toContain('--- a/old.md');
+    // 段数 = files[] 数 且段序 = files[] 序（单 patch 串内每文件一段 · 路径升序）
+    const allPatches = body.files.map((f) => f.patch ?? '').join('');
+    expect(allPatches.match(/^diff --git /gm)?.length).toBe(body.files.length);
+    const segPaths = body.files.map((f) => (f.patch ?? '').match(/^diff --git a\/(\S+) /m)?.[1]);
+    expect(segPaths).toEqual(body.files.map((f) => f.path));
+    expect(body.files.map((f) => f.path)).toEqual([...body.files.map((f) => f.path)].sort());
+  });
+
+  it('缓存（§5.5）：幂等（两次逐字相等）+ 授权恒在缓存之前（YANKED 仍 400）', async () => {
+    __resetCompareCache(); // G-Q12：仅供测试的复位钩子（不断言命中率，只断结果）
+    const first = await (
+      await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=1.1.0')
+    ).json();
+    const second = await (
+      await getReq('/api/assets/ast-cmp/versions/compare?from=1.0.0&to=1.1.0')
+    ).json();
+    expect(second).toEqual(first); // 缓存命中不改结果
+    const yanked = await getReq('/api/assets/ast-file-yanked/versions/compare?from=2.0.0&to=2.0.0');
+    expect(yanked.status).toBe(400); // 命中缓存也先过 decideDownload
   });
 
   it('参数缺失：400 request.invalid', async () => {

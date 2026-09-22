@@ -10,8 +10,6 @@ export const reviewErrorCodes = {
   alreadyPending: 'review.already_pending',
   /** 非 PENDING 不可审/撤（含并发双审——条件更新 0 行） */
   notPending: 'review.not_pending',
-  /** 防自审（05 §6.4：审核人不得是提交人——权限违背族 403，SUPER_ADMIN 例外由调用方放行） */
-  selfReview: 'review.self_review',
   /** reject 必须给理由（skillhub RejectReviewRequest 同构——修正方据理由改） */
   commentRequired: 'review.comment_required',
   /** 审核详情/任务越权可见（AIH 明示哲学——对齐 skillhub review.no_permission；design 补项） */
@@ -29,7 +27,6 @@ export function httpStatusForReview(code: ReviewErrorCode): number {
     case 'review.not_pending':
     case 'review.comment_required':
       return 400;
-    case 'review.self_review':
     case 'review.access_denied':
       return 403;
   }

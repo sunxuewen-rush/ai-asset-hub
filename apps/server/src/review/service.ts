@@ -9,7 +9,7 @@
 import { and, eq, max } from 'drizzle-orm';
 import { AssetError, assetErrorCodes } from '../assets/errors.js';
 import type { AuditWriter } from '../audit/audit.js';
-import { ACCOUNT_ROLE, type AccountRole, isSelfReview } from '../auth/rbac.js';
+import { ACCOUNT_ROLE, type AccountRole } from '../auth/rbac.js';
 import type { Db } from '../db/client.js';
 import { asset, assetVersion, reviewTask, type VersionStatus } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
@@ -121,8 +121,6 @@ export interface ReviewActionInput {
   comment?: string;
   /** 路由层判定：`role >= ADMIN`（M4-pre §2.2；原 can('review:approve', nsId) 已随空间删除） */
   canApprove: boolean;
-  /** 防自审例外（05 §6.4：SUPER_ADMIN 可审自己的提交——调用方显式放行） */
-  isSuperAdmin: boolean;
 }
 
 /** 审核任务行读面（approve/reject 共用） */
@@ -157,21 +155,18 @@ async function loadPendingTask(db: Db, taskId: number): Promise<TaskWithVersion>
  * 审核通过：PENDING_REVIEW → PUBLISHED（design §3.3 R4）。
  * 单事务：条件更新 review_task（并发双审——0 行即 not_pending）→ 版本 PUBLISHED + published_at →
  * asset.latest_version_id 指向该版本（skillhub 14 §4.2 同构——发布时序即最新）。
- * 防自审：isSelfReview(submittedBy, reviewerId)——403 review.self_review。
+ * 防自审：**已于 R2 废除**（2026-09-21 拍板「管理也能审自己」· 见批 design §4.6.1）——管理档可审自己提交的版本。
  */
 export async function approveReview(
   db: Db,
   audit: AuditWriter,
   input: ReviewActionInput,
 ): Promise<{ taskId: number; publishedVersion: string }> {
-  const { taskId, actorId, comment, canApprove, isSuperAdmin } = input;
+  const { taskId, actorId, comment, canApprove } = input;
   if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
 
   const task = await loadPendingTask(db, taskId);
-  // 防自审（05 §6.4：审核人不得是提交人——SUPER_ADMIN 例外由 isSuperAdmin 放行）
-  if (isSelfReview(task.submittedBy, actorId, isSuperAdmin)) {
-    throw new ReviewError(reviewErrorCodes.selfReview);
-  }
+  // R2（2026-09-21 拍板「管理也能审自己」）：防自审已**废除** —— 不再有 isSelfReview 判定
 
   await db.transaction(async (tx) => {
     // 条件更新：仅 PENDING 可结案——并发双审第二人 0 行 → not_pending
@@ -220,14 +215,11 @@ export async function rejectReview(
   audit: AuditWriter,
   input: ReviewActionInput,
 ): Promise<{ taskId: number; rejectedVersion: string }> {
-  const { taskId, actorId, comment, canApprove, isSuperAdmin } = input;
+  const { taskId, actorId, comment, canApprove } = input;
   if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
   if (!comment?.trim()) throw new ReviewError(reviewErrorCodes.commentRequired);
 
   const task = await loadPendingTask(db, taskId);
-  if (isSelfReview(task.submittedBy, actorId, isSuperAdmin)) {
-    throw new ReviewError(reviewErrorCodes.selfReview);
-  }
 
   await db.transaction(async (tx) => {
     const updated = await tx

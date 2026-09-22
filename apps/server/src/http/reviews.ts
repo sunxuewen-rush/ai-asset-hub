@@ -5,7 +5,7 @@
  *   无权限 → 403 review.access_denied
  * - GET /mine        登录面（无权限码——自己的提交）
  * - GET /:id         管理档 or 提交人本人
- * - POST /:id/approve | /:id/reject   管理档 + 防自审（服务内 isSelfReview——SUPER_ADMIN 例外显式放行）
+ * - POST /:id/approve | /:id/reject   管理档（role >= ADMIN）· **防自审已废除（R2 · 2026-09-21「管理也能审自己」）**
  * - POST /:id/withdraw                提交人本人 / asset owner / 管理档
  *   （withdrawReview 服务内判定——路由传 viewerRole）
  * 错误出口统一 app.onError（ReviewError 认领——见 app.ts 装配）。
@@ -108,13 +108,11 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const canApprove = await rbac.hasRole(principal.userId, ACCOUNT_ROLE.ADMIN);
     assertTokenScoped(c, TOKEN_SCOPES.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
-    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     const out = await approveReview(db, audit, {
       taskId,
       actorId: principal.userId,
       comment: body.data.comment,
       canApprove: true,
-      isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
     });
     return c.json({ taskId: out.taskId, status: 'APPROVED', version: out.publishedVersion }, 200);
   });
@@ -131,13 +129,11 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const canApprove = await rbac.hasRole(principal.userId, ACCOUNT_ROLE.ADMIN);
     assertTokenScoped(c, TOKEN_SCOPES.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
-    const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     const out = await rejectReview(db, audit, {
       taskId,
       actorId: principal.userId,
       comment: body.data.comment,
       canApprove: true,
-      isSuperAdmin: role >= ACCOUNT_ROLE.SUPER_ADMIN,
     });
     return c.json({ taskId: out.taskId, status: 'REJECTED', version: out.rejectedVersion }, 200);
   });

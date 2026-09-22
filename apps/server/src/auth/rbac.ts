@@ -65,13 +65,3 @@ export class RbacService {
 
 export type { AccountRole };
 export { ACCOUNT_ROLE };
-
-/** 防自审助手（05 §6.4：审核人不得是提交人；SUPER_ADMIN 例外由调用方传 isSuperAdmin 放行） */
-export function isSelfReview(
-  submittedBy: string,
-  reviewedBy: string,
-  isSuperAdmin = false,
-): boolean {
-  if (isSuperAdmin) return false; // SUPER_ADMIN 例外
-  return submittedBy === reviewedBy;
-}

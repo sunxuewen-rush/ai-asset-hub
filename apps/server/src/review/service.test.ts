@@ -285,7 +285,6 @@ describe('approveReview（design §3.3 R4）', () => {
       actorId: ownerId,
       comment: 'lgtm',
       canApprove: true,
-      isSuperAdmin: false,
     });
     expect(out.publishedVersion).toBe('1.0.0');
 
@@ -316,7 +315,6 @@ describe('approveReview（design §3.3 R4）', () => {
         taskId,
         actorId: strangerId,
         canApprove: false,
-        isSuperAdmin: false,
       });
       throw new Error('expected accessDenied');
     } catch (err) {
@@ -325,36 +323,22 @@ describe('approveReview（design §3.3 R4）', () => {
     }
   });
 
-  it('防自审：提交人审自己 → 403 review.self_review；SUPER_ADMIN 例外放行', async () => {
+  it('管理档可自审（R2 · 2026-09-21 拍板「管理也能审自己」）：提交人审自己 → **放行** + 版本 PUBLISHED + latest 落位', async () => {
     const { taskId, versionId, assetId } = await makePendingTask(contributorId);
-    try {
-      await approveReview(db, audit, {
-        taskId,
-        actorId: contributorId,
-        canApprove: true,
-        isSuperAdmin: false,
-      });
-      throw new Error('expected selfReview');
-    } catch (err) {
-      if (err instanceof Error && err.message === 'expected selfReview') throw err;
-      expect((err as ReviewError).code).toBe(reviewErrorCodes.selfReview);
-    }
-    // 版本未被误发布
+    const out = await approveReview(db, audit, {
+      taskId,
+      actorId: contributorId,
+      comment: 'self-review allowed (R2)',
+      canApprove: true,
+    });
+    // 契约变更：原「403 review.self_review」已废除 ⇒ 断言翻转为放行（非为绕测而改）
+    expect(out.publishedVersion).toBe('1.0.0');
+    expect(out.taskId).toBe(taskId);
     const [ver] = await db
       .select({ status: assetVersion.status })
       .from(assetVersion)
       .where(eq(assetVersion.id, versionId));
-    expect(ver!.status).toBe('PENDING_REVIEW');
-
-    // SUPER_ADMIN 例外（05 §6.4：调用方显式放行）
-    const out = await approveReview(db, audit, {
-      taskId,
-      actorId: contributorId,
-      comment: 'self',
-      canApprove: true,
-      isSuperAdmin: true,
-    });
-    expect(out.publishedVersion).toBe('1.0.0');
+    expect(ver!.status).toBe('PUBLISHED');
     const [a] = await db
       .select({ latest: asset.latestVersionId })
       .from(asset)
@@ -368,14 +352,12 @@ describe('approveReview（design §3.3 R4）', () => {
       taskId,
       actorId: ownerId,
       canApprove: true,
-      isSuperAdmin: false,
     });
     try {
       await approveReview(db, audit, {
         taskId,
         actorId: ownerId,
         canApprove: true,
-        isSuperAdmin: false,
       });
       throw new Error('expected notPending');
     } catch (err) {
@@ -390,7 +372,6 @@ describe('approveReview（design §3.3 R4）', () => {
         taskId: 999_999_999,
         actorId: ownerId,
         canApprove: true,
-        isSuperAdmin: false,
       });
       throw new Error('expected notFound');
     } catch (err) {
@@ -408,7 +389,6 @@ describe('rejectReview（design §3.4 R5）', () => {
       actorId: ownerId,
       comment: 'missing license',
       canApprove: true,
-      isSuperAdmin: false,
     });
     expect(out.rejectedVersion).toBe('2.0.0');
 
@@ -443,7 +423,6 @@ describe('rejectReview（design §3.4 R5）', () => {
         actorId: ownerId,
         comment: '   ',
         canApprove: true,
-        isSuperAdmin: false,
       });
       throw new Error('expected commentRequired');
     } catch (err) {
@@ -529,7 +508,6 @@ describe('withdrawReview（design §3.5 R6——PENDING_REVIEW → UPLOADED + �
       taskId,
       actorId: ownerId,
       canApprove: true,
-      isSuperAdmin: false,
     });
     try {
       await withdrawReview(db, audit, {

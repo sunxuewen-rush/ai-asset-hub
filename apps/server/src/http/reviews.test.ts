@@ -374,3 +374,118 @@ describe('读面加性：reviewComment + assetType（M4b-3 T1 · design §3.2#5 
     expect(detail.assetType).toBe('skill');
   });
 });
+
+describe('读面加性：submittedByName + latestVersion（M4b-5 T2 · design §5.1 / §5.1b）', () => {
+  interface Row {
+    taskId: number;
+    submittedBy: string;
+    submittedByName: string | null;
+  }
+
+  async function listOf(path: string, cookie: string): Promise<{ items: Row[]; total: number }> {
+    const res = await getReq(`${path}?limit=100`, cookie);
+    expect(res.status).toBe(200);
+    return (await res.json()) as { items: Row[]; total: number };
+  }
+
+  /** 给既有资产再加一版并提交（`submitFlow` 每次新建资产 ⇒ 已发布版本场景需复用同一资产） */
+  async function submitNextVersion(
+    slug: string,
+    uploaderCookie: string,
+    uploaderId: string,
+    version: string,
+  ) {
+    const [row] = await db.select({ id: asset.id }).from(asset).where(eq(asset.slug, slug));
+    await db.insert(assetVersion).values({
+      assetId: row!.id,
+      version,
+      status: 'DRAFT',
+      createdBy: uploaderId,
+    });
+    const res = await postJson(
+      `/api/assets/${slug}/versions/${version}/submit`,
+      {},
+      uploaderCookie,
+    );
+    expect(res.status).toBe(201);
+    return (await res.json()) as { taskId: number };
+  }
+
+  it('三面齐：submittedByName = 提交人本地 user.name（LDAP 建号写入 + 登录同步 ⇒ 读面不查 LDAP）', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const { taskId } = await submitFlow(contributorCookie, contributorId);
+    const expected = `${PREFIX}contributor`;
+
+    const mine = (await listOf('/api/reviews/mine', contributorCookie)).items.find(
+      (i) => i.taskId === taskId,
+    );
+    expect(mine?.submittedByName).toBe(expected);
+
+    const queue = (await listOf('/api/reviews', await cookieFor(assetAdminUserId))).items.find(
+      (i) => i.taskId === taskId,
+    );
+    expect(queue?.submittedByName).toBe(expected);
+
+    const detailRes = await getReq(`/api/reviews/${taskId}`, contributorCookie);
+    expect(detailRes.status).toBe(200);
+    const detail = (await detailRes.json()) as Row;
+    expect(detail.submittedByName).toBe(expected);
+    expect(detail.submittedBy).toBe(contributorId); // 工号列真源（id = 工号）不变
+  });
+
+  it('join 不放大行数：三面 task 行数 = 本文件提交数（`user.id` 为 PK ⇒ 1:1）', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const before = await listOf('/api/reviews/mine', contributorCookie);
+    const { taskId } = await submitFlow(contributorCookie, contributorId);
+    const after = await listOf('/api/reviews/mine', contributorCookie);
+    expect(after.total).toBe(before.total + 1);
+    expect(after.items.filter((i) => i.taskId === taskId)).toHaveLength(1);
+  });
+
+  it('详情 latestVersion 两态：从未发布 ⇒ null；已发布 1.0.0 后再提 1.1.0 ⇒ "1.0.0"（审核面 diff 的 base）', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const { slug, taskId } = await submitFlow(contributorCookie, contributorId);
+
+    // 首版审核：该资产从未发布过 ⇒ base 不存在（design §4.10「无对比对象」态）
+    const first = (await (await getReq(`/api/reviews/${taskId}`, contributorCookie)).json()) as {
+      latestVersion: string | null;
+    };
+    expect(first.latestVersion).toBeNull();
+
+    // 批准 1.0.0（latest 指针落位）⇒ 新提 1.1.0 后，详情的 base = "1.0.0"
+    const approveRes = await postJson(
+      `/api/reviews/${taskId}/approve`,
+      {},
+      await cookieFor(assetAdminUserId),
+    );
+    expect(approveRes.status).toBe(200);
+    const next = await submitNextVersion(slug, contributorCookie, contributorId, '1.1.0');
+    const secondRes = await getReq(`/api/reviews/${next.taskId}`, contributorCookie);
+    expect(secondRes.status).toBe(200);
+    const second = (await secondRes.json()) as { latestVersion: string | null };
+    expect(second.latestVersion).toBe('1.0.0');
+  });
+
+  it('队列 / 我的提交**不含** latestVersion（仅详情加性 ⇒ 不给列表查询背 join 性能税 · G-Q8）', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const { taskId } = await submitFlow(contributorCookie, contributorId);
+    const mine = (await listOf('/api/reviews/mine', contributorCookie)).items.find(
+      (i) => i.taskId === taskId,
+    );
+    const queue = (await listOf('/api/reviews', await cookieFor(assetAdminUserId))).items.find(
+      (i) => i.taskId === taskId,
+    );
+    expect(mine !== undefined && 'latestVersion' in mine).toBe(false);
+    expect(queue !== undefined && 'latestVersion' in queue).toBe(false);
+  });
+
+  it('submittedByName 的 null 分支不可达（`reviewTask.submittedBy` 有 FK + 用户软删 DISABLED ⇒ 行恒在）', async () => {
+    const contributorCookie = await cookieFor(contributorId);
+    const { taskId } = await submitFlow(contributorCookie, contributorId);
+    const row = (await listOf('/api/reviews/mine', contributorCookie)).items.find(
+      (i) => i.taskId === taskId,
+    );
+    // 正常行恒有值；`| null` 只是 `leftJoin` 的防御性类型（FK 禁止悬挂引用 ⇒ 无法在本夹具构造 null）
+    expect(typeof row?.submittedByName).toBe('string');
+  });
+});

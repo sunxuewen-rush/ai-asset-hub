@@ -11,6 +11,7 @@
  * version-read 门：提交人本人可能非上传者（owner 代提场景），task 授权通过即内容可读）。
  */
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Db } from '../db/client.js';
 import {
   type AssetType,
@@ -19,6 +20,7 @@ import {
   assetVersion,
   type ReviewStatus,
   reviewTask,
+  user,
 } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
 
@@ -35,6 +37,11 @@ export interface ReviewListItem {
   /** review 评审计数（08 §6 重审递增） */
   reviewVersion: number;
   submittedBy: string;
+  /**
+   * 提交人**显示名**（M4b-5 加性 —— 读本地 `user.name`：LDAP 建号写入 + 每次登录同步；
+   * **不在读面实时查 LDAP**：不把目录可达性引入读面）。`leftJoin` ⇒ 用户行缺失为 `null`（前端显「—」）
+   */
+  submittedByName: string | null;
   submittedAt: Date;
   /** 资产坐标与版本信息（审核人决策所需；M4-pre：坐标 = 全局唯一裸 slug） */
   assetSlug: string;
@@ -52,6 +59,12 @@ export interface ReviewDetailItem extends ReviewListItem {
   manifestJson: Record<string, unknown> | null;
   /** 文件清单（sha256——内容级审核预览，design §3.7 R8） */
   files: Array<{ filePath: string; fileSize: number; sha256: string }>;
+  /**
+   * 当前**已发布版本**号（M4b-5 加性 · **仅详情** —— 审核面「变更对比」的 base）。
+   * 来源 = `asset.latestVersionId`（08 §5.1 冗余指针）⇒ `leftJoin` 同资产版本行取 `version`。
+   * `null` = 该资产**从未发布过**（首版审核 ⇒ 前端整卡不渲染）。
+   */
+  latestVersion: string | null;
 }
 
 const LIST_SELECT = {
@@ -67,7 +80,17 @@ const LIST_SELECT = {
   // M4b-3 R6-c 加性：拒绝原因（列自迁移 0000 起存在，本批只读出）+ 资产类型（asset 已在 join 内）
   reviewComment: reviewTask.reviewComment,
   assetType: asset.type,
+  // M4b-5 加性：提交人显示名（本地 user.name —— 见接口注释；三面共享 ⇒ 一处改三面全得）
+  submittedByName: user.name,
 };
+
+/**
+ * `asset_version` 自连接别名（**仅详情用** —— 取 `asset.latestVersionId` 指向的那一行）。
+ * `asset_version` 已被主查询 join（= task 的待审版本）⇒ 取「已发布版本」必须**自连接**。
+ * 注：本仓首个 `alias()` 用法（drizzle 官方 helper · `drizzle-orm/pg-core`）—— 替代方案是加一次小查询，
+ * 但那样多一次往返且非原子 ⇒ 取单查询自连接。
+ */
+const latestVersionRow = alias(assetVersion, 'latest_version');
 
 async function baseQuery(filters: QueueFilters, mineViewerId?: string) {
   const conds = [];
@@ -88,6 +111,8 @@ export async function listQueue(
       .from(reviewTask)
       .innerJoin(assetVersion, eq(reviewTask.assetVersionId, assetVersion.id))
       .innerJoin(asset, eq(assetVersion.assetId, asset.id))
+      // M4b-5 加性：提交人显示名（`leftJoin` ⇒ 用户行缺失也不丢 task 行；`user.id` 为 PK ⇒ 1:1 不放大行数）
+      .leftJoin(user, eq(user.id, reviewTask.submittedBy))
       .where(where)
       .orderBy(desc(reviewTask.submittedAt), desc(reviewTask.id))
       .limit(filters.limit)
@@ -110,6 +135,7 @@ export async function listMine(
       .from(reviewTask)
       .innerJoin(assetVersion, eq(reviewTask.assetVersionId, assetVersion.id))
       .innerJoin(asset, eq(assetVersion.assetId, asset.id))
+      .leftJoin(user, eq(user.id, reviewTask.submittedBy))
       .where(where)
       .orderBy(desc(reviewTask.submittedAt), desc(reviewTask.id))
       .limit(filters.limit)
@@ -132,10 +158,15 @@ export async function getReviewDetail(
     .select({
       ...LIST_SELECT,
       manifestJson: assetVersion.manifestJson,
+      // M4b-5 加性（仅详情）：当前已发布版本号（= 审核面「变更对比」的 base）
+      latestVersion: latestVersionRow.version,
     })
     .from(reviewTask)
     .innerJoin(assetVersion, eq(reviewTask.assetVersionId, assetVersion.id))
     .innerJoin(asset, eq(assetVersion.assetId, asset.id))
+    .leftJoin(user, eq(user.id, reviewTask.submittedBy))
+    // 自连接：`asset.latestVersionId` 指向同资产的「已发布版本」行（`null` = 从未发布 ⇒ 留 null）
+    .leftJoin(latestVersionRow, eq(latestVersionRow.id, asset.latestVersionId))
     .where(eq(reviewTask.id, taskId));
   const row = rows[0];
   if (!row) throw new ReviewError(reviewErrorCodes.notFound);

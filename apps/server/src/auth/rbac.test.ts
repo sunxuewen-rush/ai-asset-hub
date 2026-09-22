@@ -15,7 +15,7 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
 import { auditLog, user } from '../db/schema/index.js';
-import { ACCOUNT_ROLE, isSelfReview, RbacService } from './rbac.js';
+import { ACCOUNT_ROLE, RbacService } from './rbac.js';
 
 /**
  * 角色判定测试（M4-pre design §2.2：**唯一轴 4 档线性**，`role >= minRole`）。
@@ -119,19 +119,5 @@ describe('hasRole —— 管理档判定（原 can() 平台侧语义收敛）', 
     await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
     await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
     await expect(rbac.hasRole('usr_no-such-user', ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
-  });
-});
-
-describe('isSelfReview 防自审助手（05 §6.4）', () => {
-  it('相等 → true（自审须拒）', () => {
-    expect(isSelfReview('usr_a', 'usr_a')).toBe(true);
-  });
-
-  it('不同人 → false（可审）', () => {
-    expect(isSelfReview('usr_a', 'usr_b')).toBe(false);
-  });
-
-  it('SUPER_ADMIN 例外 → false（放行）', () => {
-    expect(isSelfReview('usr_a', 'usr_a', true)).toBe(false);
   });
 });

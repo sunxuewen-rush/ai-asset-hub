@@ -1,13 +1,25 @@
 /**
- * 版本对比（M4a R9——design §5.2 G8：服务端行级 diff，前端零 diff 库）。
- * 契约：GET /assets/:ns/:slug/versions/compare?from=&to= → files[]（path + changeType +
- * binary/truncated + hunks（行级 unified diff 数据））。
- * 授权同 R8（decideDownload——PUBLISHED 匿名 / 预览集 / YANKED 400——比较读内容与下载同语义）；
- * 大文本（行数/矩阵超限）与二进制 → 标注 truncated/binary 不产 hunks（前端区分提示）。
+ * 版本对比（M4a R9 → **M4b-5 F156**：设计 §5.5——对比引擎替换为官方件）。
+ *
+ * 契约：`GET /assets/:slug/versions/compare?from=&to=` → `files[]`
+ *       （`path` + `changeType` + `binary` / `truncated` + **`patch`（标准 unified diff 文本）**）。
+ *
+ * **引擎 = `diff`（jsdiff 9.0.0 · BSD-3 · 零依赖）** —— 自研 LCS DP `lineDiff()` 已**退役**（批 design §5.5）。
+ * patch 文本规范（批 design §2.1e **G-Q11**）：
+ *   ① 每文件一段完整 `diff --git` 段 ⇒ 前端 `react-diff-view` 的 `parseDiff(整段 patch)` 一次吃多文件
+ *   ② **3 行头**：`diff --git a/P b/P` / `--- …` / `+++ …`；**不产 `index` 行**（手中只有 `sha256`，非 git blob sha
+ *      ⇒ 产 index 即伪造 git 语义）
+ *   ③ 增 / 删文件用 `/dev/null`：`ADDED` ⇒ `--- /dev/null`；`DELETED` ⇒ `+++ /dev/null`
+ *   ④ **不产** `new file mode` / `deleted file mode` / `similarity index` / `rename`
+ *   ⑤ `context: Infinity` ⇒ **全文件单 hunk**（与退役前逐行等价；前端以「按文件折叠」承载收敛）
+ *
+ * 授权同 R8（`decideDownload`——PUBLISHED 匿名 / 预览集 / YANKED 400——比较读内容与下载同语义）；
+ * 大文本（行数 / 读取字节超限）与二进制 ⇒ 标注 `truncated` / `binary` 且**不产 patch**（前端只读标注）。
  */
 
 import type { Readable } from 'node:stream';
-import { and, eq, inArray } from 'drizzle-orm';
+import { structuredPatch } from 'diff';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { assetFile, assetVersion } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
@@ -16,24 +28,15 @@ import { AssetError, assetErrorCodes } from './errors.js';
 import { collectStream, looksTextual } from './version-content.js';
 
 export type ChangeType = 'ADDED' | 'MODIFIED' | 'DELETED';
-export type DiffLineType = 'ADD' | 'DELETE' | 'CONTEXT';
-
-export interface DiffLine {
-  type: DiffLineType;
-  /** 源版本行号（ADD 行无——null） */
-  oldLineNumber: number | null;
-  /** 目标版本行号（DELETE 行无——null） */
-  newLineNumber: number | null;
-  content: string;
-}
 
 export interface CompareFileResult {
   path: string;
   changeType: ChangeType;
   binary: boolean;
-  /** 文本超限（行数/读取字节截断）未产行 diff */
+  /** 文本超限（行数 / 读取字节截断）未产 patch */
   truncated: boolean;
-  hunks?: Array<{ lines: DiffLine[] }>;
+  /** 标准 unified diff 文本（单文件 `diff --git` 段）；`binary` / `truncated` / 无差异 ⇒ 缺省 */
+  patch?: string;
 }
 
 export interface CompareInput {
@@ -44,88 +47,80 @@ export interface CompareInput {
   viewer: DownloadViewer;
 }
 
-/** 单侧行数上限（LCS DP 矩阵保护——超限按 truncated 标注） */
+/** 单侧行数上限（超限按 truncated 标注；原自研矩阵保护的语义保留为文本规模门槛） */
 const MAX_DIFF_LINES = 1500;
-/** 单侧读取字节上限（行 diff 只对中小文本——超大标注 truncated） */
+/** 单侧读取字节上限（diff 只对中小文本——超大标注 truncated） */
 const COMPARE_READ_CAP = 512 * 1024;
 
 /**
- * 行级 diff（LCS DP + 回溯——O(n·m) 滚动不适用需全表回溯；n/m 上限保护）。
- * 返回统一 diff 行序列（GitHub 视觉数据：行号双列 + ADD/DELETE/CONTEXT）。
+ * diff 结果缓存（批 design §5.5）。
+ * **内容寻址**：key = `path|sha256(from)|sha256(to)`（缺侧 = `-`）⇒ 内容变则 sha 变则**自动失效**，
+ * 并天然跨版本 / 跨资产复用（同内容同路径 ⇒ 同 patch）。TTL 5 分钟 · 上限 100 条 · **进程内**（重启即清，不落库）。
+ *
+ * ⚠️ **安全硬约束**：**只缓存「内容 → diff 结果」**，**永不缓存「授权判定」** —— `decideDownload` 恒在缓存之前执行。
  */
-/** split 去尾空行（文件尾 \n 的正常形态——GitHub 行视图不含尾空行） */
-function splitLines(text: string): string[] {
-  const parts = text.split('\n');
-  if (parts.length > 1 && parts[parts.length - 1] === '') parts.pop();
-  return parts;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX = 100;
+interface CacheEntry {
+  at: number;
+  value: Pick<CompareFileResult, 'binary' | 'truncated' | 'patch'>;
+}
+const diffCache = new Map<string, CacheEntry>();
+
+/** 仅测试用：清空缓存（批 design §2.1e **G-Q12** · dogfood / 单测**不得断言命中率**） */
+export function __resetCompareCache(): void {
+  diffCache.clear();
 }
 
-function lineDiff(fromLines: string[], toLines: string[]): DiffLine[] {
-  const n = fromLines.length;
-  const m = toLines.length;
-  if (n === 0)
-    return toLines.map((c, i) => ({
-      type: 'ADD',
-      oldLineNumber: null,
-      newLineNumber: i + 1,
-      content: c,
-    }));
-  if (m === 0)
-    return fromLines.map((c, i) => ({
-      type: 'DELETE',
-      oldLineNumber: i + 1,
-      newLineNumber: null,
-      content: c,
-    }));
-  if (n > MAX_DIFF_LINES || m > MAX_DIFF_LINES) throw new Error('diff_too_large');
+function cacheGet(key: string): CacheEntry['value'] | undefined {
+  const hit = diffCache.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at > CACHE_TTL_MS) {
+    diffCache.delete(key);
+    return undefined;
+  }
+  return hit.value;
+}
 
-  // LCS 长度矩阵（Int32 行滚动 + 回溯用全表——n*m ≤ 1500² 内存受控）
-  const rows = n + 1;
-  const cols = m + 1;
-  const dp = new Int32Array(rows * cols);
-  for (let i = n - 1; i >= 0; i--) {
-    const fi = fromLines[i];
-    if (fi === undefined) continue; // 不可达守卫（i<n 恒真）——noNonNull 替代
-    for (let j = m - 1; j >= 0; j--) {
-      dp[i * cols + j] =
-        fi === toLines[j]
-          ? dp[(i + 1) * cols + j + 1]! + 1
-          : Math.max(dp[(i + 1) * cols + j]!, dp[i * cols + j + 1]!);
-    }
+function cacheSet(key: string, value: CacheEntry['value']): void {
+  diffCache.set(key, { at: Date.now(), value });
+  while (diffCache.size > CACHE_MAX) {
+    const oldest = diffCache.keys().next();
+    if (oldest.done) break;
+    diffCache.delete(oldest.value);
   }
-  // 回溯
-  const out: DiffLine[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < n && j < m) {
-    const fl = fromLines[i];
-    const tl = toLines[j];
-    if (fl === undefined || tl === undefined) break; // 不可达守卫（i<n 且 j<m 恒真）
-    if (fl === tl) {
-      out.push({ type: 'CONTEXT', oldLineNumber: i + 1, newLineNumber: j + 1, content: fl });
-      i++;
-      j++;
-    } else if (dp[(i + 1) * cols + j]! >= dp[i * cols + j + 1]!) {
-      out.push({ type: 'DELETE', oldLineNumber: i + 1, newLineNumber: null, content: fl });
-      i++;
-    } else {
-      out.push({ type: 'ADD', oldLineNumber: null, newLineNumber: j + 1, content: tl });
-      j++;
-    }
+}
+
+/** 行数（尾空行不计——与退役前 `splitLines` 口径一致） */
+function countLines(text: string): number {
+  const parts = text.split('\n');
+  return parts.length > 1 && parts[parts.length - 1] === '' ? parts.length - 1 : parts.length;
+}
+
+/** 单文件 unified diff 段（3 行头 + 库产 hunk；`undefined` = 无差异） */
+function buildPatch(
+  path: string,
+  changeType: ChangeType,
+  fromText: string,
+  toText: string,
+): string | undefined {
+  const oldName = changeType === 'ADDED' ? '/dev/null' : path;
+  const newName = changeType === 'DELETED' ? '/dev/null' : path;
+  const sp = structuredPatch(oldName, newName, fromText, toText, undefined, undefined, {
+    context: Infinity, // 全文件单 hunk —— 与退役前逐行等价
+  });
+  if (sp.hunks.length === 0) return undefined;
+
+  const out: string[] = [
+    `diff --git a/${path} b/${path}`,
+    `--- ${changeType === 'ADDED' ? '/dev/null' : `a/${path}`}`,
+    `+++ ${changeType === 'DELETED' ? '/dev/null' : `b/${path}`}`,
+  ];
+  for (const h of sp.hunks) {
+    out.push(`@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`);
+    out.push(...h.lines);
   }
-  while (i < n) {
-    const fl = fromLines[i];
-    if (fl === undefined) break; // 不可达守卫
-    out.push({ type: 'DELETE', oldLineNumber: i + 1, newLineNumber: null, content: fl });
-    i++;
-  }
-  while (j < m) {
-    const tl = toLines[j];
-    if (tl === undefined) break; // 不可达守卫
-    out.push({ type: 'ADD', oldLineNumber: null, newLineNumber: j + 1, content: tl });
-    j++;
-  }
-  return out;
+  return `${out.join('\n')}\n`;
 }
 
 /** 读版本文件内容（复用 collectStream——cap 内）；binary 判定复用 looksTextual */
@@ -140,14 +135,57 @@ async function readFileText(
   return { text: binary ? '' : buf.toString('utf8'), binary, truncated };
 }
 
-/** 全 ADD/DELETE 行序列（ADDED/DELETED 文件——GitHub 视觉全量行） */
-function fullAddOrDelete(type: 'ADD' | 'DELETE', content: string): CompareFileResult['hunks'] {
-  const lines = splitLines(content).map((line, idx) =>
-    type === 'ADD'
-      ? { type: 'ADD' as const, oldLineNumber: null, newLineNumber: idx + 1, content: line }
-      : { type: 'DELETE' as const, oldLineNumber: idx + 1, newLineNumber: null, content: line },
-  );
-  return lines.length > 0 ? [{ lines }] : undefined;
+/**
+ * 单文件对比（**带内容寻址缓存**）—— `binary` / `truncated` 均为内容派生 ⇒ 可与 patch 一并缓存。
+ * `FILE_SIDES` = 读到的内容字节级 sha256（`-` = 该侧无此文件）。
+ */
+async function compareFile(
+  storage: ObjectStorage,
+  args: {
+    path: string;
+    changeType: ChangeType;
+    fromFile?: {
+      storageKey: string;
+      contentType: string | null;
+      filePath: string;
+      fileSize: number;
+      sha256: string;
+    };
+    toFile?: {
+      storageKey: string;
+      contentType: string | null;
+      filePath: string;
+      fileSize: number;
+      sha256: string;
+    };
+  },
+): Promise<Pick<CompareFileResult, 'binary' | 'truncated' | 'patch'>> {
+  const { path, changeType, fromFile, toFile } = args;
+  const key = `${path}|${fromFile?.sha256 ?? '-'}|${toFile?.sha256 ?? '-'}|${changeType}`;
+  const cached = cacheGet(key);
+  if (cached) return cached;
+
+  const [fromText, toText] = await Promise.all([
+    fromFile ? readFileText(storage, fromFile) : Promise.resolve(undefined),
+    toFile ? readFileText(storage, toFile) : Promise.resolve(undefined),
+  ]);
+  const binary = Boolean(fromText?.binary) || Boolean(toText?.binary);
+  const tooLarge =
+    (fromText !== undefined && countLines(fromText.text) > MAX_DIFF_LINES) ||
+    (toText !== undefined && countLines(toText.text) > MAX_DIFF_LINES);
+  const truncated = Boolean(fromText?.truncated) || Boolean(toText?.truncated) || tooLarge;
+
+  const value: CacheEntry['value'] =
+    binary || truncated
+      ? { binary, truncated }
+      : {
+          binary: false,
+          truncated: false,
+          patch: buildPatch(path, changeType, fromText?.text ?? '', toText?.text ?? ''),
+        };
+
+  cacheSet(key, value);
+  return value;
 }
 
 export async function compareVersions(
@@ -171,6 +209,7 @@ export async function compareVersions(
   const fv = fromRow[0];
   const tv = toRow[0];
   if (!fv || !tv) throw new AssetError(assetErrorCodes.notFound);
+  // ⚠️ 授权恒在缓存之前（缓存只存「内容 → diff 结果」）
   for (const v of [fv, tv]) {
     const decision = decideDownload(v.status, viewer, ownerId, v);
     if (decision.kind === 'yanked') throw new AssetError(assetErrorCodes.versionYanked);
@@ -192,46 +231,21 @@ export async function compareVersions(
     const t = toMap.get(p);
     if (f && t) {
       if (f.sha256 === t.sha256) continue; // 未变文件不列（sha 全等）
-      const { text, binary, truncated } = await readFileText(storage, t);
-      if (binary || truncated) {
-        results.push({ path: p, changeType: 'MODIFIED', binary, truncated });
-        continue;
-      }
-      const fromText = await readFileText(storage, f);
-      let lines: DiffLine[];
-      try {
-        lines = lineDiff(splitLines(fromText.text), splitLines(text));
-      } catch {
-        results.push({ path: p, changeType: 'MODIFIED', binary: false, truncated: true });
-        continue;
-      }
-      results.push({
+      const value = await compareFile(storage, {
         path: p,
         changeType: 'MODIFIED',
-        binary: false,
-        truncated: false,
-        hunks: [{ lines }],
+        fromFile: f,
+        toFile: t,
       });
+      results.push({ path: p, changeType: 'MODIFIED', ...value });
     } else if (t) {
-      const { text, binary, truncated } = await readFileText(storage, t);
-      results.push({
-        path: p,
-        changeType: 'ADDED',
-        binary,
-        truncated,
-        hunks: !binary && !truncated ? fullAddOrDelete('ADD', text) : undefined,
-      });
+      const value = await compareFile(storage, { path: p, changeType: 'ADDED', toFile: t });
+      results.push({ path: p, changeType: 'ADDED', ...value });
     } else {
       const file = f;
       if (!file) continue; // 不可达守卫（else 分支语义上 f 恒存在）
-      const { text, binary, truncated } = await readFileText(storage, file);
-      results.push({
-        path: p,
-        changeType: 'DELETED',
-        binary,
-        truncated,
-        hunks: !binary && !truncated ? fullAddOrDelete('DELETE', text) : undefined,
-      });
+      const value = await compareFile(storage, { path: p, changeType: 'DELETED', fromFile: file });
+      results.push({ path: p, changeType: 'DELETED', ...value });
     }
   }
   return results;
