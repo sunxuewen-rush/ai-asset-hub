@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { VersionFileEntry } from '../../../api/types.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
+import { FilePreviewDialog } from '../../ui/FilePreviewDialog.js';
+import { FileTree } from '../../ui/FileTree.js';
 import { Skeleton } from '../../ui/shadcn/skeleton.js';
-import { FilePreviewDialog } from './FilePreviewDialog.js';
-import { FileTree } from './FileTree.js';
 
 /**
  * 文件 tab 编排（design §5.3：目录树来自版本详情文件清单；文件点击 → G7 按 path 拉内容进

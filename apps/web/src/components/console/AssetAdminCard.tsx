@@ -73,12 +73,13 @@ export function AssetAdminCard({
   const [busy, setBusy] = useState(false);
 
   const manageable = canManage(viewer, asset);
-  const reviewable = viewer.canManageAll;
-  // 可见性 = 任一动作组可见（整卡无可见动作 ⇒ 不渲染 —— §4.6 卡层口径）
-  const visible = manageable || reviewable;
+  // 可见性 = 管理动作组可见（整卡无可见动作 ⇒ 不渲染 —— §4.6 卡层口径）
+  // M4b-5 跨批改动：原「审核占位块」及其 `reviewable = viewer.canManageAll` 判定已删除
+  //   ⇒ 管理档非 owner 不再因此块看到本卡（审核动作统一归 `/reviews/:id`）
+  const visible = manageable;
 
   async function confirm(reason?: string) {
-    void reason; // 本卡无 requireReason 变体（yank 在版本行内动作）
+    void reason; // 本卡原因恒为 'none'（yank 在版本行内动作，那里是 'required'）
     const action = pending;
     setPending(null);
     if (!action || busy) return;
@@ -160,22 +161,7 @@ export function AssetAdminCard({
         </div>
       ) : null}
 
-      {/* ③ 审核：占位（归 M4b-5；用户标注「形态待讨论」） */}
-      {reviewable ? (
-        <div className="mb-3">
-          <p className="mb-2 text-[11px] font-medium text-muted-foreground">
-            {t('assets', 'admin.reviewGroup')}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            <Button type="button" size="sm" variant="outline" disabled>
-              {t('review', 'approve')}
-            </Button>
-            <Button type="button" size="sm" variant="outline" disabled>
-              {t('review', 'reject')}
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {/* ③ 审核占位块已于 M4b-5 删除（跨批改动 · 审核动作统一归 /reviews/:id） */}
 
       {/* ④ 危险区（owner ∨ 管理档） */}
       {manageable ? (

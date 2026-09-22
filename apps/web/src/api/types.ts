@@ -91,24 +91,21 @@ export interface FileContentResponse {
 }
 
 export type ChangeType = 'ADDED' | 'MODIFIED' | 'DELETED';
-export type DiffLineType = 'ADD' | 'DELETE' | 'CONTEXT';
-
-export interface DiffLine {
-  type: DiffLineType;
-  oldLineNumber: number | null;
-  newLineNumber: number | null;
-  content: string;
-}
 
 export interface CompareFile {
   path: string;
   changeType: ChangeType;
   binary: boolean;
   truncated: boolean;
-  hunks?: ReadonlyArray<{ lines: readonly DiffLine[] }>;
+  /**
+   * 标准 unified diff 文本（单文件 `diff --git` 段 · M4b-5 F156 破坏性契约变更：
+   * 原 `hunks[]` 行级结构 → 文本；服务端规范见批 design §5.5 / §2.1e G-Q11）。
+   * `binary` / `truncated` / 无差异 ⇒ 缺省（前端只读标注，不自行判定）。
+   */
+  patch?: string;
 }
 
-/** R9 版本对比（§5.2 G8——服务端行级 hunks，前端零 diff 库） */
+/** R9 版本对比（§5.2 G8 → M4b-5 F156：服务端产标准 unified diff 文本，前端 `react-diff-view` 渲染） */
 export interface CompareResponse {
   files: readonly CompareFile[];
 }

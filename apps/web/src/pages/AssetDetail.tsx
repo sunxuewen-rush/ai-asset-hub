@@ -454,7 +454,7 @@ export function AssetDetail() {
         confirmLabel={t('assets', 'confirm.submit')}
         cancelLabel={t('common', 'cancel')}
         destructive={false}
-        requireReason={pendingAction?.kind === 'yank'}
+        reason={pendingAction?.kind === 'yank' ? 'required' : 'none'}
         reasonLabel={t('assets', 'confirm.yankReasonLabel')}
         reasonPlaceholder={t('assets', 'confirm.yankReasonPlaceholder')}
         onConfirm={onVersionActionConfirm}

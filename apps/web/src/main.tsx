@@ -16,6 +16,8 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Device } from '@/pages/Device';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
+import { ReviewDetail } from '@/pages/ReviewDetail';
+import { ReviewQueue } from '@/pages/ReviewQueue';
 import { Search } from '@/pages/Search';
 import { Submissions } from '@/pages/Submissions';
 import { Tokens } from '@/pages/Tokens';
@@ -50,13 +52,10 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
  *
  * 独立版式两页（`/login` **T6** · `/device` **T7**）与 `/dashboard`（**T8**）均已换真页
  * ⇒ 表内**不再有**这三条；M4b-3 的 `/dashboard/submissions`（T6）与 `/dashboard/tokens`（T7）同样已换真页 ⇒ 随之删。
- * 余下条目对应的仍是占位页。
+ * 余下条目对应的仍是占位页（M4b-5 T7/T8：`/admin/reviews` 与 `/reviews/:id` 均已换真页 ⇒ 两条随 `DEV_BATCH` 一并删除）。
  */
 const DEV_BATCH: Record<string, string> = import.meta.env.DEV
   ? {
-      '/dashboard/assets': 'M4b-4',
-      '/reviews/:id': 'M4b-5',
-      '/admin/reviews': 'M4b-5',
       '/admin/labels': 'M4b-6',
       '/admin/audit': 'M4b-6',
     }
@@ -110,32 +109,16 @@ function AppRoutes() {
               <Route path="/dashboard/submissions" element={<Submissions />} />
               {/* 我的令牌：真页（M4b-3 T7） */}
               <Route path="/dashboard/tokens" element={<Tokens />} />
-              {/* 审核详情：提交人可达（撤回入口）；**不进 `/admin` 段** */}
-              <Route
-                path="/reviews/:id"
-                element={
-                  <ComingSoon
-                    title={t('review', 'title')}
-                    description={t('common', 'comingSoon')}
-                    batch={DEV_BATCH['/reviews/:id']}
-                  />
-                }
-              />
+              {/* 审核详情：**真页**（M4b-5 T8）—— 提交人可达（撤回入口）；**不进 `/admin` 段**
+                  （授权由服务端判：管理档 ∨ 提交人） */}
+              <Route path="/reviews/:id" element={<ReviewDetail />} />
             </Route>
 
             {/* ── 管理段（ADMIN = 10）── */}
             <Route element={<RoleGuard minRole={ROLE.ADMIN} />}>
               <Route path="/admin" element={<Navigate to="/admin/reviews" replace />} />
-              <Route
-                path="/admin/reviews"
-                element={
-                  <ComingSoon
-                    title={t('admin', 'reviews')}
-                    description={t('common', 'comingSoon')}
-                    batch={DEV_BATCH['/admin/reviews']}
-                  />
-                }
-              />
+              {/* 审核管理：**真页**（M4b-5 T7）—— 队列 7 列 + 状态筛选 + 分页 + 列开关（保护 2 列） */}
+              <Route path="/admin/reviews" element={<ReviewQueue />} />
               <Route
                 path="/admin/labels"
                 element={

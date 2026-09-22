@@ -1,16 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { fetchVersionFile } from '../../../api/content.js';
-import { useApi } from '../../../hooks/useApi.js';
-import { useI18n } from '../../../i18n/I18nProvider.js';
+import { fetchVersionFile } from '../../api/content.js';
+import { useApi } from '../../hooks/useApi.js';
+import { useI18n } from '../../i18n/I18nProvider.js';
+import { formatBytes } from './fileTreeNodes.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../../ui/shadcn/dialog.js';
-import { Spinner } from '../../ui/shadcn/spinner.js';
-import { formatBytes } from './fileTreeNodes.js';
+} from './shadcn/dialog.js';
+import { Spinner } from './shadcn/spinner.js';
 
 /**
  * 文件预览对话框（design §4.4 v0.7 / ③；**M4b-1 T3 归位官方 `Dialog`**）

@@ -10,7 +10,7 @@
  * ⇒ 前端「全部」必须**不传**该参数（**不可传 `ALL` / 空串**，R3）。
  */
 import { type ApiGetOptions, type ApiWriteOptions, apiGet, apiPost } from './client.js';
-import type { AssetType } from './types.js';
+import type { AssetType, VersionFileEntry } from './types.js';
 
 /** review task 状态（与 `08 §6` / 服务端 `review/query.ts` 同轴；**与版本八态不同轴**） */
 export type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
@@ -38,6 +38,36 @@ export type MyReviewItem = {
   reviewComment: string | null;
   /** M4b-3 T1 加性：资产类型（列序「资产 → **类型** → 状态 …」的取值来源） */
   assetType: AssetType;
+  /**
+   * **M4b-5 T2 加性**：提交人**本地**显示名（服务端 `leftJoin(user)` ⇒ `user.name`）。
+   * `null` = 用户行缺失（**FK + 软删语义下不可达** —— 防御性类型，见批 design §5.1b F175）。
+   * ⚠️ 本地表取值，**不在读面实时查 LDAP**（读面不引入目录可达性抖动）。
+   */
+  submittedByName: string | null;
+};
+
+/**
+ * 审核详情（服务端 `ReviewDetailItem` 同形投影 —— M4b-5 T2 加性字段）。
+ */
+export type ReviewDetailItem = MyReviewItem & {
+  /** **M4b-5 T2 加性（仅详情）**：当前**已发布版本**号；`null` = 该资产从未发布过（首版审核 ⇒ 变更对比卡不渲染） */
+  latestVersion: string | null;
+  /**
+   * manifest 原文（**jsonb 已解析对象** —— 服务端 `ReviewDetailItem.manifestJson:
+   * Record<string, unknown> | null`（`review/query.ts:59`）· 与 `api/types.ts:135` 同形）。
+   * ⚠️ F187：首稿曾误写 `string`（jsonb 由驱动解析，**不是** JSON 字符串）。
+   */
+  manifestJson: Record<string, unknown> | null;
+  /** 该版本文件清单（`{filePath,fileSize,sha256}`） */
+  files: readonly VersionFileEntry[];
+};
+
+/** 审核动作响应（approve / reject 同为 200 + 该形状） */
+export type ReviewActionResponse = {
+  taskId: number;
+  status: 'APPROVED' | 'REJECTED';
+  /** 被裁决的版本号 */
+  version: string;
 };
 
 export interface MyReviewListResponse {
@@ -90,4 +120,40 @@ export async function fetchReviewQueue(
     `/api/reviews${suffix}`,
     opts,
   );
+}
+
+/**
+ * 审核详情（M4b-5 T7 加性客户端）——`GET /api/reviews/:id`
+ * 授权 = **管理档 ∨ 提交人**（服务端 `http/reviews.ts`）；403 ⇒ `review.access_denied`。
+ */
+export async function fetchReviewDetail(
+  taskId: number,
+  opts?: ApiGetOptions,
+): Promise<ReviewDetailItem> {
+  return apiGet<ReviewDetailItem>(`/api/reviews/${taskId}`, opts);
+}
+
+/**
+ * 通过（M4b-5 · scope `review:approve`）——`POST /api/reviews/:id/approve` ⇒ 200 `{taskId,status,version}`。
+ * `comment` **可选**（≤2000）；省略 / 空串 ⇒ 不发字段（服务端 `APPROVE_BODY` 允许缺省）。
+ */
+export async function approveReview(
+  taskId: number,
+  comment?: string,
+  opts?: ApiWriteOptions,
+): Promise<ReviewActionResponse> {
+  const body = comment !== undefined && comment !== '' ? { comment } : {};
+  return apiPost<ReviewActionResponse>(`/api/reviews/${taskId}/approve`, body, opts);
+}
+
+/**
+ * 驳回（M4b-5 · scope `review:approve`）——`POST /api/reviews/:id/reject` ⇒ 200 `{taskId,status,version}`。
+ * `comment` **必填**（1..2000；服务端 `REJECT_BODY` + 服务内校验 ⇒ 空串直接 400 `request.invalid`）。
+ */
+export async function rejectReview(
+  taskId: number,
+  comment: string,
+  opts?: ApiWriteOptions,
+): Promise<ReviewActionResponse> {
+  return apiPost<ReviewActionResponse>(`/api/reviews/${taskId}/reject`, { comment }, opts);
 }

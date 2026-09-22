@@ -1,4 +1,4 @@
-import type { VersionFileEntry } from '../../../api/types.js';
+import type { VersionFileEntry } from '../../api/types.js';
 
 export interface FileNode {
   type: 'dir' | 'file';

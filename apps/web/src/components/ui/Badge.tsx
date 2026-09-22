@@ -9,7 +9,8 @@ type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
 /**
  * AIH `tone` → 官方 `Badge` `variant` **薄映射**（design §3.5）：官方 `badge.tsx` 的 `cva` 增
  * `success`/`warning` 两 variant（用 `--success`/`--warning` token），AIH 侧只保留映射
- * ⇒ **3 个调用点（`DiffNav`/`DiffView`/`VersionCompare`）零改动**。
+ * ⇒ **唯一调用点（`VersionCompare`）零改动**。
+ * （M4b-5 F156：`DiffNav`/`DiffView` 两件已退役 ⇒ 原「3 个调用点」表述同步收口）
  *
  * 归位后形态以官方为准（`rounded-full` · `px-2 py-0.5` · `text-xs` · `font-medium`）——原自绘
  * `px-[9px] py-[2px] text-[11px] font-semibold` + 半透明底色随之收敛（design §8.7 观感项）。

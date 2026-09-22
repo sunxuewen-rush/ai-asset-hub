@@ -1,0 +1,117 @@
+/**
+ * diff 语法高亮主题（**第 3 方主题域** —— 批 design §4.10「视觉」段）。
+ *
+ * **为什么是字面值**：`refractor` 产出带类名的 token（`token keyword` / `token string` …），
+ * 需一份主题样式才能着色。语法色**不属于** M4a §4.4 设计 token 面（§4.10 已声明：
+ * 「语法色属第 3 方主题域 · 不计入设计 token 面」）⇒ 本文件是**有意保留的字面值**，
+ * 与旧 `DiffView` 的既有先例同源（`#1a7f37` 新增 / `#cf222e` 删除 —— M4a T20 口径）。
+ *
+ * **色板** = GitHub 亮色系（与旧 diff 内容色同一体系）；**行底色**不在此处 —— 由库 CSS 变量承载
+ * （`--diff-code-insert-background-color: #eaffee` 等，见 `react-diff-view/style/index.css`）。
+ *
+ * ⚠️ 只覆盖 `refractor@3`（Prism 9 语法）会产出的类名子集；未覆盖的类名回落继承色（不报错）。
+ */
+
+/* —— 注释 / 引用 —— */
+.token.comment,
+.token.prolog,
+.token.cdata,
+.token.doctype {
+  color: #6a737d;
+}
+
+/* —— 关键字 / 标签 / 选择器 —— */
+.token.keyword,
+.token.tag,
+.token.selector,
+.token.important,
+.token.atrule {
+  color: #d73a49;
+}
+
+/* —— 字符串 / 属性值 / 正则 —— */
+.token.string,
+.token.attr-value,
+.token.regex,
+.token.char {
+  color: #032f62;
+}
+
+/* —— 函数 / 类名 / 命名空间 —— */
+.token.function,
+.token.class-name,
+.token.maybe-class-name,
+.token.namespace {
+  color: #6f42c1;
+}
+
+/* —— 数字 / 布尔 / 常量 / 内建 —— */
+.token.number,
+.token.boolean,
+.token.constant,
+.token.symbol,
+.token.builtin {
+  color: #005cc5;
+}
+
+/* —— 属性 / 变量 / 属性名 —— */
+.token.property,
+.token.attr-name,
+.token.variable,
+.token.parameter {
+  color: #e36209;
+}
+
+/* —— 运算符 / 标点（压暗，避免抢戏） —— */
+.token.operator,
+.token.punctuation,
+.token.entity,
+.token.url {
+  color: #6a737d;
+}
+
+/* —— 新增 / 删除 的**行内**字色（与旧 diff 内容色同源 · GitHub 亮色系） —— */
+.token.inserted {
+  color: #1a7f37;
+}
+.token.deleted {
+  color: #cf222e;
+}
+
+/* —— 行内编辑高亮（词级 —— 本批不开，登记 M4b-7；底色变量由库提供） —— */
+.token.prefix.inserted,
+.token.prefix.deleted {
+  color: inherit;
+}
+
+/* ── 字号与行高（本主题域定值 · 2026-09-22 对标 GitHub 后拍板「②」） ──────────────
+ * **为什么必须写在这里**：库 CSS 只定字体族与 `.diff-line{line-height:1.5}`（`react-diff-view/
+ * style/index.css`），**不定字号** ⇒ 字号从外层继承**根值 16px**，比同页正文（13px）还大一圈
+ * （实测：继承值 16px，卡片标题 13px ⇒ 方向与 GitHub 相反）。
+ *
+ * 定值 = **字号 12px · 行高 20px**：
+ *   · 字号 12px —— 与 GitHub diff **实测值一致**（其 `.diff-text-cell` = 12px）；
+ *   · 行高 20px（1.67）—— GitHub 用 24px（2.0），但那在**窄列卡片**里偏疏朗（本页主列实宽约 755px），
+ *     故按控制台信息密度收紧；**这是有意偏离，值可单点回改**。
+ * 两处挂载点（门户「版本」tab + 审核「变更对比」卡）共用本件 ⇒ 一处改、两处生效。
+ * --------------------------------------------------------------------------- */
+.diff {
+  font-size: 12px;
+}
+.diff-line {
+  line-height: 20px;
+}
+
+/* ── split 视图「对侧占位格」的红色标记线 —— **有意不改 · 保留上游形态**（2026-09-22 用户拍板） ──
+ * 现象：左右行数不等时，短边会生成占位格（官方类名 `diff-gutter-omit` / `diff-code-omit`），
+ *   被库自带样式画上 **2px 红竖线**（`--diff-omit-gutter-line-color: #cb2a1d` ·
+ *   `react-diff-view/src/styles/index.css` 的 `.diff-gutter-omit:before`）。
+ * 定性（已读官方源码/文档核实，非我方用法错误）：
+ *   ① 官方 `README` §Class names 明写 `diff-gutter-omit` = "Gutter with no content"；
+ *   ② 官方 `src/Hunk/SplitHunk/SplitChange.tsx:69-79`：该侧 `!change` ⇒ 派 `*-omit` 类（即占位格的官方语义）；
+ *   ③ 官方 `src/styles/index.css:125-138`：给该"无内容" gutter 画上述红线 ⇒ **文档语义 vs 默认样式自相矛盾**；
+ *   ④ 本仓已用**最新版 3.3.3**（`npm view` 实测）· 上游 issue 搜 `omit` 无相关报告 ⇒ 属未报告的默认样式。
+ * **拍板：保留官方设计与做法，不加覆盖**（交互层保持上游原生形态）。
+ * ⇒ 若日后确需关闭，两条官方/精确路径：设 `--diff-omit-gutter-line-color: transparent`（连真折叠标记一起关），
+ *   或按作用域精确处理 `tr.diff-line-new-only > .diff-gutter-omit::before`（仅占位格）；**本批不做**。
+ * ------------------------------------------------------------------------------------------------ */

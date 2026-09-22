@@ -1,12 +1,7 @@
 import { cn } from 'cn';
 import { type ReactNode, useState } from 'react';
-import type { VersionFileEntry } from '../../../api/types.js';
-import { useI18n } from '../../../i18n/I18nProvider.js';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '../../ui/shadcn/collapsible.js';
+import type { VersionFileEntry } from '../../api/types.js';
+import { useI18n } from '../../i18n/I18nProvider.js';
 import {
   buildFileTree,
   dirFileCount,
@@ -14,10 +9,15 @@ import {
   formatBytes,
   formatSha,
 } from './fileTreeNodes.js';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './shadcn/collapsible.js';
 
-/** 行样式（旧 `.row`：flex + gap 9 + 13px + py 5 + mono + muted-foreground；hover 走字色） */
+/**
+ * 行样式（旧 `.row`：flex + gap 9 + 13px + py 5 + mono + muted-foreground）。
+ * **可点档**（目录行 / 传了 `onOpenFile` 的文件行）另加 `cursor-pointer` + `hover:text-foreground`；
+ * **纯结构态**（M4b-5 P4：文件行未传 `onOpenFile`）⇒ 不加交互态类（行不响应点击、无 hover 反馈）。
+ */
 const ROW =
-  'flex w-full cursor-pointer items-center gap-[9px] border-0 bg-transparent py-[5px] text-left font-mono text-[13px] text-muted-foreground hover:text-foreground';
+  'flex w-full items-center gap-[9px] border-0 bg-transparent py-[5px] text-left font-mono text-[13px] text-muted-foreground';
 /** 缩进档（旧层 = `.indent`(20) + `.d2`(40) + `.d3`(60) 叠加；depth≥4 归 d3）。
  *  ⚠ 顺带修掉旧写法 `${styles.indent}${styles[`d${depth}`]}` 在 depth=1 时取到 `undefined`
  *  → 类名里多出一个字面 "undefined" 的残留（无样式效果，但污染 DOM/调试）。 */
@@ -41,7 +41,12 @@ export function FileTree({
   onOpenFile,
 }: {
   files: readonly VersionFileEntry[];
-  onOpenFile: (file: VersionFileEntry) => void;
+  /**
+   * 打开文件（**M4b-5 P4 加性可选**）：给定 ⇒ 行可点并回调；**缺省 ⇒ 纯结构态**
+   * （行不响应点击、不显 hover 下划线）—— 审核面「不可预览 ⇒ 不渲染预览动作」靠此实现。
+   * 既有调用点（门户 `FilesTab`）恒传该 prop ⇒ 行为零变化。
+   */
+  onOpenFile?: (file: VersionFileEntry) => void;
 }) {
   const { t } = useI18n();
   const nodes = buildFileTree(files);
@@ -69,7 +74,10 @@ export function FileTree({
           onOpenChange={(next: boolean) => setOpen(node.path, next)}
         >
           <CollapsibleTrigger asChild>
-            <button type="button" className={cn(ROW, 'font-semibold', pad)}>
+            <button
+              type="button"
+              className={cn(ROW, 'cursor-pointer font-semibold hover:text-foreground', pad)}
+            >
               <span
                 aria-hidden="true"
                 className={cn(
@@ -98,11 +106,21 @@ export function FileTree({
         <button
           key={node.path}
           type="button"
-          className={cn(ROW, 'group', pad)}
-          onClick={() => onOpenFile(entry)}
+          className={cn(
+            ROW,
+            onOpenFile ? 'group cursor-pointer hover:text-foreground' : 'cursor-default',
+            pad,
+          )}
+          onClick={onOpenFile ? () => onOpenFile(entry) : undefined}
+          disabled={onOpenFile === undefined}
           title={`${node.path} · ${formatBytes(entry.fileSize)}`}
         >
-          <span className="flex-1 truncate group-hover:underline group-hover:underline-offset-2">
+          <span
+            className={cn(
+              'flex-1 truncate',
+              onOpenFile && 'group-hover:underline group-hover:underline-offset-2',
+            )}
+          >
             {node.name}
           </span>
           <span className="shrink-0 text-[11px] text-muted-foreground">

@@ -1,16 +1,15 @@
 import type { ReactNode } from 'react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ApiError } from '../../../api/client.js';
 import { fetchCompare } from '../../../api/compare.js';
 import type { CompareResponse, VersionListItem, VersionStatus } from '../../../api/types.js';
 import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 import { StatusPill } from '../../console/StatusPill.js';
+import { DiffWorkspace } from '../../ui/DiffWorkspace.js';
+import { formatBytes } from '../../ui/fileTreeNodes.js';
 import { Spinner } from '../../ui/shadcn/spinner.js';
 import { formatDate } from '../format.js';
-import { DiffNav } from './DiffNav.js';
-import { DiffView } from './DiffView.js';
-import { formatBytes } from './fileTreeNodes.js';
 
 /**
  * 版本八态 → i18n 键（`08 §7` 状态机；键随 M4b-4 T9 落，本批 T12 消费 —— 用户 2026-09-18 拍板）。
@@ -80,7 +79,6 @@ export function VersionCompare({
   const list = [...versions]; // 降序（服务端默认——下标小 = 新）
   const latestIdx = latestVersion ? list.findIndex((v) => v.version === latestVersion) : -1;
   const [pair, setPair] = useState<Pair>(() => initialPair(list.length, latestIdx));
-  const [activeFile, setActiveFile] = useState(0);
 
   const base = list[pair.base] ?? null;
   const head = list[pair.head] ?? null;
@@ -100,14 +98,6 @@ export function VersionCompare({
     [slug, pairValid, base?.version, head?.version],
   );
   const files = data?.files ?? [];
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  function selectFile(index: number) {
-    setActiveFile(index);
-    scrollRef.current
-      ?.querySelector(`#dsec-${index}`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 
   /** 下拉 label（旧 `.col label`：11px 大写 mono 味标签） */
   const labelCls =
@@ -188,11 +178,10 @@ export function VersionCompare({
                 {t('market', 'diffNoChanges')}
               </p>
             ) : (
-              <div className="mt-1 mb-4 grid grid-cols-[230px_1fr] items-start gap-3.5">
-                <DiffNav files={files} active={activeFile} onSelect={selectFile} />
-                <div ref={scrollRef} className="min-w-0">
-                  <DiffView files={files} />
-                </div>
+              /* M4b-5 F156：自绘 diff（`DiffNav` 侧导航 + `DiffView` 渲染）⇒ 官方件薄封装
+                 （按文件折叠懒渲染 + 默认左右对比 + 高亮可开关 · design §4.10） */
+              <div className="mt-1 mb-4 min-w-0">
+                <DiffWorkspace files={files} />
               </div>
             )
           ) : null}
