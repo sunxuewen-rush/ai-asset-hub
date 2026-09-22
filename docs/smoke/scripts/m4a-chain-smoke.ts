@@ -12,7 +12,9 @@ const out: string[] = [];
 const ok = (name: string, cond: boolean, extra = '') =>
   out.push(`${cond ? 'PASS' : 'FAIL'} ${name}${extra ? ` :: ${extra}` : ''}`);
 
-const list = await json('/assets?limit=20');
+// F174：dev 库 ACTIVE 资产已超 20（含 M4b-4 分页造数残留 `m4b4-seed-page-*` 19 条）
+// ⇒ `limit=20` 会把老 demo 资产挤出首页（断言脆弱，非契约问题）⇒ 提高 limit（断言意图 = 「列表含 demo」，不变）
+const list = await json('/assets?limit=100');
 const slugs = (list.body?.items ?? []).map((i: { slug: string }) => i.slug);
 ok('列表含 demo-rag-skill', slugs.includes('demo-rag-skill'));
 ok('列表含 demo-http-mcp', slugs.includes('demo-http-mcp'));
@@ -75,25 +77,26 @@ ok(
   kind('DELETED').some((f: { path: string }) => f.path === 'reference/guide.md'),
 );
 const sk = kind('MODIFIED').find((f: { path: string }) => f.path === 'SKILL.md');
-const allLines = (sk?.hunks ?? []).flatMap((h: { lines: unknown[] }) => h.lines) as Array<{
-  type: string;
-  content: string;
-}>;
+// M4b-5 F156：服务端产标准 unified diff 文本（`patch`）——「hunks 行级结构」断言改为 patch 文本断言
+const skPatch = (sk?.patch ?? '') as string;
 ok(
-  'SKILL.md hunks 含 +/− 行',
-  allLines.some((l) => l.type === 'ADD' && l.content.includes('searchByPrefix')) ||
-    allLines.some((l) => l.type === 'DELETE'),
+  'SKILL.md patch 含 +/− 行',
+  (skPatch.includes('+') && skPatch.includes('searchByPrefix')) || /^-/m.test(skPatch),
 );
 ok(
-  'hunk 行号对形状',
-  (sk?.hunks ?? []).every(
-    (h: { lines: Array<{ oldLineNumber: number | null; newLineNumber: number | null }> }) =>
-      h.lines.every(
-        (l) =>
-          (l.oldLineNumber === null) !== (l.newLineNumber === null) ||
-          (l.oldLineNumber !== null && l.newLineNumber !== null),
-      ),
-  ),
+  'patch 段首 = diff --git（3 行头规范 · G-Q11）',
+  skPatch.startsWith('diff --git a/SKILL.md b/SKILL.md\n--- a/SKILL.md\n+++ b/SKILL.md\n'),
+);
+ok('patch 不产 index 行', !/^index /m.test(skPatch));
+ok('patch 含 hunk 头', /^@@ -\d+,\d+ \+\d+,\d+ @@$/m.test(skPatch));
+ok('ADDED 用 /dev/null', (kind('ADDED')[0]?.patch ?? '').includes('--- /dev/null'));
+ok('DELETED 用 /dev/null', (kind('DELETED')[0]?.patch ?? '').includes('+++ /dev/null'));
+ok(
+  'patch 段数 = files 数',
+  (files
+    .map((f: { patch?: string }) => f.patch ?? '')
+    .join('')
+    .match(/^diff --git /gm)?.length ?? 0) === files.length,
 );
 
 const eq = await json('/assets/demo-rag-skill/versions/compare?from=1.1.0&to=1.1.0');

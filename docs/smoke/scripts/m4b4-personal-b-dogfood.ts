@@ -711,6 +711,15 @@ if (want('G13')) {
     );
     ok('G13 筛选后行集合收窄（HIDDEN 仅 1 行）', rows === 1, `rows=${rows}`);
     await nav(`${APP}/dashboard/assets?page=2`, 2600);
+    // ⚠️ **搜索框是折叠式**（`Assets.tsx` 的 `Collapsible`，默认收起 ⇒ 输入框**不在 DOM**）——
+    //    必须**先点「搜索」开关**（`market.searchBtn` · `aria-label="搜索"`）再取输入框；
+    //    输入框 `aria-label` 真值 = 「搜索名称或 slug」（`b30607e`「搜索对齐」后的形态）。
+    //    旧写法（直接取 `input[aria-label]`）在该 commit 后恒为 `null` ⇒ 点击落空、键盘输入无处可去、
+    //    URL 恒无 `q=` ⇒ G13 **假失败**（F193 · 已实测正向验证：展开后输入 ⇒ `?q=m4b4` ✓）。
+    await realClickExpr(
+      `(() => [...${PAGE}.querySelectorAll('button')].find((b) => /搜索|Search/.test((b.getAttribute('aria-label') || '') + (b.getAttribute('title') || ''))) ?? null)()`,
+    );
+    await sleep(700);
     await realClickExpr(`(() => ${PAGE}.querySelector('input[aria-label]'))()`);
     await realType('m4b4');
     await sleep(1400);
