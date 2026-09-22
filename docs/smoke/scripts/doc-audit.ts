@@ -115,6 +115,45 @@ for (const rel of docs) {
     );
   }
 
+  /*
+   * A2. 修订表 → 头部（**反向检查** · 2026-09-22 加）：
+   * A 是**单向**的（只验「头部版 ∈ 表」）⇒ 抓不到「表加了行、头部没同步」。
+   * 实测逃逸 3 处（`docs/05` v1.11 · M3 design v1.7 · M4b-4 plan v0.48），故补反向检查。
+   * 口径：修订记录段（`## N. 修订记录`）内表行的**最大版号**必须出现在头部版本行内。
+   * 已知边界（必要非充分）：头部版号取「首行至第一个 `## ` 前、以 `> ` 开头的行」——
+   *   若某文件头部引用了**别的文档**的版号，可能掩盖本文件的落后（假绿）。
+   */
+  const secIdx = lines.findIndex((l) => /^##\s+\d*\.?\s*修订记录/.test(l));
+  if (secIdx >= 0) {
+    const h2 = lines.findIndex((l) => l.startsWith('## '));
+    const headVs = new Set(
+      lines
+        .slice(0, h2 < 0 ? lines.length : h2)
+        .filter((l) => l.startsWith('> '))
+        .flatMap((l) => [...l.matchAll(/v(\d+\.\d+)/g)].map((m) => m[1] ?? ''))
+        .filter((v) => v !== ''),
+    );
+    const tvs = lines
+      .slice(secIdx)
+      .map((l) => l.match(/^\|\s*\*{0,2}v?(\d+\.\d+)\s*\*{0,2}\s*\|/))
+      .filter((m): m is RegExpMatchArray => m !== null)
+      .map((m) => m[1] ?? '')
+      .filter((v) => v !== '');
+    if (tvs.length > 0) {
+      const cmp = (a: string, b: string) => {
+        const [a1 = 0, a2 = 0] = a.split('.').map(Number);
+        const [b1 = 0, b2 = 0] = b.split('.').map(Number);
+        return a1 - b1 || a2 - b2;
+      };
+      const tmax = tvs.reduce((a, b) => (cmp(a, b) >= 0 ? a : b));
+      ok(
+        headVs.has(tmax),
+        `[A2] ${rel} 修订表最新版 v${tmax} 已同步到头部`,
+        `头部版号：${[...headVs].join(', ') || '(无)'}`,
+      );
+    }
+  }
+
   // B. 死路径引用（更名/旧名/沿革 史实行豁免）
   for (const [idx, line] of lines.entries()) {
     if (/更名|旧名|原文件名|沿革/.test(line)) continue;

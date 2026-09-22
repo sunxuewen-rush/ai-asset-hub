@@ -1,6 +1,7 @@
 # 数据模型设计
 
 > Date: 2026-09-04
+> Updated: 2026-09-22（**v1.9：M4b-5 规范同步 · 审核人 = 提交人已放开（R2）** —— §5.2 `review_task` 注记 · §7 状态机行 · §6 授权集行三处同步。**补登记**：内容随 M4b-5 收口（`ad05b4e`）已改入正文，当时漏记版本头与修订记录，本行补齐）
 > Updated: （**v1.8：M4b-4 T10 规范同步** —— §7 补「资产级非 ACTIVE 授权集」注记（owner/管理档/超管 · 六面同一守卫 · 集外 404）+ 状态运营语义补实（`HIDDEN` 临时下架可恢复 · `ARCHIVED` 长期退役）
 > v1.7（M4b-4 T15 收藏最小集落地）——§5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`**（迁移 0012）· 新增 **§5.35 `asset_star`**（收藏关系：`UNIQUE(asset_id,user_id)` + 双向 `ON DELETE CASCADE`）· 运行库终态 **15 表** = 官方认证 6 + **业务 9**）
 > v1.6（M4b-pre 认证整车迁移同步）——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.rol**；**v1.5：M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 **）
@@ -230,6 +231,7 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 
 ## 10. 修订记录
 
+| **v1.9** | 2026-09-22 | sunxuewen-rush | **M4b-5 规范同步（补登记）**：① §5.2 `review_task` 注记「防自审（05 §6.4）」→「审核人 = 提交人：**M4b-5 R2 起放开**」② §7 状态机 `PENDING_REVIEW → PUBLISHED` 行同步 ③ §6 授权集行「审核人 = 提交人」→「**已放开**」（依据 = `05` §6.4 偏离登记 · 批 design `2026-09-21-m4b5-review-workbench-design` §4.6.1）。**补登记说明**：三处内容随 `ad05b4e` 已改，版本登记漏记，本行补齐 |
 | **v1.8** | 2026-09-18 | sunxuewen-rush | **M4b-4 T10 规范同步（Q11 A 随批即改）**：① §7 补 **「资产级非 ACTIVE 授权集」**注记——`status ≠ ACTIVE` 时六面（详情/版本列表/版本详情/文件/下载/预览）**同一守卫**，授权集 = **owner 本人 · 管理档 · 超管**，集外 404（无 403）② §7 补 **状态运营语义**：`HIDDEN` = 临时下架/可恢复 · `ARCHIVED` = 长期退役/停止维护（详情页「恢复」动作判据）③ 与 `05` §6.4 v1.10 对齐 |
 | **v1.7** | 2026-09-18 | sunxuewen-rush | **M4b-4 T15 收藏最小集**（批 design v1.8 §5.1 ⑧）：① §5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`** ② 新增 **§5.35 `asset_star`** —— `id · asset_id → asset · user_id → user · created_at`，**`UNIQUE(asset_id,user_id)`**（幂等结构保证）+ **双向 `ON DELETE CASCADE`** ③ 计数范式沿 §3（热查询计数冗余主表、事务内自增；`ON CONFLICT DO NOTHING` 命中不动计数）④ **任意登录用户**可收藏（社交动作，不受 `canManageAsset`）· 不写审计 · 不限流 ⑤ 运行库终态 **14 → 15 表**（官方认证 6 + 业务 9；迁移 **0012**） |
 | 版本 | 日期 | 作者 | 变更 |
