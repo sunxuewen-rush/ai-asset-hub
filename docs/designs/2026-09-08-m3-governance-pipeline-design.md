@@ -414,6 +414,7 @@ Bearer token ──► tokenAuthMiddleware 读 token.scope
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.7 | 2026-09-22 | sunxuewen-rush | **M4b-5 指针（历史批 · 正文不改）**：本文件 §3.3「审核判定与防自审」的 `isSelfReview` 判定 + §8 错误码 `review.self_review` **已于 M4b-5 R2 移除**（管理档可审自己的提交 ⇒ 见 `05` §6.4 偏离登记）|
 | v1.6 | 2026-09-08 | sunxuewen-rush | 复盘对标 skillhub 源码修正（D1-D8）：§5 label 定义上限 100（definition_limit_exceeded）、翻译整组替换（PUT 语义——删未列 locale）、管理面响应 parentId = 父 slug（LabelDefinitionResponse 同构）、locale 归一与去重预检（_→- 小写/translation.locale_duplicate）；§9 label 码表补全（invalid_parent/access_denied/definition_limit_exceeded/translation.locale_duplicate——复盘发现 2 实现码未回写 + 对标补 2 新码） |
 | v1.5 | 2026-09-08 | sunxuewen-rush | converge 修正：§3.5 R6 与 §9 接口表 withdraw 语义从「删 PENDING 行」改「保留行置 WITHDRAWN」（T4 实现拍板方案 A——08 §6 review version 递增契约（历史行 max）优先于 skillhub 删行简化；zod 四态零 DB 迁移；部分唯一索引仍只锁 PENDING；审核历史留档增强——对齐代码 review/service.ts withdrawReview 与 08 §6 v1.4） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | T8 实现同步：asset.version_not_yankable / asset.yank_reason_required 补入 §9 错误码表（yank 非 PUBLISHED 拒 + reason 必填——skillhub YankRequest 实证） |

@@ -199,11 +199,14 @@ Layer 5 判定链与业务读面中间件仍为本仓实现（判定数据源改
 | 角色分配 | `超管` |
 | Token 签发 / 吊销 | 本人（登录面） |
 
-**防自审规则**（开放协作核心）：审核人不得是提交人本人；本人提交的 review task 仅 `SUPER_ADMIN`
-可审核自己——从机制上杜绝「自提自审」。
+**审核人 = 提交人：已放开（M4b-5 · **R2** · 2026-09-21 用户拍板）** —— 原**防自审规则**（审核人不得是
+提交人本人；本人提交的 review task 仅 `SUPER_ADMIN` 可审核自己）**已彻底移除**：服务端删
+`isSelfReview` / `isSuperAdmin` 传参 / `review.self_review` 错误码 ⇒ **管理档可审核自己的提交**。
+**这是对四眼原则的有意偏离**（单人自托管 / 小团队下该制衡正是死锁源）；代价 = 失去「自提自审」的机制
+制衡；**复归点唯一** = 恢复 `isSelfReview` 判定 + `review.self_review` 码即可。实现细则见 M4b-5 批 design §4.6.1。
 
-**审核运营模型**：单人自托管 = seed 首管理员 `SUPER_ADMIN` 自审例外闭环；多人协作需 **≥2 个管理档账号**
-（若同伴仅用户档则无 approve 权——会死锁——机制不加特例，运营姿势由账号配置保证）。
+**审核运营模型（R2 后）**：**不再要求 ≥2 个管理档账号** —— 单人自托管 = 首管理员自审闭环（无需
+`SUPER_ADMIN` 例外）；多人协作仍**建议**分工互审，但属运营姿势、非机制约束。
 
 ### 6.5 权限主轴与离职场景
 
@@ -230,4 +233,5 @@ Layer 5 判定链与业务读面中间件仍为本仓实现（判定数据源改
 | v1.6 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§6.4 asset:manage 补「DRAFT 版本删除可由上传者本人执行（未进审核撤回，Q2）」例外；asset:publish 行加注 M2 语义（含资产注册与草稿上传，Q4） |
 | v1.7 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§6.4 注记——review:submit/approve 码面落地审核管线（submit/approve/reject/withdraw HTTP API + 队列读面）；withdraw 权限（提交人本人/owner/空间 ADMIN/OWNER——业务例外非权限码）；token scope 交集（R14——''/cli 全量兼容）；运营注记：互审团队空间至少 2 个 ADMIN 级成员（单人自托管 SUPER_ADMIN 自审例外闭环——Q1 决议）；converge 修正：§6.4「隐藏/恢复资产仅 SUPER_ADMIN」残留行改 canManageAsset 面（owner/空间 ADMIN/OWNER/超管——M2 v1.4 判定修正后的规范-实现张力闭环，design §4.3） |
 | v1.9 | 2026-09-15 | sunxuewen-rush | **M4b-pre 认证整车迁移同步（规范层原地改写）**：① §3 五层图 Layer 3 身份映射改**官方 `account` 表**（`identity_binding` 已删）+ 新增「落地实现」注（Layer 1/3/4 = 官方 `better-auth@1.7.5` 实例；自留面仅企业目录凭证插件 + Layer 5 判定）② §3.1 安全边界：原「行级失败锁定」列随 `local_credential` 删除 ⇒ 防爆破**统一由登录限流承担**；`auth.user_locked` 码删除 ③ §4.1 补**落库口径**（官方 `user.status` 单列三态；无 `LOCKED` 态）④ **§5 会话与凭证按实测重写**——Web = 会话**落库** + 8h 绝对过期（不滑动；顺带修「重启即全员登出」）· CLI = 官方两段式 Device Flow（换取**会话令牌**，设备码 30 分钟/轮询 5s/标准 OAuth 错误体）· API Token = 官方 api-key 插件（明文一次 · 库中仅 `base64url(sha256)` · 吊销 = `enabled=false` · 过期校验时清行）；新增**起源校验（CSRF）**段与 **scope 码表**（5 码 ↔ 官方 `permissions` 1:1 + 判定落点）⑤ §6/§6.3 落库表名 `user_account.role` → **官方 `user.role`**（文本档名 + `ROLE_LEVEL` 数值映射）；迁移见批 plan `M4b-pre-auth-migration.md`，选型与契约见批 design `2026-09-15-m4b-pre-auth-migration-design.md` |
+| v1.11 | 2026-09-22 | sunxuewen-rush | **M4b-5 审核批同步 · §6.4 审核人放开（R2）**：原**防自审规则**（审核人 ≠ 提交人本人 · 仅超管自审例外）**彻底移除** ⇒ 管理档可审自己的提交；**偏离登记**（代价 = 失去四眼制衡 · **复归点唯一**）+ **审核运营模型改写**（不再要求 ≥2 管理档）|
 | v1.8 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§6 由「平台角色 ∪ 命名空间角色」双轴改为**单轴 4 档线性**（`user_account.role` 0/1/10/100，判定 `role >= N`）；§6.1 角色表重写为 4 档；§6.2 内容替换为「资源归属与 owner 语义」（原命名空间角色 + 空间状态域删除）；§6.3 判定链去空间角色/空间状态步；§6.4 矩阵重写为「操作 × 角色」（含非 ACTIVE 读面**仅超管**）；§6.5 主轴改「平台角色是唯一权限主轴」（小节编号保持不变以免打断历史引用）——迁移 0005/0006/0007，design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |

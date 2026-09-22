@@ -1,10 +1,13 @@
 # M4b 管理后台与认证设计
 
 > Date: 2026-09-10
-> Updated: 2026-09-20（**v1.60：§11「键数当前值」补链（F107）** —— 追踪链停在 T11-e 的 **329 键**，缺 **T11-f 335**（+7 新键 −1 退役）与 **T11-i 347**（A 7 + B″ 5）两档 ⇒ 补两行并标「本行即当前口径」· 实测 `m4b4-measure.ts`）
-> Updated: 2026-09-20（**v1.59：T11-i 观感微调**（用户 2026-09-20）—— 顶栏小搜索 **靠右 · 语言切换器左侧**（原 = 标题右侧）· 宽 **固定 `w-[320px]`** · 放大镜 **`strokeWidth=4`**（加粗一倍）；§4 顶栏注追加 v1.59 更新、引用不复制）
-> Updated: 2026-09-20（**v1.58：顶栏加「全资产搜索框」（M4b-4 验收期第五笔 T11-i）+ §15 修订表行粘连修复（F96）** —— ① §4 顶栏行：构成 **4 → 5 件**（`size="sm"` · 标题右侧 · `<lg` 隐藏 · 回车跳 `/search?q=`）；规格引 **M4a design §8.12**（引用不复制）② §12 线框行同步 ③ **F96 修复**：§15 的 **v1.56 整行丢失**（内容并进 v1.57 行 ⇒ `|` 数 5 → 6）⇒ 按切分标记拆回两行，版本序恢复 ④ **侧栏新增命令面板入口**（用户拍板「sidebar 放命令面板搜索 / header 放小的搜索」）⇒ 侧栏条目 **14 → 15**（品牌块正下方 · 收起态只留图标钮）；规格引 **M4a design §8.13** ⑤ 依据 = 用户 2026-09-20 拍板（A1 + B1 + C3 + Hero 对齐 + 侧栏面板）· 批 design **v1.33 §4.9**）
-> 更早版本（**v1.57**）摘要见 **§15 修订记录** —— 头部只留最近 3 条（2026-09-21 头部卫生 · F-111 门禁修复）
+> Updated: 2026-09-22（**v1.63：M4b-5 审核批实现同步（T12）** —— ① **主 design 定稿条件 ②**「三族适用性实证」**✅ 已闭合**（M4b-5 交付：三族分型 manifest 卡 + 断言 + 截图）② §2.3 批件登记表 M4b-5 行：范围订正（队列/**共享详情/变更对比/权限矩阵**）· 服务端 **零 → 4 处** ③ §6.3 订正：原「**仍留 market 面** · M4b 审核详情**首期不提供行级 diff**」**已被 M4b-5 翻转**（diff 现代化：自研 `DiffView`/`DiffNav` 退役 · 官方件薄封装 `DiffWorkspace` 落 `components/ui/` · 双处挂载）④ §7.1 三行同步（`submittedByName` 加性 · 详情 `latestVersion` 加性 · **删防自审** + 通过/**驳回**）⑤ §8 接口变更总览 **+4 行**（M4b-5-a..d）⑥ §11 键数当前值 **404 键 / 12 组**（实测）⑦ §14 规范同步项 +1 行（`05` §6.4 R2 偏离）⑧ P3 文案统一：本文件「审核队列」→「**审核管理**」**11 处** ⑨ 端点源码依据行号按当前真码重取（`query.ts` / `reviews.ts`）· **零实现改动**）
+> Updated: 2026-09-21（**v1.62：批内内容迁移规则补「线框除外」** —— 原规则把「线框」与拍板/规格/UI 变动同列**迁出** ⇒ 与三批实践相反（M4b-3 完整性判词即「**线框无缺口** —— 本文件 §12（10 张 / 11 视图）已含本批两页且归属标注 `→ M4b-3`（**引用不复制**）」；M4b-4 同）⇒ 规则改为「**线框逐张归属、原地保留**（`→ M4b-n` 即指针）· 批 design 只写『**线框 ↔ 批 design 差异声明**』（以批 design 为准）· §12 图面统一在 **M4b-7 完整 converge** 一次重画」· 依据 = M4b-5 批 design §4.9 / §11.2 **F154**；**零实现改动**）
+> Updated: 2026-09-21（**v1.61：M4b-5 审核批 UI 口径校正（U1/U3 · 用户 2026-09-21 拍板）** —— ① **§10.2 族主文档口径按真码订正**：原文「mcp 族 `mcp.json` / `README.md`（可选）；agent 族 `agent.md` / `README.md`（可选）」⇒ 真码 `market/detail/OverviewTab.tsx:14-21` `mainDocPath` **只有两档**：`skill ⇒ SKILL.md`（必需）；**mcp / agent ⇒ `README*`**（root 级大小写归一 · 可选；缺失 ⇒ manifest 摘要回退）——**真码不探测 `mcp.json` / `agent.md`**；并补 **mcp `servers` 记录块**口径（`manifestFields` 显式滤掉 `servers` ⇒ 分型呈现自成一套，见 M4b-5 批 design §4.3）② **§12 审核详情线框补「撤回」钮**（原仅 2 钮 ⇒ 与 §10.2「通过/拒绝/撤回」及服务端 `withdraw` 端点矛盾）+ **措辞按文案真源订正**：**拒绝 → 驳回**（`apps/web/src/i18n/zh.ts:314` `review.reject = 驳回`）③ 依据 = M4b-5 批 design §4.9 / §11.2 **F152/F153**；**零实现改动**）
+> 2026-09-20（**v1.60：§11「键数当前值」补链（F107）** —— 追踪链停在 T11-e 的 **329 键**，缺 **T11-f 335**（+7 新键 −1 退役）与 **T11-i 347**（A 7 + B″ 5）两档 ⇒ 补两行并标「本行即当前口径」· 实测 `m4b4-measure.ts`）
+> 更早版本（**v1.59**）摘要见 **§15 修订记录** —— 头部只留最近 3 条（2026-09-21 头部卫生 · F-111 门禁修复）
+> 2026-09-20（**v1.59：T11-i 观感微调**（用户 2026-09-20）—— 顶栏小搜索 **靠右 · 语言切换器左侧**（原 = 标题右侧）· 宽 **固定 `w-[320px]`** · 放大镜 **`strokeWidth=4`**（加粗一倍）；§4 顶栏注追加 v1.59 更新、引用不复制）
+> 2026-09-20（**v1.58：顶栏加「全资产搜索框」（M4b-4 验收期第五笔 T11-i）+ §15 修订表行粘连修复（F96）** —— ① §4 顶栏行：构成 **4 → 5 件**（`size="sm"` · 标题右侧 · `<lg` 隐藏 · 回车跳 `/search?q=`）；规格引 **M4a design §8.12**（引用不复制）② §12 线框行同步 ③ **F96 修复**：§15 的 **v1.56 整行丢失**（内容并进 v1.57 行 ⇒ `|` 数 5 → 6）⇒ 按切分标记拆回两行，版本序恢复 ④ **侧栏新增命令面板入口**（用户拍板「sidebar 放命令面板搜索 / header 放小的搜索」）⇒ 侧栏条目 **14 → 15**（品牌块正下方 · 收起态只留图标钮）；规格引 **M4a design §8.13** ⑤ 依据 = 用户 2026-09-20 拍板（A1 + B1 + C3 + Hero 对齐 + 侧栏面板）· 批 design **v1.33 §4.9**）
 > v1.56（2026-09-20）：**T11-f 资产排序契约行** —— 用户 2026-09-20 立项（M4b-4 验收期第三笔）⇒ ① **§7.1 资产列表**行补 `&sort=`（值 `newest`(默认)/`downloads`/`stars`/`name`/`author` · 不传 = 现状 `updated_at desc, id desc` 零变化 · 非法值静默回落默认）② **§7.2 `R6`** 行补「与公开面同参数」③ 依据 = 批 design **v1.23 §4.7**（口径 10 条 · UI 规格 · 基础面实证）；**本版为契约登记，零实现改动**）
 > v1.55（M4b-4 T8 作废散点订正（文档面）** —— 用户追问「文档也都对应修改了么？」自查：v1.53 声称同步 §9/§12，但其中「**资产管理抽屉**」段仍是活口径 ⇒ **本轮订正**（「资产管理（~~抽屉~~ 已取消）+ 全部动作归详情页管理区 + 入口 = 列表 `Eye` 真链接」）；并**登记 F64**（作废件残留审计**只查关键字不判语义** ⇒ 活口径行漏扫；**合计 14 处**已订正：批 plan 7 · 本文件 2（§9/§12 段 + §2.4 U5 操作列）· 批 design 5 · v0.16/v1.19）)
 > v1.54（2026-09-18）：**M4b-4 收尾回填** —— ① §2.3 批件登记表 M4b-4 行：⬜ → **✅ 五件已执行**（8 维 **9.69** · T1–T16 全绿 · 五门禁 exit 0（test 537/0）· dogfood **53 PASS / 0 FAIL** · 整体审计无未决项）；件规格订正 **新建 16 / 改造 19 + 3 文档**② §11 i18n **键数实测回填**：全仓 **323 键 / 12 组**（双语差集 0 · **en 值级泄漏 0**）③ **D2/D3 订正落地**：§12 `/dashboard` 线框去 stale 的「含2隐藏」· §7.3 该处引用改为与 U4 拍板一致（省略副文案）④ 发现：本批实现期 **F38–F63** 全部处置（明细见批 design §11.9 + 证据文件）)
@@ -42,8 +45,8 @@
 > v1.46（2026-09-17）：M4b-2 收尾二次审计 + 登记表状态收口（完整历史见 §15）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§15 修订记录**。
 > SSOT：里程碑状态 → 本文档 **§5** 与 §2.3 批件登记表 · 自检分 → 各批 design §12.2 · 实测值与断言数 → `docs/smoke/` 证据文件。
-> Status: 草稿（**主 design（跨批不变层）**——拆批后本文件只保留跨批不变层（里程碑范围 / 模型与角色契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.4 / 接口变更总览 §8）；批内决策另立**批 design**（命名与迁移规则见 `docs/designs/README.md`）。**主 design 定稿条件**：① **视觉体系收敛 ✅ 已闭合**（视觉真值 SSOT = M4a design §4.4，版本随 M4a 演进、以其版本头为准；控制台特有值已落值：表格密度 **40** / 抽屉宽 **560**）② **三族适用性实证 ⬜ 随 M4b-5**（审核详情分型 manifest 卡）③ **grilling ✅ 已闭环**（R1-R9 + 补充锁定 5 条）⇒ ② 闭合后由用户批准转定稿。**当前进度（2026-09-17 回写）**：**M4b-1 ✅ · M4b-2 ✅（UI 视觉重做 §14 = 定稿候选，自检 **9.65**，⬠Q9/Q10 已闭环）· M4b-3 ✅ · M4b-pre ✅** ⇒ **下一批 = M4b-4（个人面 B）**；**M4b-2 的 UI 重做**待用户定稿口令后写实现代码（新增改造件 3 处 / 删件 1 处，见批 design §3.2）；其余各批批件版本与状态以 §2.3 登记表为准，批间门见 §2.3）
-> Scope: M4b（00 §5）——管理与治理后台：审核队列 · 标签定义 · 资产生命周期 · 令牌 · 审计浏览；真实登录与会话（角色感知）；zh/en 双语；复用 M4a 组件基建
+> Status: 草稿（**主 design（跨批不变层）**——拆批后本文件只保留跨批不变层（里程碑范围 / 模型与角色契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.4 / 接口变更总览 §8）；批内决策另立**批 design**（命名与迁移规则见 `docs/designs/README.md`）。**主 design 定稿条件**：① **视觉体系收敛 ✅ 已闭合**（视觉真值 SSOT = M4a design §4.4，版本随 M4a 演进、以其版本头为准；控制台特有值已落值：表格密度 **40** / 抽屉宽 **560**）② **三族适用性实证 ✅ 已闭合（2026-09-22 · M4b-5 交付）**（审核详情分型 manifest 卡 · 三族断言 + 截图证据见 M4b-5 批 design §9.5/§9.8）③ **grilling ✅ 已闭环**（R1-R9 + 补充锁定 5 条）⇒ ② 闭合后由用户批准转定稿。**当前进度（2026-09-17 回写）**：**M4b-1 ✅ · M4b-2 ✅（UI 视觉重做 §14 = 定稿候选，自检 **9.65**，⬠Q9/Q10 已闭环）· M4b-3 ✅ · M4b-pre ✅ · M4b-4 ✅ · M4b-5 ✅（审核工作台 · 2026-09-22 收口：八步门禁 **8/8 exit 0** · dogfood **62/0** · 零回归 `m4a` 34/0 / `m4b3` 43/0 / `m4b4` 89/0）** ⇒ **下一批 = M4b-6**（§2.3 拆批表序）；**M4b-2 的 UI 重做**待用户定稿口令后写实现代码（新增改造件 3 处 / 删件 1 处，见批 design §3.2）；其余各批批件版本与状态以 §2.3 登记表为准，批间门见 §2.3）
+> Scope: M4b（00 §5）——管理与治理后台：审核管理 · 标签定义 · 资产生命周期 · 令牌 · 审计浏览；真实登录与会话（角色感知）；zh/en 双语；复用 M4a 组件基建
 > 文件名沿革：本文件原名 `2026-09-10-m4b-admin-console-design.md`，2026-09-16 经用户拍板更名为 **`2026-09-10-m4b-admin-console-and-auth-design.md`**（原名只覆盖「管理后台」，未含认证与壳——M4b-pre 认证迁移 / M4b-2 登录·设备授权；全仓历史引用已一并更新为新名，见 §15 v1.21）。
 > 引用链：本文档 → 规范 00 §5/§7 · 05 §3/§6 · 06 §5 · 07 全 · 08 §5/§7（引用不复制，字段与规则以规范为准）；模型事实源 = `2026-09-10-flat-model-refactor-design.md`（M4-pre）
 
@@ -156,7 +159,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 | **M4b-2** | 认证与壳批 | 登录页（官方 `Card`+`Field` 装配 + 常规/OAuth 两 tab；`login-03` demo **不落仓**）· 设备授权页 `/device` · `AuthProvider`（loading/anon/authed）· 401 三分类分流 + 反向守卫 + `sanitizeNext` · 角色判定单点 `auth/roles.ts` · 登出 · `next` 白名单 · SideNav **三组** + 条目级门槛 · 路由骨架（11 条 + `ComingSoon` 占位；`/dashboard` 先落**临时落地页**——与 `ComingSoon` **同一件**、内容由 props 决定，M4b-4 替换为三卡）· 直访守卫 · **用户区（侧栏底部）**· 「系统设置」/「用户管理」占位条目 | **零** | M4b-1 |
 | **M4b-3** | 个人面 A | 我的提交（**类型列 + 资产 + task 状态 + 提交时间 + 拒绝原因**；操作列 **[👁 查看][↩ 撤回]** 图标化，撤回仅 PENDING + 二次确认 · 类型与状态筛选 · 分页）· 我的令牌（**6 列**：名称/Key 掩码/权限范围/创建时间/最后使用/操作（**[✎ 编辑][🗑 删除]** 同色图标）· 创建（明文一次性 + 误关防护）/ 编辑（改名 + 改权限）/ 删除（去红）；只显有效令牌） | **加性**：`ReviewListItem` + **`reviewComment` / `assetType`**（§8 R6-c + v1.7）· **`ApiKeyRow` + `name` / `start` / `tail` / `lastRequest`** · **新增 `PATCH /api/tokens/:id`** · `better-auth` 配 `charactersLength: 12` · 签发写 `metadata.tail`（**零迁移**） | M4b-1/2 |
 | **M4b-4** | 个人面 B + **star 最小集**（**唯一含读面改动**；v1.8 起**含 1 次迁移**） | `GET /api/me/assets`（R6）+ R6-b 授权集扩展 + 测试更新 · 我的资产列表（**9 列**）· ~~资产管理抽屉~~ **取消（列表操作列直跳详情页）** · **资产详情页 owner 管理区**（管理动作全在此 · 按权限显隐）· **star 最小集**（`asset_star` + `star_count` + 幂等端点 + 读面）· 工作台 landing | **2 处读面 + 1 次迁移 + 2 端点**（§8 R6/R6-b · 批 design §5.1 ⑧） | M4b-1/2 |
-| **M4b-5** | 审核批 | `/admin/reviews` 队列 · `/reviews/:id` 共享详情（分型 manifest 卡 + 文件树 + 预览 + 通过/拒绝/撤回 + 防自审交互） | **零** | M4b-1/2 |
+| **M4b-5** | 审核批 | `/admin/reviews` **审核管理**队列（双面共享工作台）· `/reviews/:id` 共享详情（分型 manifest 卡 + 文件树 + 预览 + **变更对比** + 通过/**驳回**/撤回 + **权限矩阵**（管理档可自审 · **R2**）） | **4 处**（2 加性字段 + 1 权限语义变更 + 1 对比引擎替换） | M4b-1/2 |
 | **M4b-6** | 治理批 | **资产管理**（全站资产治理列表；侧栏「管理」组新增子项「资产管理」——2026-09-18 用户拍板，见 §2.4 U8）· 标签定义（两级树 CRUD + zh-CN/en 翻译 + 行内上/下移 + 上限提示）· 审计浏览（八维过滤 + `action` 分组下拉 + 日期区间用官方 `Calendar`） | **1 处**（管理档全站资产列表读面——契约待该批对齐时定；本批不改 R6 端点语义） | M4b-1/2 |
 | **M4b-8** | **发布批**（2026-09-18 用户拍板新增 —— R2 翻转） | `/dashboard/publish` 发布页 = **新建资产 + 上传版本页内一步向导**：新建（`slug`/`type`）→ **单 zip** 上传（与 CLI 同一包格式，零服务端改动）· **XHR 进度通道**（不替换 `fetch` 客户端）· 上传落 **`DRAFT`** + **手动「提交审核」**（两步可见可撤回，不做自动提审）· 错误映射（413 超限 / 限流 / zip 校验 `issues` 数组）· **三入口**：侧栏「个人」组「发布」条目 + 顶栏「发布」· 未登录点击 = 轻提示 toast + `/login?next=/dashboard/publish` 回跳 · i18n 新组 `publish`（`07` §3 已预留组名）· **页面原型评审**（R9 的 11 视图不含本页 ⇒ 本批自补） | **零**（注册/上传/提审端点 M2/M3 已交付） | M4b-1/2 |
 | **M4b-7** | **控制台视觉打磨批（收尾）** | 控制台面的**视觉最后一公里**——节奏 / 密度 / 视觉层次 / 微交互 / **全态一致性**（正常·空·载·403）· **控制台三判**（气质 / 密度 / 类型色）；**镜像 M4a 视觉体系切换的做法**（探针切片 → 用户三判 → 全量打磨）；**体系仍以 M4a design §4.4 为 SSOT（引用不复制）** ⇒ 本批只做「**应用体系的最后一公里**」，**不重新设计**；**与「完整 converge」同批收口**（见编排说明） | **零** | **M4b-1…6 + M4b-8 全绿** |
@@ -185,7 +188,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 | M4b-2 | `YYYY-MM-DD-m4b2-auth-shell-design.md` | `M4b-2-auth-shell.md` | 登录页两 tab（官方 `Tabs` + `field`）· **设备授权页 `/device`** · `AuthProvider` 三态与首帧不闪 · 401 三分类分流 + 反向守卫 · 角色判定单点 · SideNav **三组** + 组标题 + 条目门槛 · 路由骨架 + `ComingSoon` · 直访守卫与轻提示 · **用户区（侧栏底部）** · 占位条目交互 · **`/login` / `/device` 线框补图** |
 | M4b-3 | `2026-09-16-m4b3-submissions-and-tokens-design.md`（**定稿** · 8 维 **9.81**） | `M4b-3-personal-submissions-and-tokens.md`（**v0.1** · T1-Tn） | 我的提交列集合（**含类型列**）与 **task 状态**文案 · **操作列 [👁 查看][↩ 撤回] 图标化**（v1.6 推翻「整行可点」）· 撤回仅 PENDING + `AlertDialog`（去红）· `reviewComment` + **`assetType`** **加性字段**（服务端 + 用例）· 令牌 **6 列**（含 Key 掩码 `aih_xxx*****xxxx`）/ 创建（明文一次性 + 误关防护）/ 编辑（改名 + 改权限 ⇒ **新增 `PATCH /api/tokens/:id`**）/ 删除（去红）· 表格三态 · 键数净增 **72** |
 | M4b-4 | `YYYY-MM-DD-m4b4-personal-b-design.md` | `M4b-4-me-assets-and-console.md` | **R6 端点契约**与分页 · **R6-b 授权集**与测试更新 · 工作台三卡与角色裁剪 · 我的资产**九列**（显式 `status=ALL`）· ~~抽屉（纯预览）~~ **取消（v1.9：列表直跳详情）** · **资产详情页 owner 管理区**（管理动作全在此 · 按权限显隐）· `labels` 结构体（D5/D7 根治）· dogfood 多角色数据准备 |
-| M4b-5 | `YYYY-MM-DD-m4b5-review-workbench-design.md` | `M4b-5-review-workbench.md` | 队列列集合与状态过滤 · 共享详情路由与权限面 · **分型 manifest 卡（三族）** · 文件树 + 预览（官方 `Dialog`）· 三动作 + 防自审交互 · 拒绝必填原因 · 端点权限与 token scope 交叉验证 |
+| M4b-5 | `YYYY-MM-DD-m4b5-review-workbench-design.md` | `M4b-5-review-workbench.md` | 队列列集合与状态过滤 · 共享详情路由与权限面 · **分型 manifest 卡（三族）** · 文件树 + 预览（官方 `Dialog`）· 三动作 + **权限矩阵**（**R2**：防自审已移除）· **驳回**必填原因 · **变更对比**（diff 现代化：官方件替换自研）· 端点权限与 token scope 交叉验证 |
 | M4b-6 | `YYYY-MM-DD-m4b6-governance-design.md` | `M4b-6-labels-and-audit.md` | **`/admin` 管理看板（2026-09-17 用户拍板归属本批；内容清单待本批对齐时讨论——本表不预设）** · **资产管理（全站资产治理 + 侧栏「管理」组新条目；2026-09-18 用户拍板归属本批——路由路径与页面形态待本批对齐时定）** · 标签两级树 CRUD + 固定 zh-CN/en 翻译 + 行内上/下移（`PUT /order`）+ 上限 100 提示 · 审计八维过滤 + `action` 分组下拉（27 个动作）+ 日期区间（官方 `Calendar`）· 分页 |
 | M4b-8 | `YYYY-MM-DD-m4b8-publish-design.md` | `M4b-8-publish.md` | **发布页信息架构与向导步序**（新建 → 上传 → 提审）· **上传通道与进度**（XHR 通道接线点，不替换 `fetch` 客户端）· **zip 校验错误面**（服务端 `issues` 数组 → 行内错误映射）· **错误矩阵**（413 / 限流 / 400 / 409 slug 冲突）· **三入口与未登录回跳**（`next` 白名单已含 `/dashboard`）· **i18n `publish` 组键表** · **页面原型评审**（补 R9 第 12 视图）· dogfood 含上传真包验证 |
 | M4b-7 | `YYYY-MM-DD-m4b7-console-visual-polish-design.md` | `M4b-7-console-visual-polish.md` | **打磨范围与验收口径**（控制台三判项：气质 / 密度 / 类型色）· **探针切片选型**（共享壳 + 代表页，镜像 M4a 阶段 0 做法）· **全态清单**（正常 / 空 / 载 / 403）· **与 §4.4 的偏差审计**（区分「应用未到位」vs「体系待补」——后者才回改 §4.4）· **打磨项逐条留痕**（改前 / 改后）· **组件层一致性收敛**（表格密度 40 / 抽屉宽 560 的落地核对）· **不进本批**：功能逻辑 / 服务端 / 新增页面 |
@@ -222,7 +225,7 @@ clawhub 的 scan/moderation 面为独立议题）· 自定义版本通道 stable
 
 **U1 壳与导航**（→ M4b-2；**2026-09-16 修订：两组 → 三组 + 用户区落侧栏底部**）：`SidebarGroup` + `SidebarGroupLabel` **三组**（「个人」/「管理」/「超级管理」）·
 未登录「个人」组整组不渲染 · 图标态隐藏组标题 · `AuthProvider` 为本批最先落地的基建（`Toaster` 已于 M4b-1 落仓并挂根——`main.tsx:45`）·
-「管理」组 `role >= 10`（**管理看板**（占位条目 → 页面归 **M4b-6**；2026-09-17 拍板）+ **审核队列 + 审计浏览 + 资产管理**（全站资产治理，2026-09-18 拍板；条目与页面**同批落 M4b-6**，本批不预埋条目——见 U8））· 「超级管理」组 `role >= 100`（**标签定义 + 系统设置 + 用户管理**）——
+「管理」组 `role >= 10`（**管理看板**（占位条目 → 页面归 **M4b-6**；2026-09-17 拍板）+ **审核管理 + 审计浏览 + 资产管理**（全站资产治理，2026-09-18 拍板；条目与页面**同批落 M4b-6**，本批不预埋条目——见 U8））· 「超级管理」组 `role >= 100`（**标签定义 + 系统设置 + 用户管理**）——
 **标签定义 = 超管（2026-09-14 修正回超管，服务端 `labels.ts:56-62 assertSuperAdmin` 为硬门）**；「系统设置」为占位条目：
 仅显示 + 点击弹 Phase 2 提示，不建页面；「用户管理」→ M4c ·
 `me` 未返回前三组均不渲染（防首帧闪烁）· **用户区（未登录「登录」入口 / 已登录用户菜单）落侧栏底部 `SidebarFooter`**
@@ -364,7 +367,7 @@ SideNav 在**既有门户组**（首页 `/` · 技能中心 `/skills` · MCP `/m
 | | | 我的令牌 `/dashboard/tokens` | 任何登录用户 |
 | | | **发布** `/dashboard/publish`（条目落 **M4b-8**；2026-09-18 拍板新增） | 任何登录用户 |
 | **管理** | `role >= ADMIN`（10；未达整组不渲染） | 管理看板（占位条目 → 页面归 **M4b-6**；2026-09-17 拍板） | `role >= ADMIN`（10） |
-| | | 审核队列 `/admin/reviews` | `role >= ADMIN`（10） |
+| | | 审核管理 `/admin/reviews` | `role >= ADMIN`（10） |
 | | | 审计浏览 `/admin/audit` | `role >= ADMIN`（10） |
 | | | **资产管理**（全站资产治理 → 页面归 **M4b-6**；2026-09-18 拍板，见 §2.4 U8） | `role >= ADMIN`（10） |
 | **超级管理** | `role >= SUPER_ADMIN`（100；未达整组不渲染） | 标签定义 `/admin/labels` | `role >= SUPER_ADMIN`（100） |
@@ -405,7 +408,7 @@ v1.44 前的**旧漂移**，随本版订正）+ **「发布」入口**（2026-09
 | `/dashboard/publish` | 发布（**新建资产 + 上传版本 + 提审**）→ **M4b-8** | 任何登录用户 | 新建资产（`slug`/`type`）· 单 zip 上传（XHR 进度）· 上传后**手动**「提交审核」· 撤回 | `POST /api/assets` · `POST /api/assets/:slug/versions` · `POST /api/assets/:slug/versions/:version/submit` |
 | `/reviews/:id` | 审核详情（**共享路由**） | 管理档 ∨ 提交人本人 | manifest 分型卡 + 文件树 + 预览 · 通过/拒绝/撤回 | `GET /api/reviews/:id` · `GET /api/assets/:slug/versions/:version/files/*` · `POST /api/reviews/:id/approve`／`reject`／`withdraw` |
 | `/admin` | 重定向 | 管理档 | → `/admin/reviews`（治理面无 landing） | — |
-| `/admin/reviews` | 审核队列（全站单队列） | `role >= 10` | 状态过滤 · 分页 · 进详情 | `GET /api/reviews?status=` |
+| `/admin/reviews` | 审核管理（全站单队列） | `role >= 10` | 状态过滤 · 分页 · 进详情 | `GET /api/reviews?status=` |
 | `/admin/labels` | 标签定义 | 超管（100） | 两级树 CRUD · 翻译（zh-CN/en）· 上/下移排序 | `GET /api/labels/all` · `POST`/`PATCH`/`DELETE /api/labels` · `PUT /api/labels/order` |
 | `/admin/audit` | 审计浏览 | `role >= 10` | 八维过滤 · 分页 | `GET /api/audit?action=&targetType=&targetId=&actorId=&requestId=&clientIp=&from=&to=` |
 | `/device` | 设备授权确认（CLI 设备流） | 任何登录用户 | 输入/校验 user_code → 认领 → 批准 / 拒绝 | `GET /api/auth/device?user_code=` · `POST /api/auth/device/approve`／`deny` |
@@ -427,7 +430,7 @@ v1.44 前的**旧漂移**，随本版订正）+ **「发布」入口**（2026-09
 /dashboard/publish            发布：新建资产 + 单 zip 上传（进度）+ 手动提审（M4b-8）
 /reviews/:id                  审核详情（共享：管理档自队列进、提交人自我的提交进）
 /admin                        → 重定向 /admin/reviews
-/admin/reviews                审核队列
+/admin/reviews                审核管理
 /admin/labels                 标签定义
 /admin/audit                  审计浏览
 ```
@@ -528,9 +531,12 @@ src/
 - **hook 复用扩展（不新建）**：`useMarketQuery`（M4a）**参数化扩展 `status` 维度**，市场面与控制台面
   共用——两者语义同构（URL query ↔ 状态 + 防抖 + 筛选变更 page 回落 1），差异只是维度集合；
   一套 hook 免双份漂移（v1.0/v1.1 拟新建 `useAdminQuery`/`useConsoleQuery`，本版取消）
-- **仍留 market 面**：`VersionCompare` + Diff 组件群——M4a design 原文「审核侧若需行级 diff
-  M4b 再升 ui」；M4b 审核详情**首期不提供行级 diff**（审核决策所需的核心是文件清单 +
-  内容预览 + manifest，diff 属消费者阅读体验），故不迁移、不改动
+- ~~**仍留 market 面**：`VersionCompare` + Diff 组件群~~ **（v1.63 订正 · 已被 M4b-5 翻转）**：
+  M4b 审核详情**已提供变更对比**（M4b-5 批 design §4.10）⇒ 自研 `DiffView` / `DiffNav` **整体退役**
+  （`git rm`），改**官方件薄封装** `DiffWorkspace`（服务端同步改 `diff`(jsdiff) 产标准 unified diff 文本）
+  —— M4a design 原文「审核侧若需行级 diff → M4b 再升 ui」**本批即兑现**
+- **新增到 ui/（M4b-5）**：`DiffWorkspace`（门户「版本」tab 与审核「变更对比」卡**双处挂载** ·
+  零分叉）+ `styles/diff-tokens.css`（第三方主题域 · 缺它则 token 高亮形同虚设）
 - **新增组件按「跨面 vs 面域」二分落位**：
   · `components/ui/` —— **跨面基础件**（任何面都可能用）：`Toaster`（全局单例挂 App）·
     `SkeletonLoader` · `RoleGuard` · `CopyButton` ＋ §6.3 迁移项（`FileTree`/`FilePreviewDialog`）
@@ -550,10 +556,10 @@ src/
 
 | 功能 | 端点 | 权限 | 关键响应形状 | 源码依据 |
 |------|------|------|-------------|---------|
-| 审核队列 | `GET /api/reviews?status=&limit=&offset=` | 管理档 `role >= ADMIN`（**全站单队列**，无空间过滤参数；不足 → 403 `review.access_denied`） | `{items:[{taskId,status,reviewVersion,submittedBy,submittedAt,assetSlug,assetVersion,versionStatus,versionId}],total,limit,offset}` | `http/reviews.ts:46-66` · `review/query.ts:24-44` |
+| 审核管理 | `GET /api/reviews?status=&limit=&offset=` | 管理档 `role >= ADMIN`（**全站单队列**，无空间过滤参数；不足 → 403 `review.access_denied`） | `{items:[{taskId,status,reviewVersion,submittedBy,`**`submittedByName`**`,submittedAt,assetSlug,assetVersion,versionStatus,versionId}],total,limit,offset}`（**M4b-5 加性**） | `http/reviews.ts:46-66` · `review/query.ts:70-85` |
 | 我的提交 | `GET /api/reviews/mine?status=&limit=&offset=` | 登录（身份面） | 同上 items 形状 + **`reviewComment` / `assetType`**（M4b-3 加性） | `http/reviews.ts:69-86` |
-| 审核详情 | `GET /api/reviews/:id` | 管理档 ∨ 提交人本人（否则 403 `review.access_denied`；不存在 404 `review.not_found`） | `ReviewListItem + {manifestJson, files:[{filePath,fileSize,sha256}]}` | `http/reviews.ts:89-98` · `review/query.ts:46-50` |
-| 通过/拒绝 | `POST /api/reviews/:id/approve`（`{comment?}`）· `POST /:id/reject`（`{comment}` 必填） | 管理档 `role >= ADMIN` + 防自审（05 §6.4，超管例外）；token scope `review:approve`（`auth/token-scopes.ts:17`） | 200 `{taskId,status,version}` | `http/reviews.ts:101-143` · `auth/rbac.ts:70` |
+| 审核详情 | `GET /api/reviews/:id` | 管理档 ∨ 提交人本人（否则 403 `review.access_denied`；不存在 404 `review.not_found`） | `ReviewListItem + {manifestJson, files:[{filePath,fileSize,sha256}], `**`latestVersion`**`}`（**M4b-5 加性 · 仅详情**：`asset.latestVersionId` 自连接 `asset_version` ⇒ 变更对比的 base 版本判定） | `http/reviews.ts:89-98` · `review/query.ts:152-175` |
+| 通过/**驳回** | `POST /api/reviews/:id/approve`（`{comment?}`）· `POST /:id/reject`（`{comment}` 必填） | 管理档 `role >= ADMIN`（**M4b-5 R2：防自审已移除** ⇒ 管理档**可审自己的提交**；偏离四眼 · 代价与**复归点唯一**见 `05` §6.4 与 M4b-5 批 design §4.6.1）；token scope `review:approve`（`auth/token-scopes.ts:17`） | 200 `{taskId,status,version}` | `http/reviews.ts:101-141` · `auth/rbac.ts` |
 | 撤回提审 | `POST /api/reviews/:id/withdraw` | 提交人本人 / asset owner / 管理档（服务内判定） | 204 | `http/reviews.ts:146-160` |
 | 标签公开列表 | `GET /api/labels` | 匿名 | `Label[]`（displayName 回退 Accept-Language→en→slug） | `http/labels.ts:65-69` |
 | 标签全量 | `GET /api/labels/all` | `role >= SUPER_ADMIN` | `ManagedLabel[]`：`{id,slug,type,visibleInFilter,sortOrder,parentId(父 slug),translations:[{locale,displayName}]}` | `http/labels.ts:72-75` |
@@ -708,6 +714,10 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 > M4b 零服务端改动——重构前拟的「`/me` 增平台角色数组」方案随之废弃。
 
 | R6-c | 修改（**加性**） | `review/query.ts` `LIST_SELECT` 增 `reviewComment` | 「我的提交」列表露出拒绝原因（2026-09-14 用户拍板；对既有响应向后兼容） | **M4b-3** |
+| **M4b-5-a** | 修改（**加性**） | `review/query.ts` `LIST_SELECT` 增 `submittedByName`（`leftJoin(user)`） | 队列 / 我的提交 / 详情三面露出提交人姓名（向后兼容） | **M4b-5** |
+| **M4b-5-b** | 修改（**加性**） | `review/query.ts` 详情查询增 `latestVersion`（`asset_version` 自连接 `alias()`） | 审核详情露出「当前已发布版本」⇒ 变更对比的 base 版本判定（`LIST_SELECT` 不动） | **M4b-5** |
+| **M4b-5-c** | 修改（**权限语义变更**） | `review/service.ts` · `http/reviews.ts` · `auth/rbac.ts` | **R2：彻底移除防自审**（删 `isSelfReview` / `isSuperAdmin` 传参 / `review.self_review` 码）⇒ 管理档可审自己的提交 | **M4b-5** |
+| **M4b-5-d** | 修改（**破坏性契约**） | `assets/version-compare.ts`：`CompareFile.hunks[]` → **`patch: string`** | 版本对比改官方件 `diff`(jsdiff) 产标准 unified diff 文本（3 行头 / 不产 `index` / 增删用 `/dev/null`）；消费者 **7 处**已同步 · `packages/` **零外部消费者** | **M4b-5** |
 
 均落 server + 补测试（M4-pre 后全量测试基线 + 新用例）；实现细则归 **批 plan**（逐批立，命名见 §2.3）。
 
@@ -772,10 +782,12 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 
 - **审核详情**是核心工作台：左主列 = manifest 摘要卡 + 文件树（`ui/FileTree`）+
   文件预览对话框；右栏 = task 元信息（坐标/版本/提交人/时间）+ 动作区（通过/拒绝/撤回）
-  - **manifest 卡按 type 分型（三族适用性——M4a T15 实证的族协议差异）**：skill 族主文档
-    `SKILL.md`（必需）；mcp 族 `mcp.json` / `README.md`（可选）；agent 族 `agent.md` /
-    `README.md`（可选）——复用 M4a `OverviewTab` 的分型探测与回退逻辑（大小写归一 + 缺失
-    回退结构化摘要），审核人看到的摘要形态随类型自适应，不空窗
+  - **manifest 卡按 type 分型（三族适用性——M4a T15 实证的族协议差异）**：主文档探测**真码只有两档**
+  （`apps/web/src/components/market/detail/OverviewTab.tsx:14-21` `mainDocPath`）：**skill ⇒ `SKILL.md`**（必需）；
+  **mcp / agent ⇒ `README*`**（root 级、大小写归一；可选，缺失 ⇒ manifest 摘要回退）；~~mcp 族 `mcp.json` / `README.md`（可选）；
+  agent 族 `agent.md` / `README.md`（可选）~~ **（2026-09-21 v1.61 订正：真码不探测 `mcp.json` / `agent.md`）**
+  —— mcp 族另有 **`servers` 记录块**（`manifestFields` 显式滤掉 `servers` ⇒ 审核面分型呈现自成一套，
+  见 M4b-5 批 design §4.3）；审核人看到的摘要形态随类型自适应，**不空窗**
 - **资产管理**（~~抽屉~~ 已取消 · M4b-4 v1.9）：状态治理（含恢复）+ 标签增删 + 版本列表（yank/删除）+
   危险区（删除资产，说明"有已发布/已撤回版本时不可删除"）—— **全部动作归资产**详情页**管理区**（入口 = 列表操作列 `Eye` 真链接直跳）
 - **标签定义**：两级树 + CRUD + 翻译（**固定 `zh-CN`/`en` 两行**）+ **行内上/下移**排序
@@ -799,6 +811,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 > **键数当前值（2026-09-18 · T11-e 门户视图切换 + 折叠搜索实测）**：全仓 **329 键 / 12 组**（= 上一行 323 + T11-e `market` 组 **+6**：`viewGrid` / `viewList` / `colName` / `colDesc` / `colDownload` / `searchClose`）；**双语双向差集 0** · **en 值级中文泄漏 0** · **未消费键 12 = 基线**（新键 6 个全部有消费者）。
 **键数当前值（2026-09-20 · T11-f 资产排序实测）**：全仓 **335 键 / 12 组**（= 上一行 329 + **7 新键**：排序五档 `sortNewest`/`sortDownloads`/`sortStars`/`sortName`/`sortAuthor` + `sortLabel` + `colUpdated`（列表「更新」列头）· **−1 退役**：~~`sortRecent`~~）—— 退役键**原本有消费点**（`CenterPage.tsx:242`）⇒ **未消费键 12 → 12 不变**；**双语双向差集 0** · **en 值级中文泄漏 0**。真值 = 批 design §6「净变化」行 · 实测命令 = `bun docs/smoke/scripts/m4b4-measure.ts`。
 **键数当前值（2026-09-20 · T11-i 全资产搜索 + 侧栏命令面板 B″ 实测）**：全仓 **347 键 / 12 组**（= 上一行 335 + **12 新键**：**A** 全资产搜索 **7 枚**（`searchAllTitle`/`searchAllCount`/`searchAllHint`/`typeAll`/`typeSkill`/`typeMcp`/`typeAgent`）+ **B″** 侧栏面板 **5 枚**（`searchEntry`/`palettePlaceholder`/`pages`/`paletteEmpty`/`paletteSearchAssets`）—— 全部有消费点；**双语双向差集 0** · **en 值级中文泄漏 0**。✅ **本行即当前口径**（更早各行保留不改 · 仅作追踪链）。证据 = `docs/smoke/2026-09-18-m4b4-personal-b.md` §14.11–§14.14。
+**键数当前值（2026-09-22 · M4b-5 审核批收尾实测）**：全仓 **404 键 / 12 组**（`review` 组 **61** 键）；**双语双向差集 0** · 组数 **12** · 本批退役 **2 键**（`review.preview.failed`（**F190** · 零消费点）+ `errors.self_review`（**R2** 删防自审））。✅ **本行即当前口径**（更早各行保留不改 · 仅作追踪链）；实测 = `zh.ts`/`en.ts` 逐叶递归计数；证据 = M4b-5 批 design §9.8 回填块。
 
 **组清单（2026-09-16 按真码 `i18n/zh.ts` / `en.ts` 实测订正）**：既有 **7 组** + M4b-2 新增 **2 组**（zh 真源 / en 完整对齐、缺键即编译错，纪律同 M4a）。
 
@@ -816,7 +829,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 
 本批 `errors` 补 **9 码**（**8 个** `auth.*` + `oidc.not_configured`；全量 **12 个** `auth.*` 见 `auth/errors.ts:6-21`——其中 `auth.rate_limited` **M4a 已落**，故实补 8 个；OIDC 回调 2 码见 §7.2 G6）。
 `navigation` 另补**组标题 3 键**、**删**产品元信息 4 键（`starRepo`/`footDocs`/`footFeedback`/`versionLine`——P11，真码现状 9 键已含）。
-**文案分层口径**（2026-09-16 拍板）：导航条目用短词（工作台 / 审核队列 / 审计浏览），页头用全称（个人工作台 / 审计日志）。
+**文案分层口径**（2026-09-16 拍板）：导航条目用短词（工作台 / 审核管理 / 审计浏览），页头用全称（个人工作台 / 审计日志）。
 
 ## 12. 线框图
 > **归属批（2026-09-14 拆批）**：逐张归属：`/dashboard` → **M4b-4** · `/dashboard/assets` → **M4b-4** · `/dashboard/submissions` → **M4b-3** · `/dashboard/tokens` → **M4b-3** · `/reviews/:id` → **M4b-5** · `/admin/reviews` → **M4b-5** · `/admin/labels` → **M4b-6** · `/admin/audit` → **M4b-6**；`/login` 与 `/device` 线框于 2026-09-16 补入（**本节 10 张 / 11 视图**）
@@ -830,7 +843,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 │ ─ 个人 ─────────────────────────────────────────────  │
 │  ▤ 工作台  ◫ 我的资产  ⇪ 我的提交  ⛁ 我的令牌          │
 │ ─ 管理 ─（role>=10 才渲染）──────────────────────────  │
-│  ⚖ 审核队列  ☰ 审计浏览                                │
+│  ⚖ 审核管理  ☰ 审计浏览                                │
 │ ─ 超级管理 ─（role>=100 才渲染）─────────────────────  │
 │  ⌗ 标签定义  ⚙ 系统设置  ☺ 用户管理                    │
 │                                                        │
@@ -848,7 +861,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 审核详情 `/reviews/:id`（共享路由——坐标 = 全局唯一裸 slug）：
 
 ```text
-│ 首页 / 审核队列 / #1024                                 │
+│ 首页 / 审核管理 / #1024                                 │
 │ langgraph-rag  v1.3.2   提交人 林晓峰                    │
 │ ┌ 主列 ───────────────────────────────┬ 右栏 320px ────┐│
 │ │ [manifest 摘要卡]                    │ 状态 PENDING    ││
@@ -856,7 +869,8 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 │ │ ─────────────────────────────────    │ task#1024 v1    ││
 │ │ [文件树]  ▼ reference/               │ ─────────────── ││
 │ │           SKILL.md  sha a1b2…  [预览]│ [✔ 通过]        ││
-│ │           agent.md  4.2KB            │ [✘ 拒绝]        ││
+│ │           agent.md  4.2KB            │ [✘ 驳回]        ││
+│ │                                      │ [↩ 撤回]        ││
 │ └──────────────────────────────────────┴─────────────────┘│
 └──────────────────────────────────────────────────────────┘
 ```
@@ -875,10 +889,10 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 └──────────────────────────────────────────────────────────┘
 ```
 
-审核队列 `/admin/reviews`（全站单队列 + 状态过滤）：
+审核管理 `/admin/reviews`（全站单队列 + 状态过滤）：
 
 ```text
-│ 审核队列                              [状态: 待审核▾]       │
+│ 审核管理                              [状态: 待审核▾]       │
 │ ┌──────────────────────────────────────────────────────┐│
 │ │ 坐标            版本    类型   提交人   提交时间      ││
 │ │ rag-skill      1.3.2  skill  林晓峰  09-10 14:02   →││
@@ -1026,6 +1040,7 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 |------|---------|------|
 | `05` §6.4 | **R6-b** 非 ACTIVE 读面授权集注记（owner 本人 / 管理档 / 超管可读）——修改 M4-pre 已同步的「仅超管」行（`05` §6.4:187）+ **连带订正超管行措辞**（`05` §6.4:161「全部权限（含非 ACTIVE 资产读面）」——"含"字暗示独占，授权集放宽后须改写） | **随 M4b-4 落地即改**（2026-09-18 用户拍板 **A**——收敛原「落地后 / 统一于 M4b 收尾」双口径；先例 = M4b-pre 规范层原地改写） |
 | `08` §7 | ① 版本读面注记与 R6-b 对齐（资产级非 ACTIVE 授权集）；② **ARCHIVED 语义补实**——当前与 HIDDEN 判定同构（`status !== 'ACTIVE'`），写明「HIDDEN = 临时下架/可恢复；ARCHIVED = 长期退役/停止维护」的运营语义分界（**本批「恢复」动作的判据依据**） | **随 M4b-4 落地即改**（同上拍板 **A**——语义补实与本批 UI 规则同批落，避免「UI 有规则、规范无依据」） |
+| `05` §6.4 | **R2 移除防自审**（M4b-5 · 2026-09-21 用户拍板）：删「审核人不得是提交人本人」规则 + 改写运营注记（单人自托管运营模型）· **偏离登记**（代价 = 失去四眼制衡 · **复归点唯一** = 恢复 `isSelfReview` + `review.self_review` 码）；连带 `08` §5.1/§7 两处注记 | **随 M4b-5 落地即改** |
 | `07` §3 | **`publish` 资源组落地注记**（M4b-8 新增该组文案；§3 组清单**已含 `publish`（发布流）**，本条只作落地注记——同批核对组清单是否仍缺 `dashboard` 行，见下行） | **M4b-8** 收尾 |
 | `07` §3 | `dashboard`/`admin`/`review` 资源组落地注记（**M4b-1 已落三层骨架**——各批补文案；§3 资源组清单**需补 `dashboard` 行**：`07` 现列 7 组含 `review`/`admin` 但**无 `dashboard`**，落后于真码 `i18n/zh.ts`） | M4b 收尾 |
 | `00` §5 | M4b 行完成注记 | M4b 收尾 |
@@ -1046,6 +1061,9 @@ GET /api/me/assets?status=ACTIVE|HIDDEN|ARCHIVED|ALL&q=<kw>&limit=&offset=&sort=
 
 ## 15. 修订记录
 
+| **v1.63** | 2026-09-22 | sunxuewen-rush | **M4b-5 审核批实现同步（T12）** —— ① **定稿条件 ②「三族适用性实证」✅ 已闭合** ② §2.3 M4b-5 行：范围订正 + 服务端 **零 → 4 处** ③ **§6.3 翻转订正**（「仍留 market 面 / 首期不提供行级 diff」→ diff 现代化已兑现：自研退役 · `DiffWorkspace` 落 `components/ui/` · 双处挂载）④ §7.1 三行（`submittedByName` · 详情 `latestVersion` · 删防自审 + 通过/**驳回**）+ 端点源码依据**行号重取** ⑤ §8 **+4 行**（M4b-5-a..d）⑥ §11 键数 **404 / 12 组** ⑦ §14 +1 行（`05` §6.4 R2 偏离）⑧ P3 文案统一 **11 处** ⑨ **零实现改动** |
+| **v1.62** | 2026-09-21 | sunxuewen-rush | **批内内容迁移规则补「线框除外」（规则 ↔ 实践对齐）** —— ① 原 :180 规则把「**线框**」列入迁出面 ⇒ 与 M4b-3/M4b-4 实践相反（M4b-3 判词：**线框无缺口 · 引用不复制**）② 改为：**线框逐张归属各批、原地保留 §12**（`→ M4b-n` 即指针）· 批 design 侧写「**线框 ↔ 批 design 差异声明**」（以批 design 为准 · 先例 M4b-3 §4.4.2）· §12 图面**不回画**，统一 **M4b-7 converge** ③ 依据 = M4b-5 批 design §4.9 / F154；**零实现改动** |
+| **v1.61** | 2026-09-21 | sunxuewen-rush | **M4b-5 审核批 UI 口径校正（U1/U3）** —— ① **§10.2 族主文档口径按真码订正**（`mainDocPath` 只有两档：skill ⇒ `SKILL.md`；mcp/agent ⇒ `README*`；~~`mcp.json` / `agent.md`~~ 真码不探测）+ 补 mcp `servers` 记录块口径 ② **§12 审核详情线框补「撤回」钮**（原缺 ⇒ 与 §10.2 三动作及 `withdraw` 端点矛盾）+ 措辞按文案真源订正 **拒绝 → 驳回**（`i18n/zh.ts:314`）③ 依据 = M4b-5 批 design §4.9 / F152 / F153；**零实现改动** |
 | **v1.60** | 2026-09-20 | sunxuewen-rush | **§11「键数当前值」补链（**F107**）** —— ① 追踪链原停在 **329 键 / 12 组**（2026-09-18 T11-e），缺 **T11-f 335**（+7 新键：排序五档 + `sortLabel` + `colUpdated`；−1 退役 `sortRecent`）与 **T11-i 347**（A 全资产搜索 7 枚 + B″ 侧栏面板 5 枚）**两档** ② 补两行并按惯例标「本行即当前口径 · 更早各行保留不改」③ 实测 = `bun docs/smoke/scripts/m4b4-measure.ts`（**347 / 12 组** · 双语差集 0 · en 值级泄漏 0）④ **F107 登记**（同族前例 **F72**：计数类活口径在连续多轮迭代中**必落后** ⇒ 收口自查的 grep 清单须含「键数 / 行数 / 断言数」）⑤ **零代码改动** |
 | **v1.59** | 2026-09-20 | sunxuewen-rush | **T11-i 观感微调（用户 2026-09-20）**：顶栏小搜索 ① **靠右、置于语言切换器左侧**（原 = 页面标题右侧）② 宽 **固定 `w-[320px]`**（原弹性 `max-w-[320px]`）③ 放大镜 **`strokeWidth=4`**（加粗一倍 · 原 2）—— §4 顶栏注追加 v1.59 更新（规格仍引 M4a §8.12 · 引用不复制）· 实测见证据 §14.11 |
 | **v1.58** | 2026-09-20 | sunxuewen-rush | **顶栏加「全资产搜索框」+ §15 修订表行粘连修复（F96）** —— ① **§4 顶栏行**：构成 **4 → 5 件**（全资产搜索框 `size="sm"` · 页面标题右侧 · `<lg` 隐藏 · 回车 `/search?q=` · 提交后保留输入）；**规格引 M4a design §8.12**（引用不复制）② **§12 线框**同步 ③ **F96 修复**：§15 **v1.56 整行丢失**（内容被并进 v1.57 行 ⇒ 该行 `|` 数 **5 → 6**、版本序空洞 `v1.57 → v1.55`）⇒ 按切分标记拆回两行（内容逐字保留 · 脚本 assert 两行 `|` 数各 5）；**审计缺口登记**：`doc-audit` 暂不覆盖修订表结构完整性（候选检查 = 行首单元格形态 + `|` 计数 + 版本序无空洞）④ **侧栏新增命令面板入口**（用户拍板「sidebar 放命令面板搜索 / header 放小的搜索」）⇒ 侧栏条目 **14 → 15**（品牌块正下方 · 独立块无组标题 · 收起态只留图标钮）；规格引 **M4a design §8.13** ⑤ 依据 = 用户 2026-09-20 拍板（A1 + B1 + C3 + Hero 对齐 + 侧栏面板）· 批 design **v1.33 §4.9** ⑥ **本版零实现改动** |

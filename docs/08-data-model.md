@@ -150,8 +150,8 @@ review_task           id · asset_version_id → asset_version
                       · status(PENDING/APPROVED/REJECTED/WITHDRAWN) · version INT（重审计数，递增）
                       · submitted_by → user · reviewed_by → user
                       · review_comment · submitted_at · reviewed_at
-                      -- 防自审（05 §6.4）：应用层强制 reviewed_by ≠ submitted_by
-                      --（SUPER_ADMIN 例外）；重审 = 原版本号不变、review version+1
+                      -- 审核人 = 提交人：**M4b-5 R2 起放开**（原防自审规则已移除 · 见 05 §6.4 偏离登记）；
+                      -- 重审 = 原版本号不变、review version+1
                       -- WITHDRAWN（M3）：撤回提审保留行置态（历史留档保 version 递增——
                       -- 非删行——skillhub 删行是其无递增语义的简化，AIH 08 自有契约优先）
                       · 部分唯一索引 UNIQUE(asset_version_id) WHERE status='PENDING'
@@ -184,7 +184,7 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 
 - `SCANNING`：安全扫描进行中；`SCAN_FAILED`：扫描未过（同版本重传豁免——M3 扫描直通）
 - `UPLOADED`：包可下载但未进审核（draft 与 review 之间；withdraw 回退停留态）
-- `PENDING_REVIEW` → `PUBLISHED` 需 review_task 通过（防自审见 §6）
+- `PENDING_REVIEW` → `PUBLISHED` 需 review_task 通过（**审核人 = 提交人已放开**——M4b-5 R2，见 §6）
 - `REJECTED`：审核拒绝留档；修正走新版本号（R5 分治——与 SCAN_FAILED 同版本重传区分）
 - `YANKED`：撤回分发——已分发消费者留档（详情公开可读禁下载——`asset.version_yanked`）
 - `latest` 指针自动维护：approve 指向 + yank 重算（(published_at, created_at, id) 排序——skillhub 同构）
@@ -219,7 +219,7 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 | 文件路径唯一 | `UNIQUE(version_id, file_path)` |
 | label 挂载唯一 | `UNIQUE(asset_id, label_id)` |
 | 同版本待审唯一 | review_task 部分唯一索引 `UNIQUE(asset_version_id) WHERE status='PENDING'` |
-| 防自审 | 应用层（SUPER_ADMIN 例外，不设 DB 硬约束） |
+| 审核人 = 提交人 | **已放开**（M4b-5 **R2** · 2026-09-21 拍板）：应用层不再强制 `reviewed_by ≠ submitted_by`，无 DB 约束（05 §6.4 偏离登记） |
 
 ## 9. 与相邻文档关系
 
