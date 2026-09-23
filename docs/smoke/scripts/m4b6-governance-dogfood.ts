@@ -234,6 +234,61 @@ const bodyText = async (): Promise<string> => (await evalJs('document.body.inner
 const svgCount = async (): Promise<number> =>
   (await evalJs("document.querySelectorAll('svg.recharts-surface').length")) ?? 0;
 
+/* ── T6⁺ 换靶后新增助手（G2/G4/G14 共用）─────────────────────────────
+ * 背景：本轮把时间档位与 Top N 都换成了官方 `Combobox`（页上**已无原生 <select>**），
+ * 旧断言（`querySelector('select')` / `textContent.trim() === '标签'`）在 T6⁺ 后**恒真而失去判别力**
+ * （实证：4 张看板截图字节相同 = 状态从未改变）⇒ 此处统一改为「真点击 + 读真值」。
+ */
+/** 点开官方 Combobox 并按可见文案选中（选中后等图表重取 + 动画） */
+const pickComboboxOption = async (inputAriaPrefix: RegExp, label: string): Promise<boolean> => {
+  const opened = await evalJs(
+    `(() => { const el = [...document.querySelectorAll('input[aria-label]')].find((i) => ${inputAriaPrefix}.test(i.getAttribute('aria-label') || ''));
+      if (!el) return false; el.focus(); el.click(); el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return true; })()`,
+  );
+  if (!opened) return false;
+  await sleep(700);
+  const picked = await evalJs(
+    `(() => { const el = [...document.querySelectorAll('[role=option]')].find((e) => (e.textContent || '').trim() === ${JSON.stringify(label)});
+      if (el) el.click(); return !!el; })()`,
+  );
+  await sleep(2600);
+  return !!picked;
+};
+/** 时间档位（「近 N 天」档） */
+const pickRange = (label: string) => pickComboboxOption(/^近/, label);
+/** 趋势卡「第一个图」的 X 轴刻度文字（左→右 · 只取形如 `MM-DD` 的标签） */
+const trendTicks = async (): Promise<string[]> => {
+  const v = await evalJs(`(() => {
+    const c = [...document.querySelectorAll('[data-slot=card]')].find((x) => x.textContent.includes('资产数和下载数趋势'));
+    if (!c) return null;
+    const svg = c.querySelector('svg.recharts-surface');
+    if (!svg) return null;
+    return [...svg.querySelectorAll('text')].map((t) => (t.textContent || '').trim()).filter((t) => t.length === 5 && t.includes('-'));
+  })()`);
+  return Array.isArray(v) ? (v as string[]) : [];
+};
+/** 排行榜卡内的柱子数（**只数排行榜卡** —— 否则会把英雄榜两榜的柱子算进来） */
+const rankBarCount = async (): Promise<number> => {
+  const v = await evalJs(`(() => {
+    const c = [...document.querySelectorAll('[data-slot=card]')].find((x) => x.textContent.includes('排行榜'));
+    return c ? c.querySelectorAll('svg.recharts-surface .recharts-bar-rectangle').length : -1;
+  })()`);
+  return typeof v === 'number' ? v : -1;
+};
+/** 「MM-DD」距今天的天数（Asia/Shanghai 日界；跨年时取最近一次未来的那天） */
+const tickAgeDays = (mmdd: string): number => {
+  if (!mmdd) return -1;
+  const dayOf = (d: Date) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(d);
+  const today = new Date(`${dayOf(new Date())}T12:00:00+08:00`).getTime();
+  for (const year of [new Date().getFullYear(), new Date().getFullYear() - 1]) {
+    const t = new Date(`${year}-${mmdd}T12:00:00+08:00`).getTime();
+    const age = Math.round((today - t) / 86_400_000);
+    if (age >= 0 && age <= 400) return age;
+  }
+  return -1;
+};
+
 console.log(`\n== M4b-6 dogfood（账号 ${MGR}）==`);
 
 /* ── G1 看板：KPI ×4 与端点真值一致 ── */
@@ -257,28 +312,48 @@ if (want('G1')) {
   await shot('g1-board-kpi');
 }
 
-/* ── G2 看板：趋势两图 + 范围四档 + 下载数值态 ── */
+/* ── G2 看板：趋势两图 + 档位**真实切换**（T6⁺ 重写：官方 Combobox + 硬证据）── */
 if (want('G2')) {
-  const trendSvg = await svgCount();
-  ok('G2.1 趋势 + 类型图 SVG ≥4', trendSvg >= 4, `svg=${trendSvg}`);
-  const t0 = await bodyText();
-  ok('G2.2 下载态 = 数值（非「暂无下载历史」）', !t0.includes('真库暂无下载历史'));
-  const before = await evalJs(
-    'document.body.innerText.match(/截至 (\\d{4}-\\d{2}-\\d{2})/g)?.length ?? 0',
-  );
-  await evalJs(
-    `(() => { const s = document.querySelector('select'); if (!s) return null; const opts=[...s.options]; const o = opts.find(x => x.value === '180') ?? opts[1]; s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); return o.value; })()`,
-  );
-  await sleep(2600);
-  const after = await evalJs(
-    'document.body.innerText.match(/截至 (\\d{4}-\\d{2}-\\d{2})/g)?.length ?? 0',
+  const svg = await svgCount();
+  const trendCharts = await evalJs(
+    `(() => { const c = [...document.querySelectorAll('[data-slot=card]')].find((x) => x.textContent.includes('资产数和下载数趋势')); return c ? c.querySelectorAll('svg.recharts-surface').length : -1; })()`,
   );
   ok(
-    'G2.3 范围切换后两图仍在（截至行数不变）',
-    after === before && after >= 2,
-    `before=${before} after=${after}`,
+    'G2.1 趋势卡两图 + 全页图表 SVG ≥6',
+    svg >= 6 && trendCharts === 2,
+    `全页=${svg} 趋势卡=${trendCharts}`,
   );
-  await shot('g2-board-trend-180');
+  const cap = await bodyText();
+  const capCount = (cap.match(/截至 \d{4}-\d{2}-\d{2}/g) ?? []).length;
+  ok(
+    'G2.2 下载态 = 数值（题注「截至 YYYY-MM-DD」≥2 处 · 无空态文案）',
+    capCount >= 2 && !cap.includes('暂无下载历史'),
+    `题注=${capCount} 处`,
+  );
+  const t30 = await trendTicks();
+  const age30 = tickAgeDays(t30[0] ?? '');
+  ok(
+    'G2.3 默认档位 = 近 30 天（首刻度龄 8–29 天）',
+    t30.length >= 2 && age30 >= 8 && age30 <= 29,
+    `刻度=${t30.join('/')} 首刻度龄=${age30}`,
+  );
+  const switched = await pickRange('近 7 天');
+  const t7 = await trendTicks();
+  const age7 = tickAgeDays(t7[0] ?? '');
+  ok(
+    'G2.4 档位切换**生效**（近 7 天：首刻度龄 ≤6 且与 30 天档不同）',
+    switched && t7.length >= 2 && age7 >= 0 && age7 <= 6 && t7.join() !== t30.join(),
+    `切换=${switched} 刻度=${t7.join('/')} 首刻度龄=${age7}`,
+  );
+  await shot('g2-board-trend-7');
+  await pickRange('近 30 天');
+  const back = await trendTicks();
+  const ageBack = tickAgeDays(back[0] ?? '');
+  ok(
+    'G2.5 切回近 30 天（首刻度龄回到 8–29 天）',
+    ageBack >= 8 && ageBack <= 29,
+    `刻度=${back.join('/')} 首刻度龄=${ageBack}`,
+  );
 }
 
 /* ── G3 看板：标签维度两图（同心环 + 雷达 · T6⁺ 换靶） ── */
@@ -337,27 +412,44 @@ if (want('G3')) {
   );
 }
 
-/* ── G4 看板：排行榜三口径 + Top N + 英雄榜 ×2 ── */
+/* ── G4 看板：排行榜三口径（T6⁺ 重写：按 data-active 定位 + 柱数 = 端点条数）── */
 if (want('G4')) {
-  const clickCaliber = async (label: string) => {
-    await evalJs(
-      `(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent?.trim() === '${label}'); if (b) b.click(); return !!b; })()`,
-    );
-    await sleep(1200);
+  const rk = await readJson('/api/admin/rankings?limit=100');
+  const TOPN = 10; // 页面默认 Top N（与 rank.topN 默认档一致）
+  // 期望柱数 = 前 TOPN 条里 **value > 0** 的条数 —— recharts 不为零高柱渲染 `recharts-bar-rectangle`
+  // （实测：资产榜前 10 条含 6 条 value=0 ⇒ DOM 只有 4 根柱；按数组长度断言会假红）
+  const nonzero = (arr: Array<{ value: number }>) =>
+    Math.min(TOPN, arr.filter((x) => x.value > 0).length);
+  const expectOf: Record<string, number> = {
+    人: nonzero(rk.body?.people ?? []),
+    标签: nonzero(rk.body?.labels ?? []),
+    资产: nonzero(rk.body?.assets ?? []),
   };
-  await clickCaliber('标签');
-  const barsLabel = await evalJs(
-    "document.querySelectorAll('svg.recharts-surface .recharts-bar-rectangle').length",
-  );
-  ok('G4.1 切换「标签」口径后条形在场', (barsLabel ?? 0) >= 1, `bars=${barsLabel}`);
-  await clickCaliber('资产');
-  const barsAsset = await evalJs(
-    "document.querySelectorAll('svg.recharts-surface .recharts-bar-rectangle').length",
-  );
-  ok('G4.2 切换「资产」口径后条形在场', (barsAsset ?? 0) >= 1, `bars=${barsAsset}`);
+  const caliberBtn = (label: string) =>
+    `[...document.querySelectorAll('button[data-active]')].find((x) => (x.textContent || '').includes(${JSON.stringify(label)}))`;
+  const activeNow = async (): Promise<string | null> =>
+    evalJs(
+      `(() => { const b = [...document.querySelectorAll('button[data-active]')].find((x) => x.getAttribute('data-active') === 'true');
+        if (!b) return null; const m = (b.textContent || '').trim().match(/^(人|资产|标签)/); return m ? m[0] : null; })()`,
+    );
+  const a0 = await activeNow();
+  ok('G4.1 默认口径 = 人（按钮 data-active=true）', a0 === '人', `active=${a0}`);
+  for (const label of ['标签', '资产', '人'] as const) {
+    await evalJs(`(() => { const b = ${caliberBtn(label)}; if (b) b.click(); return !!b; })()`);
+    await sleep(1400);
+    const active = await evalJs(
+      `(() => { const b = ${caliberBtn(label)}; return b ? b.getAttribute('data-active') : null; })()`,
+    );
+    const bars = await rankBarCount();
+    ok(
+      `G4.2 切「${label}」口径生效：data-active=true 且柱数 = 端点条数`,
+      active === 'true' && bars === expectOf[label],
+      `active=${active} bars=${bars} 端点=${expectOf[label]}`,
+    );
+    if (label === '标签') await shot('g4-board-rank-label');
+  }
   const t = await bodyText();
-  ok('G4.3 英雄榜两卡在位', t.includes('资产榜') && t.includes('员工榜'));
-  // T6⁺：Top N 与时间档位均改官方 `Combobox`（不再是原生 `select`）
+  ok('G4.3 英雄榜两榜在位', t.includes('资产榜') && t.includes('员工榜'));
   const comboLabels = await evalJs(
     `(() => [...document.querySelectorAll('input[aria-label]')].map((i) => i.getAttribute('aria-label')))()`,
   );
@@ -367,7 +459,6 @@ if (want('G4')) {
       (comboLabels ?? []).some((x: string) => /^近/.test(x)),
     JSON.stringify(comboLabels),
   );
-  await shot('g4-board-rank');
 }
 
 /* ── G5 看板：英雄榜形制（T6⁺：竖柱 + 柱顶数值 + 水平多行类目名） ── */
@@ -726,19 +817,6 @@ if (want('G14')) {
       `(() => { const c = [...document.querySelectorAll('[data-slot=card]')].find((x) => x.textContent.includes('累计下载'));
         return c ? [...c.querySelectorAll('[data-slot=card-content]')].map((e) => e.textContent.trim()).join('|') : null; })()`,
     )) as string | null;
-  /** 用时间档位 Combobox 换档 */
-  const pickRange = async (label: string) => {
-    await evalJs(
-      `(() => { const el = [...document.querySelectorAll('input[aria-label]')].find((i) => /^近/.test(i.getAttribute('aria-label') || ''));
-        if (!el) return false; el.focus(); el.click(); el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return true; })()`,
-    );
-    await sleep(700);
-    await evalJs(
-      `(() => { const el = [...document.querySelectorAll('[role=option]')].find((e) => (e.textContent || '').trim() === ${JSON.stringify(label)});
-        if (el) el.click(); return !!el; })()`,
-    );
-    await sleep(2200);
-  };
 
   const hint30 = await kpiHint();
   await pickRange('近 7 天');
