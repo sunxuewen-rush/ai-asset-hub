@@ -12,7 +12,7 @@
  * 数据：`/api/admin/{overview,rankings,trends}`（**仅进页拉一次**，D51 —— 不做轮询、不加刷新按钮）。
  * 空态：`downloads === null`（下载事件表未落）⇒ 下载小图改虚线占位 + 右上说明（design §4.1(b)）。
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Area,
@@ -31,7 +31,6 @@ import {
   YAxis,
 } from 'recharts';
 import {
-  type AdminOverview,
   type AdminRankItem,
   fetchAdminOverview,
   fetchAdminRankings,
@@ -84,7 +83,7 @@ type Caliber = 'people' | 'labels' | 'assets';
 function axisTicks(max: number): number[] {
   const steps = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
   const target = Math.max(max, 1) * 1.1;
-  let step = steps[0]!;
+  let step = steps[0] ?? 1;
   for (let e = 0; e < 9; e += 1) {
     for (const s of steps) {
       const candidate = s * 10 ** e;
@@ -102,7 +101,7 @@ function axisTicks(max: number): number[] {
 function dayLabel(day: string, long: boolean): string {
   // 短窗口 `MM-DD` · 长窗口 `YY-MM`
   const [y, m, d] = day.split('-');
-  return long ? `${y!.slice(2)}-${m}` : `${m}-${d}`;
+  return long ? `${(y ?? '').slice(2)}-${m}` : `${m}-${d}`;
 }
 
 function Kpi({
@@ -261,8 +260,8 @@ export default function AdminBoard() {
               <span className="text-xs text-muted-foreground">
                 {points.length > 0
                   ? t('board', 'trend.asOf', {
-                      day: points.at(-1)!.day,
-                      value: points.at(-1)!.assets,
+                      day: points.at(-1)?.day ?? '',
+                      value: points.at(-1)?.assets ?? 0,
                     })
                   : '—'}
               </span>
@@ -310,8 +309,8 @@ export default function AdminBoard() {
               <span className="text-xs text-muted-foreground">
                 {hasDownloadHistory && points.length > 0
                   ? t('board', 'trend.asOf', {
-                      day: points.at(-1)!.day,
-                      value: points.at(-1)!.downloads ?? 0,
+                      day: points.at(-1)?.day ?? '',
+                      value: points.at(-1)?.downloads ?? 0,
                     })
                   : t('board', 'trend.empty.downloads')}
               </span>

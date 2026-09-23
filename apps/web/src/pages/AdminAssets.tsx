@@ -390,29 +390,34 @@ export function AdminAssetsProto() {
                 ? t('admin', 'assets.countFiltered', { n: total })
                 : t('admin', 'assets.countAll', { n: total })}
             </span>
-            <span className="text-[11px] text-muted-foreground/70">
-              （状态筛选依赖本批服务端改动 4，尚未实现 ⇒ 当前 DEV 环境点了不生效，属预期）
-            </span>
             <div className="ml-auto flex items-center gap-3">
               {/* 状态筛选（第 4 入口 · 治理场景主入口：只看隐藏 / 归档） */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger size="sm" className="w-[130px]" aria-label="状态筛选">
+                <SelectTrigger
+                  size="sm"
+                  className="w-[130px]"
+                  aria-label={t('admin', 'assets.filter.statusAria')}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>全部状态</SelectItem>
-                  <SelectItem value="ACTIVE">已上线</SelectItem>
-                  <SelectItem value="HIDDEN">已隐藏</SelectItem>
-                  <SelectItem value="ARCHIVED">已归档</SelectItem>
+                  <SelectItem value={ALL}>{t('admin', 'assets.filter.statusAll')}</SelectItem>
+                  <SelectItem value="ACTIVE">{t('assets', 'filter.status.active')}</SelectItem>
+                  <SelectItem value="HIDDEN">{t('assets', 'filter.status.hidden')}</SelectItem>
+                  <SelectItem value="ARCHIVED">{t('assets', 'filter.status.archived')}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger size="sm" className="w-[130px]" aria-label="类型筛选">
+                <SelectTrigger
+                  size="sm"
+                  className="w-[130px]"
+                  aria-label={t('admin', 'assets.filter.typeAria')}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>全部类型</SelectItem>
-                  <SelectItem value="skill">技能</SelectItem>
+                  <SelectItem value={ALL}>{t('admin', 'assets.filter.typeAll')}</SelectItem>
+                  <SelectItem value="skill">{t('assets', 'type.skill')}</SelectItem>
                   <SelectItem value="mcp">MCP Server</SelectItem>
                   <SelectItem value="agent">Agent</SelectItem>
                 </SelectContent>
@@ -423,7 +428,7 @@ export function AdminAssetsProto() {
                   items={columnItemsOf(t)}
                   value={columnVisibility}
                   onChange={setColumnVisibility}
-                  label="列显示"
+                  label={t('market', 'colShow')}
                   labels={{ required: t('market', 'colRequired'), reset: t('market', 'colReset') }}
                   badgeCount={hiddenCount}
                 />
@@ -431,7 +436,12 @@ export function AdminAssetsProto() {
               {/* 排序档位入口：与列头**同源**（同一 URL `sort`/`dir`）⇒ 两处永远一致（门户同款） */}
               <SortMenu value={sort} onChange={(next) => query.setSort?.(next)} />
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="搜索" title="搜索">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t('market', 'searchBtn')}
+                  title={t('market', 'searchBtn')}
+                >
                   <Search />
                 </Button>
               </CollapsibleTrigger>
@@ -446,10 +456,18 @@ export function AdminAssetsProto() {
                   if (next) setView(next as ViewMode);
                 }}
               >
-                <ToggleGroupItem value="grid" aria-label="卡片视图" title="卡片视图">
+                <ToggleGroupItem
+                  value="grid"
+                  aria-label={t('market', 'viewGrid')}
+                  title={t('market', 'viewGrid')}
+                >
                   <LayoutGrid />
                 </ToggleGroupItem>
-                <ToggleGroupItem value="list" aria-label="列表视图" title="列表视图">
+                <ToggleGroupItem
+                  value="list"
+                  aria-label={t('market', 'viewList')}
+                  title={t('market', 'viewList')}
+                >
                   <ListIcon />
                 </ToggleGroupItem>
               </ToggleGroup>
@@ -464,14 +482,14 @@ export function AdminAssetsProto() {
                 ref={searchRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="搜索资产名称 / slug"
-                aria-label="搜索资产名称"
+                placeholder={t('admin', 'assets.searchPlaceholder')}
+                aria-label={t('admin', 'assets.searchLabel')}
               />
               <InputGroupAddon align="inline-end">
                 <InputGroupButton
                   size="icon-xs"
-                  aria-label="关闭搜索"
-                  title="关闭搜索"
+                  aria-label={t('market', 'searchClose')}
+                  title={t('market', 'searchClose')}
                   onClick={() => {
                     setQ('');
                     setSearchOpen(false);
@@ -486,7 +504,7 @@ export function AdminAssetsProto() {
 
         {error ? <ErrorState error={error} onRetry={() => setRetryTick((n) => n + 1)} /> : null}
         {!error && !loading && list && list.items.length === 0 ? (
-          <EmptyState message="没有匹配的资产" />
+          <EmptyState message={t('assets', 'empty.filtered')} />
         ) : null}
         {!error && (loading || (list && list.items.length > 0)) ? (
           view === 'grid' ? (
@@ -514,7 +532,7 @@ export function AdminAssetsProto() {
               {!loading && (list?.items ?? []).length === 0 ? (
                 <Empty className="col-span-full py-10">
                   <EmptyHeader>
-                    <EmptyTitle>没有匹配的资产</EmptyTitle>
+                    <EmptyTitle>{t('assets', 'empty.filtered')}</EmptyTitle>
                   </EmptyHeader>
                 </Empty>
               ) : null}
@@ -536,14 +554,14 @@ export function AdminAssetsProto() {
               sorting={sorting}
               columnVisibility={columnVisibility}
               onColumnVisibilityChange={setColumnVisibility}
-              emptyMessage="没有匹配的资产"
+              emptyMessage={t('assets', 'empty.filtered')}
               rowActions={(item: AssetItem) => (
                 <Button
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  aria-label="查看"
-                  title="查看"
+                  aria-label={t('submissions', 'action.view')}
+                  title={t('submissions', 'action.view')}
                   onClick={() => setCurrent(item)}
                 >
                   <Eye className="size-4" />
@@ -576,14 +594,16 @@ export function AdminAssetsProto() {
           if (!open) setCurrent(null);
         }}
         title={current?.latestName ?? current?.slug ?? ''}
-        description="资产详情（就地查看，不跳页）"
+        description={t('admin', 'assets.drawerDesc')}
         footer={
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={() => setCurrent(null)}>
-              关闭
+              {t('common', 'close')}
             </Button>
             <Button size="sm" asChild>
-              <Link to={`/assets/${encodeURIComponent(current?.slug ?? '')}`}>打开完整详情页</Link>
+              <Link to={`/assets/${encodeURIComponent(current?.slug ?? '')}`}>
+                {t('admin', 'assets.openFull')}
+              </Link>
             </Button>
           </div>
         }
@@ -593,27 +613,27 @@ export function AdminAssetsProto() {
             <dl className="grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
               <dt className="text-muted-foreground">slug</dt>
               <dd className="col-span-2 font-medium">{current.slug}</dd>
-              <dt className="text-muted-foreground">类型</dt>
+              <dt className="text-muted-foreground">{t('assets', 'col.type')}</dt>
               <dd className="col-span-2">{typeLabel(t, current.type)}</dd>
-              <dt className="text-muted-foreground">状态</dt>
+              <dt className="text-muted-foreground">{t('assets', 'col.status')}</dt>
               <dd className="col-span-2">
                 <StatusCell status={current.status} />
               </dd>
-              <dt className="text-muted-foreground">归属人</dt>
+              <dt className="text-muted-foreground">{t('admin', 'assets.col.owner')}</dt>
               <dd className="col-span-2">{ownerText(current)}</dd>
-              <dt className="text-muted-foreground">最新版本</dt>
+              <dt className="text-muted-foreground">{t('assets', 'col.version')}</dt>
               <dd className="col-span-2 tabular-nums">{current.latestVersion ?? '—'}</dd>
-              <dt className="text-muted-foreground">下载</dt>
+              <dt className="text-muted-foreground">{t('assets', 'col.download')}</dt>
               <dd className="col-span-2 tabular-nums">{current.downloadCount.toLocaleString()}</dd>
-              <dt className="text-muted-foreground">收藏</dt>
+              <dt className="text-muted-foreground">{t('assets', 'col.star')}</dt>
               <dd className="col-span-2 tabular-nums">{current.starCount}</dd>
-              <dt className="text-muted-foreground">更新于</dt>
+              <dt className="text-muted-foreground">{t('assets', 'col.updated')}</dt>
               <dd className="col-span-2 tabular-nums">{formatDate(current.updatedAt)}</dd>
             </dl>
             {/* 描述（`AssetItem.latestDescription` —— 与门户列表「描述」列/卡片描述**同字段**，零新增请求） */}
             <Separator />
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm text-muted-foreground">描述</span>
+              <span className="text-sm text-muted-foreground">{t('market', 'colDesc')}</span>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
                 {current.latestDescription ?? '—'}
               </p>

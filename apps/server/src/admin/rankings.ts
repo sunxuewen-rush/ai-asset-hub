@@ -16,7 +16,7 @@
  * - 资产名 = `asset` 表**无名字列**（名字是版本投影 `parsed_metadata_json.name`）⇒ 复用
  *   `assets/service.ts::loadAssetItemMeta`（latest 版本投影；缺失 ⇒ 回退 slug）
  */
-import { and, asc, count, desc, eq } from 'drizzle-orm';
+import { asc, count, desc, eq } from 'drizzle-orm';
 import { loadAssetItemMeta } from '../assets/service.js';
 import type { Db } from '../db/client.js';
 import { asset, assetLabel, labelDefinition, user } from '../db/schema/index.js';

@@ -275,7 +275,7 @@ export default function AdminAudit() {
         ),
       },
     ],
-    [],
+    [t],
   );
 
   const moreActive = MORE_FIELDS.filter((f) => (more[f.key] ?? '').trim() !== '').length;
@@ -322,7 +322,7 @@ export default function AdminAudit() {
         {/* 过滤区（常显）：动作分组下拉 + 日期区间快捷项 */}
         <div className="mt-4 mb-3 flex flex-wrap items-center gap-3 px-0.5">
           <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">快捷</span>
+            <span className="text-xs text-muted-foreground">{t('admin', 'audit.quick.label')}</span>
             <Button
               variant={quick === '24h' ? 'secondary' : 'outline'}
               size="sm"
@@ -333,7 +333,7 @@ export default function AdminAudit() {
             <Button
               variant={quick === 'versionYank' ? 'secondary' : 'outline'}
               size="sm"
-              title="治理高频查法：版本下架（action=asset.version_yank）"
+              title={t('admin', 'audit.quick.yankTip')}
               onClick={() => {
                 setQuick(quick === 'versionYank' ? null : 'versionYank');
                 setAction(ALL);
@@ -385,20 +385,22 @@ export default function AdminAudit() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="日期区间"
-                  title="日期区间（官方 Calendar）"
+                  aria-label={t('admin', 'audit.range.aria')}
+                  title={t('admin', 'audit.range.title')}
                 >
                   <CalendarDays className="size-4" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-auto p-0">
                 <div className="flex flex-col gap-2 p-3">
-                  <span className="text-xs text-muted-foreground">自定义区间（落 from / to）</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t('admin', 'audit.range.label')}
+                  </span>
                   <Calendar mode="range" numberOfMonths={1} />
                   <div className="flex items-center gap-2">
                     <Input
                       type="date"
-                      aria-label="起始日期"
+                      aria-label={t('admin', 'audit.range.from')}
                       value={customFrom}
                       onChange={(e) => {
                         setCustomFrom(e.target.value);
@@ -408,7 +410,7 @@ export default function AdminAudit() {
                     <span className="text-muted-foreground">→</span>
                     <Input
                       type="date"
-                      aria-label="结束日期"
+                      aria-label={t('admin', 'audit.range.to')}
                       value={customTo}
                       onChange={(e) => {
                         setCustomTo(e.target.value);
@@ -486,8 +488,8 @@ export default function AdminAudit() {
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  aria-label="查看"
-                  title="查看"
+                  aria-label={t('submissions', 'action.view')}
+                  title={t('submissions', 'action.view')}
                   onClick={() => setCurrent(r)}
                 >
                   <Eye className="size-4" />
@@ -517,7 +519,7 @@ export default function AdminAudit() {
         open={current !== null}
         onOpenChange={(o) => !o && setCurrent(null)}
         title={current ? `${current.action} · #${current.id}` : ''}
-        description="原始记录（全量展示，不打码）"
+        description={t('admin', 'audit.drawerDesc')}
       >
         {current ? (
           <div className="flex flex-col gap-4">
@@ -534,7 +536,7 @@ export default function AdminAudit() {
                     {current.actorName ? ` ${current.actorName}` : ''}
                   </>
                 ) : (
-                  '—（匿名）'
+                  t('admin', 'audit.anonymous')
                 )}
               </dd>
               <dt className="text-muted-foreground">{t('admin', 'audit.col.target')}</dt>

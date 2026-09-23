@@ -161,7 +161,6 @@ export const assetStar = pgTable(
   (t) => [unique('uq_asset_star_asset_user').on(t.assetId, t.userId)],
 );
 
-
 /**
  * 下载事件表（M4b-6 T3 · 服务端改动 5 · 迁移 `0014` · D38 = **4 列最小集**）。
  *

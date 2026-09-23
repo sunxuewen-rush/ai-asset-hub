@@ -1,9 +1,9 @@
 # M4b-6 治理批：管理看板 + 资产管理 + 标签定义 + 审计日志 —— 批设计
 
 > Date: 2026-09-23
+> Updated: 2026-09-23（**v0.29：实现落地回填（T1–T10 全绿）** —— §9.7 六项回填**逐项填实测值**（i18n **+130** 键 · 迁移 0014 十一行两索引 · dogfood **41/0** · 件行数 · PoC 清理零残留）· §9.7 追加**实施期发现 F203–F205**（`overview.types[]` 加性补 · 审计 `actorName` leftJoin · 两页 i18n 泄漏修缮）· Status 补「实现已落地」· 落地记录见批 plan §7 · 证据 = `docs/smoke/2026-09-23-m4b6-governance-console.md`）
 > Updated: 2026-09-23（**v0.28：定稿**（用户口令「定稿」）—— Status → **定稿**（2026-09-23 用户批准 · 8 维 **9.50**）· 回填 `docs/00` §5（⬜ 待对齐 → 🔷 **设计定稿**；服务端「1 处待定」→ **8 项**）+ §8 修订（v1.89）· 回填主 design §2.3（范围补「管理看板 `/admin`」· 服务端 **1 → 8 处**）+ Status 段「下一批」订正 + §15 修订（v1.65）· **零实现改动**
-> Updated: 2026-09-23（**v0.27：grilling 第 4 轮（用户「grilling技能再来一遍检查」→「按推荐来」）** —— 7 问 5 落 2 撤：① **Q1 落**（`downloads` 两态：0014 后空表 ⇒ `0`，`null` 仅过渡态 · §5.1 + D52）② **Q2 落**（三口径排行榜补主键稳定键 · §5.1 + D53）③ **Q5 落**（管理三端点实时无缓存 · §5.1 + D54）④ **Q6 落**（审计导出本批不做 ⇒ 新登记 **U14** · D55）⑤ **Q7 落**（**U8 闭环**：`days` 越界夹到最近档 · F5 同步）⑥ **Q3 撤回**（我漏查 **D45**：沉睡资产**早已**限定 `ACTIVE` ⇒ 与现状逐字一致，零改动）⑦ **Q4 撤回**（与既有 **D39** 冲突：§5.2 早已定「事件写失败 ⇒ 回滚计数 + warn + **仍放行下载**」⇒ **保留 D39**，不采纳我的「整笔失败」）· §11.1 边界覆盖行同步（U8 转覆盖 + 新增 `downloads` 两态 / 并列稳定键）
-> Status: **定稿**（**2026-09-23 用户批准**）—— 8 维 **9.50** · 换靶 5 轮 + grilling 4 轮 · 门槛项已清空 · 已回填 `docs/00` §5（v1.89）与主 design §2.3（v1.65）；后续实现以批 plan 为准
+> Status: **定稿**（**2026-09-23 用户批准**）· **实现已落地（T1–T10 · 2026-09-23）**—— 8 维 **9.50** · 换靶 5 轮 + grilling 4 轮 · 门槛项已清空 · 已回填 `docs/00` §5（v1.89）与主 design §2.3（v1.65）；后续实现以批 plan 为准
 > Scope: 本批 = `docs/00` §5「M4b-6」行（治理批四项交付物）· 服务端改动 **8 项**（见 §7）：4 个只读端点新建 + 2 处出参扩 + 1 处语义收紧 + 1 张表/写入（实现期）
 > 引用链: 上游主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（拍板表 / 页面职责矩阵）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）· 前序批 M4b-5 `docs/designs/2026-09-21-m4b5-review-workbench-design.md`
 
@@ -744,14 +744,26 @@ AdminDashboard
 - `docs/08` 数据模型：`download_event` 表落库时同步
 - 本设计 §5.2 的「历史不可回溯」局限须同时登记到 `docs/00` §5 注记
 
-### 9.7 收尾回填项（均由实现期实测填入）
+### 9.7 收尾回填项（已由实现期实测填入 · 2026-09-23）
 
-1. 三端点实际出参字段与页面消费点对照
-2. i18n 键数（`board` 组 + `admin` 组增量）
-3. 件行数（新建/改造件 `wc -l`）
-4. dogfood 分组 PASS 数
-5. 迁移 **0014** 的 SQL 行数与索引名
-6. PoC 物料清理：`apps/web/src/pages/__proto/`（含 `?demo` 开关）在真页落地后删除，DEV 路由同步移除
+| # | 回填项 | 实测值（口径 / 出处） |
+|---|--------|----------------------|
+| 1 | 三端点出参 ↔ 页面消费点 | `overview`（KPI 5 + `types[]` · F203 加性补）↔ 看板四卡 + 同心环/雷达 · `trends`（`assets`/`downloads` 序列）↔ 趋势两张小图 · `rankings`（三口径 + 稳定键）↔ 排行榜单卡 + 英雄榜 ×2 · `/api/audit/actions`（8 组）↔ 动作分组下拉 |
+| 2 | i18n 键数 | zh / en 叶子键 **各 534**（差集 **0**）· 本批 **+130 键**（404 → 534）· `board` 组 **39**（新组）· `admin` 组 **6 → 95**（+89，含 F205 补的 17 键） |
+| 3 | 件行数（`wc -l`） | `AdminBoard` **645** · `AdminAssets` **625** · `AdminLabels` **574** · `AdminAudit` **565** · `api/admin.ts` **165** · `http/admin.ts` **68** · `http/admin.test.ts` **566** · `overview` **200** · `rankings` **116** · `trends` **134** · `chart.tsx` **340** · `combobox.tsx` **283** |
+| 4 | dogfood 分组 PASS 数 | **PASS 41 / FAIL 0 / 超时 0**（G1–G11 · 每段 `NO JS ERRORS`） |
+| 5 | 迁移 **0014** | `0014_simple_blizzard.sql` · **11 行** · 表 `download_event` · 索引 `idx_download_event_created_at` / `idx_download_event_asset_id`（2 条）· 迁移后表数 **16** |
+| 6 | PoC 清理（U7） | `apps/web/src/pages/__proto/`（4 页 + 3 数据文件）· `tmp-dashboard-probe.ts` / `tmp-label-seed-child.ts` / `tmp-labels-audit-probe.ts` 已删；`main.tsx` DEV 路由与 `ComingSoon` 已移除 ⇒ `git status` 零残留 |
+
+**实施期发现与处置（2026-09-23 · 实现批 T1–T10 期间）**
+
+| 号 | 面 | 问题（真） | 处置 |
+|----|----|-----------|------|
+| **F203** | §4.1 (e)(f) | 两图指向 §5.1，但该处未列 `types[]` 出参（实现者会漏取数） | 最小加性补 `overview.types[]`（`admin/overview.ts` + `admin.test.ts` 断言） |
+| **F204** | 审计查询（§4.4 D48） | `select().from(auditLog)` 无 join ⇒ 拿不到「姓名」（D48 要求工号 + 姓名同列） | 补 `leftJoin` 出 `actorName`（`audit/query.ts`）+ 测试 |
+| **F205** | §6 i18n（实现面） | 两页共 **28 处**硬编码中文（`aria-label` / `title` / `placeholder` / 空态 / 抽屉字段名）+ 1 行 stale DEV 提示 | 两页文案全部走 i18n（**F205 新增键 17 个**）；stale 行删除；`doc-claims-check` ⑤ 纳入门禁防复发 |
+
+> 证据文件：`docs/smoke/2026-09-23-m4b6-governance-console.md`（门禁 · dogfood · 换靶校验 · 真库读数 · 未证项 4 条）。
 
 ## 10. 引用文件清单
 
@@ -820,6 +832,7 @@ AdminDashboard
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| **v0.29** | 2026-09-23 | **实现落地回填（T1–T10）** —— ① §9.7 六项回填填实测值 ② 追加**实施期发现 F203–F205**（`overview.types[]` 加性补 · 审计 `actorName` leftJoin · 两页 28 处 i18n 泄漏 + 17 键）③ Status 补「实现已落地」④ 证据文件 `docs/smoke/2026-09-23-m4b6-governance-console.md`。**本版零设计语义改动** |
 | v0.28 | 2026-09-23 | **定稿**（用户口令）：Status → 定稿（2026-09-23 批准）· 回填 `docs/00` §5 + 主 design §2.3（服务端 1 → **8 项**；范围补管理看板）· 跨文档版本 = docs/00 **v1.89** / 主 design **v1.65** |
 | v0.27 | 2026-09-23 | grilling R4（含收口复核：Status 门槛清空 · 未决表重排 U5–U14）：Q1 `downloads` 两态 · Q2 排行稳定键 · Q5 三端点无缓存 · Q6 新增 U14（导出）· Q7 **U8 闭环**（夹值）；**Q3/Q4 撤回**（Q3 与 D45 重复 · Q4 与 D39 冲突） |
 | v0.26 | 2026-09-23 | 定稿前体检：换靶第 5 轮（版本锚点/跨文档/映射/中立性/原型终态）· 未决表按编号重排 · Status → **定稿待口令**（门槛项仅 U8）· 无内容缺陷 |
