@@ -5,7 +5,8 @@
  *       资产管理（10 列 + 状态默认全部 + 排序接线 + 列显示 + 详情抽屉）·
  *       标签定义（两级树 + 上限块 + ↑↓ 边界 + 删除确认禁用）·
  *       审计日志（过滤区三块 + 6 列 + 详情抽屉 + **服务端过滤生效** + 清除筛选）· 跨页数字一致 ·
- *       **侧栏激活唯一性**（G12 · F206 守护：任一导航路径下恰 1 条 `[data-active=true]`，13 路径 + 1 零态）。
+ *       **侧栏激活唯一性**（G12 · F206 守护：任一导航路径下恰 1 条 `[data-active=true]`，13 路径 + 1 零态）·
+ *       **顶栏形态 + 页内标题**（G13 · F207 守护：顶栏**无** `h1` 且内容区**有**标题，14 路径 + 1 聚合）。
  *
  * 前置（dev 三件在线）：`:3000` API · `:5173` web · `:9222` Edge CDP
  * 造数（**先跑**）：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b6-seed-downloads.ts`
@@ -47,6 +48,7 @@ const SECTION_IDS = [
   'G10',
   'G11',
   'G12',
+  'G13',
 ] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 const only = (process.env.SMOKE_ONLY ?? '')
@@ -528,6 +530,59 @@ if (want('G12')) {
     'G12.15 F206 回归：/admin/assets 下「管理看板」不激活',
     !f206.includes('/admin') && f206.length === 1,
     `active=${JSON.stringify(f206)}`,
+  );
+}
+
+/* ── G13 顶栏形态 + 页内标题（**F207 守护** · 2026-09-23 用户拍板「甲」） ──
+ * 「甲」= 顶栏回归官方 block 形态 —— 删自造 `titleOf(pathname)` 路由表（官方 `dashboard-01/site-header.tsx`
+ *   的 `<h1>` 是写死的、`sidebar-07` 顶栏 Breadcrumb 亦每页硬编码 ⇒ 官方**无**「路由 → 标题」机制）。
+ *   F207 实况：该表漏 `/admin` 与 `/admin/assets` ⇒ 两页顶栏无名称（用户 2026-09-23 报）。
+ * 断言（逐路由两条合一）：「顶栏**无** `h1`」**且**「内容区有首个标题」。
+ * 口径注记：页内标题**不必**是 `<h1>` —— 本仓多数页用 `PageHeader`（官方 `Card` → `CardTitle` 渲染为
+ *   `<div data-slot="card-title">`）⇒ 取值集合 = `[data-slot="card-title"], h1, h2, h3`（排除 `header` 内）。  */
+if (want('G13')) {
+  await loginAs(SUPER);
+  const readTitles = async (): Promise<{ bar: string | null; main: string | null }> =>
+    JSON.parse(
+      ((await evalJs(`(() => {
+        const txt = (e) => ((e && e.textContent) || '').trim();
+        const bar = document.querySelector('header h1');
+        const root = document.querySelector('main') || document.body;
+        const cand = Array.from(root.querySelectorAll('[data-slot="card-title"], h1, h2, h3'))
+          .filter((e) => !e.closest('header')).map(txt).filter(Boolean);
+        return JSON.stringify({ bar: bar ? txt(bar) : null, main: cand[0] ?? null });
+      })()`)) as string | undefined) ?? '{"bar":null,"main":null}',
+    );
+  const G13_PATHS = [
+    '/',
+    '/skills',
+    '/mcps',
+    '/agents',
+    '/search',
+    '/dashboard',
+    '/dashboard/assets',
+    '/dashboard/submissions',
+    '/dashboard/tokens',
+    '/admin',
+    '/admin/assets',
+    '/admin/reviews',
+    '/admin/audit',
+    '/admin/labels',
+  ];
+  let i13 = 0;
+  for (const p of G13_PATHS) {
+    i13 += 1;
+    await nav(`${APP}${p}`);
+    const r = await readTitles();
+    ok(
+      `G13.${i13} ${p} 顶栏无 h1 且内容区有标题`,
+      r.bar === null && typeof r.main === 'string' && r.main.length > 0,
+      `bar=${JSON.stringify(r.bar)} main=${JSON.stringify(r.main)}`,
+    );
+  }
+  ok(
+    'G13.15 顶栏 h1 计数 = 0（甲口径：页面名只在页内）',
+    (await evalJs("document.querySelectorAll('header h1').length")) === 0,
   );
 }
 

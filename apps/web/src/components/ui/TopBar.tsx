@@ -1,8 +1,6 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AssetSearch } from '@/components/search/AssetSearch';
-import { Separator } from '@/components/ui/shadcn/separator';
 import { SidebarTrigger } from '@/components/ui/shadcn/sidebar';
-import type { Translate } from '@/i18n/I18nProvider';
 import { useI18n } from '@/i18n/I18nProvider';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
 
@@ -43,53 +41,28 @@ import { LanguageSwitcher } from './LanguageSwitcher.js';
  *      `58 → 42` 收矮（那是照 `sidebar-07` 的 `h-12` 写法，此处改跟 dashboard-01）
  * ⚠️ **唯一保留的 AIH 差异**：`sticky top-0 z-20 bg-card`（官方 SiteHeader 不 sticky；本仓内容区
  *    随文档滚动，去掉会连带顶栏滚走 ⇒ 属功能性保留，非视觉偏离）。
+ *
+ * **2026-09-23 用户拍板「甲」：顶栏回归官方 block 形态（撤除动态标题区）**
+ *   · 事实基础（官方真源逐文件核过）：官方**没有** topbar/header 组件（`registry:ui` 63 件里无 header；
+ *     只有 `SidebarHeader`/`CardHeader` 等容器内局部件）；顶栏仅存在于 **block 示例源码**——
+ *     `dashboard-01/components/site-header.tsx` 的 `<h1>Documents</h1>` 是**写死**的，
+ *     `sidebar-07` 顶栏 `Breadcrumb` 两项也是**每页硬编码**；官方**无任何「路由 → 标题」机制**。
+ *   · 本仓原自造 `titleOf(pathname)` 路由表 ⇒ **F207**：表漏 `/admin` 与 `/admin/assets`
+ *     （用户 2026-09-23 报「点管理看板 / 资产管理，顶栏不显示名称」）⇒ 与 F206 同族（手维护清单漏条）。
+ *   · 决策：**删表**（不补两条）——顶栏只留官方件 `SidebarTrigger` + 右侧动作（`AssetSearch` + `LanguageSwitcher`）；
+ *     页面名**只由页内渲染**（每页均有标题：`PageHeader` 或 `<h1>`，已逐路由实测）。
+ *     副产物：一并消除「顶栏标题 + 页内标题」同字重复（三处同信息 → 一处）。
+ *   · 随之撤除官方 `Separator`（它原本是「触发钮 ↔ 标题」的分隔符；无标题则悬空）。
+ *   · 守护断言 = dogfood **G13**：逐路由断言「顶栏无 `h1` **且** 内容区有首个标题」。
  */
-/**
- * 页面标题区（批 design §14.4 C · §14.6 **Q7**）：按**最长前缀**优先命中（顺序即优先级）；
- * 未命中 ⇒ 不渲染标题区（`/assets/:slug` 等无既有键的路由**不新增 i18n 键**）。
- * 「标题 = 页面全称 / 分区 = 所属组」的分层口径见主 design §11（导航短词 · 页头全称）。
- */
-function titleOf(pathname: string, t: Translate): { title: string; section?: string } | null {
-  const at = (p: string) =>
-    p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(`${p}/`);
-  if (at('/dashboard/assets'))
-    return { title: t('dashboard', 'myAssets'), section: t('navigation', 'groupPersonal') };
-  if (at('/dashboard/submissions'))
-    return { title: t('dashboard', 'submissions'), section: t('navigation', 'groupPersonal') };
-  if (at('/dashboard/tokens'))
-    return { title: t('dashboard', 'tokens'), section: t('navigation', 'groupPersonal') };
-  if (at('/dashboard'))
-    return { title: t('dashboard', 'title'), section: t('navigation', 'groupPersonal') };
-  if (at('/admin/reviews'))
-    return { title: t('admin', 'reviews'), section: t('navigation', 'groupAdmin') };
-  if (at('/admin/audit'))
-    return { title: t('admin', 'audit'), section: t('navigation', 'groupAdmin') };
-  if (at('/admin/labels'))
-    return { title: t('admin', 'labels'), section: t('navigation', 'groupSuperAdmin') };
-  if (at('/reviews'))
-    return { title: t('review', 'title'), section: t('navigation', 'groupAdmin') };
-  if (at('/skills')) return { title: t('navigation', 'skills') };
-  if (at('/mcps')) return { title: t('navigation', 'mcps') };
-  if (at('/agents')) return { title: t('navigation', 'agents') };
-  if (at('/')) return { title: t('navigation', 'home') };
-  return null;
-}
-
 export function TopBar() {
-  const { pathname } = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const crumb = titleOf(pathname, t);
   return (
     <header className="sticky top-0 z-20 flex h-[var(--header-height)] shrink-0 items-center gap-2 border-b border-border bg-card transition-[width,height] ease-linear">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1" />
-        {crumb && (
-          <>
-            <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-            <h1 className="text-base font-medium">{crumb.title}</h1>
-          </>
-        )}
+        {/* 标题区已撤（2026-09-23 用户拍板 **甲**）：顶栏不含页面名 —— 见头部注释「顶栏回归官方 block 形态」 */}
         <div className="ml-auto flex items-center gap-2">
           {/* 全资产搜索（**T11-i A** · M4a design §8.12 ④）。
               2026-09-20 用户调整：**靠右**、置于**语言切换左侧**（原 = 标题右侧）；固定 **w-320**（非弹性）。
