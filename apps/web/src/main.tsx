@@ -8,6 +8,7 @@ import { AppShell } from '@/components/ui/AppShell';
 import { RoleGuard } from '@/components/ui/RoleGuard';
 import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
+import AdminBoard from '@/pages/AdminBoard';
 // 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
 import { AssetDetail } from '@/pages/AssetDetail';
 import { Assets } from '@/pages/Assets';
@@ -116,7 +117,8 @@ function AppRoutes() {
 
             {/* ── 管理段（ADMIN = 10）── */}
             <Route element={<RoleGuard minRole={ROLE.ADMIN} />}>
-              <Route path="/admin" element={<Navigate to="/admin/reviews" replace />} />
+              {/* 管理看板：**真页**（M4b-6 T6）—— KPI ×4 + 趋势两图 + 类型两图 + 排行榜 + 创意四项 + 英雄榜 ×2 */}
+              <Route path="/admin" element={<AdminBoard />} />
               {/* 审核管理：**真页**（M4b-5 T7）—— 队列 7 列 + 状态筛选 + 分页 + 列开关（保护 2 列） */}
               <Route path="/admin/reviews" element={<ReviewQueue />} />
               <Route

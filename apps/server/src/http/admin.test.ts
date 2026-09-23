@@ -81,6 +81,7 @@ async function getJson<T>(url: string, cookie: string): Promise<T> {
 }
 
 interface OverviewBody {
+  types: Array<{ type: string; count: number; downloads: number }>;
   kpi: {
     activeAssets: number;
     allAssets: number;
@@ -356,6 +357,14 @@ describe('T1 · overview 聚合口径', () => {
     expect(after.kpi.reviewsTotal - before.kpi.reviewsTotal).toBe(2);
     expect(after.kpi.activeUsers - before.kpi.activeUsers).toBe(1);
     expect(after.kpi.allUsers - before.kpi.allUsers).toBe(2);
+
+    // F203：类型级聚合（(e)/(f) 两图数据源）—— 两个 ACTIVE skill 资产 ⇒ skill 计数 +2 · 下载 +3
+    const skillBefore = before.types.find((t) => t.type === 'skill')?.count ?? 0;
+    const skillAfter = after.types.find((t) => t.type === 'skill')?.count ?? 0;
+    expect(skillAfter - skillBefore).toBe(2);
+    const dlBefore = before.types.find((t) => t.type === 'skill')?.downloads ?? 0;
+    const dlAfter = after.types.find((t) => t.type === 'skill')?.downloads ?? 0;
+    expect(dlAfter - dlBefore).toBe(3);
   });
 
   it('创意四项与「独立复算」逐项对齐（含沉睡阈值两侧）', async () => {
