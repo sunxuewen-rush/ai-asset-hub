@@ -185,7 +185,7 @@ export const zh = {
     'col.updated': '更新',
     'col.actions': '操作',
     'filter.status.all': '全部',
-    'filter.status.active': '活跃',
+    'filter.status.active': '已上线',
     'filter.status.hidden': '已隐藏',
     'filter.status.archived': '已归档',
     'filter.search': '搜索名称或 slug',
