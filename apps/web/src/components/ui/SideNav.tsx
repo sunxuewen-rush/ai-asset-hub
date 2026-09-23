@@ -23,7 +23,7 @@ import { hasRole } from '../../auth/roles.js';
 import { useApi } from '../../hooks/useApi.js';
 import { useI18n } from '../../i18n/I18nProvider.js';
 import { paletteShortcutLabel } from './CommandPalette.js';
-import { buildNav, EXACT_MATCH_PATHS, type NavType } from './navItems.js';
+import { buildNav, type NavType } from './navItems.js';
 import { TypeIcon } from './TypeIcon.js';
 import { UserMenu } from './UserMenu.js';
 
@@ -90,6 +90,9 @@ function IconSlot({ children, className }: { children: ReactNode; className?: st
  * （`SidebarProvider > SideNav + SidebarInset`）**退役** ⇒ 侧栏回到官方 `inset-y-0`（顶到最上）。
  * 2026-09-17 用户提议「不要套壳」⇒ `variant` 由 `floating` 改为**官方默认 `sidebar`**（实心贴边 · 无圆角/边框/阴影）。
  * 不变：导航条目 / 路由 / 计数逻辑；激活判定改 `useLocation`（原 NavLink 子函数渲染，与 `asChild` 不兼容）。
+ *
+ * **2026-09-23 F206**：激活判定收敛为**路径精确相等**（删 `navItems.EXACT_MATCH_PATHS`）——
+ *   原前缀匹配让分区父项「管理看板」在 `/admin/*` 任一子页与子页**同时高亮**；规则与代价见 `navItems.tsx` 顶部。
  */
 export function SideNav({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { t } = useI18n();
@@ -110,9 +113,11 @@ export function SideNav({ onOpenPalette }: { onOpenPalette: () => void }) {
   const countOf = (type: NavType): number | undefined =>
     type === 'home' ? undefined : stats?.typeCounts[type];
 
-  /** 激活判定（精确匹配集合 = `EXACT_MATCH_PATHS`；其余按路径前缀匹配——等价原 `NavLink end`） */
-  const isActive = (to: string): boolean =>
-    EXACT_MATCH_PATHS.has(to) ? pathname === to : pathname.startsWith(to);
+  /**
+   * 激活判定 = **路径精确相等**（**F206** 收敛口径 · 规则与代价见 `navItems.tsx` 顶部注释）。
+   * 原「`EXACT_MATCH_PATHS` 精确 + 其余前缀」在分区父项 `/admin` 上双亮 ⇒ 改为全精确。
+   */
+  const isActive = (to: string): boolean => pathname === to;
 
   // variant = 官方默认 `sidebar`（实心贴边 · 无圆角/边框/阴影 = 「不套壳」——2026-09-17 用户提议）
   return (
@@ -197,7 +202,9 @@ export function SideNav({ onOpenPalette }: { onOpenPalette: () => void }) {
                       tooltip={zhLabel}
                       className={collapsed ? 'size-8' : undefined}
                     >
-                      <NavLink to={to}>
+                      {/* `end` = **精确匹配**（与上方 `isActive` 同口径）—— 缺省时 `<NavLink to="/">`
+                          在**任意**路径都自认 active（前缀匹配），会与 `data-active` 打架（F206 同源问题） */}
+                      <NavLink to={to} end>
                         <IconSlot
                           className={active ? 'bg-primary text-primary-foreground' : undefined}
                         >

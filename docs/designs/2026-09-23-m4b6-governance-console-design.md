@@ -1,8 +1,8 @@
 # M4b-6 治理批：管理看板 + 资产管理 + 标签定义 + 审计日志 —— 批设计
 
 > Date: 2026-09-23
+> Updated: 2026-09-23（**v0.30：F206 侧栏激活唯一性修缮（用户报缺陷）** —— ① 激活判定由「`EXACT_MATCH_PATHS` 精确 + 其余前缀」收敛为**路径精确相等**（`SideNav.tsx` 删集合 · 门户 `<NavLink>` 补 `end`）② §9.3 追加 dogfood **G12**（13 导航路径 + `/search` 零态 + F206 回归专条 = **15 条断言**）⇒ §9.7 分组 PASS **41 → 56** ③ §9.7 追加 **F206**（含正反双证）④ §9.4 验收清单补「侧栏激活唯一性」。**本版零设计语义改动** —— 口径取代 M4b-2/M4b-3 文档中的 `EXACT_MATCH_PATHS` 表述）
 > Updated: 2026-09-23（**v0.29：实现落地回填（T1–T10 全绿）** —— §9.7 六项回填**逐项填实测值**（i18n **+130** 键 · 迁移 0014 十一行两索引 · dogfood **41/0** · 件行数 · PoC 清理零残留）· §9.7 追加**实施期发现 F203–F205**（`overview.types[]` 加性补 · 审计 `actorName` leftJoin · 两页 i18n 泄漏修缮）· Status 补「实现已落地」· 落地记录见批 plan §7 · 证据 = `docs/smoke/2026-09-23-m4b6-governance-console.md`）
-> Updated: 2026-09-23（**v0.28：定稿**（用户口令「定稿」）—— Status → **定稿**（2026-09-23 用户批准 · 8 维 **9.50**）· 回填 `docs/00` §5（⬜ 待对齐 → 🔷 **设计定稿**；服务端「1 处待定」→ **8 项**）+ §8 修订（v1.89）· 回填主 design §2.3（范围补「管理看板 `/admin`」· 服务端 **1 → 8 处**）+ Status 段「下一批」订正 + §15 修订（v1.65）· **零实现改动**
 > Status: **定稿**（**2026-09-23 用户批准**）· **实现已落地（T1–T10 · 2026-09-23）**—— 8 维 **9.50** · 换靶 5 轮 + grilling 4 轮 · 门槛项已清空 · 已回填 `docs/00` §5（v1.89）与主 design §2.3（v1.65）；后续实现以批 plan 为准
 > Scope: 本批 = `docs/00` §5「M4b-6」行（治理批四项交付物）· 服务端改动 **8 项**（见 §7）：4 个只读端点新建 + 2 处出参扩 + 1 处语义收紧 + 1 张表/写入（实现期）
 > 引用链: 上游主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（拍板表 / 页面职责矩阵）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）· 前序批 M4b-5 `docs/designs/2026-09-21-m4b5-review-workbench-design.md`
@@ -725,11 +725,11 @@ AdminDashboard
 
 ### 9.3 本批 dogfood 分组
 
-新建 `docs/smoke/scripts/m4b6-governance-dogfood.ts`，支持 `SMOKE_ONLY=<组>`；分组：① 权限矩阵（三档 × 五路由）② 看板数据面（三端点数值与页面一致）③ 控件交互（时间范围四档 / Top N 四档 / 三口径切换）④ 空态与稀疏（下载无数据、真库小样本）⑤ 标签定义 CRUD ⑥ 审计日志过滤 ⑦ 资产管理列表
+新建 `docs/smoke/scripts/m4b6-governance-dogfood.ts`，支持 `SMOKE_ONLY=<组>`；分组：① 权限矩阵（三档 × 五路由）② 看板数据面（三端点数值与页面一致）③ 控件交互（时间范围四档 / Top N 四档 / 三口径切换）④ 空态与稀疏（下载无数据、真库小样本）⑤ 标签定义 CRUD ⑥ 审计日志过滤 ⑦ 资产管理列表（**2026-09-23 F206 追加**：**⑧ 侧栏激活唯一性** —— 13 条导航路径各**恰 1 条** `[data-active=true]` + `/search` 零态 + F206 回归专条 = **15 条**）
 
 ### 9.4 出口件 ④（本批验收清单）
 
-看板（4 卡 + 两小图 + 单卡榜单 + 两英雄榜卡 + 创意四项）· 三页真页面 · 权限矩阵 · 零回归 · 服务端测试全绿 · `doc-claims-check.ts` 进仓并进门禁。
+看板（4 卡 + 两小图 + 单卡榜单 + 两英雄榜卡 + 创意四项）· 三页真页面 · 权限矩阵 · 零回归 · 服务端测试全绿 · `doc-claims-check.ts` 进仓并进门禁 · **侧栏激活唯一性**（G12：任一路径恰 1 条激活）。
 
 ### 9.5 造数需求（写库须用户授权）
 
@@ -751,7 +751,7 @@ AdminDashboard
 | 1 | 三端点出参 ↔ 页面消费点 | `overview`（KPI 5 + `types[]` · F203 加性补）↔ 看板四卡 + 同心环/雷达 · `trends`（`assets`/`downloads` 序列）↔ 趋势两张小图 · `rankings`（三口径 + 稳定键）↔ 排行榜单卡 + 英雄榜 ×2 · `/api/audit/actions`（8 组）↔ 动作分组下拉 |
 | 2 | i18n 键数 | zh / en 叶子键 **各 534**（差集 **0**）· 本批 **+130 键**（404 → 534）· `board` 组 **39**（新组）· `admin` 组 **6 → 95**（+89，含 F205 补的 17 键） |
 | 3 | 件行数（`wc -l`） | `AdminBoard` **645** · `AdminAssets` **625** · `AdminLabels` **574** · `AdminAudit` **565** · `api/admin.ts` **165** · `http/admin.ts` **68** · `http/admin.test.ts` **566** · `overview` **200** · `rankings` **116** · `trends` **134** · `chart.tsx` **340** · `combobox.tsx` **283** |
-| 4 | dogfood 分组 PASS 数 | **PASS 41 / FAIL 0 / 超时 0**（G1–G11 · 每段 `NO JS ERRORS`） |
+| 4 | dogfood 分组 PASS 数 | **PASS 56 / FAIL 0 / 超时 0**（G1–**G12** · 每段 `NO JS ERRORS`）· 首跑（T10 · 41 条基数）= 41/0 ⇒ **F206 追加 G12（15 条）后 41 → 56** |
 | 5 | 迁移 **0014** | `0014_simple_blizzard.sql` · **11 行** · 表 `download_event` · 索引 `idx_download_event_created_at` / `idx_download_event_asset_id`（2 条）· 迁移后表数 **16** |
 | 6 | PoC 清理（U7） | `apps/web/src/pages/__proto/`（4 页 + 3 数据文件）· `tmp-dashboard-probe.ts` / `tmp-label-seed-child.ts` / `tmp-labels-audit-probe.ts` 已删；`main.tsx` DEV 路由与 `ComingSoon` 已移除 ⇒ `git status` 零残留 |
 
@@ -761,6 +761,7 @@ AdminDashboard
 |----|----|-----------|------|
 | **F203** | §4.1 (e)(f) | 两图指向 §5.1，但该处未列 `types[]` 出参（实现者会漏取数） | 最小加性补 `overview.types[]`（`admin/overview.ts` + `admin.test.ts` 断言） |
 | **F204** | 审计查询（§4.4 D48） | `select().from(auditLog)` 无 join ⇒ 拿不到「姓名」（D48 要求工号 + 姓名同列） | 补 `leftJoin` 出 `actorName`（`audit/query.ts`）+ 测试 |
+| **F206** | §4.1 形制 / 侧栏激活（`SideNav.tsx`） | **用户报缺陷（2026-09-23）**：点「管理看板」→ 再点「资产管理」，「管理看板」**仍为选中态**。根因 = 判定为「`EXACT_MATCH_PATHS`（`/` + `/dashboard`）精确、其余 `pathname.startsWith(to)` 前缀」⇒ **手维护精确集漏 `/admin`**（管理组分区父项）⇒ `/admin/*` 任一子页与父项**双亮**（同坑 M4b-3 T9④ 已在 `/dashboard` 上踩过一次 ⇒ 形态性复发） | 收敛为**全精确匹配**：删 `EXACT_MATCH_PATHS`（`navItems.tsx`）· `isActive = pathname === to`（`SideNav.tsx`）· 门户 `<NavLink>` 补 `end`（同源 `aria-current` 前缀问题）；dogfood **G12** 常驻断言防复发（正反双证：旧逻辑 **5 FAIL** / 新逻辑 **16 PASS**） |
 | **F205** | §6 i18n（实现面） | 两页共 **28 处**硬编码中文（`aria-label` / `title` / `placeholder` / 空态 / 抽屉字段名）+ 1 行 stale DEV 提示 | 两页文案全部走 i18n（**F205 新增键 17 个**）；stale 行删除；`doc-claims-check` ⑤ 纳入门禁防复发 |
 
 > 证据文件：`docs/smoke/2026-09-23-m4b6-governance-console.md`（门禁 · dogfood · 换靶校验 · 真库读数 · 未证项 4 条）。
@@ -832,6 +833,7 @@ AdminDashboard
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| **v0.30** | 2026-09-23 | **F206 侧栏激活唯一性修缮**（用户报缺陷 · 提交面） —— ① 判定收敛为**路径精确相等**（删 `EXACT_MATCH_PATHS` · 门户 `<NavLink>` 补 `end`）② §9.3 追加 dogfood **G12**（15 条断言）⇒ §9.7 分组 PASS **41 → 56** ③ §9.7 追加 **F206**（根因 + 修法 + 正反双证）④ §9.4 补验收项。**本版零设计语义改动**（口径取代 M4b-2/M4b-3 旧文档的 `EXACT_MATCH_PATHS` 表述） |
 | **v0.29** | 2026-09-23 | **实现落地回填（T1–T10）** —— ① §9.7 六项回填填实测值 ② 追加**实施期发现 F203–F205**（`overview.types[]` 加性补 · 审计 `actorName` leftJoin · 两页 28 处 i18n 泄漏 + 17 键）③ Status 补「实现已落地」④ 证据文件 `docs/smoke/2026-09-23-m4b6-governance-console.md`。**本版零设计语义改动** |
 | v0.28 | 2026-09-23 | **定稿**（用户口令）：Status → 定稿（2026-09-23 批准）· 回填 `docs/00` §5 + 主 design §2.3（服务端 1 → **8 项**；范围补管理看板）· 跨文档版本 = docs/00 **v1.89** / 主 design **v1.65** |
 | v0.27 | 2026-09-23 | grilling R4（含收口复核：Status 门槛清空 · 未决表重排 U5–U14）：Q1 `downloads` 两态 · Q2 排行稳定键 · Q5 三端点无缓存 · Q6 新增 U14（导出）· Q7 **U8 闭环**（夹值）；**Q3/Q4 撤回**（Q3 与 D45 重复 · Q4 与 D39 冲突） |

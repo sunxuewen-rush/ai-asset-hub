@@ -51,12 +51,22 @@ export interface NavGroup {
   entries: NavGroupEntry[];
 }
 
-/**
- * 精确匹配路径（其余条目按前缀匹配）—— 首页与控制台首页。
- * `/dashboard` 必须精确：它是个人组的**分区父项**（子路径 `/dashboard/assets|submissions|tokens`
- * 归它管）⇒ 前缀匹配会让「工作台」在任一子页与子页**同时高亮**（M4b-3 T9④ 实测）。
+/*
+ * 激活判定口径 = **路径精确相等**（实现在 `SideNav.tsx`：`pathname === to`；守护断言 = dogfood **G12**
+ * 「任一导航路径下**恰 1 条**激活」）。
+ *
+ * **F206（2026-09-23 用户报 · 已修）**：原实现 = 「`EXACT_MATCH_PATHS`（`/` + `/dashboard`）走精确、
+ * 其余走 `pathname.startsWith(to)` 前缀」⇒ **手维护精确集漏掉 `/admin`**（管理组的**分区父项**，子路径
+ * `/admin/assets|reviews|audit|labels` 归它管）⇒ 停在任一管理子页时「管理看板」与子页**同时高亮**
+ * （用户原话：点「管理看板」再点「资产管理」，「管理看板」还是选中态）。
+ *
+ * 同一坑 M4b-3 T9④ 已在 `/dashboard` 上踩过一次（当时靠往集合里补 `/dashboard` 止血）⇒ 根因**不是漏一个
+ * 路径**，而是「前缀匹配 + 人肉维护精确集」这套形态**必然复发**（第二次了）。故收敛为**全精确匹配**：
+ * 删本集合，父子条目互斥、任一路径恰 1 条亮（用户既定口径：父项不在子页常亮）。
+ *
+ * 代价（显式登记）：将来若新增「子路由要保父项常亮」的路径，需**另立显式规则**（不会再自动靠前缀兜住）。
+ * 另：`SideNav` 门户组 `<NavLink>` 同步加 `end` —— 否则其自带 `aria-current` 仍按前缀匹配（同源）。
  */
-export const EXACT_MATCH_PATHS = new Set(['/', '/dashboard']);
 
 /**
  * 构建导航清单（门户组 + 三组）。

@@ -4,6 +4,7 @@
 > 所有数字一律为**实测产出**（命令 / 脚本 / 真浏览器 CDP / 真库读数），非人工点数；行数一律 `wc -l` 口径。
 >
 > **状态：✅ 已回填（2026-09-23 执行期）** —— 各节数字均取自当次真实运行输出；**未跑项在 §8 显式登记为未证项**。
+> **F206 补记（2026-09-23 晚 · 用户报缺陷）**：侧栏激活判定修缮 + dogfood **G12** 追加 ⇒ §2 / §5 / §6 / §8 已同步（dogfood 全量 **41 → 56 PASS**）。
 >
 > ⚠️ **口令纪律**：脚本口令一律从 env 读（`SMOKE_M4B2_PASSWORD`，测试账号共用），**仓库内零口令 / 零连接串**
 > （本文件亦不含值；`apps/server/.env` 已被 `.gitignore` 忽略）。
@@ -29,10 +30,11 @@
 > 顺带清掉本批文件的 8 条 warning（`AdminBoard.tsx` 未用 import ×2 + `noNonNullAssertion` ×6）。
 > **非本批文件（`AppShell.tsx` / `CenterPage.tsx` / `Search.tsx`，最后提交早于本批）未动** —— 其中 `noDocumentCookie` 为 warning 级，不影响 exit 0。
 
-## 2. 本批 dogfood（G1–G11 · design §9.3）
+## 2. 本批 dogfood（G1–**G12** · design §9.3）
 
 **命令**：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b6-governance-dogfood.ts`
-**结果**：**PASS 41 · FAIL 0 · CDP 超时 0** · 每段 `NO JS ERRORS`（真浏览器 CDP，非 mock）
+**结果**：**PASS 56 · FAIL 0 · CDP 超时 0** · 每段 `NO JS ERRORS`（真浏览器 CDP，非 mock）
+（T10 首跑基数 = **41**（G1–G11）；**F206 追加 G12（15 条断言）后 = 56** —— 末次全量输出：`✅ M4b-6 dogfood: PASS 56 · FAIL 0 · CDP 超时 0`）
 
 | 组 | 面 | 关键断言（实测值） |
 |----|----|--------------------|
@@ -47,6 +49,7 @@
 | G9 | 审计日志页 | 端点 200 · 六列在位 · 匿名兜底键就位 · 快捷三键在位 · 「更多筛选」在位 · **出参带 `actorName`（F204）** · 抽屉含「用户代理」与「原始详情」 |
 | G10 | 筛选收窄 | 动作过滤 `version_yank ≤ 全量`（全量 **2607** / `yank` **57**）· 页内计数随筛选变化 |
 | G11 | **跨页数字一致** | 资产页页头计数 = 端点 `activeAssets`（**34**）· 看板 KPI 与资产页一致 |
+| **G12** | **侧栏激活唯一性**（**F206 追加**） | 13 条导航路径（门户 4 + 个人 4 + 管理 5）各**恰 1 条** `[data-slot=sidebar-menu-button][data-active=true]` 且 href = 该路径 · `/search`（无对应条目）**0 条** · F206 回归专条（`/admin/assets` 下 `/admin` **不激活**） |
 
 > **账号纪律（一次真失败 ⇒ 已修）**：G8（标签定义）需 **`SUPER_ADMIN`(100)** —— 初版误用 `m4b2_mgr`(ADMIN=10)，
 > 4 条断言 FAIL（页面行为正确，是**脚本选错账号**）⇒ 改为 `m4b2_super` 后全绿。已在脚本内注释该角色门槛（U9）。
@@ -72,7 +75,7 @@
 | `/api/audit/actions` | 分组 **8 组**（潜在全集 9；`ldap`/`oidc` 尚未出现） |
 | 鉴权（负向 · 实测） | 用户档三端点 **403** · `/api/labels/all` 对 `ADMIN`(10) **403**（仅超管 —— 设计如此） |
 
-## 5. 实施期发现与处置（F203–F205）
+## 5. 实施期发现与处置（F203–**F206**）
 
 | 号 | 面 | 问题（真） | 处置 |
 |----|----|-----------|------|
@@ -83,13 +86,41 @@
 **i18n 终态实测**：zh / en 叶子键 **各 534**（差集 **0**）· 本批增量 **+130**（404 → 534）· `board` 组 **39**（新组）·
 `admin` 组 **6 → 95**（+89）。
 
+### 5.1 F206 · 侧栏激活唯一性（用户报缺陷 · 2026-09-23 · 含正反双证）
+
+| 号 | 面 | 问题（真） | 处置 |
+|----|----|-----------|------|
+| **F206** | 侧栏激活判定（`apps/web/src/components/ui/SideNav.tsx`） | 用户原话：**「先点击管理看板，再点击资产管理，管理看板还是选中的状态」**。根因 = 判定 `EXACT_MATCH_PATHS.has(to) ? pathname === to : pathname.startsWith(to)`（集合 = `/` + `/dashboard`）⇒ **手维护精确集漏 `/admin`**（管理组分区父项）⇒ `/admin/*` 任一子页与父项**双亮**。同坑 M4b-3 T9④ 已在 `/dashboard` 上踩过一次（当时靠往集合里补一条止血）⇒ **形态性复发** | 收敛为**全精确匹配**：删 `navItems.EXACT_MATCH_PATHS` · `isActive = pathname === to` · 门户 `<NavLink to>` 补 `end`（同源 `aria-current` 前缀问题）；dogfood **G12** 常驻断言（防第三次） |
+
+**正证（修后 · 桌面视口 1440）**：`SMOKE_ONLY=G12` ⇒ `✅ PASS 16 · FAIL 0`（15 条 G12 断言 + `NO JS ERRORS`）
+```
+PASS G12.9  /admin          active=["/admin"]
+PASS G12.10 /admin/assets   active=["/admin/assets"]
+PASS G12.11 /admin/reviews  active=["/admin/reviews"]
+PASS G12.12 /admin/audit    active=["/admin/audit"]
+PASS G12.13 /admin/labels   active=["/admin/labels"]
+PASS G12.14 /search 无对应条目 ⇒ 0 条激活   active=[]
+PASS G12.15 F206 回归：/admin/assets 下「管理看板」不激活
+```
+**反证（临时改回旧逻辑 · 同脚本同断言）**：`❌ PASS 11 · FAIL 5` —— 5 条**逐条复现双亮**（精确对应根因，非猜测）：
+```
+FAIL G12.10 /admin/assets   active=["/admin","/admin/assets"]
+FAIL G12.11 /admin/reviews  active=["/admin","/admin/reviews"]
+FAIL G12.12 /admin/audit    active=["/admin","/admin/audit"]
+FAIL G12.13 /admin/labels   active=["/admin","/admin/labels"]
+FAIL G12.15 F206 回归：/admin/assets 下「管理看板」不激活   active=["/admin","/admin/assets"]
+```
+> 反证为**临时改动**：跑完已还原（`sha256` 前后一致）⇒ 工作区只保留修复版。
+> 注：`G12.9`（`/admin` 自身）在反证中 **PASS** —— 与根因一致（父项前缀不匹配子页路径），也解释了「只有从看板跳到子页才看得出问题」。
+> **收口全量**（修后）：`✅ M4b-6 dogfood: PASS 56 · FAIL 0 · CDP 超时 0`（G1–G12 全量 · 非分段）。
+
 ## 6. 零回归（口径 = 无新增失败 · design §9.1）
 
 **执行方式**：**串行逐脚本**（首轮并发无效，见下注）。结果与**逐条定性**：
 
 | 脚本 | 串行实测 | 失败项定性（附证据） |
 |------|---------|--------------------|
-| `m4b6-governance-dogfood.ts`（本批） | **41 PASS / 0 FAIL / 0 超时** | — |
+| `m4b6-governance-dogfood.ts`（本批） | **56 PASS / 0 FAIL / 0 超时**（G1–G12 · F206 追加后基数；零回归当期跑的是 41 基数版本 —— 追加段只新增断言，不覆盖四脚本的断言面） | — |
 | `m4a-dogfood.ts` | **58 PASS / 2 FAIL** + `NO JS ERRORS` | `diff 三型徽章` / `diff +/− 行内容` —— 变更对比面，需**两份可比版本**前置 ⇒ **数据态** |
 | `m4a-chain-smoke.ts` | **`CHAIN SMOKE PASS`**（14s · 全绿） | — |
 | `m4b3-personal-a-dogfood.ts` | **38 PASS / 3 FAIL** | 3 条全为「**无 PENDING 行**」，且脚本自述「**请先重跑造数脚本复位**」⇒ **数据态**（自证） |
@@ -128,6 +159,7 @@
 | 2 | ~~`bun run lint`~~ | ✅ **已转绿**（本批文件 2 error + 8 warning 修掉；非本批文件未动） | 已闭合 |
 | 3 | ~~`m4a` / `m4b3` / `m4b5` 三脚本串行补跑~~ | ✅ **已补跑**（`m4a` 58/2 · `m4b3` 38/3 · `m4b5` 52/10 · 失败逐条定性见 §6） | 已闭合 |
 | 4 | **代码基线对照（`HEAD~14` 同环境跑同脚本）** | **未做** —— 21 条失败**逐条定性为「前置数据缺失」**（附期望/实际差异 + 脚本自述），但「数据态」**不等于**已证「代码无关」 | 方法学缺口（非风险缺口）：结论表述限定为「**未见指向本批代码路径的失败**」 |
+| 5 | **F206 修复后零回归四脚本未重跑** | **未重跑** —— 修复面 = 侧栏激活判定（`SideNav.tsx` / `navItems.tsx`），四个零回归脚本（`m4a` / `m4b3` / `m4b4` / `m4b5`）的断言面**不含**侧栏激活；已重跑的是**本批** dogfood 全量（**56/0**） | 覆盖面判断为「不受影响」，但**未实测** ⇒ 显式登记，不主张「已覆盖」 |
 | 5 | 零回归造数复位（`m4b3-seed-submissions` / `m4b5-seed-reviews` / 本批 `m4b6-seed-downloads --clean`） | **未执行**（写库需授权）；复位后三脚本预期可清零失败 | 若要 100% 收口：授权后「复位 → 串行重跑」即可 |
 
 > **未证项的诚实口径**：本批对既有面的**代码级影响面**已实测收窄（`/api/assets` 管理档加性扩参、非管理档逐条相同；

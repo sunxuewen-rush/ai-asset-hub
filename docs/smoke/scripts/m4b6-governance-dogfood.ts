@@ -1,10 +1,11 @@
 /**
- * M4b-6 治理批 · 本批 dogfood（**G1–G11** · 批 design §9.3 · 批 plan T10）
+ * M4b-6 治理批 · 本批 dogfood（**G1–G12** · 批 design §9.3 · 批 plan T10）
  *
  * 覆盖：看板（KPI 与端点真值一致 / 趋势两图 + 范围四档 / 类型两图 / 排行榜三口径 + Top N / 创意四项 / 英雄榜 ×2）·
  *       资产管理（10 列 + 状态默认全部 + 排序接线 + 列显示 + 详情抽屉）·
  *       标签定义（两级树 + 上限块 + ↑↓ 边界 + 删除确认禁用）·
- *       审计日志（过滤区三块 + 6 列 + 详情抽屉 + **服务端过滤生效** + 清除筛选）· 跨页数字一致。
+ *       审计日志（过滤区三块 + 6 列 + 详情抽屉 + **服务端过滤生效** + 清除筛选）· 跨页数字一致 ·
+ *       **侧栏激活唯一性**（G12 · F206 守护：任一导航路径下恰 1 条 `[data-active=true]`，13 路径 + 1 零态）。
  *
  * 前置（dev 三件在线）：`:3000` API · `:5173` web · `:9222` Edge CDP
  * 造数（**先跑**）：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b6-seed-downloads.ts`
@@ -33,7 +34,20 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let pass = 0;
 let fail = 0;
 let timeouts = 0;
-const SECTION_IDS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11'] as const;
+const SECTION_IDS = [
+  'G1',
+  'G2',
+  'G3',
+  'G4',
+  'G5',
+  'G6',
+  'G7',
+  'G8',
+  'G9',
+  'G10',
+  'G11',
+  'G12',
+] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 const only = (process.env.SMOKE_ONLY ?? '')
   .split(',')
@@ -461,6 +475,60 @@ if (want('G11')) {
   await nav(`${APP}/admin`);
   const t2 = await bodyText();
   ok('G11.2 看板 KPI 与资产页一致', t2.includes(String(api.body?.kpi?.activeAssets)));
+}
+
+/* ── G12 侧栏激活唯一性（**F206 守护断言** · design §9.3 / navItems.tsx 顶部规则） ──
+ * 背景：F206 = 「前缀匹配 + 人肉维护精确集」形态 ⇒ 分区父项在子页**双亮**（用户实证：点「管理看板」
+ *   再点「资产管理」，「管理看板」仍选中）。修法 = 判定改**全精确匹配**（`pathname === to`）。
+ * 断言：逐路径读官方 `[data-slot="sidebar-menu-button"][data-active="true"]`，要求**恰 1 条**且 href = 该路径；
+ *   外加**零态** `/search`（无对应条目 ⇒ 应 0 条）+ **F206 回归专条**（`/admin/assets` 下 `/admin` 不得激活）。
+ * ⚠️ 依赖桌面视口（脚本头部已 `Emulation.setDeviceMetricsOverride` 1440）——窄视口下侧栏退化为移动
+ *   Sheet、条目不入 DOM（M4b-3 已记此坑）。账号 = 超管（覆盖 `/admin/labels`）。  */
+if (want('G12')) {
+  await loginAs(SUPER);
+  /** 读侧栏激活条目的 href（`asChild` ⇒ `<a>` 自带 `data-slot`/`data-active`）；无 href 用文本兜底 */
+  const activeHrefs = async (): Promise<string[]> =>
+    ((await evalJs(
+      `Array.from(document.querySelectorAll('[data-slot="sidebar-menu-button"][data-active="true"]')).map((e) => e.getAttribute('href') ?? ('#' + e.innerText.trim()))`,
+    )) as string[]) ?? [];
+  const CASES: Array<{ path: string; expect: string; note: string }> = [
+    { path: '/', expect: '/', note: '门户首页' },
+    { path: '/skills', expect: '/skills', note: '技能中心' },
+    { path: '/mcps', expect: '/mcps', note: 'MCP 中心' },
+    { path: '/agents', expect: '/agents', note: 'Agents 中心' },
+    { path: '/dashboard', expect: '/dashboard', note: '个人工作台（父项）' },
+    { path: '/dashboard/assets', expect: '/dashboard/assets', note: '我的资产' },
+    { path: '/dashboard/submissions', expect: '/dashboard/submissions', note: '我的提交' },
+    { path: '/dashboard/tokens', expect: '/dashboard/tokens', note: '访问令牌' },
+    { path: '/admin', expect: '/admin', note: '管理看板（父项）' },
+    { path: '/admin/assets', expect: '/admin/assets', note: '资产管理' },
+    { path: '/admin/reviews', expect: '/admin/reviews', note: '审核管理' },
+    { path: '/admin/audit', expect: '/admin/audit', note: '审计日志' },
+    { path: '/admin/labels', expect: '/admin/labels', note: '标签定义' },
+  ];
+  let idx = 0;
+  for (const c of CASES) {
+    idx += 1;
+    await nav(`${APP}${c.path}`);
+    const hrefs = await activeHrefs();
+    ok(
+      `G12.${idx} ${c.path} 恰 1 条激活（${c.note}）`,
+      hrefs.length === 1 && hrefs[0] === c.expect,
+      `active=${JSON.stringify(hrefs)}`,
+    );
+  }
+  // 零态：无对应条目的路径 ⇒ 侧栏 0 条激活（防「父项乱兜」）
+  await nav(`${APP}/search`);
+  const zero = await activeHrefs();
+  ok('G12.14 /search 无对应条目 ⇒ 0 条激活', zero.length === 0, `active=${JSON.stringify(zero)}`);
+  // F206 回归专条：用户实证场景 —— 停在 /admin/assets 时「管理看板」不得激活
+  await nav(`${APP}/admin/assets`);
+  const f206 = await activeHrefs();
+  ok(
+    'G12.15 F206 回归：/admin/assets 下「管理看板」不激活',
+    !f206.includes('/admin') && f206.length === 1,
+    `active=${JSON.stringify(f206)}`,
+  );
 }
 
 /* ── JS 错误门 + 汇总 ── */

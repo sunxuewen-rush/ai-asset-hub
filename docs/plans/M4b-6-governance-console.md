@@ -1,12 +1,12 @@
 # M4b-6 治理批：管理控制台四页（看板 · 资产管理 · 标签定义 · 审计日志）—— 批计划
 
 > Date: 2026-09-23
+> Updated: 2026-09-23（**v0.6：F206 侧栏激活唯一性修缮落地（用户报缺陷 · 非计划内）** —— ① 侧栏激活判定收敛为**路径精确相等**（删 `EXACT_MATCH_PATHS` · `SideNav.tsx` 判定改 `pathname === to` · 门户 `<NavLink>` 补 `end`）② dogfood 追加 **G12**（15 条断言）⇒ 全量 **41 → 56 PASS / 0 FAIL / 0 超时** ③ §7 追加 F206 行 ④ Status 订正为「已落地」（原「待开工」为陈旧表述）。**本版零实现语义改动**（仅判定口径 + 断言））
 > Updated: 2026-09-23（**v0.5：落地记录 + 执行期换靶复核** —— ① §7 落地记录**逐 Task 回填**（实测断言 / 门禁 / 发现 · 含 T10 收尾全量）② 新增 **§8.2 执行期换靶复核**（角轮 = 实测值对账 + 断言可跑性）：**9.61 → 9.64**（深度3 因「风险清单未覆盖 i18n 泄漏残留」**下调 9.5**，标准2/标准4/深度4 各上调）③ 新规则：前端**文案类不变量**（零中文泄漏 / 键成对）进 `doc-claims-check` 门禁）
-> Updated: 2026-09-23（**v0.4：换靶 R2 修复（D 号覆盖审计）** —— ① **T6 内容缺口**：补 **(e) 类型数量同心环（D13）** + **(f) 类型下载热度雷达（D14）** 两个卡片 + **D5 两张小图共享选择器** + **D37 趋势默认近 30 天**（步骤 1 + 断言 ②′/②″）② **追溯性补齐**：T9 依据行补审计页 8 项 D 号（D21/D22/D24/D25/D47/D48/D49/D55）· T8 补 D26/D28/D29/D30 · T4 补 D32/D41 · T1 补 D37/D43/D44 ③ §8.1 追加发现④⑤ + **探针两次失真教训**（低估：不认区间；高估：吃到头部「D1–D55」）⇒ 真值 **12 个未引用**；缺陷态 **9.54** → 修完 **9.61**）
-> Status: ⏳ **待开工**（批 design **定稿** v0.28 · 8 维 **9.50** · 门槛项已清空；**本批零提交** —— 实现期一事一提交）
-> 上游：批 design `docs/designs/2026-09-23-m4b6-governance-console-design.md`（**v0.28 · 定稿 · 8 维 9.50** · D1–D55 · 未决 U5–U14）
+> Status: ✅ **已落地（T1–T10 · 2026-09-23）** —— 批 design **定稿 v0.30**（8 维 **9.50**）· 四页真页 + 服务端 8 项 + 迁移 0014 · dogfood **G1–G12 = 56/0** · 逐 Task 落地记录见 §7（含 F203–F206）
+> 上游：批 design `docs/designs/2026-09-23-m4b6-governance-console-design.md`（**v0.30 · 定稿 · 8 维 9.50** · D1–D55 · 未决 U5–U14）
 > · 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.65**）§2.3 批件登记
-> · `docs/00-product-direction.md` §5 M4b-6 行（**v1.89** · 🔷 设计定稿）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）
+> · `docs/00-product-direction.md` §5 M4b-6 行（**v1.91** · ✅ 完成）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）
 > 依赖顺序：**M4b-1 ✅ / M4b-2 ✅ / M4b-3 ✅ / M4b-4 ✅ / M4b-5 ✅** ⇒ 本批开工条件已满足；本批之后 = **M4b-8**（发布批）→ **M4b-7**（视觉打磨）
 
 ---
@@ -26,7 +26,7 @@
 | 7 | **i18n** | 四页键表（design §6.2 / §6.3 逐条落地 · 复用键**已实测存在**）+ **既有键文案修正**：`assets.filter.status.active` 「活跃」→「**已上线**」（跨批 · 3 消费页自动跟随 · en 保持 `Active`） |
 | 8 | **前端数据层** | `apps/web/src/api/admin.ts`（看板 3 端点 + 审计动作全集 + 标签全量） |
 | 9 | **复用件（零新件）** | `ui/DataTable` · `ui/Pagination` · `ui/ColumnVisibilityMenu` · `market/{FilterStrip,SortMenu,format}` · `console/{Drawer,StatusPill,asset-stats}` · `ui/AssetAvatar` · 官方 `shadcn/{chart,combobox,select,calendar,popover,collapsible,dialog,sheet,switch}` |
-| 10 | **验证** | 造数脚本 + dogfood `m4b6-*`（G1–G11）+ 八步门禁 + **零回归四脚本**（`m4a` / `m4b3` / `m4b4` / `m4b5`）|
+| 10 | **验证** | 造数脚本 + dogfood `m4b6-*`（G1–G12）+ 八步门禁 + **零回归四脚本**（`m4a` / `m4b3` / `m4b4` / `m4b5`）|
 | 11 | **文档同步 + 换靶脚本** | design §9.6/§9.7 回填 + 主 design / `docs/00` / `docs/05` / `docs/08` 同步（`download_event` 落库同步 `docs/08`）+ **换靶校验脚本进仓** `docs/smoke/scripts/doc-claims-check.ts`（design §3.1/§9.2/§9.4 口径 · 6 类检查）|
 | 12 | **PoC 物料清理** | `apps/web/src/pages/__proto/`（4 页 + 数据模块）+ `main.tsx` DEV 路由 + `apps/server/tmp-*.ts` 探针删除（**U7** · 本批收尾） |
 
@@ -210,7 +210,7 @@
 > 依据 = 批 design **§9**（回归面与验证口径）· **§9.3**（dogfood 分组）· **§9.4**（出口件 ④）· **§9.5**（造数）· **§9.6/§9.7**（文档同步与收尾回填）。
 
 1. 造数 `docs/smoke/scripts/m4b6-seed-*.ts`（**写库需授权**）：`download_event` **跨天分布** N 条（覆盖下载曲线分支）+ 少量多状态资产（`HIDDEN`/`ARCHIVED`）+ 标签二级样例（幂等）
-2. dogfood `docs/smoke/scripts/m4b6-governance-dogfood.ts`：**G1–G11**（逐页分组 · `SMOKE_ONLY=G5` 分段执行 · 收尾才全量）
+2. dogfood `docs/smoke/scripts/m4b6-governance-dogfood.ts`：**G1–G12**（逐页分组 · `SMOKE_ONLY=G5` 分段执行 · 收尾才全量；**G12 = F206 侧栏激活唯一性**，2026-09-23 追加）
 3. **换靶校验脚本进仓** `docs/smoke/scripts/doc-claims-check.ts`（design §3.1 / §9.2 / §9.4 口径 · 6 类检查）：① 引用逐条回读（`file:line` + 期望关键词）② 同一量跨节对照 ③ 件表 ↔ 改动号 ↔ 端点表**三向一致** ④ 机制声明实测复核 ⑤ UI 契约 ↔ 真码回读（件路径存在性 / props 形态 / i18n 键覆盖）⑥ **头部版本行不得陈旧或乱序**
 4. 八步门禁（§4）逐项 **exit 0**；**零回归四脚本**：`m4a` / `m4b3` / `m4b4` / `m4b5`（口径 = **无新增失败**）
 5. 证据归档：本批证据文件 = `docs/smoke/` 下 `2026-09-23-m4b6-governance-console.md`（**T10 交付** · 截图 + 断言输出 + 真库读数）
@@ -280,6 +280,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 | **T8** | 2026-09-23 | 标签定义真页（574 行 · 两级树 + ↑↓ + 删除确认 + 创建/编辑对话框 · **仅超管**） | typecheck + biome + dogfood G8 | dogfood G8 初版**选错账号**（管理档 10 被 403）⇒ 改 `m4b2_super`(100) 后全绿 |
 | **T9** | 2026-09-23 | 审计日志真页（565 行 · 服务端过滤 + 动作全集下拉 + 详情抽屉）+ `api/audit.ts` 扩 | typecheck + biome + `bun test`（590）+ dogfood G9/G10 | **F204**（审计 `actorName` leftJoin） |
 | **T10** | 2026-09-23 | 造数（**37** 事件 / 14 天）· dogfood 全量 **41 PASS / 0 FAIL** · 换靶校验 **43 / 0** · **F205 修缮**（28 处中文 + 17 键 + 1 行 stale）· 证据文件 · PoC 清理零残留 | `doc-audit` **111 / 0** + `doc-claims-check` **43 / 0** · 八步 7 绿（`lint` 预存在红） | **F205** + 未证项 4 条（证据 §8） |
+| **T10⁺** | 2026-09-23 | **F206 修缮（用户报缺陷 · 非计划内 · 不占新编号）**：侧栏「管理看板」在 `/admin/*` 任一子页与子页**双亮**（用户实证）⇒ 判定收敛为**路径精确相等**（删 `EXACT_MATCH_PATHS` · 门户 `<NavLink>` 补 `end`）+ dogfood **G12** 追加（15 条断言）⇒ 全量 **56 PASS / 0 FAIL / 0 超时**（G12 单段 16/0 · **反证**：旧逻辑同段 **5 FAIL**，逐条复现双亮） | `typecheck` exit 0（4 包）· biome check 两件干净 · dogfood 全量 exit 0 | **F206**（形态性复发：手维护精确集）；未重跑零回归四脚本（改动不涉其覆盖面 · 证据 §8 登记） |
 
 ---
 
@@ -349,6 +350,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.6** | 2026-09-23 | sunxuewen-rush | **F206 修缮落地（用户报缺陷 · 非计划内 · 不占新编号）** —— ① 侧栏激活判定收敛为**路径精确相等**（删 `EXACT_MATCH_PATHS` · 门户 `<NavLink>` 补 `end`）② dogfood 追加 **G12**（15 条断言）⇒ 全量 **41 → 56 PASS / 0 FAIL / 0 超时** ③ §7 追加 **T10⁺** 行 ④ Status 由「待开工」订正为「已落地」⑤ 头部上游引用版号同步（design v0.30 · `docs/00` v1.91）。**本版零实现语义改动** |
 | **v0.5** | 2026-09-23 | sunxuewen-rush | **落地记录 + 执行期换靶复核** —— ① §7 逐 Task 回填实测（T1–T10 · 含 commit 面与 F 号）② 新增 §8.2 执行期复核（**9.61 → 9.64**；深度3 下调至 9.5 = 风险清单未覆盖 i18n 泄漏残留）③ 新规则：文案类不变量进 `doc-claims-check` 门禁。**本版零实现改动** |
 | **v0.4** | 2026-09-23 | sunxuewen-rush | **换靶 R2 修复（D 号覆盖审计 · 依赖无环 · 步骤编号）** —— ① T6 补 **(e) 同心环（D13）** + **(f) 雷达（D14）** + D5 选择器共享 + D37 默认近 30 天（步骤 + 断言 ②′/②″）② 追溯补齐：T9（8 项）· T8（4 项）· T4（2 项）· T1（3 项）③ §8.1 追加发现④⑤ + 探针两次失真教训（真值 12 个）④ 缺陷态 **9.54** → 修完 **9.61**。**本版零实现改动** |
 | **v0.3** | 2026-09-23 | sunxuewen-rush | **测试面点名 + 硬规则**（用户追问）—— ① 逐 Task 点名测试文件（T1 新建 `http/admin.test.ts` · T2 `assets/audit.test.ts` · T3 `download.test.ts` 扩充 · T4 `labels.test.ts` 同步）② T5–T9 显式声明「**前端无单测基建**（`apps/web` 无 `test` 脚本 · 0 测试文件）⇒ 验证 = dogfood 端到端断言 + `typecheck` + `biome`」③ §4 新增**测试面硬规则** ④ §8.1 追加发现③（属「表述不完整」非产出缺失 ⇒ 分数不变）。**本版零实现改动** |
