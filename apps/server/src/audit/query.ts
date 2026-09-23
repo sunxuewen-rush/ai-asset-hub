@@ -1,6 +1,6 @@
-import { and, count, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, count, desc, eq, getTableColumns, gte, lte } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { auditLog } from '../db/schema/index.js';
+import { auditLog, user } from '../db/schema/index.js';
 
 /**
  * 审计查询服务（T19，08 §6 audit_log 浏览面；05 §6.4 audit:read）。
@@ -41,8 +41,11 @@ export async function queryAudit(
   const [totalRow] = await db.select({ total: count() }).from(auditLog).where(where);
   const total = totalRow?.total ?? 0;
   const items = await db
-    .select()
+    // F204（M4b-6 T9）：左连 `user` 补 `actorName` —— 审计页「操作者」列 = 工号 + 姓名（design D48）；
+    // 匿名行（`actor_id IS NULL`）⇒ `actorName` 为 null，前端显「—（匿名）」。
+    .select({ ...getTableColumns(auditLog), actorName: user.name })
     .from(auditLog)
+    .leftJoin(user, eq(user.id, auditLog.actorId))
     .where(where)
     // 同 createdAt 以 id 倒序稳定分页（createdAt 微秒级仍可能同刻）
     .orderBy(desc(auditLog.createdAt), desc(auditLog.id))

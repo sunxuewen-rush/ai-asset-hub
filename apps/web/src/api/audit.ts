@@ -12,6 +12,8 @@ export type AuditItem = {
   id: number;
   /** null = 匿名动作（登录失败等） */
   actorId: string | null;
+  /** 操作者姓名（F204 服务端左连 `user` 提供；匿名行 ⇒ null） */
+  actorName: string | null;
   action: string;
   targetType: string | null;
   targetId: string | null;
@@ -30,13 +32,27 @@ export interface AuditListResponse {
   offset: number;
 }
 
-export async function fetchAudit(
-  params: { limit?: number; offset?: number } = {},
-  opts?: ApiGetOptions,
-) {
+/** 审计页查询面（M4b-6 T9）：动作 / 5 维精确 / 时间窗 / 分页 */
+export interface AuditQueryParams {
+  action?: string;
+  targetType?: string;
+  targetId?: string;
+  actorId?: string;
+  requestId?: string;
+  clientIp?: string;
+  /** ISO 8601（服务端按 `Asia/Shanghai` 展示；过滤按时间戳比较） */
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function fetchAudit(params: AuditQueryParams = {}, opts?: ApiGetOptions) {
   const query = new URLSearchParams();
-  if (params.limit !== undefined) query.set('limit', String(params.limit));
-  if (params.offset !== undefined) query.set('offset', String(params.offset));
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '') continue;
+    query.set(key, String(value));
+  }
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return apiGet<AuditListResponse>(`/api/audit${suffix}`, opts);
 }

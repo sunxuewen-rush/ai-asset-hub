@@ -3,12 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider, bootstrapAuth } from '@/auth/AuthProvider';
 import { ROLE } from '@/auth/roles';
-import { ComingSoon } from '@/components/console/ComingSoon';
 import { AppShell } from '@/components/ui/AppShell';
 import { RoleGuard } from '@/components/ui/RoleGuard';
 import { Toaster } from '@/components/ui/Toaster';
-import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
+import { I18nProvider } from '@/i18n/I18nProvider';
 import AdminAssets from '@/pages/AdminAssets';
+import AdminAudit from '@/pages/AdminAudit';
 import AdminBoard from '@/pages/AdminBoard';
 import AdminLabels from '@/pages/AdminLabels';
 // 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
@@ -57,11 +57,6 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
  * ⇒ 表内**不再有**这三条；M4b-3 的 `/dashboard/submissions`（T6）与 `/dashboard/tokens`（T7）同样已换真页 ⇒ 随之删。
  * 余下条目对应的仍是占位页（M4b-5 T7/T8：`/admin/reviews` 与 `/reviews/:id` 均已换真页 ⇒ 两条随 `DEV_BATCH` 一并删除）。
  */
-const DEV_BATCH: Record<string, string> = import.meta.env.DEV
-  ? {
-      '/admin/audit': 'M4b-6',
-    }
-  : {};
 
 /**
  * 路由骨架（批 design §3.3：新增 11 条 + 门户 5 条）。
@@ -78,7 +73,6 @@ const DEV_BATCH: Record<string, string> = import.meta.env.DEV
  * - 文案经 `useI18n()` 在组件内解析（响应语言切换）；`ComingSoon` 均**零业务请求**
  */
 function AppRoutes() {
-  const { t } = useI18n();
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -126,16 +120,8 @@ function AppRoutes() {
               <Route path="/admin/assets" element={<AdminAssets />} />
               {/* 标签定义：**真页**（M4b-6 T8）—— 两级树 + ↑↓ + 删除确认 + 创建/编辑对话框（仅超管） */}
               <Route path="/admin/labels" element={<AdminLabels />} />
-              <Route
-                path="/admin/audit"
-                element={
-                  <ComingSoon
-                    title={t('admin', 'audit')}
-                    description={t('common', 'comingSoon')}
-                    batch={DEV_BATCH['/admin/audit']}
-                  />
-                }
-              />
+              {/* 审计日志：**真页**（M4b-6 T9）—— 过滤区（快捷 + 动作分组 + 日期）· 6 列 · 详情抽屉 */}
+              <Route path="/admin/audit" element={<AdminAudit />} />
             </Route>
           </Route>
         </Routes>

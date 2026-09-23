@@ -357,6 +357,10 @@ export const en: Dict = {
     'assets.desc':
       'All assets (including hidden / archived); admin actions live on the asset detail page',
     'assets.col.owner': 'Owner',
+    'audit.count': '{n} records ({all} in the last 7 days)',
+    'audit.headerCount': 'All records · {last7} in the last 7 days',
+    'audit.field.exactHint': 'Exact match',
+    'audit.field.targetTypeHint': 'e.g. asset / user / label',
     'audit.desc': 'Read-only activity trail; the time range defaults to the last 7 days',
     'audit.col.time': 'Time',
     'audit.col.action': 'Action',
