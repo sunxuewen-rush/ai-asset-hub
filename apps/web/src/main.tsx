@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
 import AdminAssets from '@/pages/AdminAssets';
 import AdminBoard from '@/pages/AdminBoard';
+import AdminLabels from '@/pages/AdminLabels';
 // 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
 import { AssetDetail } from '@/pages/AssetDetail';
 import { Assets } from '@/pages/Assets';
@@ -58,7 +59,6 @@ const CENTER_ROUTES: Array<{ path: string; type: CenterType }> = [
  */
 const DEV_BATCH: Record<string, string> = import.meta.env.DEV
   ? {
-      '/admin/labels': 'M4b-6',
       '/admin/audit': 'M4b-6',
     }
   : {};
@@ -124,16 +124,8 @@ function AppRoutes() {
               <Route path="/admin/reviews" element={<ReviewQueue />} />
               {/* 资产管理：**真页**（M4b-6 T7）—— 全站治理列表（10 列 · 状态默认全部 · 详情抽屉） */}
               <Route path="/admin/assets" element={<AdminAssets />} />
-              <Route
-                path="/admin/labels"
-                element={
-                  <ComingSoon
-                    title={t('admin', 'labels')}
-                    description={t('common', 'comingSoon')}
-                    batch={DEV_BATCH['/admin/labels']}
-                  />
-                }
-              />
+              {/* 标签定义：**真页**（M4b-6 T8）—— 两级树 + ↑↓ + 删除确认 + 创建/编辑对话框（仅超管） */}
+              <Route path="/admin/labels" element={<AdminLabels />} />
               <Route
                 path="/admin/audit"
                 element={

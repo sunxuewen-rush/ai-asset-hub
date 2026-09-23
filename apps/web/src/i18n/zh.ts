@@ -529,6 +529,7 @@ export const zh = {
     empty: '暂无数据',
     retry: '重试',
     /** 通用「取消」（v1.15 补：M4b-3 两页的确认弹窗 `ConfirmDialog.cancelLabel` 消费点） */
+    save: '保存',
     cancel: '取消',
     download: '下载',
     pageOf: '{n} / {total} · 每页 {size}',
