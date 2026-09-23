@@ -385,7 +385,7 @@ export async function reorderLabels(
  * M4b-4 T14：由 `listPublicLabels` 内联逻辑**抽出单点** —— 候选面与「资产已挂标签」面共用，
  * 防两条路径的回退链漂移。
  */
-function pickDisplayName(
+export function pickDisplayName(
   translations: Array<{ locale: string; displayName: string }> | undefined,
   locale: string,
   fallback: string,
