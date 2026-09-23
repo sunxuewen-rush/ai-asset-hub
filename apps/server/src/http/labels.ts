@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
 import { ACCOUNT_ROLE } from '../auth/rbac.js';
+import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import { labelTypeSchema } from '../db/schema/index.js';
 import { LabelError, labelErrorCodes } from '../labels/errors.js';
@@ -69,10 +70,13 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     return c.json(items);
   });
 
-  // 管理全量（SUPER_ADMIN——含 PRIVILEGED/隐藏项 + 翻译）
+  // 管理全量（SUPER_ADMIN——含 PRIVILEGED/隐藏项 + 翻译 + 挂载数）
+  // M4b-6 T4（改动 7 · **形态变更**）：数组 → `{ items, total, limit }`（数组形态的消费者实测只有测试，
+  // 生产零消费者）。`limit` = env `LABEL_MAX_DEFINITIONS`（现值 100）—— 页面上限块 `total / limit` 的数据源。
   app.get('/all', requireAuth(), async (c) => {
     await assertSuperAdmin(c);
-    return c.json(await listManagedLabels(db));
+    const items = await listManagedLabels(db);
+    return c.json({ items, total: items.length, limit: getEnv().LABEL_MAX_DEFINITIONS });
   });
 
   app.post('/', requireAuth(), async (c) => {

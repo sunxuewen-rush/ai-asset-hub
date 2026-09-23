@@ -5,7 +5,7 @@
  * 级联：删 definition → 翻译/挂载 ON DELETE CASCADE（06 §2 表结构）；「搜索文档重建」
  * 句在 AIH 消化掉（无独立搜索索引——design §5 R11：挂载实时 join，删 label 无需重建）。
  */
-import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
 import { getEnv } from '../config/env.js';
@@ -60,6 +60,8 @@ export interface ManagedLabel {
   sortOrder: number;
   parentId: string | null;
   translations: Array<{ locale: string; displayName: string }>;
+  /** 挂载数（M4b-6 T4 · D27）：`asset_label` 行数（**不分资产状态** —— 与删除守卫同口径，跨页一致） */
+  assetCount: number;
 }
 
 /**
@@ -217,7 +219,13 @@ export async function createLabel(
     });
     // D2：响应 parentId = 父 slug（06 §5.2 对外契约——skillhub 同构）
     const parentSlug = await parentSlugOf(db, created.def.parentId);
-    return { ...created.def, parentId: parentSlug, translations: created.translations };
+    // 新建标签必然零挂载（M4b-6 T4 · `assetCount` 字段契约）
+    return {
+      ...created.def,
+      parentId: parentSlug,
+      translations: created.translations,
+      assetCount: 0,
+    };
   } catch (err) {
     const cause = (err as { cause?: { code?: string; constraint?: string } }).cause;
     if (cause?.code === '23505') {
@@ -318,11 +326,17 @@ export async function updateLabel(
     },
   });
   const updated = await loadBySlug(db, input.slug);
+  // M4b-6 T4：`assetCount`（挂载数）随响应返回 —— 与 `/all` 同口径（`asset_label` 行数）
+  const [mountRow] = await db
+    .select({ n: count() })
+    .from(assetLabel)
+    .where(eq(assetLabel.labelId, existing.id));
   // D2：响应 parentId = 父 slug
   return {
     ...updated,
     parentId: await parentSlugOf(db, updated.parentId),
     translations: (await translationsOf(db, [existing.id])).get(existing.id) ?? [],
+    assetCount: Number(mountRow?.n ?? 0),
   };
 }
 
@@ -339,6 +353,15 @@ export async function deleteLabel(
     .where(eq(labelDefinition.parentId, existing.id))
     .limit(1);
   if (child) throw new LabelError(labelErrorCodes.parentHasChildren);
+
+  // M4b-6 T4（改动 8 · D27/D32）：**仍被资产挂载 ⇒ 拒绝删除**（400 `label.in_use`）
+  // 口径 = `asset_label` 行数（不分资产状态）—— 与 `/all` 的 `assetCount` 同一口径，防「页面说 0、服务端说在用」。
+  const [mount] = await db
+    .select({ id: assetLabel.id })
+    .from(assetLabel)
+    .where(eq(assetLabel.labelId, existing.id))
+    .limit(1);
+  if (mount) throw new LabelError(labelErrorCodes.inUse);
 
   await db.delete(labelDefinition).where(eq(labelDefinition.id, existing.id));
   await audit({
@@ -450,6 +473,12 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
     db,
     defs.map((d) => d.id),
   );
+  // M4b-6 T4（改动 7）：挂载数（一次 groupBy 防 N+1；口径见 `ManagedLabel.assetCount`）
+  const mountRows = await db
+    .select({ labelId: assetLabel.labelId, n: count() })
+    .from(assetLabel)
+    .groupBy(assetLabel.labelId);
+  const mountById = new Map(mountRows.map((r) => [r.labelId, Number(r.n)]));
   const parentSlugById = new Map(defs.map((d) => [d.id, d.slug]));
   return defs.map((d) => ({
     id: d.id,
@@ -460,6 +489,7 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
     // D2：parentId = 父 slug（06 §5.2 对外契约——skillhub LabelDefinitionResponse 同构）
     parentId: d.parentId === null ? null : (parentSlugById.get(d.parentId) ?? null),
     translations: translations.get(d.id) ?? [],
+    assetCount: mountById.get(d.id) ?? 0,
   }));
 }
 

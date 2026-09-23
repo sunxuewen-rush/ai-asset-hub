@@ -7,6 +7,8 @@ export const labelErrorCodes = {
   notFound: 'label.not_found',
   /** 删除带子级的一级分类被拒（06 §5.2——先删/转移子级；DDL RESTRICT 双保险） */
   parentHasChildren: 'label.parent.has_children',
+  /** 删除仍被资产挂载的标签被拒（M4b-6 T4 · D27/D32——先在资产上解挂；与 has_children 同族「删除被拒」） */
+  inUse: 'label.in_use',
   /** slug 全局唯一冲突（06 §2.1；UNIQUE 23505 兜底） */
   slugTaken: 'label.slug_taken',
   /** 上限超限（每资产 ≤10 挂载——06 §1） */
@@ -31,6 +33,7 @@ export function httpStatusForLabel(code: LabelErrorCode): number {
     case 'label.not_found':
       return 404;
     case 'label.parent.has_children':
+    case 'label.in_use':
     case 'label.limit_exceeded':
     case 'label.invalid_parent':
     case 'label.definition_limit_exceeded':

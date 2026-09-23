@@ -4,7 +4,9 @@
  * 口径 = 批 design §4.1(c) + §5.1 + D9/D42/D46/D53：
  * - **人** = 该账号 owner 的 `ACTIVE` 资产数（D46；**排除** `reviewed_by` 维度）；`id` = 工号，`name` = 姓名
  *   （D9「人」轴 = 工号 + 姓名 ⇒ 两者分列返回，拼接归前端）
- * - **标签** = 挂该标签的 `ACTIVE` 资产数（D42：**重复计入** —— 一资产挂 N 标签则每个标签各计一次）
+ * - **标签** = 该标签的**挂载数**（D42：**重复计入** —— 一资产挂 N 标签则每个标签各计一次）。
+ *   口径与标签定义页 `/api/labels/all` 的 `assetCount`（M4b-6 T4）**逐字一致**：`asset_label` 行数、
+ *   **不分资产状态** —— 防「同一数字两页不同」（治理页说 3、看板说 2）
  * - **资产** = `asset.download_count`（**仅 `ACTIVE`** —— 看板是「已发布面」，与「已发布资产」卡 / 标签覆盖度 /
  *   员工榜同面；非 ACTIVE 资产不入榜）
  * - **排序（D53 稳定键）**：人 `value desc, user.id asc` · 标签 `value desc, label.id asc` · 资产 `value desc, asset.id desc`
@@ -74,12 +76,11 @@ export async function getAdminRankings(db: Db, limit: number): Promise<AdminRank
       .groupBy(user.id, user.name)
       .orderBy(desc(count()), asc(user.id))
       .limit(limit),
-    // ② 标签榜：挂载数（D42 重复计入）
+    // ② 标签榜：挂载数（D42 重复计入；**不分资产状态** —— 与 `/all.assetCount` 同口径）
     db
       .select({ id: labelDefinition.id, slug: labelDefinition.slug, value: count() })
       .from(labelDefinition)
       .innerJoin(assetLabel, eq(assetLabel.labelId, labelDefinition.id))
-      .innerJoin(asset, and(eq(asset.id, assetLabel.assetId), eq(asset.status, 'ACTIVE')))
       .groupBy(labelDefinition.id, labelDefinition.slug)
       .orderBy(desc(count()), asc(labelDefinition.id))
       .limit(limit),

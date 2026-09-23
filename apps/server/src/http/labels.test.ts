@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, like } from 'drizzle-orm';
+import { and, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import {
@@ -18,7 +18,7 @@ import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import { auditLog, labelDefinition, user } from '../db/schema/index.js';
+import { asset, assetLabel, auditLog, labelDefinition, user } from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { createLabelRoutes } from './labels.js';
@@ -379,14 +379,23 @@ describe('管理全量列表（06 §5.2——GET /api/labels/all 仅 SUPER_ADMIN
 
     const res = await get('/api/labels/all', sa);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as Array<{
-      slug: string;
-      translations: Array<{ locale: string; displayName: string }>;
-    }>;
-    expect(Array.isArray(body)).toBe(true);
-    const found = body.find((l) => l.slug === mine);
+    // M4b-6 T4（改动 7）：形态 = `{ items, total, limit }`（原为数组）+ 每条带 `assetCount`
+    const body = (await res.json()) as {
+      items: Array<{
+        slug: string;
+        translations: Array<{ locale: string; displayName: string }>;
+        assetCount: number;
+      }>;
+      total: number;
+      limit: number;
+    };
+    expect(Array.isArray(body.items)).toBe(true);
+    expect(body.total).toBe(body.items.length);
+    expect(body.limit).toBe(100);
+    const found = body.items.find((l) => l.slug === mine);
     expect(found).toBeDefined();
     expect(Array.isArray(found?.translations)).toBe(true);
+    expect(found?.assetCount).toBe(0);
   });
 
   it('管理档（role=ADMIN）→ 403 label.access_denied（facet 面仅超管，非档位阈值判定）', async () => {
@@ -398,5 +407,42 @@ describe('管理全量列表（06 §5.2——GET /api/labels/all 仅 SUPER_ADMIN
   it('匿名 → 401（requireAuth 前置——未登录不达角色判定）', async () => {
     const res = await get('/api/labels/all');
     expect(res.status).toBe(401);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M4b-6 T4（改动 8）：DELETE 有挂载 ⇒ 400 `label.in_use`
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('删除挂载中的标签（M4b-6 T4）', () => {
+  it('有挂载 ⇒ 400 label.in_use；解挂后 ⇒ 204', async () => {
+    const sa = await cookieFor(superAdmin);
+    const name = slug('inuse');
+    expect((await post('/api/labels', { slug: name, type: 'RECOMMENDED' }, sa)).status).toBe(201);
+
+    const [label] = await db
+      .select({ id: labelDefinition.id })
+      .from(labelDefinition)
+      .where(eq(labelDefinition.slug, name));
+    const mountOwner = await makeUser('inuse-owner');
+    const assetSlug = `${PREFIX}${randomUUID().slice(0, 8)}`;
+    const [mountAsset] = await db
+      .insert(asset)
+      .values({ slug: assetSlug, type: 'skill', ownerId: mountOwner })
+      .returning({ id: asset.id });
+    await db.insert(assetLabel).values({ assetId: mountAsset!.id, labelId: label!.id });
+
+    const blocked = await del(`/api/labels/${name}`, sa);
+    expect(blocked.status).toBe(400);
+    expect(((await blocked.json()) as { code: string }).code).toBe('label.in_use');
+
+    // 解挂 ⇒ 可删
+    await db
+      .delete(assetLabel)
+      .where(and(eq(assetLabel.assetId, mountAsset!.id), eq(assetLabel.labelId, label!.id)));
+    expect((await del(`/api/labels/${name}`, sa)).status).toBe(204);
+
+    // 清理 fixture 资产（标签已删）
+    await db.delete(asset).where(eq(asset.id, mountAsset!.id));
   });
 });
