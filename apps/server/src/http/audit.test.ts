@@ -225,3 +225,36 @@ describe('GET /api/audit（T20 浏览 + T21 权限面闭环）', () => {
     expect(body.items[0]!.requestId).toBe('au-ev-3');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M4b-6 T2（改动 6）：`GET /api/audit/actions` —— 动作全集（按前缀分组）
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('GET /api/audit/actions（M4b-6 T2）', () => {
+  function adminGet(url: string, cookie: string) {
+    return buildApp().request(url, {
+      method: 'GET',
+      headers: { host: 'localhost:3000', origin: 'http://localhost:3000', cookie },
+    });
+  }
+
+  it('管理档 ⇒ 200 · 分组出参形态（组内同前缀 · 含资产动作）', async () => {
+    const res = await adminGet('/api/audit/actions', await cookieFor(auditor));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      groups: Array<{ prefix: string; actions: string[] }>;
+    };
+    expect(body.groups.length).toBeGreaterThanOrEqual(6);
+    for (const g of body.groups) {
+      expect(g.actions.length).toBeGreaterThan(0);
+      for (const a of g.actions) expect(a.startsWith(`${g.prefix}.`)).toBe(true);
+    }
+    const assetGroup = body.groups.find((g) => g.prefix === 'asset');
+    expect(assetGroup?.actions).toContain('asset.version_yank');
+  });
+
+  it('用户档 ⇒ 403（与审计浏览同权限面）', async () => {
+    const res = await adminGet('/api/audit/actions', await cookieFor(plain));
+    expect(res.status).toBe(403);
+  });
+});

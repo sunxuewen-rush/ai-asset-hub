@@ -1233,3 +1233,88 @@ describe('R6-b 授权集扩展（M4b-4 T2：非 ACTIVE —— owner 本人 ∨ �
     expect(body.code).toBe('asset.not_found');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M4b-6 T2（改动 4）：`/api/assets` 扩参 `status` / `owner` —— **仅管理档**生效
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('GET /api/assets?status&owner（M4b-6 T2 · 仅管理档）', () => {
+  const tag = `t2${randomUUID().slice(0, 8)}`;
+  let ownerA = '';
+  let ownerB = '';
+  let adminCookie = '';
+  let memberCookie = '';
+
+  beforeAll(async () => {
+    ownerA = await makeUser('t2-a');
+    ownerB = await makeUser('t2-b');
+    adminCookie = await cookieFor(assetAdmin);
+    memberCookie = await cookieFor(member);
+    await db.insert(asset).values([
+      { slug: `${tag}-active-a`, type: 'skill', ownerId: ownerA, status: 'ACTIVE' },
+      { slug: `${tag}-hidden-a`, type: 'skill', ownerId: ownerA, status: 'HIDDEN' },
+      { slug: `${tag}-archived-a`, type: 'skill', ownerId: ownerA, status: 'ARCHIVED' },
+      { slug: `${tag}-active-b`, type: 'skill', ownerId: ownerB, status: 'ACTIVE' },
+    ]);
+  });
+
+  afterAll(async () => {
+    // 本块 fixture 的 slug 前缀独立于文件级 `ast-`（避免影响既有用例的计数）⇒ 这里自行清理，
+    // 否则外键会挡住文件级 afterAll 的账号清理。
+    const mine = await db
+      .select({ id: asset.id })
+      .from(asset)
+      .where(like(asset.slug, `${tag}-%`));
+    for (const row of mine) await db.delete(asset).where(eq(asset.id, row.id));
+  });
+
+  const slugsOf = async (url: string, cookie?: string): Promise<string[]> => {
+    const res = await getReq(url, cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: Array<{ slug: string }> };
+    return body.items.map((i) => i.slug).filter((s) => s.startsWith(tag));
+  };
+  const totalOf = async (url: string, cookie?: string): Promise<number> => {
+    const res = await getReq(url, cookie);
+    const body = (await res.json()) as { total: number };
+    return body.total;
+  };
+
+  it('① 无参（未登录/成员）⇒ 只出 ACTIVE（零回归）', async () => {
+    for (const cookie of [undefined, memberCookie]) {
+      const slugs = await slugsOf('/api/assets?limit=100', cookie);
+      // 两端都排序：列表默认按「最新」倒序（与 fixture 创建顺序相关），此处只断言集合
+      expect(slugs.sort()).toEqual([`${tag}-active-a`, `${tag}-active-b`].sort());
+    }
+  });
+
+  it('② 非管理档传 status=ALL&owner=… ⇒ 与不传**逐条相同**（静默忽略）', async () => {
+    const withParams = await slugsOf(
+      `/api/assets?limit=100&status=ALL&owner=${ownerA}`,
+      memberCookie,
+    );
+    const withoutParams = await slugsOf('/api/assets?limit=100', memberCookie);
+    expect(withParams).toEqual(withoutParams);
+    expect(await totalOf(`/api/assets?status=ALL&owner=${ownerA}`, memberCookie)).toBe(
+      await totalOf('/api/assets', memberCookie),
+    );
+  });
+
+  it('③ 管理档 status=ALL ⇒ 含 HIDDEN / ARCHIVED', async () => {
+    const slugs = await slugsOf('/api/assets?limit=100&status=ALL', adminCookie);
+    expect(slugs).toContain(`${tag}-hidden-a`);
+    expect(slugs).toContain(`${tag}-archived-a`);
+  });
+
+  it('④ 管理档 owner=<uid> ⇒ 只出该归属人的资产', async () => {
+    const slugs = await slugsOf(`/api/assets?limit=100&status=ALL&owner=${ownerA}`, adminCookie);
+    expect(slugs.sort()).toEqual(
+      [`${tag}-active-a`, `${tag}-hidden-a`, `${tag}-archived-a`].sort(),
+    );
+  });
+
+  it('⑤ 管理档 status=HIDDEN（单值）⇒ 仅隐藏项', async () => {
+    const slugs = await slugsOf('/api/assets?limit=100&status=HIDDEN', adminCookie);
+    expect(slugs).toEqual([`${tag}-hidden-a`]);
+  });
+});

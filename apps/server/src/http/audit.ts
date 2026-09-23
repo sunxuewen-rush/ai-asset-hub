@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { AUDIT_ACTION_GROUPS } from '../audit/actions.js';
 import { queryAudit } from '../audit/query.js';
 import { ACCOUNT_ROLE } from '../auth/rbac.js';
 import { TOKEN_SCOPES } from '../auth/token-scopes.js';
@@ -52,6 +53,13 @@ export function createAuditRoutes(deps: AuditRoutesDeps): Hono {
     const { limit, offset, ...filters } = parsed.data;
     const result = await queryAudit(db, { limit, offset, ...filters });
     return c.json({ items: result.items, total: result.total, limit, offset });
+  });
+
+  // GET /api/audit/actions —— 动作全集（按点号前缀分组 · M4b-6 T2 改动 6）
+  // 权限随本组中间件（`role >= ADMIN` + `audit:read` scope）；只读、无副作用。
+  // 数据源 = `audit/actions.ts` 单源表；未登记的新动作不会出现在此 —— 由 `audit/actions.test.ts` 兜底。
+  app.get('/actions', async (c) => {
+    return c.json({ groups: AUDIT_ACTION_GROUPS });
   });
 
   return app;

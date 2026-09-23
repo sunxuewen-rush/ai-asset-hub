@@ -83,6 +83,10 @@ const listQuerySchema = z.object({
   q: z.string().trim().min(1).max(100).optional(),
   /** T12 label 多值 OR（06 §4——?label=a&label=b；上限 20 防滥用） */
   label: z.array(z.string().trim().min(1).max(64)).max(20).optional(),
+  /** M4b-6 T2（改动 4 · **仅管理档**生效）：`ALL` ⇒ 不加状态条件（含 HIDDEN/ARCHIVED）；缺省 `ACTIVE` */
+  status: assetStatusSchema.or(z.literal('ALL')).optional(),
+  /** M4b-6 T2（改动 4 · **仅管理档**生效）：归属人精确匹配（长度上限同 `AUDIT_FILTER_MAX` = 256） */
+  owner: z.string().trim().min(1).max(256).optional(),
   // T11-f 排序（design §4.7.5）：档位 + 方向覆盖 —— 与个人面 **同一 schema 片段**（单点，防漂移）
   ...assetSortQueryFields,
 });
@@ -249,8 +253,16 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
     }
-    const { limit, offset, type, q, label, sort, dir } = parsed.data;
-    // M4-pre S3：列表恒「活跃资产」面，与 viewer 身份无关（可见性已删）
+    const { limit, offset, type, q, label, sort, dir, status, owner } = parsed.data;
+    // M4b-6 T2（改动 4）：`status` / `owner` **仅管理档**生效；非管理档**静默忽略**
+    // （视作未传 ⇒ 与改动前逐条相同：不 403、不泄露管理面参数的存在性 —— design D19 口径）
+    const rbacService = c.get('rbac');
+    const viewerRole =
+      principal === null || rbacService === undefined
+        ? ACCOUNT_ROLE.GUEST
+        : ((await rbacService.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST);
+    const isAdmin = viewerRole >= ACCOUNT_ROLE.ADMIN;
+    // M4-pre S3：列表默认恒「活跃资产」面，与 viewer 身份无关（可见性已删）
     const { items, total } = await listViewableAssets(db, {
       limit,
       offset,
@@ -259,6 +271,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       labelSlugs: label,
       sort,
       dir,
+      ...(isAdmin ? { status, ownerId: owner } : {}),
     });
     // R5/R6：批注入 latest 版本投影 + owner 显示名（两条 inArray 防 N+1）
     const metas = await loadAssetItemMeta(db, items);
