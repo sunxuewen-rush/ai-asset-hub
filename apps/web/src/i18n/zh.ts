@@ -348,6 +348,8 @@ export const zh = {
     settings: '系统设置',
     empty: '暂无数据',
     assets: '资产管理',
+    'assets.countFiltered': '筛选结果 {n}',
+    'assets.countAll': '共 {n} 条',
     'assets.desc': '全站资产治理列表（含隐藏 / 归档）；管理动作集中在资产详情页管理区',
     'assets.col.owner': '归属人',
     'audit.desc': '全站操作留痕（只读）；时间区间默认近 7 天',

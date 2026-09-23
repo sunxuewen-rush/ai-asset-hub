@@ -352,6 +352,8 @@ export const en: Dict = {
     settings: 'System settings',
     empty: 'No data',
     assets: 'Asset management',
+    'assets.countFiltered': '{n} filtered',
+    'assets.countAll': '{n} in total',
     'assets.desc':
       'All assets (including hidden / archived); admin actions live on the asset detail page',
     'assets.col.owner': 'Owner',

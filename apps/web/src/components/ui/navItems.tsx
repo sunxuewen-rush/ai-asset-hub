@@ -104,9 +104,14 @@ export function buildNav(t: Translate): { portal: PortalNavEntry[]; groups: NavG
         labelKey: 'groupAdmin',
         gate: ROLE.ADMIN,
         entries: [
-          // 「管理看板」= **占位条目**（`to` 缺省 ⇒ 轻提示）；页面本体 + `/admin` 路由归 **M4b-6**
-          // （批 design §14.7：本批**不改路由表**——`/admin` 维持既有重定向 → `/admin/reviews`）
-          { text: t('navigation', 'adminBoard'), icon: <Gauge className="size-4" /> },
+          // 「管理看板」= **真页**（M4b-6 T6：`/admin` 由重定向改为看板页）
+          { to: '/admin', text: t('navigation', 'adminBoard'), icon: <Gauge className="size-4" /> },
+          {
+            // 「资产管理」= **真页**（M4b-6 T7：全站治理列表；M4b-2 只落路由与权限，条目与页面同批落）
+            to: '/admin/assets',
+            text: t('admin', 'assets'),
+            icon: <Package className="size-4" />,
+          },
           {
             to: '/admin/reviews',
             text: t('admin', 'reviews'),

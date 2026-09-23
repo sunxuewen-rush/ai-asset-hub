@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider, bootstrapAuth } from '@/auth/AuthProvider';
 import { ROLE } from '@/auth/roles';
 import { ComingSoon } from '@/components/console/ComingSoon';
@@ -8,6 +8,7 @@ import { AppShell } from '@/components/ui/AppShell';
 import { RoleGuard } from '@/components/ui/RoleGuard';
 import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider, useI18n } from '@/i18n/I18nProvider';
+import AdminAssets from '@/pages/AdminAssets';
 import AdminBoard from '@/pages/AdminBoard';
 // 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
 import { AssetDetail } from '@/pages/AssetDetail';
@@ -121,6 +122,8 @@ function AppRoutes() {
               <Route path="/admin" element={<AdminBoard />} />
               {/* 审核管理：**真页**（M4b-5 T7）—— 队列 7 列 + 状态筛选 + 分页 + 列开关（保护 2 列） */}
               <Route path="/admin/reviews" element={<ReviewQueue />} />
+              {/* 资产管理：**真页**（M4b-6 T7）—— 全站治理列表（10 列 · 状态默认全部 · 详情抽屉） */}
+              <Route path="/admin/assets" element={<AdminAssets />} />
               <Route
                 path="/admin/labels"
                 element={
