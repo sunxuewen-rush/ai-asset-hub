@@ -1,32 +1,44 @@
 /**
- * 管理看板聚合 —— KPI ×7 + 创意四项（M4b-6 T1 · 服务端改动 1 · `GET /api/admin/overview`）。
+ * 管理看板聚合 —— KPI ×8（含看板重做新加的 `downloads7d`）+ 标签维度聚合
+ * （M4b-6 看板重做 · 服务端改动 1 · `GET /api/admin/overview`）。
  *
- * 口径 SSOT = 批 design §4.1(a)/(g) + §5.1 端点表 + D31/D33/D34/D43/D44/D45。
- * **空集一律返 `null`（不返 0）** —— 前端显「—」（design §4.1(g) 边界列 · D43）。
+ * 口径 SSOT = 批 design §4.1(a)/(e)/(f) + §5.1 端点表 + D13/D14。
+ * **KPI 空集一律返 `null`（不返 0）** —— 前端显「—」；`labels` 空集 ⇒ `[]`（数组空态）。
  *
- * 实现期口径落点（design 未点名列 / 单位，本文件是唯一落点）：
- * 1. **沉睡资产「上架 ≥30 天」** = 该资产**存在** `PUBLISHED` 版本且其 `published_at ≤ now() − 30 天`
- *    —— 与「**首次**上架 ≥30 天」等价（存在一个 ≥30 天前的发布版 ⟺ 首次发布不晚于该阈值）；
- *    `asset` 表**无**上架时间列（时间在 `asset_version.published_at`，见 `db/schema/assets.ts:107`），
- *    故走 `exists` 子查询。
- * 2. **`reviewSpeed` 单位 = 小时**（float）· **`concentration` / `labelCoverage` = 比例 0–1**（float）——
- *    design 只定算法未定量纲；格式化（天 / %）归前端。
- * 3. 集中度 Top10 排序键 = `download_count desc, id desc`（与 D53 稳定排序同键）。
- * 4. **`types[]`（F203 补）**：design §4.1**(e) 类型数量（同心环 D13）** 与 **(f) 类型下载热度（雷达 Dots D14）**
- *    指向「口径与出参见 §5.1」，但 §5.1 的 overview 出参未列类型级字段 ⇒ 实现期以**最小加性字段**补齐：
- *    `types = [{ type, count, downloads }]`（**仅 `ACTIVE`**，与「已发布资产」同面；`downloads` = 该类型 `sum(download_count)`）。
- *    两图共用一份聚合（一次 groupBy），前端按类型色映射（skill/mcp/agent）。
+ * 看板重做（T6⁺）换靶记录：
+ * - **删 `creative`（四项）** —— 领导拍板砍掉，无消费者。
+ * - **删 `types[]`** —— 两张图改标签维度后无消费者（类型维度退场）。
+ * - **加 `labels[]`** —— 支撑「标签资产数量」（同心环）与「标签下载热度」（雷达）两图，**加性**、零迁移。
  *
- * 性能：8 条独立聚合并发（真库 44 资产 / 2,474 审计行级 ⇒ 实时查询足够；**不加缓存**，D54）。
+ * `labels[]` 口径（拍板逐条落地）：
+ * 1. **只列一级标签**（`label_definition.parent_id IS NULL`）—— 二级子标签不单独出现；
+ * 2. **上卷**：子标签上的挂载算到它的一级父标签；
+ * 3. **仅 `ACTIVE` 资产**（与「已发布资产」卡同面）；
+ * 4. **去重**：一资产同时挂父、子两个标签 ⇒ 只计一次（`selectDistinct` 先打散 (根标签, 资产) 对）；
+ * 5. `count` = 去重后的 ACTIVE 资产数 · `downloads` = **同一集合**的 `sum(download_count)`；
+ * 6. **一资产可挂多标签 ⇒ 各标签 `count` 之和 ≠ 已发布资产数**（口径提示由前端呈现，本层不出该文案）；
+ * 7. 排序 = `count desc, id asc`（稳定序；「下载热度」图由前端按 `downloads` 自行排）。
+ *
+ * 标签名（**零复制**）= `labels` 域 `pickDisplayName` 回退链（`zh-CN` → `zh` → `en` → slug），
+ * 与标签定义页 / 资产挂载面**同一条**回退链（`labels/service.ts` 单点）。
+ *
+ * 状态面差异（**须知**）：`labels[].count` 只算 `ACTIVE`，而删标签守卫（`deleteLabel`）按「任一状态挂载即拒删」——
+ * 显示口径与守卫口径**刻意不同**：守卫若只认 `ACTIVE`，删除会 CASCADE 掉隐藏/归档资产上的挂载行（静默丢数据）。
+ *
+ * 性能：**10 条查询** —— 6 条聚合并发（①–⑥）+ 下载事件 2 条顺序（先探 `download_event` 存在性、再计数）
+ * + 标签名批次 2 条（`displayNamesOf`：定义 + 翻译）；真库 53 资产 / 3 标签 ⇒ 实时查询足够（**不加缓存**，D54）。
  */
-import { and, count, desc, eq, exists, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { asset, assetLabel, assetVersion, reviewTask, user } from '../db/schema/index.js';
-
-/** 沉睡阈值（天）—— 端点常量（D45：不进库、不做配置） */
-const SLEEPING_DAYS = 30;
-/** 下载集中度取 Top10（design §4.1(g)） */
-const CONCENTRATION_TOP = 10;
+import { asset, assetLabel, labelDefinition, reviewTask, user } from '../db/schema/index.js';
+import { displayNamesOf } from '../labels/service.js';
+import {
+  type LabelRollupParent,
+  labelRollupOn,
+  labelRollupParent,
+  rootLabelId,
+} from './label-rollup.js';
+import { countDownloadEventsInLastDays } from './trends.js';
 
 export interface AdminOverviewKpi {
   /** `asset.status = 'ACTIVE'` 计数（「已发布资产」卡） */
@@ -43,33 +55,35 @@ export interface AdminOverviewKpi {
   activeUsers: number;
   /** `user` 全部行（含 `PENDING` / `DISABLED`）—— 副行 hint「全部账号」 */
   allUsers: number;
+  /**
+   * **近 7 个自然日**（含今天 · 上海日界，与趋势曲线同口径）新增下载事件数 —— 看板「累计下载」卡副行数据源。
+   * `download_event` 表不可用 ⇒ `null`（D52 两态；前端显「暂无下载历史」）。
+   * **与趋势窗口选择器无关**（修 F208：前端原先按所选窗口切片算，切「近 7 天」时会退化成总量）。
+   */
+  downloads7d: number | null;
 }
 
-export interface AdminOverviewCreative {
-  /** 平均审核时长（**小时**）= `avg(reviewed_at − submitted_at)` over `APPROVED`（D43）· 空集 ⇒ `null` */
-  reviewSpeed: number | null;
-  /** 下载集中度（**比例 0–1**）= Top10 下载 ÷ 总下载 · 总下载 0 ⇒ `null` */
-  concentration: number | null;
-  /** 标签覆盖度（**比例 0–1**）= 至少挂 1 标签的 `ACTIVE` ÷ `ACTIVE`（D44）· 无 `ACTIVE` ⇒ `null` */
-  labelCoverage: number | null;
-  /** 沉睡资产数 = `ACTIVE` ∧ 首次上架 ≥30 天 ∧ `download_count = 0`（D45） */
-  sleeping: number;
-}
-
-/** 类型级聚合（(e) 同心环 + (f) 雷达的数据源 · F203 补） */
-export interface AdminOverviewType {
-  type: string;
-  /** 该类型的 `ACTIVE` 资产数 */
+/** 一级标签维度聚合（(e) 同心环 + (f) 雷达的数据源 · 看板重做加性字段） */
+export interface AdminOverviewLabel {
+  /** `label_definition.id`（一级标签） */
+  id: number;
+  /** 一级标签 slug */
+  slug: string;
+  /** 显示名（回退链 zh-CN → zh → en → slug，永不空） */
+  name: string;
+  /** 该一级标签（含其子标签上卷）下**去重**的 `ACTIVE` 资产数 */
   count: number;
-  /** 该类型的累计下载次数（`sum(download_count)`） */
+  /** 同一资产集合的 `sum(download_count)` */
   downloads: number;
 }
 
 export interface AdminOverview {
   kpi: AdminOverviewKpi;
-  creative: AdminOverviewCreative;
-  types: AdminOverviewType[];
+  labels: AdminOverviewLabel[];
 }
+
+/** 标签名 locale（看板为中文优先 UI；回退链保证永不空显示 —— 与 `rankings.ts` 同口径） */
+const LABELS_LOCALE = 'zh-CN';
 
 /** 按状态取值（缺失即 0——分组查询天然只回有数据的状态） */
 function nOf(rows: Array<{ status: string | null; n: number }>, status: string): number {
@@ -82,118 +96,79 @@ function totalOf(rows: Array<{ n: number }>): number {
 }
 
 export async function getAdminOverview(db: Db): Promise<AdminOverview> {
-  const [
-    assetRows,
-    downloadRow,
-    topRows,
-    reviewRows,
-    userRows,
-    speedRow,
-    coveredRow,
-    sleepingRow,
-    typeRows,
-  ] = await Promise.all([
+  /** 一级标签自连接别名（上卷落点）—— 口径单点见 `./label-rollup.ts` */
+  const parentLabel: LabelRollupParent = labelRollupParent();
+
+  const [assetRows, downloadRow, reviewRows, userRows, rootRows, pairRows] = await Promise.all([
     // ① 资产按状态分组（一次查询同时供 activeAssets / allAssets）
     db.select({ status: asset.status, n: count() }).from(asset).groupBy(asset.status),
     // ② 累计下载（pg bigint sum 返回 string ⇒ 显式 Number，同 assets/stats.ts 注释）
     db.select({ d: sql<string>`coalesce(sum(${asset.downloadCount}), 0)` }).from(asset),
-    // ③ 集中度分子 = Top10 下载数（稳定键同 D53）
-    db
-      .select({ d: asset.downloadCount })
-      .from(asset)
-      .orderBy(desc(asset.downloadCount), desc(asset.id))
-      .limit(CONCENTRATION_TOP),
-    // ④ 审核任务按状态分组（pending + reviewsTotal）
+    // ③ 审核任务按状态分组（pending + reviewsTotal）
     db
       .select({ status: reviewTask.status, n: count() })
       .from(reviewTask)
       .groupBy(reviewTask.status),
-    // ⑤ 账号按状态分组（activeUsers + allUsers）
+    // ④ 账号按状态分组（activeUsers + allUsers）
     db.select({ status: user.status, n: count() }).from(user).groupBy(user.status),
-    // ⑥ 平均审核时长 —— 样本 = APPROVED 且 reviewed_at 非空（D43；容错：历史行可能缺 reviewed_at）
+    // ⑤ 一级标签全集（含零挂载者 ⇒ count 0；保证口径行「仅 N 个一级标签」与定义数一致）
     db
-      .select({
-        hours: sql<
-          string | null
-        >`avg(extract(epoch from (${reviewTask.reviewedAt} - ${reviewTask.submittedAt}))) / 3600.0`,
+      .select({ id: labelDefinition.id, slug: labelDefinition.slug })
+      .from(labelDefinition)
+      .where(isNull(labelDefinition.parentId))
+      .orderBy(asc(labelDefinition.id)),
+    // ⑥ (根标签, 资产) 去重对 + 该资产下载数（上卷 + 仅 ACTIVE + 去重）
+    db
+      .selectDistinct({
+        rootId: rootLabelId(parentLabel),
+        assetId: asset.id,
+        downloads: asset.downloadCount,
       })
-      .from(reviewTask)
-      .where(and(eq(reviewTask.status, 'APPROVED'), isNotNull(reviewTask.reviewedAt))),
-    // ⑦ 标签覆盖度分子：至少挂 1 个标签的 ACTIVE 资产（exists 子查询 —— 同 assets/service.ts 惯用法）
-    db
-      .select({ n: count() })
-      .from(asset)
-      .where(
-        and(
-          eq(asset.status, 'ACTIVE'),
-          exists(
-            db
-              .select({ id: assetLabel.id })
-              .from(assetLabel)
-              .where(eq(assetLabel.assetId, asset.id)),
-          ),
-        ),
-      ),
-    // ⑧ 沉睡资产（口径见文件头注 1）
-    db
-      .select({ n: count() })
-      .from(asset)
-      .where(
-        and(
-          eq(asset.status, 'ACTIVE'),
-          eq(asset.downloadCount, 0),
-          exists(
-            db
-              .select({ id: assetVersion.id })
-              .from(assetVersion)
-              .where(
-                and(
-                  eq(assetVersion.assetId, asset.id),
-                  eq(assetVersion.status, 'PUBLISHED'),
-                  // 参数化区间：SLEEPING_DAYS * interval '1 day'（避免拼 SQL 字符串）
-                  sql`${assetVersion.publishedAt} <= now() - ${SLEEPING_DAYS} * interval '1 day'`,
-                ),
-              ),
-          ),
-        ),
-      ),
-    // ⑨ 类型级聚合（F203：(e) 同心环 + (f) 雷达共用；仅 ACTIVE）
-    db
-      .select({
-        type: asset.type,
-        n: count(),
-        downloads: sql<string>`coalesce(sum(${asset.downloadCount}), 0)`,
-      })
-      .from(asset)
-      .where(eq(asset.status, 'ACTIVE'))
-      .groupBy(asset.type),
+      .from(assetLabel)
+      .innerJoin(labelDefinition, eq(assetLabel.labelId, labelDefinition.id))
+      .leftJoin(parentLabel, labelRollupOn(parentLabel))
+      .innerJoin(asset, and(eq(assetLabel.assetId, asset.id), eq(asset.status, 'ACTIVE'))),
   ]);
 
-  const activeAssets = nOf(assetRows, 'ACTIVE');
-  const downloads = Number(downloadRow[0]?.d ?? 0);
-  const topDownloads = topRows.reduce((acc, r) => acc + Number(r.d), 0);
-  const speed = speedRow[0]?.hours ?? null;
-  const covered = coveredRow[0]?.n ?? 0;
+  // 下载事件两态 + 近 7 自然日计数（KPI 副行 · 顺序执行：计数前必须先判表存在，同 trends 做法）
+  const downloads7d = await countDownloadEventsInLastDays(db, 7);
+
+  // 根标签聚合（JS 侧归并：一行一 (根标签, 资产) 对，天然去重）
+  const agg = new Map<number, { count: number; downloads: number }>();
+  for (const r of pairRows) {
+    const rootId = Number(r.rootId);
+    const cur = agg.get(rootId) ?? { count: 0, downloads: 0 };
+    cur.count += 1;
+    cur.downloads += Number(r.downloads ?? 0);
+    agg.set(rootId, cur);
+  }
+
+  const names = await displayNamesOf(
+    db,
+    rootRows.map((r) => r.id),
+    LABELS_LOCALE,
+  );
 
   return {
     kpi: {
-      activeAssets,
+      activeAssets: nOf(assetRows, 'ACTIVE'),
       allAssets: totalOf(assetRows),
-      downloads,
+      downloads: Number(downloadRow[0]?.d ?? 0),
       pending: nOf(reviewRows, 'PENDING'),
       reviewsTotal: totalOf(reviewRows),
       activeUsers: nOf(userRows, 'ACTIVE'),
       allUsers: totalOf(userRows),
+      downloads7d,
     },
-    creative: {
-      reviewSpeed: speed === null ? null : Number(speed),
-      concentration: downloads > 0 ? topDownloads / downloads : null,
-      labelCoverage: activeAssets > 0 ? covered / activeAssets : null,
-      sleeping: sleepingRow[0]?.n ?? 0,
-    },
-    // 类型按计数降序（图例/同心环「内→外 = 小→大」由前端排序，服务端给稳定序即可）
-    types: typeRows
-      .map((r) => ({ type: r.type, count: Number(r.n), downloads: Number(r.downloads ?? 0) }))
-      .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type)),
+    // 稳定序：count desc, id asc（「下载热度」图由前端按 downloads 自排）
+    labels: rootRows
+      .map((r) => ({
+        id: r.id,
+        slug: r.slug,
+        name: names.get(r.id) ?? r.slug,
+        count: agg.get(r.id)?.count ?? 0,
+        downloads: agg.get(r.id)?.downloads ?? 0,
+      }))
+      .sort((a, b) => b.count - a.count || a.id - b.id),
   };
 }

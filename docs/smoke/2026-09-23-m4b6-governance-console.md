@@ -5,6 +5,7 @@
 >
 > **状态：✅ 已回填（2026-09-23 执行期）** —— 各节数字均取自当次真实运行输出；**未跑项在 §8 显式登记为未证项**。
 > **F206 补记（2026-09-23 晚 · 用户报缺陷）**：侧栏激活判定修缮 + dogfood **G12** 追加 ⇒ §2 / §5 / §6 / §8 已同步（dogfood 全量 **41 → 56 PASS**）。
+> **T6⁺ 补记（2026-09-23 深夜 · 用户逐条拍板「看板重做」）**：管理看板一页重做（9 处拍板：删创意四项/类型维度 · 加标签维度两图 · 趋势档位改官方 `Combobox` · 副标题与页脚全清 · 13 色池 · 图表盒子对齐 · 环图换 `Radial Chart - Grid` · 雷达换 `Radar Chart - Grid Circle` · 英雄榜换 `Bar Chart - Label` + 类目名水平换行）· 服务端加 `kpi.downloads7d` 修 **F208** · 排行榜卡加 `isolate` 修 **F208-A** · 门禁补绝对值锚修 **F209** ⇒ dogfood 追加 **G14**（8 条）⇒ §2 / §5.3 / §6 / §7 / §8 同步（全量 **71 → 84 PASS**）· 批 design **v0.32** / 批 plan **v0.8**。
 > **F207 补记（2026-09-23 晚 · 用户报缺陷 → 拍板「甲」）**：`TopBar` 删自造路由表（顶栏回归官方 block 形态）+ dogfood **G13** 追加 ⇒ 同步 §2 / §5.2 / §6 / §8（dogfood 全量 **56 → 71 PASS**）· 主 design **v1.67** / 批 design **v0.31** / 批 plan **v0.7**。
 >
 > ⚠️ **口令纪律**：脚本口令一律从 env 读（`SMOKE_M4B2_PASSWORD`，测试账号共用），**仓库内零口令 / 零连接串**
@@ -31,19 +32,20 @@
 > 顺带清掉本批文件的 8 条 warning（`AdminBoard.tsx` 未用 import ×2 + `noNonNullAssertion` ×6）。
 > **非本批文件（`AppShell.tsx` / `CenterPage.tsx` / `Search.tsx`，最后提交早于本批）未动** —— 其中 `noDocumentCookie` 为 warning 级，不影响 exit 0。
 
-## 2. 本批 dogfood（G1–**G13** · design §9.3）
+## 2. 本批 dogfood（G1–**G14** · design §9.3）
 
 **命令**：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b6-governance-dogfood.ts`
-**结果**：**PASS 71 · FAIL 0 · CDP 超时 0** · 每段 `NO JS ERRORS`（真浏览器 CDP，非 mock）
-（T10 首跑基数 = **41**（G1–G11）⇒ **F206 追加 G12（15 条）= 56** ⇒ **F207 追加 G13（15 条）= 71** —— 末次全量输出：`✅ M4b-6 dogfood: PASS 71 · FAIL 0 · CDP 超时 0`）
+**结果**：**PASS 84 · FAIL 0 · CDP 超时 0** · 每段 `NO JS ERRORS`（真浏览器 CDP，非 mock）
+（T10 首跑基数 = **41**（G1–G11）⇒ **F206 追加 G12 = 56** ⇒ **F207 追加 G13 = 71** ⇒ **T6⁺ 重写 G3/G4.4/G5 + 追加 G14（8 条）= 84** —— 末次全量输出：`✅ M4b-6 dogfood: PASS 84 · FAIL 0 · CDP 超时 0`）
+（T6⁺ 过程留痕：旧形态断言**先红后绿** —— 首跑 6 条 FAIL（类型图 / 原生 `select` / 创意四项）**全部属故意变更**；期间另修 **3 处新断言自身的探针缺陷**：① CDP `returnByValue` 遇 **DOM 节点数组静默返回 undefined** ② 正则里的反斜杠被模板字符串二次转义（改用 `[0-9]` 规避）③ `rotate` 在 `<text>` **自身**而非父级（两处都查））
 
 | 组 | 面 | 关键断言（实测值） |
 |----|----|--------------------|
 | G1 | 看板 KPI | 端点 200 · 四卡数字在场 · 副行「全部资产 / 全部账号」在位 |
 | G2 | 看板趋势 | SVG ≥4（实测 **7**）· 下载态 = **数值**（非「暂无下载历史」⇒ 0014 已落）· 范围切换后两图仍在 |
-| G3 | 类型两图 | 同心环 sector 在场（**2**）· 雷达 polygon 在场（**1**）· 两图标题在位 |
-| G4 | 排行榜三口径 | 切「标签」/「资产」口径条形均在场（**6 / 6**）· 英雄榜两卡 + Top N 下拉在位 |
-| G5 | 创意四项 | 四项标题在位 · 三项为数值或 `null`（契约）· 沉睡资产为数值 · 类型级聚合出参在场 |
+| G3 | **标签维度两图**（T6⁺ 重写） | 同心环 sector（**2**）· 两图**同心网格**（ring 2 / radar 5）· 标题在位 · 雷达轴文字（**2**）· **取色三处一致** · 两图无副标题 · **口径与排行榜同面**（逐条 `count` 相等） |
+| G4 | 排行榜三口径 | 切「标签」/「资产」口径条形均在场 · 英雄榜两榜在位 · **两处 `Combobox` 在位**（Top N + 时间档位 · 原生 `select` 已退场） |
+| G5 | **英雄榜形制**（T6⁺ 重写） | 两榜（员工榜 / 资产榜）· 每榜 **3 竖柱 + 3 柱顶数值** · 类目名**水平多行**（无 -45° 旋转）· 无纵向网格线 · 无副标题/页脚口径行 |
 | G6 | 资产管理页 | 表列 = **10**（含操作槽）· `status=ALL` 含非 ACTIVE · 排序接线（URL 出 `sort`/`dir`） · 隐藏描述列后名称列**等比摊开** |
 | G7 | 详情抽屉 | 抽屉打开（`dialogs=1`）· 含「归属人」 |
 | G8 | 标签定义页（**超管**） | 端点 200 · 上限块在位（`total`/`limit`）· 六列在位 · 首行 ↑ 禁用 |
@@ -52,6 +54,7 @@
 | G11 | **跨页数字一致** | 资产页页头计数 = 端点 `activeAssets`（**34**）· 看板 KPI 与资产页一致 |
 | **G12** | **侧栏激活唯一性**（**F206 追加**） | 13 条导航路径（门户 4 + 个人 4 + 管理 5）各**恰 1 条** `[data-slot=sidebar-menu-button][data-active=true]` 且 href = 该路径 · `/search`（无对应条目）**0 条** · F206 回归专条（`/admin/assets` 下 `/admin` **不激活**） |
 | **G13** | **顶栏形态 + 页内标题**（**F207 追加**） | 14 条路径各「顶栏**无** `h1`」**且**「内容区有首个标题」（取值集合 = `[data-slot=card-title], h1, h2, h3` 排除 `header` 内）· 聚合条「顶栏 `h1` 计数 = 0」 |
+| **G14** | **看板重做段**（**T6⁺ 追加** · 8 条） | 六段结构顺序 · 已删段落字样不出现 · 出参换靶（`labels[]` 在场 / `creative`+`types` 不在场）· **KPI 副行与趋势档位无关**（30/7/180 三档同值）· 副行 = `kpi.downloads7d` · **层叠守护**（`elementFromPoint` 命中 `HEADER` 非口径按钮）· 排行榜斜排 ≤14 字符且不越出卡片 · 趋势卡无副标题且档位非 ToggleGroup |
 
 > **账号纪律（一次真失败 ⇒ 已修）**：G8（标签定义）需 **`SUPER_ADMIN`(100)** —— 初版误用 `m4b2_mgr`(ADMIN=10)，
 > 4 条断言 FAIL（页面行为正确，是**脚本选错账号**）⇒ 改为 `m4b2_super` 后全绿。已在脚本内注释该角色门槛（U9）。
@@ -77,7 +80,7 @@
 | `/api/audit/actions` | 分组 **8 组**（潜在全集 9；`ldap`/`oidc` 尚未出现） |
 | 鉴权（负向 · 实测） | 用户档三端点 **403** · `/api/labels/all` 对 `ADMIN`(10) **403**（仅超管 —— 设计如此） |
 
-## 5. 实施期发现与处置（F203–**F207**）
+## 5. 实施期发现与处置（F203–**F209**）
 
 | 号 | 面 | 问题（真） | 处置 |
 |----|----|-----------|------|
@@ -85,8 +88,9 @@
 | **F204** | 审计查询 | `select().from(auditLog)` **无 join ⇒ 拿不到「姓名」**（D48 要求工号 + 姓名同列） | 补 `leftJoin` 出 `actorName`（`audit/query.ts`）+ 测试 |
 | **F205** | i18n（实现面） | **AdminAssets 19 处 + AdminAudit 9 处**硬编码中文（含 `aria-label` / `title` / `placeholder` / 空态 / 抽屉字段名）+ **1 行 stale DEV 提示**（「状态筛选依赖改动 4，尚未实现」——改动 4 已落，属过期信息） | 全部走 i18n（**新增 17 键**：`admin.assets.*` 8 + `admin.audit.*` 8 + `common.close`）；stale 行**删除**；`doc-claims-check` ⑤ 纳入门禁防复发 |
 
-**i18n 终态实测**：zh / en 叶子键 **各 534**（差集 **0**）· 本批增量 **+130**（404 → 534）· `board` 组 **39**（新组）·
-`admin` 组 **6 → 95**（+89）。
+**i18n 终态实测（T6⁺ 重算 · 口径 = `flatten(zh)` 叶子键计数）**：zh / en 叶子键 **各 525**（差集 **0**）· 本批增量 **+121**
+（基线 **404** = 批前提交 `c44e348` 同法计数）· `board` 组 **30**（新组）· `admin` 组 **6 → 95**（+89）。
+（T6⁺ 本轮净 **−9 键**：删 `creative.*` 9 + `type.*` 2 + `trend.desc` / `label.note` / `rank.sumNote` / `hero.desc` / `hero.foot` + 孤儿键 `trend.empty.downloadsWait`；加 `trend.downloadsNote` / `label.countTitle` / `label.heatTitle` / `hero.title`）
 
 ### 5.1 F206 · 侧栏激活唯一性（用户报缺陷 · 2026-09-23 · 含正反双证）
 
@@ -148,7 +152,25 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 ```
 > 反证为**临时改动**：跑完已还原（`sha256` 前后一致）⇒ 工作区只保留「甲」版。
 
-> **收口全量**（修后 · 两次）：F206 后 `PASS 56 · FAIL 0`（G1–G12）· F207 后 `PASS 71 · FAIL 0`（G1–G13）—— 均为**非分段**全量。
+> **收口全量**（修后 · 两次）：F206 后 `PASS 56 · FAIL 0`（G1–G12）· F207 后 `PASS 71 · FAIL 0`（G1–G13）· T6⁺ 后 `PASS 84 · FAIL 0`（G1–G14）—— 均为**非分段**全量。
+
+### 5.3 T6⁺ 管理看板重做（用户逐条拍板 · 2026-09-23 深夜）
+
+| 号 | 面 | 问题（真） | 处置 |
+|----|----|-----------|------|
+| **F208** | 看板「累计下载」卡副行（`AdminBoard.tsx` + `admin/overview.ts`） | **自检发现（非用户报）**：副行「近 7 天新增 X 次」由**趋势响应切片**算（`points.at(-8)`）⇒ 用户把时间档位切到「近 7 天」时该序列只有 7 个点 ⇒ `at(-8)` 越界取 0 ⇒ 显示**累计总量**。实测双证：30 天档 `20 次`（正确）· 7 天档 `38 次`（错误，真值 20） | **服务端加固定窗口字段** `kpi.downloads7d`（含今天 7 个自然日 · `Asia/Shanghai` 日界，与趋势曲线同口径 · `countDownloadEventsInLastDays` 复用 `shiftDay`/`shanghaiToday`）；前端副行改读该字段 ⇒ **与档位无关**。落点：`trends.ts`（helper）+ `overview.ts`（查询与出参）+ `api/admin.ts` + `AdminBoard.tsx` + `admin.test.ts`（窗口专条：3 天前 2 条计入 / 30 天前 1 条不计 + 独立复算一致）。dogfood **G14.4/G14.5** 守护 |
+| **F208-A** | 排行榜卡头层叠（`AdminBoard.tsx`） | **用户报缺陷**：三口径按钮「人 / 资产 / 标签」**悬浮在顶栏之上**（点击与布局均正常 ⇒ 纯**层叠顺序**缺陷）。根因 = 官方那段按钮类名自带 `relative z-30`（官方 demo 无 sticky 顶栏 ⇒ 无冲突），本仓 TopBar = `sticky top-0 z-20`（F207 定稿形态）⇒ `30 > 20`。全仓实测 `z-30` **仅此一处** | **卡级加 `isolate`**（`isolation:isolate`）把 `z-30` 关进卡片；**官方按钮写法零字符改动**、卡内「按钮压图表」关系保持。正反双证（`elementFromPoint` 同一点）：修前命中 `BUTTON`（`人34`）· 修后命中 `HEADER`。dogfood **G14.6** 守护 |
+| **F209** | 门禁脚本（`docs/smoke/scripts/doc-claims-check.ts`） | **自检发现（盲区）**：「i18n 本批新增键数」断言按**声明式措辞锚定**（`本批 **+N 键`）—— 只保证「文档多处写的数一致」，**不校验是否等于真值** ⇒ T6⁺ 删键后文档 `+130 / 各 534 / board 39` 全已漂移，门禁仍 **44/0 假绿** | ① 断言补**绝对值锚**（叶子键「各 N」与 `board` 组「N」两条，真值取 `flatten(zh)` 实数）② 期望值改实测 **+122** ③ 文档 §7.2 改实测值 |
+
+**代码侧 18 维自检（标准档 · `A×0.40 + B×0.30 + C×0.30`）**
+
+| 阶段 | A 基础 | B 深度 | C 工程 | 综合 | 门槛 |
+|------|:--:|:--:|:--:|:--:|:--:|
+| 重做轮首检（未修） | 8.750 | 8.125 | 8.350 | **8.44** | ✗ 未达 ≥9 |
+| 修 F208 / F208-A + 清注释腐化与数字漂移 + 文档同步 + G14 落定后 | 9.000 | 9.250 | 9.150 | **9.14** | ✓ |
+
+首检问题清单（12 项，逐条已闭环）：🔴 F208（档位污染）· 🟡 注释腐化 5 处（文件头 3 + `api/admin.ts` slug 1 + `renderLabelDot` 1）· 🟡 孤儿注释 1 处 · 🟡 数字声明漂移 2 处（`overview.ts`「4 条并行」实为 **10 条**查询 · i18n 键数）· 🟡 前端 3 处 `config`/内联件每渲染重建（已 `useMemo` + 提件 `HeroPanel`）· ⚪ 双重类型断言 1 处（已收单次）· 🟡 文档未同步（本文件 + 批 design/plan + 主 design + `docs/00`）· 🟡 dogfood 6 条旧断言（已重写 + 追加 G14）。
+**口径说明**：上一轮给**批 design 文档**的 8 维 **9.50** 与本轮**代码** 18 维不同靶，不构成同分重报；文档侧本轮复评见批 design §11.2 = **9.44**。
 
 ## 6. 零回归（口径 = 无新增失败 · design §9.1）
 
@@ -156,7 +178,7 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 
 | 脚本 | 串行实测 | 失败项定性（附证据） |
 |------|---------|--------------------|
-| `m4b6-governance-dogfood.ts`（本批） | **71 PASS / 0 FAIL / 0 超时**（G1–G13 · F206/F207 追加后基数；零回归当期跑的是 41 基数版本 —— 追加段只新增断言，不覆盖四脚本的断言面） | — |
+| `m4b6-governance-dogfood.ts`（本批） | **84 PASS / 0 FAIL / 0 超时**（G1–G14 · T6⁺ 后基数；零回归当期跑的是 41 基数版本 —— 追加段只新增断言，不覆盖四脚本的断言面） | — |
 | `m4a-dogfood.ts` | **58 PASS / 2 FAIL** + `NO JS ERRORS` | `diff 三型徽章` / `diff +/− 行内容` —— 变更对比面，需**两份可比版本**前置 ⇒ **数据态** |
 | `m4a-chain-smoke.ts` | **`CHAIN SMOKE PASS`**（14s · 全绿） | — |
 | `m4b3-personal-a-dogfood.ts` | **38 PASS / 3 FAIL** | 3 条全为「**无 PENDING 行**」，且脚本自述「**请先重跑造数脚本复位**」⇒ **数据态**（自证） |
@@ -175,13 +197,17 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 
 ## 7. 出口件与截图
 
-**件行数（`wc -l` 实测）**：`AdminBoard.tsx` **645** · `AdminAssets.tsx` **625** · `AdminLabels.tsx` **574** ·
-`AdminAudit.tsx` **565** · `api/admin.ts` **165** · `http/admin.ts` **68** · `http/admin.test.ts` **566** ·
-`overview.ts` **200** · `rankings.ts` **116** · `trends.ts` **134** · `chart.tsx` **340** · `combobox.tsx` **283**。
+**件行数（`wc -l` 实测 · T6⁺ 重测）**：`AdminBoard.tsx` **840** · `AdminAssets.tsx` **625** · `AdminLabels.tsx` **574** ·
+`AdminAudit.tsx` **565** · `api/admin.ts` **165** · `http/admin.ts` **67** · `http/admin.test.ts` **564** ·
+`overview.ts` **169** · `rankings.ts` **135** · `trends.ts` **150** · `labels/service.ts` **708** ·
+`chart.tsx` **340** · `combobox.tsx` **283** · `m4b6-governance-dogfood.ts` **823**。
 
-**截图（9 张 · `docs/smoke/`）**：`m4b6-g1-board-kpi.png` · `m4b6-g2-board-trend-180.png` · `m4b6-g4-board-rank.png` ·
+**截图（10 张 · `docs/smoke/`）**：`m4b6-g1-board-kpi.png` · `m4b6-g2-board-trend-180.png` · `m4b6-g4-board-rank.png` ·
 `m4b6-g6-assets-list.png` · `m4b6-G6-assets-colhidden.png` · `m4b6-G7-assets-drawer.png` · `m4b6-g8-labels-tree.png` ·
-`m4b6-g9-audit-list.png` · `m4b6-g10-audit-quick.png`。
+`m4b6-g9-audit-list.png` · `m4b6-g10-audit-quick.png` · **`m4b6-g14-board-redesign.png`（T6⁺ 重做后整页）**。
+
+**T6⁺ 方向板与实拍（截图外的对比物料 · 桌面留档，不进仓）**：`~/Desktop/m4b6-board-direction/`（`index.html` 方向板 ·
+`board-direction.png` · `board-real-page.png` 重做后真页 · `bug-zindex-overlap.png` F208-A 正反双证）。
 
 **PoC 清理（U7 · T10 步骤 7）**：`apps/web/src/pages/__proto/`（4 页 + 3 数据文件）已删；`apps/server/tmp-dashboard-probe.ts` /
 `tmp-label-seed-child.ts` / `tmp-labels-audit-probe.ts` 已删；`main.tsx` 的 DEV 路由与 `ComingSoon` 占位已移除 ⇒
@@ -195,8 +221,10 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 | 2 | ~~`bun run lint`~~ | ✅ **已转绿**（本批文件 2 error + 8 warning 修掉；非本批文件未动） | 已闭合 |
 | 3 | ~~`m4a` / `m4b3` / `m4b5` 三脚本串行补跑~~ | ✅ **已补跑**（`m4a` 58/2 · `m4b3` 38/3 · `m4b5` 52/10 · 失败逐条定性见 §6） | 已闭合 |
 | 4 | **代码基线对照（`HEAD~14` 同环境跑同脚本）** | **未做** —— 21 条失败**逐条定性为「前置数据缺失」**（附期望/实际差异 + 脚本自述），但「数据态」**不等于**已证「代码无关」 | 方法学缺口（非风险缺口）：结论表述限定为「**未见指向本批代码路径的失败**」 |
-| 5 | **F206 / F207 修复后零回归四脚本未重跑** | **未重跑** —— 修复面 = 侧栏激活判定（`SideNav.tsx` / `navItems.tsx`）与顶栏标题区（`TopBar.tsx`），四个零回归脚本（`m4a` / `m4b3` / `m4b4` / `m4b5`）的断言面**不含**这两处；已重跑的是**本批** dogfood 全量（**71/0**） | 覆盖面判断为「不受影响」，但**未实测** ⇒ 显式登记，不主张「已覆盖」 |
+| 5 | **F206 / F207 修复后零回归四脚本未重跑** | **未重跑** —— 修复面 = 侧栏激活判定（`SideNav.tsx` / `navItems.tsx`）与顶栏标题区（`TopBar.tsx`），四个零回归脚本（`m4a` / `m4b3` / `m4b4` / `m4b5`）的断言面**不含**这两处；已重跑的是**本批** dogfood 全量（T6⁺ 后 **84/0**） | 覆盖面判断为「不受影响」，但**未实测** ⇒ 显式登记，不主张「已覆盖」 |
 | 5 | 零回归造数复位（`m4b3-seed-submissions` / `m4b5-seed-reviews` / 本批 `m4b6-seed-downloads --clean`） | **未执行**（写库需授权）；复位后三脚本预期可清零失败 | 若要 100% 收口：授权后「复位 → 串行重跑」即可 |
+| 6 | **T6⁺ 后零回归四脚本未重跑** | **未重跑** —— T6⁺ 改动面 = 管理看板一页 + `admin/overview.ts`（加性）· `admin/rankings.ts`（标签口径）· `labels/service.ts`（`assetCount` 口径）· 前端 `api/admin.ts` / i18n；归因判断 = 四脚本（`m4a` / `m4b3` / `m4b4` / `m4b5`）断言面**不含**看板与上述端点 | 覆盖面判断为「不受影响」，但**未实测** ⇒ 显式登记，不主张「已覆盖」 |
+| 7 | **>13 个一级标签的 13 色池循环** | **未实测**（真库仅 2 个一级标签 ⇒ 取色只走到 `--chart-1/2`） | 代码路径为 `index % 13` 常量表取模（无分支）；如需实证须造 ≥14 个标签（写库需授权） |
 
 > **未证项的诚实口径**：本批对既有面的**代码级影响面**已实测收窄（`/api/assets` 管理档加性扩参、非管理档逐条相同；
 > 标签面形态变更无前端消费者；新增表独立）⇒ 21 条失败**逐条**都能归因到前置数据缺失，**没有一条落在本批改动的代码路径上**。

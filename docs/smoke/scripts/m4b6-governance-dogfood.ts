@@ -1,12 +1,15 @@
 /**
- * M4b-6 治理批 · 本批 dogfood（**G1–G12** · 批 design §9.3 · 批 plan T10）
+ * M4b-6 治理批 · 本批 dogfood（**G1–G14** · 批 design §9.3 · 批 plan T10）
  *
- * 覆盖：看板（KPI 与端点真值一致 / 趋势两图 + 范围四档 / 类型两图 / 排行榜三口径 + Top N / 创意四项 / 英雄榜 ×2）·
+ * 覆盖：看板（KPI 与端点真值一致 / 趋势两图 + 范围四档 / **标签维度两图**（G3）· 排行榜三口径 + **两处 Combobox** ·
+ *       **英雄榜形制**（G5：竖柱 + 柱顶数值 + 水平多行类目名）· **T6⁺ 看板重做段**（G14 · F208/F208-A 守护））·
  *       资产管理（10 列 + 状态默认全部 + 排序接线 + 列显示 + 详情抽屉）·
  *       标签定义（两级树 + 上限块 + ↑↓ 边界 + 删除确认禁用）·
  *       审计日志（过滤区三块 + 6 列 + 详情抽屉 + **服务端过滤生效** + 清除筛选）· 跨页数字一致 ·
  *       **侧栏激活唯一性**（G12 · F206 守护：任一导航路径下恰 1 条 `[data-active=true]`，13 路径 + 1 零态）·
- *       **顶栏形态 + 页内标题**（G13 · F207 守护：顶栏**无** `h1` 且内容区**有**标题，14 路径 + 1 聚合）。
+ *       **顶栏形态 + 页内标题**（G13 · F207 守护：顶栏**无** `h1` 且内容区**有**标题，14 路径 + 1 聚合）·
+ *       **看板重做段**（G14 · T6⁺：六段结构 / 删项守护 / 出参换靶 / **KPI 档位无关性（F208）** / **层叠守护（F208-A）** /
+ *        斜排截断不越界 / 无副标题 · 8 条断言）。
  *
  * 前置（dev 三件在线）：`:3000` API · `:5173` web · `:9222` Edge CDP
  * 造数（**先跑**）：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b6-seed-downloads.ts`
@@ -49,6 +52,7 @@ const SECTION_IDS = [
   'G11',
   'G12',
   'G13',
+  'G14',
 ] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 const only = (process.env.SMOKE_ONLY ?? '')
@@ -277,15 +281,60 @@ if (want('G2')) {
   await shot('g2-board-trend-180');
 }
 
-/* ── G3 看板：类型两图（径向 + 雷达） ── */
+/* ── G3 看板：标签维度两图（同心环 + 雷达 · T6⁺ 换靶） ── */
 if (want('G3')) {
-  const s = await evalJs(
-    "({ radial: document.querySelectorAll('svg.recharts-surface .recharts-radial-bar-sector').length, radar: document.querySelectorAll('svg.recharts-surface .recharts-radar-polygon').length })",
+  const s = await evalJs(`(() => {
+    const cardOf = (t) => [...document.querySelectorAll('[data-slot=card]')].find((c) => c.textContent.includes(t));
+    const ring = cardOf('标签资产数量');
+    const radar = cardOf('标签下载热度');
+    const fills = (root, sel) => (root ? [...root.querySelectorAll(sel)].map((e) => getComputedStyle(e).fill) : []);
+    const bgs = (root, sel) => (root ? [...root.querySelectorAll(sel)].map((e) => getComputedStyle(e).backgroundColor) : []);
+    return {
+      sectors: ring ? ring.querySelectorAll('.recharts-radial-bar-sector').length : 0,
+      ringCircles: ring ? ring.querySelectorAll('.recharts-polar-grid-concentric-circle').length : 0,
+      radarCircles: radar ? radar.querySelectorAll('.recharts-polar-grid-concentric-circle').length : 0,
+      radarAngle: radar ? radar.querySelectorAll('.recharts-polar-angle-axis-tick').length : 0,
+      sectorFills: fills(ring, '.recharts-radial-bar-sector'),
+      ringChips: bgs(ring, 'span[aria-hidden]'),
+      radarDotFills: radar ? [...radar.querySelectorAll('circle')].filter((c) => c.getAttribute('r') === '4').map((c) => getComputedStyle(c).fill) : [],
+      radarChips: bgs(radar, 'span[aria-hidden]'),
+      ringDesc: ring ? ring.querySelectorAll('[data-slot=card-description]').length : -1,
+      radarDesc: radar ? radar.querySelectorAll('[data-slot=card-description]').length : -1,
+    };
+  })()`);
+  ok('G3.1 同心环扇区在场', (s?.sectors ?? 0) >= 1, `sectors=${s?.sectors}`);
+  ok(
+    'G3.2 两图同心网格（官方 gridType=circle）',
+    (s?.ringCircles ?? 0) >= 1 && (s?.radarCircles ?? 0) >= 1,
+    `ring=${s?.ringCircles} radar=${s?.radarCircles}`,
   );
-  ok('G3.1 同心环 sector 在场', (s?.radial ?? 0) >= 2, `sectors=${s?.radial}`);
-  ok('G3.2 雷达 polygon 在场', (s?.radar ?? 0) >= 1, `polygons=${s?.radar}`);
   const t = await bodyText();
-  ok('G3.3 两图标题在位', t.includes('类型数量') && t.includes('类型下载热度'));
+  ok('G3.3 两图标题在位（标签维度）', t.includes('标签资产数量') && t.includes('标签下载热度'));
+  ok('G3.4 雷达轴文字在场', (s?.radarAngle ?? 0) >= 1, `ticks=${s?.radarAngle}`);
+  const same = (a: string[], b: string[]) =>
+    a.length > 0 && a.length === b.length && a.every((x, i) => x === b[i]);
+  ok(
+    'G3.5 取色三处一致（环扇区↔环图例 · 雷达点↔雷达图例）',
+    same(s?.sectorFills ?? [], s?.ringChips ?? []) &&
+      same(s?.radarDotFills ?? [], s?.radarChips ?? []),
+    `ring=${JSON.stringify(s?.sectorFills)} radar=${JSON.stringify(s?.radarDotFills)}`,
+  );
+  ok(
+    'G3.6 两图无副标题（T6⁺ 拍板）',
+    s?.ringDesc === 0 && s?.radarDesc === 0,
+    `ring=${s?.ringDesc} radar=${s?.radarDesc}`,
+  );
+  // 口径三向一致：overview.labels[] ↔ rankings.labels（逐条 count 相等 ⇒ 一级 + 上卷 + 仅 ACTIVE + 去重同面）
+  const ov = await readJson('/api/admin/overview');
+  const rk = await readJson('/api/admin/rankings?limit=100');
+  const ovMap = new Map((ov.body?.labels ?? []).map((l: any) => [l.slug, l.count]));
+  const rkLabels = rk.body?.labels ?? [];
+  const mismatch = rkLabels.filter((l: any) => ovMap.get(l.id) !== l.value);
+  ok(
+    'G3.7 标签口径与排行榜同面（逐条 count 相等）',
+    rkLabels.length > 0 && mismatch.length === 0,
+    `rankings=${rkLabels.length} mismatch=${JSON.stringify(mismatch.slice(0, 2))}`,
+  );
 }
 
 /* ── G4 看板：排行榜三口径 + Top N + 英雄榜 ×2 ── */
@@ -308,32 +357,70 @@ if (want('G4')) {
   ok('G4.2 切换「资产」口径后条形在场', (barsAsset ?? 0) >= 1, `bars=${barsAsset}`);
   const t = await bodyText();
   ok('G4.3 英雄榜两卡在位', t.includes('资产榜') && t.includes('员工榜'));
-  const heroRows = await evalJs(
-    "document.querySelectorAll('svg.recharts-surface .recharts-bar-rectangle').length",
+  // T6⁺：Top N 与时间档位均改官方 `Combobox`（不再是原生 `select`）
+  const comboLabels = await evalJs(
+    `(() => [...document.querySelectorAll('input[aria-label]')].map((i) => i.getAttribute('aria-label')))()`,
   );
-  ok('G4.4 Top N 下拉在位', (await evalJs("document.querySelectorAll('select').length")) >= 2);
+  ok(
+    'G4.4 两处 Combobox 在位（Top N + 时间档位）',
+    (comboLabels ?? []).some((x: string) => /^Top/.test(x)) &&
+      (comboLabels ?? []).some((x: string) => /^近/.test(x)),
+    JSON.stringify(comboLabels),
+  );
   await shot('g4-board-rank');
 }
 
-/* ── G5 看板：创意四项（空集显「—」而非 0） ── */
+/* ── G5 看板：英雄榜形制（T6⁺：竖柱 + 柱顶数值 + 水平多行类目名） ── */
 if (want('G5')) {
+  const h = await evalJs(`(() => {
+    const hero = [...document.querySelectorAll('[data-slot=card]')].find((c) => c.textContent.includes('英雄榜'));
+    if (!hero) return null;
+    const panels = [...hero.querySelectorAll('div.rounded-xl[class*="bg-muted/50"]')];
+    return panels.map((p) => {
+      const svg = p.querySelector('svg.recharts-surface');
+      const texts = svg ? [...svg.querySelectorAll('text')] : [];
+      const isNum = (x) => /^[0-9]+$/.test((x.textContent || '').trim());
+      const rot = (x) =>
+        /rotate/.test((x.getAttribute('transform') || '') + (x.parentElement?.getAttribute('transform') || ''));
+      return {
+        title: (p.firstElementChild?.textContent || '').trim(),
+        bars: p.querySelectorAll('.recharts-bar-rectangle').length,
+        topLabels: texts.filter(isNum).length,
+        nameLines: texts.filter((x) => !isNum(x)).map((x) => x.querySelectorAll('tspan').length),
+        rotated: texts.filter(rot).length,
+        gridVertical: p.querySelectorAll('.recharts-cartesian-grid-vertical line').length,
+      };
+    });
+  })()`);
+  const hs = (h ?? []) as Array<any>;
+  ok(
+    'G5.1 英雄榜两榜在位（员工榜 / 资产榜）',
+    hs.length === 2 &&
+      hs.some((x) => x.title.includes('员工榜')) &&
+      hs.some((x) => x.title.includes('资产榜')),
+    JSON.stringify(hs.map((x) => x.title)),
+  );
+  ok(
+    'G5.2 每榜 3 根竖柱 + 3 个柱顶数值',
+    hs.length === 2 && hs.every((x) => x.bars === 3 && x.topLabels === 3),
+    JSON.stringify(hs.map((x) => [x.bars, x.topLabels])),
+  );
+  ok(
+    'G5.3 类目名水平多行（无 -45° 旋转 · 每名至少 1 层 tspan）',
+    hs.length === 2 &&
+      hs.every(
+        (x) =>
+          x.rotated === 0 && x.nameLines.length >= 1 && x.nameLines.every((n: number) => n >= 1),
+      ),
+    JSON.stringify(hs.map((x) => [x.rotated, x.nameLines])),
+  );
+  ok(
+    'G5.4 无纵向网格线（官方 vertical={false}）',
+    hs.length === 2 && hs.every((x) => x.gridVertical === 0),
+    JSON.stringify(hs.map((x) => x.gridVertical)),
+  );
   const t = await bodyText();
-  const four = ['平均审核时长', '下载集中度', '标签覆盖度', '沉睡资产'];
-  ok(
-    'G5.1 四项标题在位',
-    four.every((x) => t.includes(x)),
-  );
-  const api = await readJson('/api/admin/overview');
-  const c = api.body?.creative ?? {};
-  const num = (v: any) => typeof v === 'number';
-  ok(
-    'G5.2 三项为数值或 null（契约）',
-    (num(c.reviewSpeed) || c.reviewSpeed === null) &&
-      (num(c.concentration) || c.concentration === null) &&
-      (num(c.labelCoverage) || c.labelCoverage === null),
-  );
-  ok('G5.3 沉睡资产为数值', num(c.sleeping));
-  ok('G5.4 类型级聚合出参在场', Array.isArray(api.body?.types) && api.body.types.length >= 1);
+  ok('G5.5 英雄榜无副标题/无页脚口径行', !t.includes('取排行榜前 3') && !t.includes('柱内为名称'));
 }
 
 /* ── G6 资产管理：10 列 + 状态默认全部 + 排序接线 + 列显示 ── */
@@ -584,6 +671,146 @@ if (want('G13')) {
     'G13.15 顶栏 h1 计数 = 0（甲口径：页面名只在页内）',
     (await evalJs("document.querySelectorAll('header h1').length")) === 0,
   );
+}
+
+/* ── G14 看板重做段（T6⁺：结构 / 删项 / 档位无关性 / 层叠 / 斜排 / 无副标题） ── */
+if (want('G14')) {
+  await loginAs(MGR);
+  await nav(`${APP}/admin`);
+
+  // KPI 卡：标题槽是数字、名称在副行槽（`card-description`）⇒ 两槽都读，按 DOM 序
+  const titles = (await evalJs(
+    `(() => [...document.querySelectorAll('[data-slot="card-title"], [data-slot="card-description"]')].map((e) => e.textContent.trim()))()`,
+  )) as string[];
+  const order = [
+    '已发布资产',
+    '累计下载',
+    '待审',
+    '有效用户',
+    '资产数和下载数趋势',
+    '标签资产数量',
+    '标签下载热度',
+    '排行榜',
+    '英雄榜',
+  ];
+  const idx = order.map((x) => (titles ?? []).findIndex((t) => t.startsWith(x)));
+  ok(
+    'G14.1 六段结构在位且顺序正确',
+    idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1])),
+    JSON.stringify(idx),
+  );
+
+  const t = await bodyText();
+  ok(
+    'G14.2 已删段落字样不出现（创意四项 / 类型维度）',
+    !t.includes('平均审核时长') &&
+      !t.includes('下载集中度') &&
+      !t.includes('标签覆盖度') &&
+      !t.includes('沉睡资产') &&
+      !t.includes('类型数量') &&
+      !t.includes('类型下载热度'),
+  );
+
+  const ov = await readJson('/api/admin/overview');
+  ok(
+    'G14.3 出参已换靶（labels[] 在场 · creative/types 不在场）',
+    Array.isArray(ov.body?.labels) &&
+      ov.body?.creative === undefined &&
+      ov.body?.types === undefined,
+    `labels=${ov.body?.labels?.length} creative=${typeof ov.body?.creative}`,
+  );
+
+  /** 读「累计下载」卡副行 */
+  const kpiHint = async (): Promise<string | null> =>
+    (await evalJs(
+      `(() => { const c = [...document.querySelectorAll('[data-slot=card]')].find((x) => x.textContent.includes('累计下载'));
+        return c ? [...c.querySelectorAll('[data-slot=card-content]')].map((e) => e.textContent.trim()).join('|') : null; })()`,
+    )) as string | null;
+  /** 用时间档位 Combobox 换档 */
+  const pickRange = async (label: string) => {
+    await evalJs(
+      `(() => { const el = [...document.querySelectorAll('input[aria-label]')].find((i) => /^近/.test(i.getAttribute('aria-label') || ''));
+        if (!el) return false; el.focus(); el.click(); el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); return true; })()`,
+    );
+    await sleep(700);
+    await evalJs(
+      `(() => { const el = [...document.querySelectorAll('[role=option]')].find((e) => (e.textContent || '').trim() === ${JSON.stringify(label)});
+        if (el) el.click(); return !!el; })()`,
+    );
+    await sleep(2200);
+  };
+
+  const hint30 = await kpiHint();
+  await pickRange('近 7 天');
+  const hint7 = await kpiHint();
+  await pickRange('近半年');
+  const hint180 = await kpiHint();
+  ok(
+    'G14.4 KPI 副行与趋势档位无关（F208 专条）',
+    hint30 !== null && hint30 === hint7 && hint7 === hint180,
+    `30=${hint30} | 7=${hint7} | 180=${hint180}`,
+  );
+  const d7 = ov.body?.kpi?.downloads7d;
+  ok(
+    'G14.5 KPI 副行 = 端点 kpi.downloads7d',
+    d7 === null ? (hint30 ?? '').includes('暂无下载历史') : (hint30 ?? '').includes(String(d7)),
+    `endpoint=${d7} hint=${hint30}`,
+  );
+  await pickRange('近 30 天');
+
+  // 层叠守护：把排行榜卡头滚到 TopBar 下方，重叠点必须命中顶栏（而非口径按钮）
+  await evalJs(`(() => {
+    const b = [...document.querySelectorAll('button[data-active]')].filter((x) => /^(人|资产|标签)/.test(x.textContent.trim()))[0];
+    if (b) window.scrollTo(0, window.scrollY + b.getBoundingClientRect().top - 20);
+    return !!b;
+  })()`);
+  await sleep(700);
+  const layer = await evalJs(`(() => {
+    const header = document.querySelector('header.sticky') || document.querySelector('header');
+    const b = [...document.querySelectorAll('button[data-active]')].filter((x) => /^(人|资产|标签)/.test(x.textContent.trim()))[0];
+    if (!header || !b) return null;
+    const hb = header.getBoundingClientRect(); const bb = b.getBoundingClientRect();
+    const x = Math.round(Math.max(hb.left, bb.left) + 10); const y = Math.round(hb.top + hb.height - 6);
+    const el = document.elementFromPoint(x, y);
+    return { insideTopBar: y >= hb.top && y <= hb.bottom, hitIsCaliberButton: !!(el && el.closest('button[data-active]')), hitTag: el ? el.tagName : null };
+  })()`);
+  ok(
+    'G14.6 层叠守护：口径按钮不得盖住 TopBar（F208-A 专条）',
+    !!layer && layer.insideTopBar === true && layer.hitIsCaliberButton === false,
+    JSON.stringify(layer),
+  );
+
+  await nav(`${APP}/admin`);
+  const rank = await evalJs(`(() => {
+    const svg = [...document.querySelectorAll('svg.recharts-surface')].find((s) => s.querySelectorAll('.recharts-bar-rectangle').length >= 5);
+    if (!svg) return null;
+    const card = svg.closest('[data-slot=card]'); const cb = card.getBoundingClientRect();
+    const rot = [...svg.querySelectorAll('text')].filter((x) =>
+      /rotate/.test((x.getAttribute('transform') || '') + (x.parentElement?.getAttribute('transform') || '')));
+    const boxes = rot.map((x) => { const b = (x.parentElement ?? x).getBoundingClientRect(); return { left: Math.round(b.left - cb.left), bottom: Math.round(b.bottom - cb.top) }; });
+    return {
+      count: rot.length,
+      maxLen: rot.reduce((m, x) => Math.max(m, (x.textContent || '').length), 0),
+      outLeft: boxes.filter((b) => b.left < 0).length,
+      outBottom: boxes.filter((b) => b.bottom > cb.height + 1).length,
+    };
+  })()`);
+  ok(
+    'G14.7 排行榜类目名斜排 + 截断 ≤14 字符 + 不越出卡片',
+    !!rank && rank.count >= 1 && rank.maxLen <= 15 && rank.outLeft === 0 && rank.outBottom === 0,
+    JSON.stringify(rank),
+  );
+
+  const trend = await evalJs(`(() => {
+    const c = [...document.querySelectorAll('[data-slot=card]')].find((x) => x.textContent.includes('资产数和下载数趋势'));
+    return { desc: c ? c.querySelectorAll('[data-slot=card-description]').length : -1, toggle: document.querySelectorAll('[data-slot=toggle-group]').length };
+  })()`);
+  ok(
+    'G14.8 趋势卡无副标题且档位非 ToggleGroup',
+    !!trend && trend.desc === 0 && trend.toggle === 0,
+    JSON.stringify(trend),
+  );
+  await shot('g14-board-redesign');
 }
 
 /* ── JS 错误门 + 汇总 ── */

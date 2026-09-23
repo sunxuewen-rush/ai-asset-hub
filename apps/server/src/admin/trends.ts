@@ -9,8 +9,9 @@
  * - **`downloads` 两态（D52）**：`download_event` 表**不存在**（迁移 `0014` 未落）⇒ 全部 `null`（前端显「—」）；
  *   表在 ⇒ 数值（空表 / 零下载 ⇒ `0`，前端画 0 线）
  *
- * 实现注记：`download_event` 尚未进 drizzle schema（T3 落表）⇒ 本文件对该表用 **raw SQL**（表结构由 D38 固定 4 列），
- * 避免 T1 依赖 T3 的 schema diff；表存在性用 `to_regclass` 探一次（真实时、无缓存，D54）。
+ * 实现注记：`download_event` **现已进 drizzle schema**（`db/schema/assets.ts` · T3 落表），但本文件对该表仍用
+ * **raw SQL** —— ① 存在性探测必须走 `to_regclass`（drizzle 无「表是否存在」表达）② 按「上海日界」分组的
+ * `AT TIME ZONE` 表达式在 raw SQL 里更直白；两态判据（D52）与查询共用同一探针。表存在性**每次实探、不缓存**（D54）。
  */
 import { count, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
@@ -65,8 +66,8 @@ function shiftDay(day: string, delta: number): string {
   return `${dt.getUTCFullYear()}-${mm}-${dd}`;
 }
 
-/** `download_event` 表是否存在（迁移 0014 落库判据，D52 两态分支） */
-async function hasDownloadEventTable(db: Db): Promise<boolean> {
+/** `download_event` 表是否存在（迁移 0014 落库判据，D52 两态分支）—— 导出供 `overview` KPI 复用同一判据 */
+export async function hasDownloadEventTable(db: Db): Promise<boolean> {
   const res = (await db.execute(
     sql`select to_regclass('public.download_event') is not null as present`,
   )) as unknown as { rows?: Array<{ present: boolean }> };
@@ -80,6 +81,23 @@ async function downloadsByDay(db: Db): Promise<Map<string, number>> {
         from download_event group by 1`,
   )) as unknown as { rows?: Array<{ day: string; n: number }> };
   return new Map((res.rows ?? []).map((r) => [r.day, Number(r.n)]));
+}
+
+/**
+ * 近 `days` 个自然日（**含今天** · 上海日界，D35/D36）的下载事件数 —— 看板 KPI「近 7 天新增」数据源。
+ * 日界口径与趋势曲线**逐点一致**（= 曲线末点 − 曲线 `days` 天前那点），故不看趋势窗口选择器也有同值。
+ * `download_event` 表不存在 ⇒ `null`（D52 两态：前端显「暂无下载历史」）。
+ */
+export async function countDownloadEventsInLastDays(db: Db, days: number): Promise<number | null> {
+  if (!(await hasDownloadEventTable(db))) return null;
+  // 起点日期在 JS 侧算（复用 `shanghaiToday`/`shiftDay`）——不在 SQL 里做 `date - $n` 算术：
+  // `date - <bound param>` 在 PG 侧类型无法推断（实测报错 "Failed query: … ::date - $3"）。
+  const since = shiftDay(shanghaiToday(), -(days - 1));
+  const res = (await db.execute(
+    sql`select count(*)::int as n from download_event
+        where (created_at AT TIME ZONE ${TZ})::date >= ${since}::date`,
+  )) as unknown as { rows?: Array<{ n: number }> };
+  return Number(res.rows?.[0]?.n ?? 0);
 }
 
 export async function getAdminTrends(db: Db, days: number): Promise<TrendPoint[]> {

@@ -2,6 +2,8 @@
  * label 域服务（M3 design §5 R11；06 §1-§6 契约落地——定义 CRUD/排序/公开列表）。
  * 权限：定义 CRUD 仅 SUPER_ADMIN（06 §3——路由层判）；挂载面在 T11（canManageAsset 分判）。
  * 两级树：slug 全局唯一；parentId DB 存内部 id、API 层按 slug 解析/回传（06 §2.1/§5.1）。
+ * 口径（看板重做）：`assetCount` = **仅 `ACTIVE` 资产**的挂载数（与看板「已发布资产」同面）；
+ * 删除守卫按「任一状态挂载即拒删」（见 `deleteLabel`——两口径刻意不同，防级联丢挂载行）。
  * 级联：删 definition → 翻译/挂载 ON DELETE CASCADE（06 §2 表结构）；「搜索文档重建」
  * 句在 AIH 消化掉（无独立搜索索引——design §5 R11：挂载实时 join，删 label 无需重建）。
  */
@@ -11,6 +13,7 @@ import type { AuditWriter } from '../audit/audit.js';
 import { getEnv } from '../config/env.js';
 import type { Db } from '../db/client.js';
 import {
+  asset,
   assetLabel,
   type LabelType,
   labelDefinition,
@@ -60,7 +63,9 @@ export interface ManagedLabel {
   sortOrder: number;
   parentId: string | null;
   translations: Array<{ locale: string; displayName: string }>;
-  /** 挂载数（M4b-6 T4 · D27）：`asset_label` 行数（**不分资产状态** —— 与删除守卫同口径，跨页一致） */
+  /** 挂载数（M4b-6 T4 · D27；**看板重做改口径**）：该标签下**仅 `ACTIVE` 资产**的挂载数（`asset_label` 行数，
+   *  一资产一标签至多一行 ⇒ 天然去重）。**与删除守卫口径刻意不同**：守卫按「任一状态挂载即拒删」
+   *  （见 `deleteLabel` 注释——守卫若只认 ACTIVE，删除会 CASCADE 掉隐藏/归档资产上的挂载行）。 */
   assetCount: number;
 }
 
@@ -326,10 +331,11 @@ export async function updateLabel(
     },
   });
   const updated = await loadBySlug(db, input.slug);
-  // M4b-6 T4：`assetCount`（挂载数）随响应返回 —— 与 `/all` 同口径（`asset_label` 行数）
+  // M4b-6 T4：`assetCount`（挂载数）随响应返回 —— 与 `/all` 同口径（仅 ACTIVE 资产的挂载行数）
   const [mountRow] = await db
     .select({ n: count() })
     .from(assetLabel)
+    .innerJoin(asset, and(eq(assetLabel.assetId, asset.id), eq(asset.status, 'ACTIVE')))
     .where(eq(assetLabel.labelId, existing.id));
   // D2：响应 parentId = 父 slug
   return {
@@ -354,8 +360,11 @@ export async function deleteLabel(
     .limit(1);
   if (child) throw new LabelError(labelErrorCodes.parentHasChildren);
 
-  // M4b-6 T4（改动 8 · D27/D32）：**仍被资产挂载 ⇒ 拒绝删除**（400 `label.in_use`）
-  // 口径 = `asset_label` 行数（不分资产状态）—— 与 `/all` 的 `assetCount` 同一口径，防「页面说 0、服务端说在用」。
+  // M4b-6 T4（改动 8 · D27/D32）：**仍被资产挂载 ⇒ 拒绝删除**（400 `label.in_use`）。
+  // 口径 = `asset_label` 行数、**不分资产状态** —— 与显示口径（`assetCount`，仅 ACTIVE）**刻意不同**：
+  // `asset_label` 是 ON DELETE CASCADE ⇒ 守卫若只认 ACTIVE，一个仍挂 HIDDEN/ARCHIVED 资产的标签会被放行删除，
+  // 那些挂载行随级联静默消失（丢数据）。故：**显示只算已发布，守卫按任一状态**——UI 的拒删文案须讲清
+  // 「仍被资产挂载（含已隐藏/已归档）」，避免「页面说 0、点删被拒」被误读成 bug。
   const [mount] = await db
     .select({ id: assetLabel.id })
     .from(assetLabel)
@@ -421,6 +430,26 @@ export function pickDisplayName(
   return hit?.displayName ?? fallback;
 }
 
+/**
+ * 批量解析标签显示名（看板 `overview.labels[]` 用 —— M4b-6 看板重做）。
+ * 与 `listPublicLabels` / `listManagedLabels` 走**同一条** `pickDisplayName` 回退链（单点，不重写）。
+ */
+export async function displayNamesOf(
+  db: Db,
+  labelIds: number[],
+  locale: string,
+): Promise<Map<number, string>> {
+  if (labelIds.length === 0) return new Map();
+  const [defs, translations] = await Promise.all([
+    db
+      .select({ id: labelDefinition.id, slug: labelDefinition.slug })
+      .from(labelDefinition)
+      .where(inArray(labelDefinition.id, labelIds)),
+    translationsOf(db, labelIds),
+  ]);
+  return new Map(defs.map((d) => [d.id, pickDisplayName(translations.get(d.id), locale, d.slug)]));
+}
+
 /** 公开列表（06 §5.1：RECOMMENDED + visible_in_filter；扁平 + parentId slug + displayName 回退） */
 export async function listPublicLabels(db: Db, locale: string): Promise<PublicLabel[]> {
   const defs = await db
@@ -474,9 +503,11 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
     defs.map((d) => d.id),
   );
   // M4b-6 T4（改动 7）：挂载数（一次 groupBy 防 N+1；口径见 `ManagedLabel.assetCount`）
+  // 看板重做：**只统计 `ACTIVE` 资产**（与看板「已发布资产」同面）⇒ join asset 过滤状态
   const mountRows = await db
     .select({ labelId: assetLabel.labelId, n: count() })
     .from(assetLabel)
+    .innerJoin(asset, and(eq(assetLabel.assetId, asset.id), eq(asset.status, 'ACTIVE')))
     .groupBy(assetLabel.labelId);
   const mountById = new Map(mountRows.map((r) => [r.labelId, Number(r.n)]));
   const parentSlugById = new Map(defs.map((d) => [d.id, d.slug]));

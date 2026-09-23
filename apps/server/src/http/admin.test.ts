@@ -1,9 +1,12 @@
 /**
  * `/api/admin` 三只读端点测试（M4b-6 T1 · 服务端改动 1–3）。
  *
- * 覆盖：**鉴权矩阵**（未登录 401 / 用户档 403 / 管理档 200）· **聚合口径**（KPI 增量 + 创意四项与
- * 「独立复算」逐项对齐）· **`days` 越界夹档**（U8）· **排行榜稳定排序**（D53）· 资产名解析（版本投影）
+ * 覆盖：**鉴权矩阵**（未登录 401 / 用户档 403 / 管理档 200）· **聚合口径**（KPI 增量 + 标签维度 `labels[]`：
+ * 一级/上卷/仅 ACTIVE/去重）· **`days` 越界夹档**（U8）· **排行榜稳定排序**（D53）· 资产名解析（版本投影）
  * 与标签名回退链（`pickDisplayName`）。
+ *
+ * 看板重做（T6⁺）换靶：原「创意四项与独立复算逐项对齐」用例已删（`creative` 出参砍掉、无消费者）；
+ * 新增「标签维度 `labels[]`」用例；类型级聚合（原 F203 `types[]`）断言已删（改标签维度后退场）。
  *
  * 断言策略：测试库含其他用例的数据 ⇒ **一律用增量（before/after）或独立复算**，不用绝对数字。
  *
@@ -81,7 +84,6 @@ async function getJson<T>(url: string, cookie: string): Promise<T> {
 }
 
 interface OverviewBody {
-  types: Array<{ type: string; count: number; downloads: number }>;
   kpi: {
     activeAssets: number;
     allAssets: number;
@@ -90,13 +92,16 @@ interface OverviewBody {
     reviewsTotal: number;
     activeUsers: number;
     allUsers: number;
+    /** 看板重做新增：近 7 个自然日（上海日界）事件数；表不可用 ⇒ null（D52 两态） */
+    downloads7d: number | null;
   };
-  creative: {
-    reviewSpeed: number | null;
-    concentration: number | null;
-    labelCoverage: number | null;
-    sleeping: number;
-  };
+  labels: Array<{
+    id: number;
+    slug: string;
+    name: string;
+    count: number;
+    downloads: number;
+  }>;
 }
 interface RankItem {
   id: string;
@@ -167,65 +172,6 @@ async function insertReview(opts: {
     submittedAt: opts.submittedAt,
     reviewedAt: opts.reviewedAt ?? null,
   });
-}
-
-/** 独立复算：标签覆盖度 / 集中度 / 平均审核时长（不复用被测 SQL） */
-async function recomputeCreative(): Promise<{
-  reviewSpeed: number | null;
-  concentration: number | null;
-  labelCoverage: number | null;
-  sleeping: number;
-}> {
-  // 平均审核时长：拉出 APPROVED 行的时间戳在 JS 侧求平均（独立于被测的 SQL avg）
-  const approved = await db
-    .select({ submittedAt: reviewTask.submittedAt, reviewedAt: reviewTask.reviewedAt })
-    .from(reviewTask)
-    .where(and(eq(reviewTask.status, 'APPROVED'), sql`${reviewTask.reviewedAt} is not null`));
-  const reviewSpeed =
-    approved.length === 0
-      ? null
-      : approved.reduce(
-          (acc, r) => acc + (r.reviewedAt!.getTime() - r.submittedAt.getTime()) / 3_600_000,
-          0,
-        ) / approved.length;
-
-  // 集中度：拉全部资产下载数在 JS 侧排序取 Top10 求和
-  const downloads = await db.select({ d: asset.downloadCount }).from(asset);
-  const totalDownloads = downloads.reduce((acc, r) => acc + Number(r.d), 0);
-  const top10 = [...downloads]
-    .map((r) => Number(r.d))
-    .sort((a, b) => b - a)
-    .slice(0, 10)
-    .reduce((acc, d) => acc + d, 0);
-  const concentration = totalDownloads > 0 ? top10 / totalDownloads : null;
-
-  // 标签覆盖度 + 沉睡资产：拉 ACTIVE 资产与「已发布版本时间」在 JS 侧判定
-  const active = await db
-    .select({ id: asset.id, downloads: asset.downloadCount })
-    .from(asset)
-    .where(eq(asset.status, 'ACTIVE'));
-  const labeled = await db.selectDistinct({ assetId: assetLabel.assetId }).from(assetLabel);
-  const labeledSet = new Set(labeled.map((l) => l.assetId));
-  const labelCoverage =
-    active.length === 0 ? null : active.filter((a) => labeledSet.has(a.id)).length / active.length;
-
-  const cutoff = Date.now() - 30 * 86_400_000;
-  const pubs = await db
-    .select({
-      assetId: assetVersion.assetId,
-      publishedAt: assetVersion.publishedAt,
-      id: assetVersion.id,
-    })
-    .from(assetVersion)
-    .where(and(eq(assetVersion.status, 'PUBLISHED'), sql`${assetVersion.publishedAt} is not null`));
-  const publishedAssets = new Set(
-    pubs.filter((p) => p.publishedAt!.getTime() <= cutoff).map((p) => p.assetId),
-  );
-  const sleeping = active.filter(
-    (a) => Number(a.downloads) === 0 && publishedAssets.has(a.id),
-  ).length;
-
-  return { reviewSpeed, concentration, labelCoverage, sleeping };
 }
 
 beforeAll(async () => {
@@ -358,62 +304,99 @@ describe('T1 · overview 聚合口径', () => {
     expect(after.kpi.activeUsers - before.kpi.activeUsers).toBe(1);
     expect(after.kpi.allUsers - before.kpi.allUsers).toBe(2);
 
-    // F203：类型级聚合（(e)/(f) 两图数据源）—— 两个 ACTIVE skill 资产 ⇒ skill 计数 +2 · 下载 +3
-    const skillBefore = before.types.find((t) => t.type === 'skill')?.count ?? 0;
-    const skillAfter = after.types.find((t) => t.type === 'skill')?.count ?? 0;
-    expect(skillAfter - skillBefore).toBe(2);
-    const dlBefore = before.types.find((t) => t.type === 'skill')?.downloads ?? 0;
-    const dlAfter = after.types.find((t) => t.type === 'skill')?.downloads ?? 0;
-    expect(dlAfter - dlBefore).toBe(3);
+    // 看板重做：类型级聚合（原 F203 `types[]`）已删 —— 换靶为 `labels[]` 口径（见下一条用例）
   });
 
-  it('创意四项与「独立复算」逐项对齐（含沉睡阈值两侧）', async () => {
-    // 沉睡边界：31 天前发布 ⇒ 计；29 天前 ⇒ 不计；40 天前但已下载 ⇒ 不计；非 ACTIVE ⇒ 不计
-    const owner = memberId;
-    const dayMs = 86_400_000;
-    // ⚠ 顺序：`before` 必须在造 fixture **之前**取（否则沉睡增量恒 0）
+  it('KPI downloads7d：近 7 个自然日（上海日界）事件 · 30 天前不计 · 与独立复算一致（修 F208）', async () => {
     const before = await getJson<OverviewBody>('/api/admin/overview', adminCookie);
+    // D52 两态：事件表不可用 ⇒ null；表在 ⇒ 数值
+    const present = (await db.execute(
+      sql`select to_regclass('public.download_event') is not null as present`,
+    )) as unknown as { rows?: Array<{ present: boolean }> };
+    const hasTable = present.rows?.[0]?.present === true;
+    expect(before.kpi.downloads7d === null).toBe(!hasTable);
+    if (!hasTable) return;
 
-    const sleep31 = await insertAsset({ ownerId: owner, downloads: 0, tag: 'sleep-31' });
-    await insertVersion(sleep31.id, { publishedAt: new Date(Date.now() - 31 * dayMs) });
+    const dayMs = 86_400_000;
+    const owned = await insertAsset({ ownerId: memberId, tag: 'kpi-dl7' });
+    await db.insert(downloadEvent).values([
+      { assetId: owned.id, versionId: null, createdAt: new Date(Date.now() - 3 * dayMs) },
+      { assetId: owned.id, versionId: null, createdAt: new Date(Date.now() - 3 * dayMs) },
+      // 窗口外（第 8 个自然日之外）⇒ 不计入
+      { assetId: owned.id, versionId: null, createdAt: new Date(Date.now() - 30 * dayMs) },
+    ]);
+    const after = await getJson<OverviewBody>('/api/admin/overview', adminCookie);
+    expect((after.kpi.downloads7d ?? 0) - (before.kpi.downloads7d ?? 0)).toBe(2);
 
-    const sleep29 = await insertAsset({ ownerId: owner, downloads: 0, tag: 'sleep-29' });
-    await insertVersion(sleep29.id, { publishedAt: new Date(Date.now() - 29 * dayMs) });
+    // 独立复算（不复用被测 SQL 的窗口写法）：拉时间戳，在 JS 侧按「上海日界 · 含今天共 7 个自然日」数
+    const rows = await db.select({ createdAt: downloadEvent.createdAt }).from(downloadEvent);
+    const dayOf = (d: Date) =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(d);
+    const cutoff = dayOf(new Date(Date.now() - 6 * dayMs));
+    expect(after.kpi.downloads7d).toBe(rows.filter((r) => dayOf(r.createdAt) >= cutoff).length);
+  });
 
-    const sleepDownloaded = await insertAsset({ ownerId: owner, downloads: 5, tag: 'sleep-dl' });
-    await insertVersion(sleepDownloaded.id, { publishedAt: new Date(Date.now() - 40 * dayMs) });
+  it('标签维度 labels[]：只列一级 + 上卷 + 仅 ACTIVE + 去重（看板重做换靶）', async () => {
+    // 根 R（带 zh 翻译）· 子 C（挂 R 下）· 根 R2（零挂载）
+    const rootSlug = nextSlug('lbl-root');
+    const childSlug = nextSlug('lbl-child');
+    const emptySlug = nextSlug('lbl-empty');
+    const [rootRow] = await db
+      .insert(labelDefinition)
+      .values({ slug: rootSlug, type: 'RECOMMENDED' })
+      .returning({ id: labelDefinition.id });
+    const rootId = rootRow!.id;
+    const [childRow] = await db
+      .insert(labelDefinition)
+      .values({ slug: childSlug, type: 'RECOMMENDED', parentId: rootId })
+      .returning({ id: labelDefinition.id });
+    const childId = childRow!.id;
+    const [emptyRow] = await db
+      .insert(labelDefinition)
+      .values({ slug: emptySlug, type: 'RECOMMENDED' })
+      .returning({ id: labelDefinition.id });
+    const emptyId = emptyRow!.id;
+    await db
+      .insert(labelTranslation)
+      .values({ labelId: rootId, locale: 'zh', displayName: `${PREFIX}根标签中文` });
 
-    const sleepHidden = await insertAsset({
-      ownerId: owner,
+    // a：ACTIVE · 只挂子标签 C ⇒ 上卷到 R
+    const a = await insertAsset({ ownerId: memberId, downloads: 3, tag: 'lbl-a' });
+    await db.insert(assetLabel).values({ assetId: a.id, labelId: childId });
+    // b：ACTIVE · 同时挂 R 与 C（父子双挂）⇒ 去重只计一次
+    const b = await insertAsset({ ownerId: memberId, downloads: 4, tag: 'lbl-b' });
+    await db.insert(assetLabel).values([
+      { assetId: b.id, labelId: rootId },
+      { assetId: b.id, labelId: childId },
+    ]);
+    // c：HIDDEN · 挂 R ⇒ 状态面过滤（不计）
+    const c = await insertAsset({
+      ownerId: memberId,
       status: 'HIDDEN',
-      downloads: 0,
-      tag: 'sleep-hidden',
+      downloads: 9,
+      tag: 'lbl-c',
     });
-    await insertVersion(sleepHidden.id, { publishedAt: new Date(Date.now() - 40 * dayMs) });
+    await db.insert(assetLabel).values({ assetId: c.id, labelId: rootId });
 
     const body = await getJson<OverviewBody>('/api/admin/overview', adminCookie);
-    const beforeRecompute = await recomputeCreative();
-
-    // ① 端点与独立复算一致（相对 ±0.0001 的浮点）
-    expect(body.creative.sleeping).toBe(beforeRecompute.sleeping);
-    expect(
-      Math.abs((body.creative.reviewSpeed ?? 0) - (beforeRecompute.reviewSpeed ?? 0)),
-    ).toBeLessThan(0.001);
-    expect(
-      Math.abs((body.creative.concentration ?? 0) - (beforeRecompute.concentration ?? 0)),
-    ).toBeLessThan(1e-9);
-    expect(
-      Math.abs((body.creative.labelCoverage ?? 0) - (beforeRecompute.labelCoverage ?? 0)),
-    ).toBeLessThan(1e-9);
-
-    // ② 沉睡增量：仅「31 天前 + 零下载 + ACTIVE」这一条计入
-    expect(body.creative.sleeping - before.creative.sleeping).toBe(1);
-    expect(body.creative.concentration).not.toBeNull();
-    expect(body.creative.labelCoverage).not.toBeNull();
-    expect(typeof body.creative.reviewSpeed).toBe('number');
+    const root = body.labels.find((l) => l.id === rootId);
+    expect(root?.count).toBe(2); // a + b（c 非 ACTIVE；b 父子双挂仅计一次）
+    expect(root?.downloads).toBe(7); // 3 + 4
+    // 存量 locale 为 `zh`（非 `zh-CN`）⇒ 命中主语言前缀回退（06 §2.3 回退链）
+    expect(root?.name).toBe(`${PREFIX}根标签中文`);
+    // 二级标签不单独出现（上卷进父级）
+    expect(body.labels.some((l) => l.slug === childSlug)).toBe(false);
+    // 一级零挂载仍列出（口径行「仅 N 个一级标签」与定义数一致）
+    const empty = body.labels.find((l) => l.id === emptyId);
+    expect(empty?.count).toBe(0);
+    expect(empty?.downloads).toBe(0);
   });
 });
-
 describe('T1 · rankings 三口径', () => {
   it('人榜：值 = 该 owner 的 ACTIVE 资产数（非 ACTIVE 不计）', async () => {
     const owner = await createTestUser(db, {
@@ -430,7 +413,7 @@ describe('T1 · rankings 三口径', () => {
     expect(mine?.name).toBe(`${PREFIX}rankowner`);
   });
 
-  it('标签榜：挂载数 + 显示名走回退链（zh-CN → zh → en → slug）', async () => {
+  it('标签榜：一级 + 上卷 + 仅 ACTIVE + 显示名回退链（zh-CN → zh → en → slug）', async () => {
     const labelSlug = nextSlug('rank-label');
     const rows = await db
       .insert(labelDefinition)
@@ -443,12 +426,28 @@ describe('T1 · rankings 三口径', () => {
     ]);
     const owned = await insertAsset({ ownerId: memberId, tag: 'rank-label-asset' });
     await db.insert(assetLabel).values({ assetId: owned.id, labelId });
+    // 上卷：子标签上的挂载算到一级父标签；二级 slug 不进榜
+    const childSlug = nextSlug('rank-label-child');
+    const [child] = await db
+      .insert(labelDefinition)
+      .values({ slug: childSlug, type: 'RECOMMENDED', parentId: labelId })
+      .returning({ id: labelDefinition.id });
+    const childOwned = await insertAsset({ ownerId: memberId, tag: 'rank-label-child-asset' });
+    await db.insert(assetLabel).values({ assetId: childOwned.id, labelId: child!.id });
+    // 非 ACTIVE 资产挂载不计（状态面）
+    const hiddenOwned = await insertAsset({
+      ownerId: memberId,
+      status: 'HIDDEN',
+      tag: 'rank-label-hidden',
+    });
+    await db.insert(assetLabel).values({ assetId: hiddenOwned.id, labelId });
 
     const body = await getJson<RankingsBody>('/api/admin/rankings?limit=100', adminCookie);
     const mine = body.labels.find((l) => l.id === labelSlug);
-    expect(mine?.value).toBe(1);
+    expect(mine?.value).toBe(2); // owned + childOwned（上卷）；hiddenOwned 非 ACTIVE 不计
     // 存量 locale 为 `zh`（非 `zh-CN`）⇒ 命中主语言前缀回退（06 §2.3 回退链）
     expect(mine?.name).toBe(`${PREFIX}标签中文`);
+    expect(body.labels.some((l) => l.id === childSlug)).toBe(false);
   });
 
   it('资产榜：值 = download_count · 名称 = latest 版本投影（缺投影 ⇒ slug）', async () => {

@@ -36,7 +36,7 @@ export function createAdminRoutes({ db }: AdminRoutesDeps): Hono {
 
   app.use('*', requireRole(ACCOUNT_ROLE.ADMIN));
 
-  // GET /api/admin/overview —— KPI 7 项 + 创意四项（空集 ⇒ null）
+  // GET /api/admin/overview —— KPI 7 项 + 一级标签维度（KPI 空集 ⇒ null；labels 空集 ⇒ []）
   app.get('/overview', async (c) => {
     const overview = await getAdminOverview(db);
     return c.json(overview);

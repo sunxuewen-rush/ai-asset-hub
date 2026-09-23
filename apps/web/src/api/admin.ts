@@ -22,29 +22,30 @@ export interface AdminOverviewKpi {
   reviewsTotal: number;
   activeUsers: number;
   allUsers: number;
+  /**
+   * **近 7 个自然日**（含今天 · 上海日界）新增下载事件数（看板「累计下载」卡副行）。
+   * 与服务端趋势曲线同口径、**与趋势窗口选择器无关**；`null` = 下载事件表不可用（显「暂无下载历史」）。
+   */
+  downloads7d: number | null;
 }
 
-export interface AdminOverviewCreative {
-  /** 平均审核时长（**小时** —— 前端格式化天/小时；空集 ⇒ null） */
-  reviewSpeed: number | null;
-  /** 下载集中度（**比例 0–1** —— 前端 ×100 展示；总下载 0 ⇒ null） */
-  concentration: number | null;
-  /** 标签覆盖度（**比例 0–1**；无 ACTIVE 资产 ⇒ null） */
-  labelCoverage: number | null;
-  sleeping: number;
-}
-
-/** 类型级聚合（(e) 同心环 + (f) 雷达共用） */
-export interface AdminOverviewType {
-  type: string;
+/** 一级标签维度聚合（标签资产数量同心环 + 标签下载热度雷达共用 · 看板重做） */
+export interface AdminOverviewLabel {
+  /** 一级标签内部 id（前端 key） */
+  id: number;
+  /** 一级标签 slug（前端仅作 React 用的稳定键 —— 取色已改为**按行序 13 色池**，不再按 slug hash） */
+  slug: string;
+  /** 显示名（服务端回退链 zh-CN → zh → en → slug，永不空） */
+  name: string;
+  /** 该一级标签（含子标签上卷）下去重的 `ACTIVE` 资产数 */
   count: number;
+  /** 同一资产集合的 `sum(download_count)` */
   downloads: number;
 }
 
 export interface AdminOverview {
   kpi: AdminOverviewKpi;
-  creative: AdminOverviewCreative;
-  types: AdminOverviewType[];
+  labels: AdminOverviewLabel[];
 }
 
 export interface AdminRankItem {
@@ -91,7 +92,7 @@ export interface ManagedLabelsResponse {
   limit: number;
 }
 
-/** `GET /api/admin/overview` —— KPI ×7 + 创意四项 + 类型级聚合 */
+/** `GET /api/admin/overview` —— KPI ×7 + 一级标签维度（看板重做：删 creative/types，加 labels） */
 export async function fetchAdminOverview(opts?: ApiGetOptions): Promise<AdminOverview> {
   return apiGet<AdminOverview>('/api/admin/overview', opts);
 }

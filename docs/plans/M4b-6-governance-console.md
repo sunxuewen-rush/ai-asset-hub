@@ -1,9 +1,10 @@
 # M4b-6 治理批：管理控制台四页（看板 · 资产管理 · 标签定义 · 审计日志）—— 批计划
 
 > Date: 2026-09-23
+> Updated: 2026-09-23（**v0.8：T6⁺ 管理看板重做（用户逐条拍板 · 非计划外新增内容）** —— ① §3 T6 步骤 1 与断言行按当前实现重写（六段：KPI / 趋势 / **标签维度两图** / 排行榜 / 英雄榜；件选型全部对齐官方配方）② §1 目标行：创意四项 → 标签维度两图 ③ §3 T1 步骤 1：overview 出参 `creative` → **`labels[]` + `downloads7d`** ④ dogfood 追加 **G14**（8 条）⇒ 全量 **71 → 84 PASS / 0 FAIL / 0 超时** ⑤ §7 追加 **T6⁺** 行（含 F208 / F208-A）⑥ Status 读数同步。**本版含服务端改动（加性 + 一处口径纠偏）**）
 > Updated: 2026-09-23（**v0.7：F207 顶栏标题漏项 → 用户拍板「甲」（顶栏回归官方 block 形态 · 非计划内）** —— ① 删 `TopBar.titleOf` 自造路由表（官方无「路由 → 标题」机制 ⇒ 标题只在页内）② dogfood 追加 **G13**（15 条）⇒ 全量 **56 → 71 PASS / 0 FAIL / 0 超时** ③ §7 追加 F207 记录（并入 T10⁺ 行）④ Status 读数同步。**本版零服务端改动**）
 > Updated: 2026-09-23（**v0.6：F206 侧栏激活唯一性修缮落地（用户报缺陷 · 非计划内）** —— ① 侧栏激活判定收敛为**路径精确相等**（删 `EXACT_MATCH_PATHS` · `SideNav.tsx` 判定改 `pathname === to` · 门户 `<NavLink>` 补 `end`）② dogfood 追加 **G12**（15 条断言）⇒ 全量 **41 → 56 PASS / 0 FAIL / 0 超时** ③ §7 追加 F206 行 ④ Status 订正为「已落地」（原「待开工」为陈旧表述）。**本版零实现语义改动**（仅判定口径 + 断言））
-> Status: ✅ **已落地（T1–T10 · 2026-09-23）** —— 批 design **定稿 v0.30**（8 维 **9.50**）· 四页真页 + 服务端 8 项 + 迁移 0014 · dogfood **G1–G13 = 71/0** · 逐 Task 落地记录见 §7（含 F203–F207）
+> Status: ✅ **已落地（T1–T10）· 看板维重做（T6⁺ · 2026-09-23）** —— 批 design **v0.32**（文档 8 维见 §11.2 = **9.44**）· 四页真页 + 服务端 8 项 + 迁移 0014 · dogfood **G1–G14 = 84/0** · 逐 Task 落地记录见 §7（含 F203–F209）
 > 上游：批 design `docs/designs/2026-09-23-m4b6-governance-console-design.md`（**v0.30 · 定稿 · 8 维 9.50** · D1–D55 · 未决 U5–U14）
 > · 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.65**）§2.3 批件登记
 > · `docs/00-product-direction.md` §5 M4b-6 行（**v1.91** · ✅ 完成）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）
@@ -17,7 +18,7 @@
 
 | # | 交付 | 说明 |
 |---|------|------|
-| 1 | **管理看板 `/admin`** | `ComingSoon` 占位 → **真页**：4 数字卡（活跃资产 / 全部资产 / 累计下载 / 有效用户）+ **趋势两张小图**（资产累计 / 下载累计）+ **排行榜单卡三口径**（人 / 标签 / 资产 + Top N Combobox）+ **创意四项**（平均审核时长 / 下载集中度 / 标签覆盖度 / 沉睡资产）+ **英雄榜 ×2**（资产榜 / 员工榜）· **入口化 3 处**（D50）· **仅进页拉一次**（D51） |
+| 1 | **管理看板 `/admin`** | `ComingSoon` 占位 → **真页**：4 数字卡（活跃资产 / 全部资产 / 累计下载 / 有效用户）+ **趋势两张小图**（资产累计 / 下载累计）+ **排行榜单卡三口径**（人 / 标签 / 资产 + Top N Combobox）+ ~~创意四项~~（**T6⁺ 已删**）→ **标签维度两图**（标签资产数量同心环 / 标签下载热度雷达 · 数据源 `overview.labels[]`）+ **英雄榜**（单卡两内层分区块：员工榜 / 资产榜）· **入口化 3 处**（D50）· **仅进页拉一次**（D51） |
 | 2 | **资产管理 `/admin/assets`** | 全站治理列表（**10 列** · 权重 16/22/8/7/10/7/7/7/8 = **92%** + 操作槽 **8%**）+ **卡片/列表两态** + **详情抽屉**（官方 `Sheet` + 仓内 `console/Drawer` · 宽 560）+ **状态筛选**（四档 · 默认「全部」⇒ 显式 `status=ALL`）+ **排序 3 档**（`newest`/`downloads`/`stars` · URL 状态）+ **列显示**（保护 2 列）+ 搜索折叠 |
 | 3 | **标签定义 `/admin/labels`** | 两级严格树（一级缩进 0 / 二级 **28px + 2px 引导线** · chevron 仅有子级 · 默认折叠）+ **上限块**（`total`/`limit` · ≥90% `tone=warn`）+ **行内 ↑↓**（一次 `PUT /order` 提交整组 · 失败回滚 + toast）+ **删除确认**（挂载数 + 后果 + 解挂指引 · 服务端 400 `label.in_use`）+ **创建/编辑表单**（D30 字段 · `visibleInFilter` **默认打开** · slug 创建后禁改 · 翻译**整组提交**） |
 | 4 | **审计日志 `/admin/audit`** | 过滤区（**快捷三键**〔近 24 小时 / 版本下架 / 清除筛选〕+ 动作分组下拉〔潜在 9 组 · 实测 7 组 · 未知前缀原样显示〕+ 日期区间默认近 7 天 + 官方 `Calendar` 自定义）+ **「更多筛选」折叠 5 维**（`targetType`/`targetId`/`actorId`/`requestId`/`clientIp` · 上限 64/128/**256**/64/64）+ **表格 6 列**（时间〔`Asia/Shanghai`〕/ 动作〔原始串〕/ 操作者〔工号 + 姓名 · 无 actor ⇒ 「—（匿名）」〕/ 目标 / 来源 IP / 请求 ID）+ **行详情抽屉**（`detail` 美化 + `userAgent` + 完整 IP **不打码**）+ `offset` 分页 |
@@ -26,7 +27,7 @@
 | 7 | **i18n** | 四页键表（design §6.2 / §6.3 逐条落地 · 复用键**已实测存在**）+ **既有键文案修正**：`assets.filter.status.active` 「活跃」→「**已上线**」（跨批 · 3 消费页自动跟随 · en 保持 `Active`） |
 | 8 | **前端数据层** | `apps/web/src/api/admin.ts`（看板 3 端点 + 审计动作全集 + 标签全量） |
 | 9 | **复用件（零新件）** | `ui/DataTable` · `ui/Pagination` · `ui/ColumnVisibilityMenu` · `market/{FilterStrip,SortMenu,format}` · `console/{Drawer,StatusPill,asset-stats}` · `ui/AssetAvatar` · 官方 `shadcn/{chart,combobox,select,calendar,popover,collapsible,dialog,sheet,switch}` |
-| 10 | **验证** | 造数脚本 + dogfood `m4b6-*`（G1–G13）+ 八步门禁 + **零回归四脚本**（`m4a` / `m4b3` / `m4b4` / `m4b5`）|
+| 10 | **验证** | 造数脚本 + dogfood `m4b6-*`（G1–**G14**）+ 八步门禁 + **零回归四脚本**（`m4a` / `m4b3` / `m4b4` / `m4b5`）|
 | 11 | **文档同步 + 换靶脚本** | design §9.6/§9.7 回填 + 主 design / `docs/00` / `docs/05` / `docs/08` 同步（`download_event` 落库同步 `docs/08`）+ **换靶校验脚本进仓** `docs/smoke/scripts/doc-claims-check.ts`（design §3.1/§9.2/§9.4 口径 · 6 类检查）|
 | 12 | **PoC 物料清理** | `apps/web/src/pages/__proto/`（4 页 + 数据模块）+ `main.tsx` DEV 路由 + `apps/server/tmp-*.ts` 探针删除（**U7** · 本批收尾） |
 
@@ -56,7 +57,7 @@
 | **T3** | server | `download_event` 表 + 写入（改动 **5** · 迁移 **0014**） | — | **`download.test.ts`（既有 · 扩充）** + 迁移 exit 0 + 事务回滚（事件失败 ⇒ 计数不增 + 仍放行） |
 | **T4** | server | 标签面 2 处（改动 **7–8**）：`/all` 形态变更 + `DELETE` 挂载拦截 | — | 形态断言 + `label.in_use` **400** 断言 + `labels.test.ts` 同步 |
 | **T5** | web | **i18n**：四页键表落地 + 复用键声明 + 「已上线」文案修正 | T1–T4（键名定案）| 键数实测 + 双向差集 **0** + 泄漏 0 |
-| **T6** | web | 管理看板页 `AdminBoard.tsx` + `api/admin.ts` + `/admin` 换真页 | T1 · T5 | dogfood **G1–G4** 绿（含入口化 3 处） |
+| **T6** | web | 管理看板页 `AdminBoard.tsx` + `api/admin.ts` + `/admin` 换真页（**T6⁺ 重做**：标签维度两图 / 两处 Combobox / 英雄榜换官方 `Bar Chart - Label` / 卡级 `isolate`） | T1 · T5 | dogfood **G1–G5 + G14** 绿（含入口化 3 处） |
 | **T7** | web | 资产管理页 `AdminAssets.tsx`（10 列 + 两态 + 抽屉 + 4 入口过滤 + 排序 + 列宽） | T2 · T5 | dogfood **G5–G7** 绿（含列宽归一化实测） |
 | **T8** | web | 标签定义页 `AdminLabels.tsx`（两级树 + ↑↓ + 删除 + 表单） | T4 · T5 | dogfood **G8–G9** 绿 |
 | **T9** | web | 审计日志页 `AdminAudit.tsx`（过滤 + 更多筛选 + 快捷 + 抽屉） | T2 · T5 | dogfood **G10–G11** 绿 |
@@ -70,7 +71,7 @@
 
 > 依据 = 批 design **§4.1**（看板四块口径）· **§5.1**（端点契约）· **§7**（改动 1–3）· **D33–D36 / D42 / D43**（平均审核时长 = `avg(reviewed_at − submitted_at)` over `APPROVED`）/ **D44**（标签覆盖度分子分母）/ **D45–D46 / D52–D54**。
 
-1. 新建 `apps/server/src/admin/overview.ts`：`kpi`（`activeAssets` / `allAssets` / `downloads` / `pending` / `reviewsTotal` / `activeUsers` / `allUsers`）+ `creative`（`reviewSpeed` / `concentration` / `labelCoverage` / `sleeping`）
+1. 新建 `apps/server/src/admin/overview.ts`：`kpi`（`activeAssets` / `allAssets` / `downloads` / `downloads7d` / `pending` / `reviewsTotal` / `activeUsers` / `allUsers`）+ `labels[]`（`id` / `slug` / `name` / `count` / `downloads`）—— **T6⁺ 换靶**：`downloads7d`（固定近 7 个自然日窗口 · F208）与 `labels[]`（一级 + 上卷 + 仅 ACTIVE + 去重）为本次新增；原 `creative` / `types` 出参已删
    口径：**待审** = `review_task.status='PENDING'` 任务数（D33）· **有效用户** = `user.status='ACTIVE'` 账号数（D34 · 与 `/api/stats.totalUsers` 同口径）· **平均审核时长** = `avg(reviewed_at − submitted_at)` over `APPROVED`（空集 ⇒ `null`）· **标签覆盖度** 重复计入（D42）· **沉睡资产** = `status='ACTIVE'` 且上架 ≥30 天且 `download_count = 0`（D45 · 阈值 = 端点常量）
 2. 新建 `apps/server/src/admin/rankings.ts`：`people[]` / `labels[]` / `assets[]`（各含名称与计数 · `people` = owner 的 `ACTIVE` 资产数，D46）
    **稳定排序（D53）**：资产榜 `download_count DESC, asset.id DESC` · 员工榜 `ACTIVE 资产数 DESC, user.id ASC` · 标签榜 `资产数 DESC, label.id ASC`
@@ -144,13 +145,13 @@
 
 > 依据 = 批 design **§4.1**（四块口径 + 线框 §4.5）· **§4.9**（UI 定案）· **§5.1** · **D1–D18**（含 D2 数字卡 / D3 累计口径 / D4 拆两张 / D5 **选择器共享** / D9 轴标签 / D10 密度三级 / D11 英雄榜 / D12 不放 footer / **D13 同心环** / **D14 雷达 Dots** / D17 门槛）/ **D31 · D37（默认近 30 天）· D50 · D51**。
 
-1. 新页 `apps/web/src/pages/AdminBoard.tsx`（薄装配）：页头卡（门户 `CenterPage` 同构 + eyebrow `ADMIN`）+ `KpiCard ×4`（**D2**：已发布资产 / 累计下载 / 待审 / 有效用户 · 各带副行 hint）+ 趋势两张小图（**D3/D4** 累计口径 · **拆两张**各带纵轴 · **D5 两张共享一个选择器**〔近 7 天 / 近 30 天 / 近半年 / 近一年〕· **D37 默认近 30 天**）+ 排行榜单卡（**D6/D7/D8**：`CardTitle` + 紧右 Top N `Combobox`〔10/20/50/100 · 不足按实际〕+ 右上三口径按钮〔人/标签/资产 · 按钮下无数字〕· 官方 `Bar Chart - Interactive` · **D9 轴标签口径**〔人 = 工号 + 姓名 · 资产名超 12 字截断 · 全名走 tooltip〕· **D10 密度三级策略**〔水平 → 45° 斜排 → 抽稀〕）+ **（e）类型数量**（**D13** 官方 `Radial Chart - Label` **同心环** · `endAngle=270` · 内→外小→大 · 环内不放字 · 名字与数量进自绘图例降序）+ **（f）类型下载热度**（**D14** 官方 `Radar Chart - Dots` · 图上与图下都不放数字 · 数值走 tooltip）+ 创意四项（**D15** 空集显「—」）+ 英雄榜 ×2（**D11/D12** 官方 `Bar Chart - Custom Label` · 横条 + 柱内名称 + 柱外数值 · 两轴全隐藏 · **不放 footer**）
+1. 新页 `apps/web/src/pages/AdminBoard.tsx`（**T6⁺ 形态 · 六段**）：页头卡（门户 `CenterPage` 同构 + eyebrow `ADMIN`）+ `Kpi ×4`（**D2**：已发布资产 / 累计下载 / 待审 / 有效用户 · 各带副行 hint；「累计下载」副行取**服务端** `kpi.downloads7d` —— F208）+ 趋势卡（**D3/D4** 累计口径 · 两张小图并排各带纵轴 · **D5 共享一个官方 `Combobox`**〔右上 · 近 7 天 / 近 30 天 / 近半年 / 近一年〕· **D37 默认近 30 天** · 官方 `Area Chart - Axes` + 渐变 · 纵轴自 0 起）+ **标签维度两图**（(c) 同心环 **官方 `Radial Chart - Grid`** · (d) 雷达 **官方 `Radar Chart - Grid Circle`** · 数据源 `overview.labels[]` · 取色 13 色池按行序 · 图下行色点自绘）+ 排行榜单卡（**D6/D7/D8**：`CardTitle` + 紧右 Top N `Combobox`〔10/20/30/50〕+ 右上三口径按钮〔人/资产/标签 · 数字 = 榜内合计〕· 官方 `Bar Chart - Interactive` · **D9** 人 = 工号 + 姓名 · 类目名 **-45° 斜排 + 截断 14 字符** · **卡级 `isolate`**〔F208-A〕）+ 英雄榜单卡（**D11/D12 修订**：外壳卡 + 两内层 muted 分区块 · 官方 `Bar Chart - Label` 竖柱 + 柱顶数值 · 类目名**水平多行**、无副标题/页脚）
 2. `apps/web/src/api/admin.ts`：`fetchAdminOverview` / `fetchAdminRankings` / `fetchAdminTrends(days)`
 3. `apps/web/src/main.tsx`：`/admin` 占位/重定向 → **真页**（`/admin` 恒为看板 · `/admin/reviews` 仍为 M4b-5 真页）；入口化 3 处（D50：待审卡 → `/admin/reviews` · 已发布资产卡 → `/admin/assets` · 标签挂载数 → `/admin/assets?label=`）
 
 **测试面**：**无单测**（仓内 `apps/web` 零测试基建 —— 前端验证 = 本节 dogfood **端到端**断言〔含 DOM 量值〕+ `typecheck` + `biome`）
 
-**断言 / 门禁**：① dogfood **G1**：4 数字卡数值 = 端点返回值 ② **G2**：Top N 切换（10/20/50/100）⇒ 条数 = `min(N, 实际)` · 三口径切换请求参数正确 ②′ **趋势两图**：选择器四项切换 ⇒ 两点位数为 N（含今天）· **默认 = 近 30 天**（D37）· **两图同步**（共享选择器）②″ **(e)(f) 两图在场**：同心环与雷达各自的图例/刻度可见且无数字标签外溢（D13/D14） ③ **G3**：入口化 3 处点击落点正确（真链接断言）④ **G4**：**仅进页拉一次**（无轮询 · 断言 5s 内请求数不增）⑤ 空集 / 骨架 / 错重试三态 ⑥ 非管理档 ⇒ 守卫弹回（零请求零白屏）⑦ `typecheck` + `biome` 绿
+**断言 / 门禁**：① dogfood **G1**：4 数字卡数值 = 端点返回值（**「累计下载」副行 = `kpi.downloads7d` 且切四档不变** —— F208 专条）② **G2**：Top N 切换 ⇒ 条数 = `min(N, 实际)` · 三口径切换请求参数正确 ②′ **趋势两图**：档位四项切换 ⇒ 两点位数 = N（含今天）· **默认 = 近 30 天**（D37）· 两图同步 ②″ **标签维度两图在场**：同心环（`PolarGrid gridType="circle"`）与雷达（同心网格 + 轴文字 + 色点）各自成形、无数字标签外溢 · 两图数据源 = `overview.labels[]`（一级/上卷/仅 ACTIVE/去重）· 口径三向一致（`overview.labels[] ↔ rankings.labels ↔ /api/labels/all.assetCount`）③ **G14（T6⁺ 新增段）**：六段结构在位 · 「创意四项」「类型维度」字样**不出现** · 排行榜斜排类目名不越出卡片 · 英雄榜两榜各 3 行且水平多层不越界 · **层叠守护**（卡内 `button[data-active]` 与 TopBar 重叠点 `elementFromPoint` 命中 TopBar）④ `typecheck` + `biome` 绿
 
 ---
 
@@ -210,7 +211,7 @@
 > 依据 = 批 design **§9**（回归面与验证口径）· **§9.3**（dogfood 分组）· **§9.4**（出口件 ④）· **§9.5**（造数）· **§9.6/§9.7**（文档同步与收尾回填）。
 
 1. 造数 `docs/smoke/scripts/m4b6-seed-*.ts`（**写库需授权**）：`download_event` **跨天分布** N 条（覆盖下载曲线分支）+ 少量多状态资产（`HIDDEN`/`ARCHIVED`）+ 标签二级样例（幂等）
-2. dogfood `docs/smoke/scripts/m4b6-governance-dogfood.ts`：**G1–G13**（逐页分组 · `SMOKE_ONLY=G5` 分段执行 · 收尾才全量；**G12 = F206 侧栏激活唯一性** · **G13 = F207 顶栏形态 + 页内标题**，均 2026-09-23 追加）
+2. dogfood `docs/smoke/scripts/m4b6-governance-dogfood.ts`：**G1–G14**（逐页分组 · `SMOKE_ONLY=G5` 分段执行 · 收尾才全量；**G12 = F206 侧栏激活唯一性** · **G13 = F207 顶栏形态 + 页内标题** · **G14 = 看板重做段（T6⁺）**，均 2026-09-23 追加）
 3. **换靶校验脚本进仓** `docs/smoke/scripts/doc-claims-check.ts`（design §3.1 / §9.2 / §9.4 口径 · 6 类检查）：① 引用逐条回读（`file:line` + 期望关键词）② 同一量跨节对照 ③ 件表 ↔ 改动号 ↔ 端点表**三向一致** ④ 机制声明实测复核 ⑤ UI 契约 ↔ 真码回读（件路径存在性 / props 形态 / i18n 键覆盖）⑥ **头部版本行不得陈旧或乱序**
 4. 八步门禁（§4）逐项 **exit 0**；**零回归四脚本**：`m4a` / `m4b3` / `m4b4` / `m4b5`（口径 = **无新增失败**）
 5. 证据归档：本批证据文件 = `docs/smoke/` 下 `2026-09-23-m4b6-governance-console.md`（**T10 交付** · 截图 + 断言输出 + 真库读数）
@@ -275,6 +276,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 | **T3** | 2026-09-23 | `download_event` 表 + 迁移 **0014** + **同事务**写入（事件写失败 ⇒ 回滚计数 + warn + 仍放行 · D39）⇒ 全包 **589 pass** | + `db:migrate` exit 0 | 顺带修 `migration-rules.test.ts` 表数守卫 15 → **16** |
 | **T4** | 2026-09-23 | `/api/labels/all` 形态变更（`items`/`total`/`limit` + `assetCount`）+ `DELETE /:slug` 有挂载 ⇒ **400** `label.in_use` ⇒ 全包 **590 pass** | 同上 | — |
 | **T5** | 2026-09-23 | i18n 四页键表（`board` 新组 + `admin` 扩键 · zh/en 差集 0） | 脚本自检（前端无单测基建，§4 已声明） | 泄漏面当时未复查出 ⇒ 见 T10 **F205** |
+| **T6⁺** | 2026-09-23 | **看板维重做（用户逐条拍板）**：删创意四项/类型维度（出参连带）· 加标签维度两图（官方 `Radial Chart - Grid` / `Radar Chart - Grid Circle` · 13 色池按行序）· 趋势档位改官方 `Combobox`（右上）· 排行榜换竖柱 + 斜排截断 + 卡级 `isolate` · 英雄榜换官方 `Bar Chart - Label`（竖柱 + 柱顶数值 + 水平多行类目名）· 副标题/页脚全清 · 服务端加 `kpi.downloads7d` + 标签口径三处同面 | typecheck + biome + dogfood **G14**（8 条） | **F208**（KPI 副行随趋势档位漂移）· **F208-A**（官方按钮 `z-30` 盖住 TopBar）· **F209**（`doc-claims` 键数锚点盲区） |
 | **T6** | 2026-09-23 | 看板真页 `AdminBoard.tsx`（645 行）+ `api/admin.ts` + PoC 图表件转正（`chart`/`combobox`）· 冒烟：overview 33/52/1521/9/331 · trends downloads **0** · 用户档 **403** | typecheck + biome + dogfood G1–G5 | **F203**（`overview.types[]` 加性补） |
 | **T7** | 2026-09-23 | 资产管理真页（625 行 · 全站治理 10 列 + 状态筛选默认全部 + 详情抽屉）+ 侧栏条目 / 路由 | typecheck + biome + dogfood G6/G7 | i18n 泄漏 ⇒ 见 T10 **F205** |
 | **T8** | 2026-09-23 | 标签定义真页（574 行 · 两级树 + ↑↓ + 删除确认 + 创建/编辑对话框 · **仅超管**） | typecheck + biome + dogfood G8 | dogfood G8 初版**选错账号**（管理档 10 被 403）⇒ 改 `m4b2_super`(100) 后全绿 |
@@ -317,7 +319,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 **换靶 R1 缺陷态 = 9.56**（76.5 ÷ 8）→ 修完 **9.61**；**换靶 R2 缺陷态 = 9.54**（76.3 ÷ 8）→ 修完 **9.61**（76.9 ÷ 8）⇒ 达门（≥9）。
 
 
-> **追加发现（2026-09-23 · 换靶第 2 轮 · 角轮 = D 号覆盖审计 + 依赖无环 + 步骤编号）**：
+> **追加发现（2026-09-23 · 换靶第 2 轮 · 角轮 = D 号覆盖审计 + 依赖无环 + 步骤编号）**（**历史记录**：下列 (e)(f) 的**旧名**「类型数量 / 类型下载热度」已于 **T6⁺ 改名为标签维度两图**，见 §3 T6 步骤 1 与批 design §4.1(c)(d)）：
 > **④ T6 内容缺口（真）**：design §4.1 **(e) 类型数量（同心环 D13）** 与 **(f) 类型下载热度（雷达 Dots D14）** 两个卡片**未写进 T6 步骤**（实现者会漏做两张图）· **D5 两张小图共享选择器** 与 **D37 趋势默认近 30 天** 亦缺 ⇒ 已补（T6 步骤 1 + 断言 ②′/②″）。
 > **⑤ 追溯性缺口（真 · 12 个）**：**T9「依据 =」行完全没有 D 号**（审计页 8 项 D21/D22/D24/D25/D47/D48/D49/D55）+ T8 缺 D26/D28/D29/D30 + T4 缺 D32/D41 + T1 缺 D37/D43/D44 ⇒ 已按面补齐。
 > **探针教训（本轮两次失真，均如实记录）**：**① 低估** —— 首次统计不认**区间写法**（`D1–D18` 只数到 D1/D18）⇒ 误报「31 个未引用」；**② 高估** —— 修完探针后吃到 plan 头部那句「**D1–D55**」（那是在描述 design 的决策编号跨度，不是逐 Task 指针）⇒ 误报「0 个未引用」。**真值 = 12 个未引用**。⇒ 口径：**统计「逐 Task 指针」必须只扫 §3 各 Task 的「依据 =」行，并把区间展开、排除头部/修订表里的跨度声明**。
@@ -350,6 +352,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.8** | 2026-09-23 | sunxuewen-rush | **T6⁺ 管理看板重做（用户逐条拍板）** —— ① 步骤/断言行按当前实现重写 ② dogfood 追加 **G14**（8 条）⇒ 全量 **71 → 84 PASS / 0 FAIL** ③ §7 追加 T6⁺ 行（F208 / F208-A / F209）④ 批 design **v0.32** 同步。**含服务端改动** |
 | **v0.7** | 2026-09-23 | sunxuewen-rush | **F207 顶栏标题漏项 → 用户拍板「甲」（非计划内 · 不占新编号）** —— ① 删 `TopBar.titleOf` 自造路由表（官方 `registry:ui` 无 header/topbar 件；顶栏仅存在于 block 示例且标题写死 ⇒ 官方无「路由 → 标题」机制），页面名只在页内 ② dogfood 追加 **G13**（15 条）⇒ 全量 **56 → 71 PASS / 0 FAIL** ③ §7 T10⁺ 行并入 F207 记录 ④ Status 读数同步。**本版零服务端改动** |
 | **v0.6** | 2026-09-23 | sunxuewen-rush | **F206 修缮落地（用户报缺陷 · 非计划内 · 不占新编号）** —— ① 侧栏激活判定收敛为**路径精确相等**（删 `EXACT_MATCH_PATHS` · 门户 `<NavLink>` 补 `end`）② dogfood 追加 **G12**（15 条断言）⇒ 全量 **41 → 56 PASS / 0 FAIL / 0 超时** ③ §7 追加 **T10⁺** 行 ④ Status 由「待开工」订正为「已落地」⑤ 头部上游引用版号同步（design v0.30 · `docs/00` v1.91）。**本版零实现语义改动** |
 | **v0.5** | 2026-09-23 | sunxuewen-rush | **落地记录 + 执行期换靶复核** —— ① §7 逐 Task 回填实测（T1–T10 · 含 commit 面与 F 号）② 新增 §8.2 执行期复核（**9.61 → 9.64**；深度3 下调至 9.5 = 风险清单未覆盖 i18n 泄漏残留）③ 新规则：文案类不变量进 `doc-claims-check` 门禁。**本版零实现改动** |
