@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { and, eq, inArray, like } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import {
@@ -16,6 +16,7 @@ import {
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
+import { resolveDownload } from '../assets/download.js';
 import { AssetError } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { type AihAuth, createAuth } from '../auth/better-auth.js';
@@ -23,7 +24,14 @@ import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetVersion, auditLog, user, type VersionStatus } from '../db/schema/index.js';
+import {
+  asset,
+  assetVersion,
+  auditLog,
+  downloadEvent,
+  user,
+  type VersionStatus,
+} from '../db/schema/index.js';
 import { ReviewError } from '../review/errors.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildSkillZip } from '../test-utils/zip-builder.js';
@@ -240,5 +248,72 @@ describe('下载五档授权（design §7.2 R13）', () => {
     });
     expect(res.status).toBe(404);
     expect(((await res.json()) as { code: string }).code).toBe('asset.not_found');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M4b-6 T3（改动 5）：`download_event` 写入 —— 同事务 · 失败回滚不阻断（D39）
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('download_event 写入（M4b-6 T3）', () => {
+  const eventCount = async (): Promise<number> => {
+    const [r] = await db.select({ n: count() }).from(downloadEvent);
+    return Number(r?.n ?? 0);
+  };
+  const downloadCountOfAsset = async (): Promise<number> => {
+    const [a] = await db
+      .select({ n: asset.downloadCount })
+      .from(asset)
+      .where(eq(asset.id, assetId));
+    return Number(a?.n ?? 0);
+  };
+
+  it('成功路径：一次下载 ⇒ 计数 +1 · 事件 +1 行 · 事件指向该版本', async () => {
+    const n0 = await downloadCountOfAsset();
+    const e0 = await eventCount();
+    const version = await seedPublishedVersion('PUBLISHED', contributorId);
+
+    const res = await downloadReq(version);
+    expect(res.status).toBe(200);
+
+    expect(await downloadCountOfAsset()).toBe(n0 + 1);
+    expect(await eventCount()).toBe(e0 + 1);
+
+    const [latest] = await db
+      .select({ versionId: downloadEvent.versionId })
+      .from(downloadEvent)
+      .orderBy(desc(downloadEvent.id))
+      .limit(1);
+    const [v] = await db
+      .select({ id: assetVersion.id })
+      .from(assetVersion)
+      .where(and(eq(assetVersion.assetId, assetId), eq(assetVersion.version, version)));
+    expect(latest!.versionId).toBe(v!.id);
+  });
+
+  it('失败注入（事件插行报错：version_id 违反外键）⇒ 计数回滚不增 · 不抛错（仍放行）· warn 落日志', async () => {
+    const n0 = await downloadCountOfAsset();
+    const e0 = await eventCount();
+
+    const warns: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warns.push(String(args[0]));
+    };
+    let out: { bundleKey: string; downloadCount: number } | undefined;
+    try {
+      out = await resolveDownload(db, storage, {
+        assetId,
+        // 不存在的 version id ⇒ 事务第二步（事件插行）触发 FK 违规
+        versionRow: { id: 2_000_000_000, status: 'PUBLISHED', bundleStorageKey: 'stub/key.zip' },
+      });
+    } finally {
+      console.warn = origWarn;
+    }
+
+    expect(out?.bundleKey).toBe('stub/key.zip'); // 仍返回下载目标（不阻断）
+    expect(await downloadCountOfAsset()).toBe(n0); // 计数未被 +1（事务回滚）
+    expect(await eventCount()).toBe(e0); // 无孤儿事件行
+    expect(warns.some((w) => w.includes('download_event 写入失败'))).toBe(true);
   });
 });

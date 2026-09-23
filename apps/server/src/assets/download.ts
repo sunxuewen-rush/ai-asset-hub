@@ -8,10 +8,13 @@
  * - DRAFT/SCAN_FAILED/REJECTED → 禁下（未公开留档族——version_not_published 明示）
  * - YANKED         → 禁下（曾公开已撤回分发——version_yanked）
  * 下载不入审计（R13 拍板）；download_count 授权过即自增（原子 sql 增量）。
+ *
+ * M4b-6 T3（改动 5 · D39）：自增 **与** `download_event` 插行包在**同一事务**；事件写失败 ⇒
+ * **回滚自增 + warn 日志 + 仍放行下载**（统计面不得阻断下载，也不留「计数 +1 却无事件」的偏账）。
  */
 import { eq, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { asset, type VersionStatus } from '../db/schema/index.js';
+import { asset, downloadEvent, type VersionStatus } from '../db/schema/index.js';
 import type { ObjectStorage } from '../storage/types.js';
 import { AssetError, assetErrorCodes } from './errors.js';
 
@@ -89,15 +92,31 @@ export async function resolveDownload(
   const presignedUrl = await storage.presignedGetUrl(versionRow.bundleStorageKey, {
     downloadFilename: `bundle-${versionRow.id}.zip`,
   });
-  // count++（原子 sql 增量——并发安全）
-  const [row] = await db
-    .update(asset)
-    .set({ downloadCount: sql`${asset.downloadCount} + 1`, updatedAt: new Date() })
-    .where(eq(asset.id, assetId))
-    .returning({ downloadCount: asset.downloadCount });
+  // M4b-6 T3（改动 5 · D39）：count++（原子 sql 增量，并发安全）**与** 事件插行同一事务
+  let downloadCount = 0;
+  try {
+    downloadCount = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(asset)
+        .set({ downloadCount: sql`${asset.downloadCount} + 1`, updatedAt: new Date() })
+        .where(eq(asset.id, assetId))
+        .returning({ downloadCount: asset.downloadCount });
+      await tx.insert(downloadEvent).values({ assetId, versionId: versionRow.id });
+      return row?.downloadCount ?? 0;
+    });
+  } catch (err) {
+    // D39 失败语义：**回滚自增 + warn + 仍放行下载**（统计面失败不阻断主流程）
+    console.warn('[download] download_event 写入失败：已回滚计数，下载照常放行', err);
+    // 回滚后读**真值**返回（不返回伪 0，也不掩盖失败——真值 = 自增前的当前计数）
+    const [cur] = await db
+      .select({ downloadCount: asset.downloadCount })
+      .from(asset)
+      .where(eq(asset.id, assetId));
+    downloadCount = cur?.downloadCount ?? 0;
+  }
   return {
     presignedUrl,
     bundleKey: versionRow.bundleStorageKey,
-    downloadCount: row?.downloadCount ?? 0,
+    downloadCount,
   };
 }

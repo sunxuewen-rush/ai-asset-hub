@@ -34,6 +34,7 @@ import {
   asset,
   assetLabel,
   assetVersion,
+  downloadEvent,
   labelDefinition,
   labelTranslation,
   reviewTask,
@@ -530,7 +531,7 @@ describe('T1 · trends 窗口与夹档', () => {
     expect(res.status).toBe(400);
   });
 
-  it('下载两态（D52）：迁移 0014 未落 ⇒ 全部 null', async () => {
+  it('下载两态（D52）：表在 ⇒ 数值（空表 ⇒ 0）· 事件进曲线（表缺 ⇒ 全 null）', async () => {
     const body = await getJson<TrendsBody>('/api/admin/trends?days=7', adminCookie);
     // ⚠ T3 落 0014 后：本条应改为「表在 ⇒ 数值（空表 ⇒ 0）」
     const present = (await db.execute(
@@ -541,6 +542,15 @@ describe('T1 · trends 窗口与夹档', () => {
       expect(body.points.every((p) => p.downloads === null)).toBe(true);
     } else {
       expect(body.points.every((p) => typeof p.downloads === 'number')).toBe(true);
+      // 表在 ⇒ 事件真的进曲线：插 2 行事件（今天）后，末点累计值增量 ≥ 2（容忍并发插入）
+      const before = body.points.at(-1)!.downloads ?? 0;
+      const owned = await insertAsset({ ownerId: memberId, tag: 'trend-ev' });
+      await db.insert(downloadEvent).values([
+        { assetId: owned.id, versionId: null },
+        { assetId: owned.id, versionId: null },
+      ]);
+      const after = await getJson<TrendsBody>('/api/admin/trends?days=7', adminCookie);
+      expect((after.points.at(-1)!.downloads ?? 0) - before).toBeGreaterThanOrEqual(2);
     }
   });
 });

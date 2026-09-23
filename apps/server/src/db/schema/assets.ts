@@ -160,3 +160,37 @@ export const assetStar = pgTable(
   },
   (t) => [unique('uq_asset_star_asset_user').on(t.assetId, t.userId)],
 );
+
+
+/**
+ * 下载事件表（M4b-6 T3 · 服务端改动 5 · 迁移 `0014` · D38 = **4 列最小集**）。
+ *
+ * 用途**仅** `/api/admin/trends` 的「累计下载数」曲线（`asset.download_count` 仍是「累计次数」读面）；
+ * **不预埋** `user_id` / `client_ip_hash` / `source`（当前零消费者；IP 哈希另带合规成本 —— D38）。
+ *
+ * 写入语义（D39）：`resolveDownload` 内 `asset.download_count` 自增 **与** 本表插行包在**同一事务**；
+ * 事件写失败 ⇒ **回滚自增 + warn 日志 + 仍放行下载**（不产生「计数 +1 却无事件」的偏账，也不因统计面阻断下载）。
+ *
+ * 不写审计（R13「下载不入审计」不变 —— 本表是**统计面**，不复用 `audit_log` 语义）。
+ * ⚠ 已知局限（design §5.2）：表建成前无带时间戳的下载记录 ⇒ 曲线自上线日起从 0 长起（历史不可回溯）。
+ */
+export const downloadEvent = pgTable(
+  'download_event',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    assetId: bigint('asset_id', { mode: 'number' })
+      .notNull()
+      .references(() => asset.id, { onDelete: 'cascade' }),
+    /** 可空（预留版本维度）：`asset_version` 删除 ⇒ 置空（事件行保留，统计仍可回溯到资产维度） */
+    versionId: bigint('version_id', { mode: 'number' }).references(() => assetVersion.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // 趋势按天聚合的驱动索引（D38）
+    index('idx_download_event_created_at').on(t.createdAt),
+    // 单资产维度扩展用（D38）
+    index('idx_download_event_asset_id').on(t.assetId),
+  ],
+);

@@ -192,11 +192,12 @@ describe('迁移文件级不变量（防手改回归）', () => {
     expect(dropTableAt).toBeGreaterThan(addConstraintAt);
   });
 
-  // M4b-4 T15：新增 `asset_star` ⇒ 14 → 15（计数守卫随表结构演进更新；语义不变量不变）
-  it('迁移后表数 = 15（M4b-pre 后 14 + M4b-4 新增 `asset_star`）', async () => {
+  // M4b-4 T15：新增 `asset_star` ⇒ 14 → 15；M4b-6 T3：新增 `download_event` ⇒ 15 → 16
+  // （计数守卫随表结构演进更新；语义不变量不变 —— 本用例即「新增表必须显式登记」的闸门）
+  it('迁移后表数 = 16（M4b-pre 后 14 + M4b-4 `asset_star` + M4b-6 `download_event`）', async () => {
     const rows = await db.execute<{ count: string }>(sql`
       SELECT count(*)::text AS count FROM information_schema.tables WHERE table_schema = 'public'
     `);
-    expect(Number(rows.rows[0]!.count)).toBe(15);
+    expect(Number(rows.rows[0]!.count)).toBe(16);
   });
 });
