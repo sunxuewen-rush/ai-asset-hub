@@ -350,6 +350,48 @@ describe('对标 skillhub 修正（D1-D8——源码实证回写）', () => {
     expect(((await up.json()) as { parentId: string | null }).parentId).toBe(p2);
   });
 
+  it('F218 一级可重挂（06 §5.2 v1.7）：无子级一级 → 二级 200 / 目标是二级 400 / 自身有子级 400', async () => {
+    const sa = await cookieFor(superAdmin);
+    const top = slug('f218top');
+    const other = slug('f218other');
+    await post('/api/labels', { slug: top, type: 'RECOMMENDED' }, sa);
+    await post('/api/labels', { slug: other, type: 'RECOMMENDED' }, sa);
+
+    // ① 正向：一级 → 挂到另一个一级下（变二级），响应 parentId = 新父 slug
+    const reParent = await patch(`/api/labels/${top}`, { parentSlug: other }, sa);
+    expect(reParent.status).toBe(200);
+    expect(((await reParent.json()) as { parentId: string | null }).parentId).toBe(other);
+
+    // ② 反向：二级可降回一级（parentSlug=null）
+    const backToTop = await patch(`/api/labels/${top}`, { parentSlug: null }, sa);
+    expect(backToTop.status).toBe(200);
+    expect(((await backToTop.json()) as { parentId: string | null }).parentId).toBeNull();
+
+    // ③ 锁两级不变：目标是二级 ⇒ 400 label.invalid_parent
+    const child = slug('f218child');
+    await post('/api/labels', { slug: child, type: 'RECOMMENDED', parentSlug: other }, sa);
+    const toChild = await patch(`/api/labels/${top}`, { parentSlug: child }, sa);
+    expect(toChild.status).toBe(400);
+    expect(((await toChild.json()) as { code: string }).code).toBe('label.invalid_parent');
+
+    // ④ 自身有子级 ⇒ 400 label.parent.has_children（否则把子级顶到三级/造孤儿）
+    await post(
+      '/api/labels',
+      { slug: slug('f218grand'), type: 'RECOMMENDED', parentSlug: top },
+      sa,
+    );
+    const withChild = await patch(`/api/labels/${top}`, { parentSlug: other }, sa);
+    expect(withChild.status).toBe(400);
+    expect(((await withChild.json()) as { code: string }).code).toBe('label.parent.has_children');
+
+    // ⑤ 重挂不改挂载/翻译（纯结构变更）—— 冻结「重挂 = 无数据丢失」这一放开理由
+    const [row] = await db
+      .select({ parentId: labelDefinition.parentId })
+      .from(labelDefinition)
+      .where(eq(labelDefinition.slug, top));
+    expect(row?.parentId).toBeNull();
+  });
+
   it('D1 定义总数上限：直插满 100 → 第 101 个 400 label.definition_limit_exceeded', async () => {
     const sa = await cookieFor(superAdmin);
     // 直插需真实用户（created_by FK）——用 superAdmin；slug like 前缀清理

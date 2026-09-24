@@ -681,8 +681,8 @@ if (want('G8')) {
     zhExpect.length >= 2 && zhExpect.every((x) => x.got === x.want),
     JSON.stringify(zhExpect),
   );
-  // F217：父级前置与服务端「锁两级校验」**同面** —— 一级标签的父级下拉禁用、二级可用（正反同断言）
-  const rootRow = rows.find((r) => r.parentId === null);
+  // F218：父级前置与服务端「**一级可重挂**」同面 —— 无子级的一级标签与二级标签都可改父级；
+  //       仅「**自身有子级**」的标签禁用（服务端该情形 400 `label.parent.has_children`）。取行数据自适应。
   const childRow = rows.find((r) => r.parentId !== null);
   const openEdit = async (slug: string) =>
     evalJs(`(() => {
@@ -700,32 +700,144 @@ if (want('G8')) {
     evalJs(
       `(() => { const b = [...document.querySelectorAll('[role=dialog] button')].find((x) => (x.textContent || '').trim() === '取消'); if (b) b.click(); return !!b; })()`,
     );
-  await openEdit(rootRow?.slug ?? '');
+  const dnOf = (r: {
+    slug?: string;
+    translations?: Array<{ locale: string; displayName: string }>;
+  }) =>
+    r.translations?.find((t) => String(t.locale).toLowerCase().startsWith('zh'))?.displayName ??
+    r.translations?.find((t) => t.locale === 'en')?.displayName ??
+    r.slug ??
+    '';
+  const expandRow = async (dn: string) => {
+    if (!dn) return false;
+    return evalJs(`(() => {
+      const tr = [...document.querySelectorAll('tbody tr')].find((x) => (x.textContent || '').includes(${JSON.stringify(dn)}));
+      const b = tr ? tr.querySelector('button[aria-label="toggle"]') : null;
+      if (b) b.click();
+      return !!b;
+    })()`);
+  };
+  /** 弹窗内选父级（``null`` = 置为一级 · 即「—」项）；Radix Select 用 DOM click 命中 */
+  const pickParent = async (dn: string | null) => {
+    if (dn === null ? false : !dn) return false;
+    await evalJs(
+      `(() => { const e = document.querySelector('#label-parent'); if (e) e.click(); return !!e; })()`,
+    );
+    await sleep(800);
+    const hitOpt = await evalJs(`(() => {
+      const want = ${JSON.stringify(dn)};
+      const opt = [...document.querySelectorAll('[role=option]')].find((x) => (x.textContent || '').trim() === (want ?? '—'));
+      if (opt) opt.click();
+      return !!opt;
+    })()`);
+    await sleep(500);
+    return hitOpt;
+  };
+  const saveDialog = async () =>
+    evalJs(
+      `(() => { const b = [...document.querySelectorAll('[role=dialog] button')].find((x) => /保存/.test(x.textContent || '')); if (b) b.click(); return !!b; })()`,
+    );
+  /** 打开编辑弹窗：行不在 DOM（父行折叠）时**展开其父行再试** —— 幂等（已展开不重复点；
+   *  否则 toggle 反把子行折叠掉 ⇒ 找不到行 ⇒ 假红 · 实测 G8.12 首版即栽在此） */
+  const openEditBy = async (slug: string, parentDn: string) => {
+    let opened = await openEdit(slug);
+    if (!opened) {
+      await expandRow(parentDn);
+      await sleep(1000);
+      opened = await openEdit(slug);
+    }
+    return opened;
+  };
+  /** 真库读数：某标签的父级 slug（null = 一级） */
+  const labelParentOf = async (slug: string): Promise<string | null> => {
+    const r = (await readJson('/api/labels/all')) as {
+      body?: { items?: Array<{ slug: string; parentId: string | null }> };
+    };
+    return (r.body?.items ?? []).find((x) => x.slug === slug)?.parentId ?? null;
+  };
+  const topRows = rows.filter((r) => r.parentId === null);
+  const hasKids = new Set(rows.filter((r) => r.parentId !== null).map((r) => r.parentId as string));
+  const dnCount = new Map<string, number>();
+  for (const r of topRows) dnCount.set(dnOf(r), (dnCount.get(dnOf(r)) ?? 0) + 1);
+  const freeTop = topRows.find((r) => !hasKids.has(r.slug) && dnCount.get(dnOf(r)) === 1);
+  const withKids = topRows.find((r) => hasKids.has(r.slug));
+  const reTarget = topRows.find((r) => r.slug !== freeTop?.slug && dnCount.get(dnOf(r)) === 1);
+  const dnFree = freeTop ? dnOf(freeTop) : '';
+  const dnKids = withKids ? dnOf(withKids) : '';
+  const dnTarget = reTarget ? dnOf(reTarget) : '';
+
+  // ① 无子级一级 ⇒ 可改父级 + 候选**不含自身**（服务端 `resolveParent` 拒自指 ⇒ UI 不提供）
+  await openEdit(freeTop?.slug ?? '');
   await sleep(1100);
-  const rootDisabled = await parentDisabled();
-  const lockedHint = await evalJs(`(document.body.innerText || '').includes('一级标签不可降级')`);
+  const freeDisabled = await parentDisabled();
+  await evalJs(
+    `(() => { const e = document.querySelector('#label-parent'); if (e) e.click(); return !!e; })()`,
+  );
+  await sleep(800);
+  const parentOpts = (await evalJs(
+    `[...document.querySelectorAll('[role=option]')].map((x) => (x.textContent || '').trim())`,
+  )) as string[];
+  await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
+  await sleep(500);
+  ok(
+    'G8.8 父级**可改**：无子级一级标签下拉可用 · 候选不含自身（F218 · 放开一级重挂）',
+    freeDisabled === false && parentOpts.length > 0 && !parentOpts.includes(dnFree),
+    `一级(${freeTop?.slug} · ${dnFree}) disabled=${freeDisabled} 候选=${JSON.stringify(parentOpts)}`,
+  );
   await cancelDialog();
   await sleep(700);
-  // 树**默认折叠** ⇒ 子行不在 DOM：先展开首个一级（`aria-label="toggle"`）
-  await evalJs(
-    `(() => { const b = document.querySelector('tbody tr button[aria-label="toggle"]'); if (b) b.click(); return !!b; })()`,
-  );
-  await sleep(1000);
-  await openEdit(childRow?.slug ?? '');
+
+  // ② 有子级一级 ⇒ 禁用 + 锁定说明；③ 二级 ⇒ 可用
+  await openEdit(withKids?.slug ?? '');
+  await sleep(1100);
+  const kidsDisabled = await parentDisabled();
+  const kidsHint = await evalJs(`(document.body.innerText || '').includes('不能挂到别的标签下')`);
+  await cancelDialog();
+  await sleep(700);
+  // 子行是否在 DOM 取决于父行展开态（G8.9 已展开过 agentic ⇒ 此处**不可**再点 toggle）
+  const childParentRow = topRows.find((r) => r.slug === childRow?.parentId);
+  await openEditBy(childRow?.slug ?? '', childParentRow ? dnOf(childParentRow) : '');
   await sleep(1100);
   const childDisabled = await parentDisabled();
   await cancelDialog();
   await sleep(700);
   ok(
-    'G8.8 父级前置：**一级**禁用 / **二级**可用（F217 · 与服务端锁两级同面）',
-    rootDisabled === true && childDisabled === false,
-    `一级(${rootRow?.slug})=${rootDisabled} 二级(${childRow?.slug})=${childDisabled}`,
+    'G8.9 父级前置三态：**有子级**一级禁用（+说明）/ **二级可用**（F218 · 与服务端 `label.parent.has_children` 同面）',
+    kidsDisabled === true && kidsHint === true && childDisabled === false,
+    `有子级(${withKids?.slug})=${kidsDisabled} hint=${kidsHint} 二级(${childRow?.slug})=${childDisabled}`,
   );
+
+  // F218 真页往返：无子级一级标签 → 挂到另一个一级下（真 UI 保存）⇒ 服务端 parentId 变；再改回一级（**自清**）
+  await openEdit(freeTop?.slug ?? '');
+  await sleep(1100);
+  const pickedTo = await pickParent(dnTarget);
+  await saveDialog();
+  await sleep(2800);
+  const movedTo = await labelParentOf(freeTop?.slug ?? '');
   ok(
-    'G8.9 一级标签弹窗给出「不可降级」说明（F217）',
-    lockedHint === true,
-    `hint 命中=${lockedHint}`,
+    'G8.11 一级重挂真页往返 a：挂到一级下（真对话框保存 · 服务端 parentId = 新父）',
+    pickedTo === true && movedTo === reTarget?.slug,
+    `选中=${pickedTo} parentId=${JSON.stringify(movedTo)} 期望=${reTarget?.slug}`,
   );
+  // 复原：freeTop 现为 dnTarget 的**子行**（其父行在 G8.12 前可能已展开 ⇒ 走幂等助手）
+  await openEditBy(freeTop?.slug ?? '', dnTarget);
+  await sleep(1100);
+  const pickedBack = await pickParent(null);
+  await saveDialog();
+  await sleep(2800);
+  const backTo = await labelParentOf(freeTop?.slug ?? '');
+  ok(
+    'G8.12 一级重挂真页往返 b：改回一级（**自清** · 真库复原）',
+    pickedBack === true && backTo === null,
+    `选中=${pickedBack} parentId=${JSON.stringify(backTo)}`,
+  );
+  if (backTo !== null) {
+    // 自清失败即**真库留脏**：显式告警 + 复原 SQL（`apps/server/.tmp-fix-parent.ts` 同款）
+    console.log(
+      `  ⚠️ 真库未复原：label_definition.slug='${freeTop?.slug}' 仍挂在 '${backTo}' —— 需手工 update parent_id=null`,
+    );
+  }
 
   // F217：写面失败**不得静默** —— 用**已存在 slug** 创建 ⇒ 409 ⇒ 必须出现可见提示且弹窗不关闭
   const dupSlug = rows[0]?.slug ?? '';

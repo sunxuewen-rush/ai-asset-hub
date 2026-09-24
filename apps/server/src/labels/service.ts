@@ -145,8 +145,9 @@ async function translationsOf(
 }
 
 /**
- * 锁两级树校验（06 §5.2）：parent 必须是一级分类；不能挂二级之下；不能自指；
- * 一级不可降级（设 parent）；二级可换域。返回解析后的父级 id（null = 一级）。
+ * 锁两级树校验（06 §5.2）：parent 必须是一级分类；不能挂二级之下；不能自指。
+ * 返回解析后的父级 id（null = 一级）。一级**可**重挂（v1.7 · F218）——「自身无子级」前置
+ * 由 updateLabel 承担（resolveParent 只看目标父级是否合法）。
  */
 async function resolveParent(
   db: Db,
@@ -255,7 +256,8 @@ export interface UpdateLabelInput {
   type?: LabelType;
   visibleInFilter?: boolean;
   sortOrder?: number;
-  /** undefined = 不动父级；null/'' = 降为一级（二级可换域/降级？06 §5.2 二级可换域——一级不可降级指原一级不能有 parent；原二级设 null 合法） */
+  /** undefined = 不动父级；null/'' = 置为一级（二级可降回一级）；非空 = 挂到该一级标签下
+   *  —— 一级可重挂（v1.7 · F218）；前置 = 自身无子级（见 updateLabel） */
   parentSlug?: string | null;
   /** 提供时 = 翻译整组替换（PUT 语义——skillhub replaceTranslations 同构——D3 对标修正：
    *  删未列 locale 使「移除翻译」可达——原 upsert 增量残留无法清理） */
@@ -268,14 +270,21 @@ export async function updateLabel(
   input: UpdateLabelInput,
 ): Promise<ManagedLabel> {
   const existing = await loadBySlug(db, input.slug);
-  // 一级不可降级（06 §5.2：原一级 + 新 parentSlug 非空 → 拒）
-  if (existing.parentId === null && input.parentSlug && input.parentSlug !== '') {
-    throw new LabelError(labelErrorCodes.invalidParent);
-  }
   const parentId =
     input.parentSlug === undefined
       ? existing.parentId
       : await resolveParent(db, input.parentSlug, input.slug);
+  // v1.7 一级可重挂（06 §5.2 · F218）：原一级 + 新父非空 = 允许，但自身必须**无子级**
+  // ——有子级时重挂会把子级顶到三级/造孤儿 ⇒ 与 deleteLabel 同拒口径 400 label.parent.has_children。
+  // 顺序刻意在 `resolveParent` **之后**：自指 / 目标非一级这类更具体的错先报，不被本守卫掩盖。
+  if (existing.parentId === null && parentId !== null) {
+    const [child] = await db
+      .select({ id: labelDefinition.id })
+      .from(labelDefinition)
+      .where(eq(labelDefinition.parentId, existing.id))
+      .limit(1);
+    if (child) throw new LabelError(labelErrorCodes.parentHasChildren);
+  }
   // D8/D4：翻译归一（提供时——undefined 不动翻译）
   const nextTranslations =
     input.translations === undefined ? null : normalizeTranslations(input.translations);

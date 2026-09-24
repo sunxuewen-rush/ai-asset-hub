@@ -420,8 +420,9 @@ export const zh = {
     'labels.field.visibleHint': '关闭后不在门户「标签筛选」条出现（默认打开）',
     'labels.field.nameZh': '中文名',
     'labels.field.nameEn': '英文名',
-    'labels.parentHint': '只支持两级：父级必须是一级标签；一级标签不可降级为子级',
-    'labels.parentLockedHint': '一级标签不可降级为子级（如需归到某个一级标签下，请删除后重建）',
+    'labels.parentHint':
+      '只支持两级：留空就是一级标签；选一个一级标签，本标签就挂在它下面（二级可换父级）',
+    'labels.parentHasChildrenHint': '该标签下有子标签，不能挂到别的标签下（先转移或删除子标签）',
     'labels.slugLocked': 'slug 创建后不可修改',
     'labels.delete.title': '删除该标签？',
     'labels.delete.inUse': '已挂载 {n} 个已发布资产',

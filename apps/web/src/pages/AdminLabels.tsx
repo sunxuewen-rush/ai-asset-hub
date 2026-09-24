@@ -125,7 +125,8 @@ export default function AdminLabels() {
   // F214：弹窗目标改吃 `TreeRow`（= 行 + 层级信息）—— 删除前置条件需要 `hasChildren`（服务端两条拒绝路径之一）
   const [delTarget, setDelTarget] = useState<TreeRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<ManagedLabelRow | null>(null);
+  // F218：编辑目标同样吃 `TreeRow` —— 父级选择的前置条件是「自身有无子级」
+  const [editing, setEditing] = useState<TreeRow | null>(null);
   const [form, setForm] = useState({
     slug: '',
     type: 'RECOMMENDED',
@@ -277,10 +278,12 @@ export default function AdminLabels() {
     setFormOpen(true);
   };
 
-  /** F217：编辑态下目标是**一级**标签 ⇒ 父级选择锁定（与服务端「锁两级校验」同面） */
-  const parentLocked = editing?.parentId === null;
+  /** F218：编辑态下目标**有子级** ⇒ 父级选择锁定 —— 与服务端「一级可重挂」的**前置同面**
+   *  （06 §5.2 v1.7：一级可挂到另一个一级下；自身有子级时会造三级/孤儿 ⇒ 400 拒） */
+  const parentLocked = editing?.hasChildren === true;
 
-  const firstParents = rows.filter((r) => r.parentId === null);
+  /** 父级候选 = 全部一级标签（**排除自身**——服务端 `resolveParent` 拒自指） */
+  const firstParents = rows.filter((r) => r.parentId === null && r.slug !== editing?.slug);
 
   return (
     <div className="space-y-4">
@@ -543,8 +546,9 @@ export default function AdminLabels() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="label-parent">{t('admin', 'labels.field.parent')}</Label>
-              {/* F217：编辑**一级**标签时禁用父级选择 —— 服务端 `updateLabel` 对「一级降级」直接 400
-                  （06 §5.2 锁两级校验），UI 必须前置同面（本批 F212/F214 同一原则）。 */}
+              {/* F218：**有子级**的标签禁用父级选择 —— 服务端 `updateLabel` 对该情形 400
+                  `label.parent.has_children`（06 §5.2 v1.7 一级可重挂的前置），UI 前置同面
+                  （本批 F212/F214 同一原则）；无子级的一级/二级标签都可改父级。 */}
               <Select
                 disabled={parentLocked}
                 value={form.parentId === '' ? '__none__' : form.parentId}
@@ -566,7 +570,7 @@ export default function AdminLabels() {
               </Select>
               {parentLocked ? (
                 <p className="text-xs text-muted-foreground">
-                  {t('admin', 'labels.parentLockedHint')}
+                  {t('admin', 'labels.parentHasChildrenHint')}
                 </p>
               ) : null}
             </div>

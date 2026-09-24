@@ -318,7 +318,8 @@ AIH 六态缺的是同源八态的后两位（REJECTED/YANKED）——M3 的归�
   review.no_permission（ReviewPortalAppService DomainForbiddenException 实证）——T5 实现补入）
 - label.*（06 族）：`label.not_found` / `label.parent.has_children` / `label.slug_taken` /
   `label.limit_exceeded`（每资产 ≤10 挂载）/ `label.invalid_parent`（锁两级拒——parent 非一级/
-  自指/一级降级/挂二级之下）/ `label.access_denied`（403——管理面非 SUPER_ADMIN 或 PRIVILEGED 挂载
+  自指/挂二级之下）（**「一级降级」自 2026-09-24 起放开——见 `docs/06` v1.7 §5.2 / M4b-6 F218**）/
+  `label.access_denied`（403——管理面非 SUPER_ADMIN 或 PRIVILEGED 挂载
   非超管——06 §3）/ `label.definition_limit_exceeded`（400——定义总数 ≤100——skillhub
   max-definitions 同构）/ `label.translation.locale_duplicate`（400——同批翻译 locale 重复——D4）/
   `label.translation.blank`（400——翻译入参空 locale/displayName——路由 zod 已拦的服务层防御——R2）

@@ -208,7 +208,8 @@ security_audit 表（design §3.2 R3）、真扫描规则（直通 SPI）、审�
     + switch + LabelError
   - Create: `apps/server/src/labels/service.ts`——定义 CRUD：createLabel（slug/type/parentId 按
     slug 解析/translations[]/visibleInFilter/sortOrder；锁两级：parent 须一级、不自指、slug 全局
-    唯一预检 409——DB 23505 兜底）· updateLabel（二级可换域、一级不可降级）· deleteLabel
+    唯一预检 409——DB 23505 兜底）· updateLabel（二级可换域；**一级可重挂自 2026-09-24 起放开**——
+    前置 = 自身无子级，见 `docs/06` v1.7 §5.2 / M4b-6 F218）· deleteLabel
     （带子级拒 has_children——DDL RESTRICT 兜底；级联删 asset_label——搜索 join 实时无重建，
     design §5）· reorder（sortOrder 批量落位）· listPublicLabels（RECOMMENDED + visible_in_filter，
     displayName 回退 locale→slug，parentId slug 化）· 翻译随定义一次写全（locale UNIQUE 冲突

@@ -1,7 +1,7 @@
 # 标签与分类设计
 
 > Date: 2026-09-04
-> Updated: 2026-09-24（v1.6：**§2.3 解析链精确化**——补齐「主语言前缀回退」（`zh-cn` / `zh-Hans` 等带地区码行）+ locale 归一，并写明「精确优先于前缀」；背景 = 管理页写入 `zh-CN` 落库 `zh-cn` 后中文请求误落 `en`，见 M4b-6 批 design F215）· 2026-09-10（v1.5：**M4-pre 扁平化重构同步**——§1 去「空间运营」；§3 挂载 RECOMMENDED 判定改「owner 本人 / 管理档」；§5.3 API 路径去命名空间段；§6 引用同步；v1.4：复盘对标 skillhub 源码修正——管理面响应 slug 契约/定义上限/翻译整组替换/locale 归一/parent_id 索引；v1.3（2026-09-08）：M3 实现同步——标签管理管线落地（定义 CRUD/挂载/公开列表）；v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
+> Updated: 2026-09-24（v1.7：**§5.2 一级可重挂**——原「一级不可降级」硬拒改为**安全重挂**（前置 = 自身无子级 + 目标必须一级），并**明写相对兄弟仓 SkillHub 契约的偏离 + 理由**；见 M4b-6 批 design **F218**）· 2026-09-24（v1.6：**§2.3 解析链精确化**——补齐「主语言前缀回退」（`zh-cn` / `zh-Hans` 等带地区码行）+ locale 归一，并写明「精确优先于前缀」；背景 = 管理页写入 `zh-CN` 落库 `zh-cn` 后中文请求误落 `en`，见 M4b-6 批 design F215）· 2026-09-10（v1.5：**M4-pre 扁平化重构同步**——§1 去「空间运营」；§3 挂载 RECOMMENDED 判定改「owner 本人 / 管理档」；§5.3 API 路径去命名空间段；§6 引用同步；v1.4：复盘对标 skillhub 源码修正——管理面响应 slug 契约/定义上限/翻译整组替换/locale 归一/parent_id 索引；v1.3（2026-09-08）：M3 实现同步——标签管理管线落地（定义 CRUD/挂载/公开列表）；v1.2：实现状态同步——M1 落 label 数据表结构；v1.1 §5.3 API 路径前缀统一 /api）
 > Status: 定稿（M1 已落 label_definition/translation/asset_label 表结构；M3 已按 v1.3-v1.4 落地标签管理管线——定义 CRUD/挂载/公开列表全量实现 + skillhub 对标修正）
 > Scope: AI Asset Hub 的 label 体系 —— 定义/多语言/两级分类/挂载/筛选语义/权限
 > 设计来源：企业实战验证的 label 方案（Phase 1 基础 + Phase 2 两级分类，设计决策继承，命名资产化）
@@ -102,8 +102,17 @@ label 定义 CRUD + 批量排序：
 
 - `POST/PUT` 请求带可选 `parentId`（String，缺省/`null` = 一级）；**响应 `parentId` 同回父 slug**
   （skillhub LabelDefinitionResponse 同构——入参/响应契约自洽）
-- **锁两级校验**：parent 必须是一级分类；不能挂二级之下；不能指自身；一级不可降级；
-  二级可换域；parent 不存在 → `label.not_found`
+- **锁两级校验**：parent 必须是一级分类；不能挂二级之下；不能指自身；parent 不存在 →
+  `label.not_found`；二级可换域（含降回一级）
+- **一级可重挂**（v1.7 · F218）：原一级标签可挂到另一个一级标签下（变二级），前置 =
+  自身**无子级**（有子级时会造三级/孤儿 ⇒ 400 `label.parent.has_children`）；重挂是
+  **纯结构变更**——挂载/翻译/排序不动，无数据丢失
+
+  > **相对兄弟仓 SkillHub 契约的偏离（v1.7 · F218）**：SkillHub 的 label 定义契约为
+  > 「**一级不可降级 / 不可重挂**」；本仓放开**一级重挂**，理由 = 一级标签误建后原路径
+  > 只有「删除重建」，而删除在**有挂载**时被 `label_in_use` 拒、在**有子级**时被
+  > `label.parent.has_children` 拒 ⇒ 运营实际**无法归位**。重挂只改结构、不动数据，
+  > 且仍受锁两级约束（目标必须一级、自身必须无子级）；其余条款与 SkillHub 保持一致。
 - **定义总数 ≤100**（skillhub max-definitions 同构——防膨胀）→ `label.definition_limit_exceeded`
 - **翻译**：`translations` 提供即整组替换（删未列 locale——移除翻译可达；PUT 语义）；locale
   入参归一 `_→-` 小写（07 BCP47）；同批 locale 重复 → `label.translation.locale_duplicate` 预检
@@ -136,5 +145,6 @@ label 定义 CRUD + 批量排序：
 | v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 落 label 三表结构（definition/translation/asset_label），管线后置 M3 |
 | v1.3 | 2026-09-08 | sunxuewen-rush | M3 实现同步：标签管理管线落地——定义 CRUD/排序（SUPER_ADMIN，slug_taken 409 补码）、挂载 API（RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN，PRIVILEGED = 仅 SUPER_ADMIN；重复挂幂等 200、≤10 超限 400 label.limit_exceeded、删定义级联挂载） |
 | v1.4 | 2026-09-08 | sunxuewen-rush | 复盘对标 skillhub 源码修正：§5.2 管理面响应 parentId 回父 slug（LabelDefinitionResponse 同构）；定义总数 ≤100（definition_limit_exceeded）；翻译整组替换（PUT 语义——删未列 locale）；locale 归一与去重预检（translation.locale_duplicate）；parent_id 索引 + 搜索重建句改「无重建——实时 join 模型」落实 |
+| v1.7 | 2026-09-24 | sunxuewen-rush | **§5.2 一级可重挂（F218 修复同步）**：原「**一级不可降级**」硬拒 → **安全重挂**（原一级可挂到另一个一级下变二级；前置 = 目标必须一级 + **自身无子级**，后者违规报 `label.parent.has_children`）；**明写相对兄弟仓 SkillHub 契约的偏离 + 理由**（一级误建后原路径只有删除重建，而删除在有挂载/有子级时均被拒 ⇒ 运营无法归位；重挂为纯结构变更、不动挂载/翻译/排序）；守卫顺序 = 先 `resolveParent`（自指/目标非一级报更具体的 `label.invalid_parent`）后自身子级检查 |
 | v1.6 | 2026-09-24 | sunxuewen-rush | **§2.3 解析链精确化（F215 修复同步）**：原文只写「请求语言 → 回退链 → slug」，实现只做了「精确 + 主语言精确」而**漏了注释承诺的主语言前缀回退** ⇒ 管理页表单写入 `zh-CN`（落库归一为 `zh-cn`）后，中文请求一律落 `en`（中文界面显示英文标签名）。现补齐五级链（归一精确 → 主语言精确 → **主语言前缀** → `en` → `slug`）并写明「精确优先于前缀」 |
 | v1.5 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§1 「空间运营」去空间维度；§3 挂载 `RECOMMENDED` 判定「命名空间 ADMIN」→ **管理档（`role >= ADMIN`）**；§5.3 API 路径去命名空间段（`/api/assets/:slug/labels/:labelSlug`）；§6 `05` §6 引用同步 |

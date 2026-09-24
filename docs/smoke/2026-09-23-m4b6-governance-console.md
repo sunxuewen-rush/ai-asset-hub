@@ -19,11 +19,11 @@
 | 类型 | `bun run typecheck` | **exit 0** —— 4/4 tasks |
 | 静态 | `bun run lint` | **exit 0** —— 4/4 tasks（**收尾修正后转绿**，见下注） |
 | 格式 | `bun run format:check` | **exit 0** —— `Checked 302 files` |
-| 文档体检 ① | `bun docs/smoke/scripts/doc-audit.ts` | **exit 0** —— **111 PASS / 0 FAIL** |
-| 文档体检 ② | `bun docs/smoke/scripts/doc-claims-check.ts` | **exit 0** —— **44 PASS / 0 FAIL**（本批新建件，见 §3） |
+| 文档体检 ① | `bun docs/smoke/scripts/doc-audit.ts` | **exit 0** —— **113 PASS / 0 FAIL**（F217/F218 后终读数） |
+| 文档体检 ② | `bun docs/smoke/scripts/doc-claims-check.ts` | **exit 0** —— **46 PASS / 0 FAIL**（本批新建件，见 §3） |
 | 构建 | `bun run build` | **exit 0** —— 4/4 tasks |
 | 迁移 | `bun run db:migrate` | **exit 0** —— `[db] migrations applied`（迁移 **0014** 已落） |
-| 测试 | `CI=true bun run test` | **exit 0** —— server **590 pass / 0 fail**（53 文件 · 1869 断言 · 基线 562 + 本批 **28**） |
+| 测试 | `CI=true bun run test` | **exit 0** —— server **598 pass / 1 skip / 0 fail**（53 文件 · 1898 断言） |
 
 > **`lint` 收尾修正（归因逐件核实 · `git log -1 -- <file>`）**：门禁首跑报 2 个 error，**两件均本批引入的文件**：
 > ① `AdminAudit.tsx:202 useExhaustiveDependencies`（本批 T9 新建）⇒ `useMemo` 依赖补 `t`
@@ -32,11 +32,11 @@
 > 顺带清掉本批文件的 8 条 warning（`AdminBoard.tsx` 未用 import ×2 + `noNonNullAssertion` ×6）。
 > **非本批文件（`AppShell.tsx` / `CenterPage.tsx` / `Search.tsx`，最后提交早于本批）未动** —— 其中 `noDocumentCookie` 为 warning 级，不影响 exit 0。
 
-## 2. 本批 dogfood（G1–**G14** · design §9.3）· **88 PASS**
+## 2. 本批 dogfood（G1–**G15** · design §9.3）· **102 PASS**
 
 **命令**：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b6-governance-dogfood.ts`
-**结果**：**PASS 97 · FAIL 0 · CDP 超时 0** · 每段 `NO JS ERRORS`（真浏览器 CDP，非 mock）
-（T10 首跑基数 = **41**（G1–G11）⇒ **F206 追加 G12 = 56** ⇒ **F207 追加 G13 = 71** ⇒ **T6⁺ 重写 G3/G4.4/G5 + 追加 G14（8 条）= 84** ⇒ **F210 修 4 条空断言并补齐 G2/G4 = 88** ⇒ **F212 补 G8.5/G8.6（删除确认口径） = 90** ⇒ **F214 补 G8.6 双例 = 91** ⇒ **F215 补 G8.7（解析链）= 92** —— 末次全量输出：`✅ M4b-6 dogfood: PASS 92 · FAIL 0 · CDP 超时 0`）
+**结果**：**PASS 102 · FAIL 0 · CDP 超时 0** · 每段 `NO JS ERRORS`（真浏览器 CDP，非 mock）
+（T10 首跑基数 = **41**（G1–G11）⇒ **F206 追加 G12 = 56** ⇒ **F207 追加 G13 = 71** ⇒ **T6⁺ 重写 G3/G4.4/G5 + 追加 G14（8 条）= 84** ⇒ **F210 修 4 条空断言并补齐 G2/G4 = 88** ⇒ **F212 补 G8.5/G8.6（删除确认口径） = 90** ⇒ **F214 补 G8.6 双例 = 91** ⇒ **F215 补 G8.7（解析链）= 92** ⇒ **F216 补 G15 = 97** ⇒ **F217 补 G8.8–G8.10 = 100** ⇒ **F218 改写 G8.8/G8.9 + 补 G8.11/G8.12（真页往返）= 102** —— 末次全量输出：`✅ M4b-6 dogfood: PASS 102 · FAIL 0 · CDP 超时 0`）
 （T6⁺ 过程留痕：旧形态断言**先红后绿** —— 首跑 6 条 FAIL（类型图 / 原生 `select` / 创意四项）**全部属故意变更**；期间另修 **3 处新断言自身的探针缺陷**：① CDP `returnByValue` 遇 **DOM 节点数组静默返回 undefined** ② 正则里的反斜杠被模板字符串二次转义（改用 `[0-9]` 规避）③ `rotate` 在 `<text>` **自身**而非父级（两处都查））
 （**F210 过程留痕（提交后核验发现）**：4 张看板截图**字节完全相同**（sha256 `9b5cebe88963`）= 状态从未改变的物理证据 ⇒ 逐条回查证实 **G2.2 / G2.3 / G4.1 / G4.2 四条为空断言**（详见 §5.3 F210）；修复后新增/重写断言逐条**正反双证**：反证 1（G2.4 期望翻为「首刻度龄 8–9 天」）⇒ FAIL；反证 2（G4.2 期望柱数 +1）⇒ **3 条全 FAIL**；跑完已还原（脚本 sha256 前后一致）；新截图 `g2-board-trend-7` / `g4-board-rank-label` 与 `g1` **指纹各异** ✓）
 
@@ -49,7 +49,7 @@
 | G5 | **英雄榜形制**（T6⁺ 重写） | 两榜（员工榜 / 资产榜）· 每榜 **3 竖柱 + 3 柱顶数值** · 类目名**水平多行**（无 -45° 旋转）· 无纵向网格线 · 无副标题/页脚口径行 |
 | G6 | 资产管理页 | 表列 = **10**（含操作槽）· `status=ALL` 含非 ACTIVE · 排序接线（URL 出 `sort`/`dir`） · 隐藏描述列后名称列**等比摊开** |
 | G7 | 详情抽屉 | 抽屉打开（`dialogs=1`）· 含「归属人」 |
-| G8 | 标签定义页（**超管**） | 端点 200 · 上限块在位（`total`/`limit`）· 六列在位 · 首行 ↑ 禁用 · **F212 两条**：出参 `mountCountAny ≥ assetCount` 逐行不变量 · 删除确认（有任一状态挂载 ⇒ 确认钮禁用 + 文案三段口径）· **F214 双例**：按数据特征挑「有子级」与「零子级有挂载」两行，分别断言「子标签」/「已发布资产」文案 + 确认钮禁用 · **F215**：公开面 `zh-CN` 请求下，带 `zh*` 翻译的行逐条返回该中文名（不落 `en`） | · **F217 三条**：一级标签父级下拉**禁用**/二级可用 · 「不可降级」说明文案 · 409 ⇒ 可见 toast 且弹窗不关闭 |
+| G8 | 标签定义页（**超管**） | 端点 200 · 上限块在位（`total`/`limit`）· 六列在位 · 首行 ↑ 禁用 · **F212 两条**：出参 `mountCountAny ≥ assetCount` 逐行不变量 · 删除确认（有任一状态挂载 ⇒ 确认钮禁用 + 文案三段口径）· **F214 双例**：按数据特征挑「有子级」与「零子级有挂载」两行，分别断言「子标签」/「已发布资产」文案 + 确认钮禁用 · **F215**：公开面 `zh-CN` 请求下，带 `zh*` 翻译的行逐条返回该中文名（不落 `en`） | · **F218 四条**（改写 F217 的父级断言）：无子级一级**可改**（候选**不含自身**）· **有子级**一级禁用 + 说明 / 二级可用 · 真页往返 a（真对话框挂到一级下 ⇒ 服务端 `parentId` 变更）· 往返 b（改回一级 · **自清**）｜**F217**：409 `label.slug_taken` ⇒ 可见 toast 且弹窗不关闭 |
 | G9 | 审计日志页 | 端点 200 · 六列在位 · 匿名兜底键就位 · 快捷三键在位 · 「更多筛选」在位 · **出参带 `actorName`（F204）** · 抽屉含「用户代理」与「原始详情」 |
 | G10 | 筛选收窄 | 动作过滤 `version_yank ≤ 全量`（全量 **2607** / `yank` **57**）· 页内计数随筛选变化 |
 | G11 | **跨页数字一致** | 资产页页头计数 = 端点 `activeAssets`（**34**）· 看板 KPI 与资产页一致 |
@@ -82,10 +82,11 @@
 | `/api/audit/actions` | 分组 **8 组**（潜在全集 9；`ldap`/`oidc` 尚未出现） |
 | 鉴权（负向 · 实测） | 用户档三端点 **403** · `/api/labels/all` 对 `ADMIN`(10) **403**（仅超管 —— 设计如此） |
 
-## 5. 实施期发现与处置（F203–**F217**）
+## 5. 实施期发现与处置（F203–**F218**）
 
 | 号 | 面 | 问题（真） | 处置 |
 |----|----|-----------|------|
+| **F218** | 标签定义页 / 服务端标签校验（`labels/service.ts` × `AdminLabels.tsx` × i18n × `docs/06`） | **用户拍板（2026-09-24）**：F217 真页验证成功后逐字「**现在就落2**」。①「**一级不可降级**」硬拒 ⇒ 一级误建后**无法归位**（删除路径在有挂载 `label_in_use` / 有子级 `label.parent.has_children` 时均被拒）；② 前端编辑一级标签时父级下拉被禁用 ⇒ 规则本身无出口 | **已修**（2026-09-24）：服务端硬拒 → **安全重挂**（前置 = 目标必须一级 + **自身无子级**）；前端下拉**放开**（候选 = 一级且**排除自身**；仅「有子级」禁用 + 说明）；i18n `parentHint` 改写 + `parentLockedHint` → `parentHasChildrenHint`；**规范层 `docs/06` v1.7** + **明写相对兄弟仓 SkillHub 契约的偏离 + 理由**；用例 5 步 + dogfood **G8.8/G8.9 改写 + G8.11/G8.12**（含反证）⇒ 全量 **100 → 102**。明细见 **§5.6** |
 | **F216** | 标签写后刷新（`api/admin.ts`） | **用户报缺陷（2026-09-24）**：「创建标签后不显示，刷新才出现」。根因 = `api/client.ts` **语言感知 Promise 缓存**在标签写面**漏失效**（其他写面均有）⇒ `setTick` 重取命中旧 Promise；整页刷新 = 模块重建才见。影响面四消费者：标签页自身 / 看板标签维度 / 门户 chip / 资产卡内嵌标签名 | **定案（待执行）**：`api/admin.ts` 加 `invalidateLabelCaches()`（`/api/labels` + `/api/admin` + `/api/assets`）在四个写函数**成功后**调用（同 `api/stars.ts` 范式）· 验证 = 缓存级直证 + 真页 E2E（创建→立现→改名→立变→删除→立隐，全程不刷新）+ **反证** + dogfood G15 —— 明细见批 design **§9.8** |
 | **F203** | design §4.1 (e)(f) | 两图指向 §5.1，但该处**未列 `types[]` 出参**（实现者会漏取数） | **最小加性补** `overview.types[]`（`admin/overview.ts` + `admin.test.ts` 断言） |
 | **F204** | 审计查询 | `select().from(auditLog)` **无 join ⇒ 拿不到「姓名」**（D48 要求工号 + 姓名同列） | 补 `leftJoin` 出 `actorName`（`audit/query.ts`）+ 测试 |
@@ -190,7 +191,7 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 
 **根因链（三段 · 逐段有码为证）**：
 
-1. **服务端按设计拒绝**：`labels/service.ts::updateLabel` 首条校验 =「**一级不可降级**」（06 §5.2 锁两级；原 `parentId=null` + 新 `parentSlug` 非空 ⇒ 抛 `label.invalid_parent`），且在**事务之前**抛出 ⇒ 整笔编辑（连改名）都不生效。
+1. **服务端按设计拒绝**（**该规则已于同日 F218 放开——见 §5.6**）：`labels/service.ts::updateLabel` 首条校验 =「**一级不可降级**」（06 §5.2 锁两级；原 `parentId=null` + 新 `parentSlug` 非空 ⇒ 抛 `label.invalid_parent`），且在**事务之前**抛出 ⇒ 整笔编辑（连改名）都不生效。
    接口实锤（真页 SUPER 会话）：`PATCH /api/labels/communication {parentSlug:'software'}` ⇒ **HTTP 400 `label.invalid_parent`**；
    仅改翻译（不带 `parentSlug`）⇒ **HTTP 200** ✓（说明并非接口坏）。真库复核：`communication`(通讯) `parent_id = NULL`（一级）。
 2. **前端静默**：`AdminLabels.tsx::submitForm` / `confirmDelete` 只有 `try { … } finally { setBusy(false) }` —— **无 `catch`** ⇒ 400/409 被吞。
@@ -206,7 +207,8 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 ⇒ 全量 dogfood **97 → 100 PASS**。
 
 **状态**：**已修并验证**。**边界（如实登记）**：本条只修「不静默 + 前置 + 文案」；
-「一级标签能否降级」属**规则本身**（06 §5.2 契约）；如需放开，在下一笔按体系流程走（登记号在登记时分配）。
+「一级标签能否降级」属**规则本身**（06 §5.2 契约）⇒ 用户当天拍板**放开**，
+已由 **F218**（§5.6）落地，规范层 `docs/06` **v1.7** 同步。
 
 ### 5.4 F216 · 标签写后刷新（用户报缺陷 · 2026-09-24 · **已修并验证**）
 
@@ -250,13 +252,64 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 - ⚠️ 方法学教训（已记）：临时探针**不要每次重新登录**（登录限流 20 次/15 分钟 · 内存计数 ⇒ 本轮即被打满，
   表现为整段 401 连带失败）；改用「一次登录复用会话」或直接跑 dogfood 段（`SMOKE_ONLY=`）。
 
+### 5.6 F218 · 一级标签可重挂（用户拍板「②」· 2026-09-24 · **已修并验证**）
+
+**背景**：§5.5（F217）只修了「不静默 + 前置 + 文案」；「一级标签能否降级」属**规则本身**（06 §5.2 契约）。
+用户真页自测确认 F217 后逐字拍板：**「验证成功了。现在就落2」**。
+
+**规则变更（相对兄弟仓 SkillHub 契约的偏离 · 明写）**：SkillHub 契约 = 「**一级不可降级 / 不可重挂**」；
+本仓放开**一级重挂**（原一级 → 挂到另一个一级下变二级），理由 = 一级**误建后原路径只有「删除重建」**，
+而删除在**有挂载**（`label_in_use`）或**有子级**（`label.parent.has_children`）时均被拒 ⇒ 运营**无法归位**。
+重挂只改结构、不动挂载/翻译/排序，且仍受锁两级约束（目标必须一级、自身必须无子级）。
+
+**落点（4 处）**：
+- 服务端 `apps/server/src/labels/service.ts::updateLabel`：删「一级不可降级」硬拒 → **安全重挂**；
+  前置 = **自身无子级**（否则 400 `label.parent.has_children` —— 否则会把子级顶到三级/造孤儿）；
+  **守卫顺序在 `resolveParent` 之后**（自指 / 目标非一级先报更具体的 `label.invalid_parent`）。
+- 前端 `apps/web/src/pages/AdminLabels.tsx`：编辑一级标签的父级下拉**放开**；候选 = 一级标签且
+  **排除自身**（服务端 `resolveParent` 拒自指）；仅「**有子级**」的标签禁用 + 说明（与服务端同面）；
+  `editing` 改吃 `TreeRow`（读 `hasChildren`）。
+- i18n `zh.ts` / `en.ts`：`parentHint` 改「留空=一级；选一个一级=挂在它下面（两级内）」·
+  `parentLockedHint` → `parentHasChildrenHint` —— **键数不变**（doc-claims 绝对值锚不动）。
+- 规范层 `docs/06-label-system.md` **v1.7**：§5.2 增「一级可重挂」条 + blockquote 偏离说明；修订表 v1.7 行。
+
+**服务端用例（`bun test src/http/labels.test.ts`）· 27 pass / 0 fail**（新增 F218 用例 5 步）：
+
+| 步 | 场景 | 期望 | 实测 |
+|----|------|------|------|
+| ① | 无子级一级 → 挂到另一个一级下 | 200 · 响应 `parentId` = 新父 slug | ✅ |
+| ② | 该标签再 `parentSlug: null` | 200 · 回一级 | ✅ |
+| ③ | 目标是**二级**标签 | 400 `label.invalid_parent`（锁两级不变） | ✅ |
+| ④ | 自身**有子级** | 400 `label.parent.has_children` | ✅ |
+| ⑤ | 重挂后 DB | `parent_id = null`（纯结构变更） | ✅ |
+
+**真页往返（dogfood · 真对话框 · 全 SPA 路由）**：
+
+| 断言 | 修复在场 | 反证（去掉「自身无子级」守卫） |
+|---|---|---|
+| G8.8 无子级一级：下拉**可用** + 候选**不含自身** | ✅ 候选 `["—","智能体","软件","硬件","测试","公共","人事","通讯"]`（9 个一级 · 无自身） | — |
+| G8.9 三态：有子级一级**禁用** + 说明 / 二级**可用** | ✅ `agentic=true hint=true` · `agentic-rag=false` | — |
+| G8.11 挂到一级下（真对话框保存） | ✅ 服务端 `parentId` = `agentic` | — |
+| G8.12 改回一级（**自清**） | ✅ `parentId = null` | — |
+| 服务端用例 ④ | ✅ 400 | ❌ 注入后 **FAIL**（200）：本文件 `25 pass / 2 fail`（连带「删除带子级一级」—— 注入态下 3 级树污染同文件后续用例；跑完已还原 · 哈希一致） |
+
+**收口读数**：全量 dogfood **100 → 102 PASS / 0 FAIL**（G1–G15 · G8 段 14 条）· 八步门禁全绿
+（`typecheck` / `lint` / `format:check` / doc-audit **113** / doc-claims **46** / `test` **598 pass · 1 skip · 0 fail**）。
+**零回归**：四脚本串行 **`m4a` 58/2 · `m4b3` 38/3 · `m4b4` 83/6 · `m4b5` 52/10** = 逐项等于 T10 基线（零漂移）。
+
+**⚠️ 过程留痕（真库一次留脏 + 已复原 · 如实登记）**：G8.12 首版探针在**已展开**的行上又点了一次
+`toggle` ⇒ 反而**折叠** ⇒ 子行不在 DOM ⇒ 复原步骤未执行，真库 `m4b4-seed-privileged` 一度挂在 `agentic` 下。
+已用一次性脚本**复原**（`parent_id = null` ✓ · 全表回原状：仅 `agentic-rag` 挂 `agentic` ✓），脚本已删；
+探针改**幂等** `openEditBy`（先试开 → 找不到才展开父行）+ 自清失败时打印告警与复原 SQL ⇒ 复跑 **14/14** ✓。
+**教训**：**折叠/展开是同一按钮的切换、不幂等** —— 探针必须先判定当前态再决定是否点击。
+
 ## 6. 零回归（口径 = 无新增失败 · design §9.1）
 
 **执行方式**：**串行逐脚本**（首轮并发无效，见下注）。结果与**逐条定性**：
 
 | 脚本 | 串行实测 | 失败项定性（附证据） |
 |------|---------|--------------------|
-| `m4b6-governance-dogfood.ts`（本批） | **100 PASS / 0 FAIL / 0 超时**（G1–G15 · **F217 后基数**；零回归当期跑的是 41 基数版本 —— 追加段只新增断言，不覆盖四脚本的断言面） | — |
+| `m4b6-governance-dogfood.ts`（本批） | **102 PASS / 0 FAIL / 0 超时**（G1–G15 · **F218 后基数**；零回归当期跑的是 41 基数版本 —— 追加段只新增断言，不覆盖四脚本的断言面） | — |
 | `m4a-dogfood.ts` | **58 PASS / 2 FAIL** + `NO JS ERRORS` | `diff 三型徽章` / `diff +/− 行内容` —— 变更对比面，需**两份可比版本**前置 ⇒ **数据态** |
 | `m4a-chain-smoke.ts` | **`CHAIN SMOKE PASS`**（14s · 全绿） | — |
 | `m4b3-personal-a-dogfood.ts` | **38 PASS / 3 FAIL** | 3 条全为「**无 PENDING 行**」，且脚本自述「**请先重跑造数脚本复位**」⇒ **数据态**（自证） |
@@ -284,7 +337,7 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 **件行数（`wc -l` 实测 · T6⁺ 重测）**：`AdminBoard.tsx` **840** · `AdminAssets.tsx` **625** · `AdminLabels.tsx` **574** ·
 `AdminAudit.tsx` **565** · `api/admin.ts` **165** · `http/admin.ts` **67** · `http/admin.test.ts` **564** ·
 `overview.ts` **169** · `rankings.ts` **135** · `trends.ts` **150** · `labels/service.ts` **708** ·
-`chart.tsx` **340** · `combobox.tsx` **283** · `AdminLabels.tsx` **578** · `labels/service.ts` **727** · `api/admin.ts` **170** · `m4b6-governance-dogfood.ts` **948**（F212 + F210 后）。
+`chart.tsx` **340** · `combobox.tsx` **283** · `AdminLabels.tsx` **578** · `labels/service.ts` **727** · `api/admin.ts` **170** · `m4b6-governance-dogfood.ts` **948**（F212 + F210 后）·（F218 后重测）`labels/service.ts` **748** · `AdminLabels.tsx` **617** · `labels.test.ts` **600** · `errors.ts` **63** · `i18n/zh.ts` **604** · `m4b6-governance-dogfood.ts` **1247**。
 
 **截图（10 张 · `docs/smoke/`）**：`m4b6-g1-board-kpi.png` · **`m4b6-g2-board-trend-7.png`**（F210 后改拍「近 7 天」态）· **`m4b6-g4-board-rank-label.png`**（F210 后改拍「标签」口径态）·
 `m4b6-g6-assets-list.png` · `m4b6-G6-assets-colhidden.png` · `m4b6-G7-assets-drawer.png` · `m4b6-g8-labels-tree.png` ·
@@ -309,6 +362,7 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 | 5 | 零回归造数复位（`m4b3-seed-submissions` / `m4b5-seed-reviews` / 本批 `m4b6-seed-downloads --clean`） | **未执行**（写库需授权）；复位后三脚本预期可清零失败 | 若要 100% 收口：授权后「复位 → 串行重跑」即可 |
 | 6 | ~~T6⁺ / F210 后零回归四脚本未重跑~~ | ✅ **已重跑**（2026-09-24 串行 · 同一环境）—— `m4a` **58/2** · `m4b3` **38/3** · `m4b4` **83/6** · `m4b5` **52/10**，**逐项等于 T10 基线 = 零漂移** ⇒ 看板重做 / `labels[]` / `downloads7d` / 上卷口径单点化 / F210 脚本修复**均未影响**这四个脚本的断言面（实测，非判断） | 已闭合 |
 | 7 | **>13 个一级标签的 13 色池循环** | **未实测**（真库仅 2 个一级标签 ⇒ 取色只走到 `--chart-1/2`） | 代码路径为 `index % 13` 常量表取模（无分支）；如需实证须造 ≥14 个标签（写库需授权） |
+| 9 | **F218 重挂对看板「一级上卷」成员的影响** | **未复跑看板断言**：dogfood G8.11/G8.12 期间该标签短暂改归属，往返**自清**后收尾态与起始态一致 ⇒ 本批看板读数（G3/G4）采自未重挂的稳定态 | 若要实证「重挂 ⇒ 看板归属跟着变」，须在重挂态下另跑 G3/G4（可复现，未做） |
 | 8 | **F212「仅挂已隐藏/已归档」分支的真页实测** | **未在真页实测**（真库当前该状态 **0 条** · 实测 SQL）—— 服务端用例已覆盖语义（`assetCount 0 / mountCountAny 1 / 删除仍被拒`），前端三分支代码 + dogfood G8.6 覆盖「有已发布挂载」分支 | 若要实证须造一条「仅挂 HIDDEN 资产」的标签（写库需授权） |
 
 > ⚠️ **环境备注（2026-09-24 · 自测试 → 追根为 F215 · **已修**）**：真库新增两条一级标签 `software` / `hardware`

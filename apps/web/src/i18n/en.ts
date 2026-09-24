@@ -425,9 +425,9 @@ export const en: Dict = {
     'labels.field.nameZh': 'Name (zh)',
     'labels.field.nameEn': 'Name (en)',
     'labels.parentHint':
-      'Two levels only: the parent must be a top-level label, and a top-level label cannot become a child',
-    'labels.parentLockedHint':
-      'A top-level label cannot become a child (delete and recreate it if you need it nested)',
+      'Two levels only: leave empty for a top-level label; pick a top-level label to nest this one under it (sub-labels can be re-parented)',
+    'labels.parentHasChildrenHint':
+      'This label has sub-labels, so it cannot be nested under another label (move or delete them first)',
     'labels.slugLocked': 'slug cannot be changed after creation',
     'labels.delete.title': 'Delete this label?',
     'labels.delete.inUse': 'Attached to {n} published asset(s)',

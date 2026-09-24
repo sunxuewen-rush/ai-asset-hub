@@ -5,7 +5,7 @@
 export const labelErrorCodes = {
   /** label 定义不存在（slug 寻址） */
   notFound: 'label.not_found',
-  /** 删除带子级的一级分类被拒（06 §5.2——先删/转移子级；DDL RESTRICT 双保险） */
+  /** 「带子级」被拒（06 §5.2——删除带子级的一级分类 / 重挂带子级的一级标签，均先删或转移子级；DDL RESTRICT 双保险） */
   parentHasChildren: 'label.parent.has_children',
   /** 删除仍被资产挂载的标签被拒（M4b-6 T4 · D27/D32——先在资产上解挂；与 has_children 同族「删除被拒」） */
   inUse: 'label.in_use',
@@ -13,7 +13,7 @@ export const labelErrorCodes = {
   slugTaken: 'label.slug_taken',
   /** 上限超限（每资产 ≤10 挂载——06 §1） */
   limitExceeded: 'label.limit_exceeded',
-  /** 锁两级树校验拒（parent 非一级/自指/一级降级/挂二级之下——06 §5.2） */
+  /** 锁两级树校验拒（parent 非一级 / 自指 / 挂二级之下——06 §5.2） */
   invalidParent: 'label.invalid_parent',
   /** 越权（管理面非 SUPER_ADMIN / PRIVILEGED 挂载非超管——06 §3） */
   accessDenied: 'label.access_denied',
