@@ -13,8 +13,8 @@
 > 2026-09-22（**v0.3：T2 落地 —— 读面 2 加性字段** —— `submittedByName`（三面 `leftJoin`）+ `latestVersion`（**仅详情** · `asset_version` 自连接 `alias()`）；`reviews.test.ts` **23/0** · typecheck 4/4 · lint exit 0；**F175/F176** 登记并订正设计 2 处描述；**T3–T12 未始**）
 > 2026-09-22（**v0.2：T1 落地 —— 服务端对比引擎替换完成** —— 自研 LCS DP ⇒ jsdiff + `patch` 契约 + 内容寻址缓存；`assets.test.ts` **76/0** · `m4a-chain-smoke` **PASS ×2** · typecheck 4/4 · lint exit 0；**F174** 登记（dev 库 29 条 ACTIVE ⇒ 冒烟 limit 断言脆弱，已修）；**T2–T12 未始**）
 > 2026-09-22（**v0.1：首稿 —— 由批 design v0.9 派生** —— ① §1 目标与非目标（12 段）② §2 Task 总览（**T1–T12**）③ §3 Task 明细（每 Task = 依据 + 步骤 + **断言 / 门禁**）④ §4 八步门禁（CI 同序）⑤ §5 造数（**写库需授权**）⑥ §6 风险与回退 ⑦ §7 落地记录（执行期回填）⑧ §8 自检打分（初稿 + 换靶复核位）⑨ §9 修订记录。**本版零实现改动**）
-> Status: **T1–T12 全绿 · 待提交**（批 design **v0.13** · 8 维 **9.86**；八步门禁 **8/8 exit 0** · dogfood **62 PASS / 0 FAIL** · 零回归 `m4a` **34/0** ✓ `m4b3` **43/0** ✓ `m4b4` **89/0** ✓ · 文档同步：主 design **v1.63** · `docs/00` **v1.88** · `docs/05` **v1.11** · 历史批指针 3 处 · `doc-audit` **70/0**）· **diff 观感追加**（字号 **12px** / 行高 **20px** · 对标 GitHub 实测 · **F195/F196**）· **待用户 commit/push 口令**
-> 上游：批 design `docs/designs/2026-09-21-m4b5-review-workbench-design.md`（**v0.13** · 12 段 · 8 维 **9.86** · 处置 **49 项**）
+> Status: **T1–T12 全绿 · 已提交推送**（提交链 4 笔 `6c5cc98` / `a8152e6` / `64f3e87` / `ad05b4e`）· 批 design **v0.14** · 8 维 **9.86**；八步门禁 **8/8 exit 0** · dogfood **62 PASS / 0 FAIL** · 零回归 `m4a` **34/0** ✓ `m4b3` **43/0** ✓ `m4b4` **89/0** ✓ · 文档同步：主 design **v1.63** · `docs/00` **v1.88** · `docs/05` **v1.11** · 历史批指针 3 处 · `doc-audit` **70/0**）· **diff 观感追加**（字号 **12px** / 行高 **20px** · 对标 GitHub 实测 · **F195/F196**）· 证据 `docs/smoke/2026-09-22-m4b5-review-workbench.md`（2026-09-25 收口补档）
+> 上游：批 design `docs/designs/2026-09-21-m4b5-review-workbench-design.md`（**v0.14** · 12 段 · 8 维 **9.86** · 处置 **51 项**）
 > · 主 design `2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.62**）§2.3 拆批表与批件登记表
 > · `docs/00-product-direction.md` §5 M4b-5 行
 > 依赖顺序：**M4b-1 ✅ / M4b-2 ✅ / M4b-3 ✅ / M4b-4 ✅**（四批出口五件全绿）⇒ 本批开工条件已满足
