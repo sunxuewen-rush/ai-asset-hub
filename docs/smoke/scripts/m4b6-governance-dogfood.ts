@@ -53,6 +53,7 @@ const SECTION_IDS = [
   'G12',
   'G13',
   'G14',
+  'G15',
 ] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 const only = (process.env.SMOKE_ONLY ?? '')
@@ -982,6 +983,67 @@ if (want('G14')) {
     JSON.stringify(trend),
   );
   await shot('g14-board-redesign');
+}
+
+/* ── G15 标签写后即见（**F216 守护** · 2026-09-24 用户报缺陷：创建标签后「要刷新才显示」） ──
+ * 用户路径两条：① 标签定义页列表立现 ② **门户 chip 立现**（SPA 回门户）—— 两条都**不刷新**。
+ * 口径：**全程 SPA 路由**（不许整页跳转 —— 整页会重建模块、清空 `api/client.ts` 的语言感知响应缓存 ⇒ 测不出本 bug）；
+ *       提交走对话框按钮的 DOM 点击（`realClick` 对弹窗内按钮命中不稳）；结束自清临时标签。 */
+if (want('G15')) {
+  await loginAs(SUPER);
+  const chipNames = async (): Promise<string[]> =>
+    JSON.parse(
+      (await evalJs(
+        `JSON.stringify([...document.querySelectorAll('a,button')].map((e)=>(e.textContent||'').trim()).filter((x)=>x && x.length<10 && !/^(中文|EN|首页|登录|全部|上一页|下一页|搜索|创建标签)$/.test(x)))`,
+      )) as string,
+    );
+  const clickSidebar = async (href: string) =>
+    evalJs(
+      `(() => { const a = document.querySelector('[data-slot="sidebar-menu-button"][href="${href}"]'); if (a) a.click(); return !!a; })()`,
+    );
+
+  await nav(`${APP}/skills`, 4200);
+  const chipsBefore = await chipNames();
+  ok(
+    'G15.1 SPA 进「标签定义」（未整页跳转 · 保持缓存态）',
+    !!(await clickSidebar('/admin/labels')),
+  );
+  await sleep(3500);
+  const rowsBefore = (await evalJs(`document.querySelectorAll('tbody tr').length`)) as number;
+
+  const SLUG = `smoke-g15-${Date.now().toString().slice(-6)}`;
+  const NAME = '烟测标签';
+  await realClickExpr(
+    `[...document.querySelectorAll('button')].find((b) => /创建/.test(b.textContent || ''))`,
+  );
+  await sleep(1200);
+  await fillInput('#label-slug', SLUG);
+  await fillInput('#label-zh', NAME);
+  await sleep(300);
+  await evalJs(
+    `(() => { const b = [...document.querySelectorAll('[role=dialog] button')].find((x) => /保存/.test(x.textContent || '')); if (b) b.click(); return !!b; })()`,
+  );
+  await sleep(2800);
+  const rowsAfter = (await evalJs(`document.querySelectorAll('tbody tr').length`)) as number;
+  ok(
+    'G15.2 创建后列表立现（**不刷新** · F216）',
+    rowsAfter === rowsBefore + 1 && (await bodyText()).includes(NAME),
+    `行 ${rowsBefore} → ${rowsAfter}`,
+  );
+
+  ok('G15.3 SPA 回门户（未整页跳转）', !!(await clickSidebar('/skills')));
+  await sleep(3200);
+  const chipsAfter = await chipNames();
+  ok(
+    'G15.4 门户 chip 立现（**不刷新** · F216 用户可见面）',
+    chipsAfter.includes(NAME),
+    `chip 数 ${chipsBefore.length} → ${chipsAfter.length}`,
+  );
+
+  const del = (await evalJs(
+    `(async () => { try { const m = await import('/src/api/admin.ts'); await m.deleteLabel(${JSON.stringify(SLUG)}); return 'ok'; } catch (e) { return 'err ' + String(e).slice(0, 80); } })()`,
+  )) as string;
+  ok('G15.5 自清临时标签', del === 'ok', del);
 }
 
 /* ── JS 错误门 + 汇总 ── */

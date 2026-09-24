@@ -12,6 +12,7 @@ import {
   apiPatch,
   apiPost,
   apiPut,
+  invalidateCache,
 } from './client.js';
 
 export interface AdminOverviewKpi {
@@ -132,6 +133,22 @@ export async function fetchAllLabels(opts?: ApiGetOptions): Promise<ManagedLabel
 
 /* ── 标签定义页的写面（M4b-6 T8）── */
 
+/**
+ * 标签写后失效（**F216**）：标签变更影响三个缓存面 ——
+ * ① `/api/labels*`：公开候选面（门户筛选 chip / 资产卡标签名候选）+ 管理全量列表（`/api/labels/all`）
+ * ② `/api/admin*`：看板 `overview`（标签维度两图）/ `trends` / `rankings`（标签口径）
+ * ③ `/api/assets*`：资产 payload **内嵌的标签名**（改名后卡片须跟着变）
+ *
+ * 为什么放这里：与 `api/stars.ts` 同范式 —— **失效收口在 api 层**，覆盖所有调用者（页面/组件/未来的批量脚本），
+ * 不依赖每个调用点自律。此前四个写函数**零失效调用** ⇒ `api/client.ts` 的语言感知 Promise 缓存命中旧值
+ * ⇒ 「创建标签后列表/门户不显示，整页刷新（模块重建、缓存清空）才显示」。
+ */
+const invalidateLabelCaches = (): void => {
+  invalidateCache('/api/labels');
+  invalidateCache('/api/admin');
+  invalidateCache('/api/assets');
+};
+
 export interface LabelTranslationInput {
   locale: string;
   displayName: string;
@@ -146,7 +163,9 @@ export interface CreateLabelBody {
 }
 
 export async function createLabel(body: CreateLabelBody, opts?: ApiWriteOptions) {
-  return apiPost<ManagedLabelRow>('/api/labels', body, opts);
+  const row = await apiPost<ManagedLabelRow>('/api/labels', body, opts);
+  invalidateLabelCaches(); // F216
+  return row;
 }
 
 export async function updateLabel(
@@ -154,11 +173,19 @@ export async function updateLabel(
   body: Partial<CreateLabelBody>,
   opts?: ApiWriteOptions,
 ) {
-  return apiPatch<ManagedLabelRow>(`/api/labels/${encodeURIComponent(slug)}`, body, opts);
+  const row = await apiPatch<ManagedLabelRow>(
+    `/api/labels/${encodeURIComponent(slug)}`,
+    body,
+    opts,
+  );
+  invalidateLabelCaches(); // F216
+  return row;
 }
 
 export async function deleteLabel(slug: string, opts?: ApiWriteOptions) {
-  return apiDelete(`/api/labels/${encodeURIComponent(slug)}`, opts);
+  const res = await apiDelete(`/api/labels/${encodeURIComponent(slug)}`, opts);
+  invalidateLabelCaches(); // F216
+  return res;
 }
 
 /** 一次提交整组顺序（`PUT /order`） */
@@ -166,5 +193,7 @@ export async function reorderLabels(
   order: Array<{ slug: string; sortOrder: number }>,
   opts?: ApiWriteOptions,
 ) {
-  return apiPut('/api/labels/order', { order }, opts);
+  const res = await apiPut('/api/labels/order', { order }, opts);
+  invalidateLabelCaches(); // F216
+  return res;
 }
