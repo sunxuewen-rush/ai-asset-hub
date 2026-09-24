@@ -20,6 +20,7 @@ import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
 import { asset, assetLabel, auditLog, labelDefinition, user } from '../db/schema/index.js';
 import { LabelError } from '../labels/errors.js';
+import { pickDisplayName } from '../labels/service.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { createLabelRoutes } from './labels.js';
 
@@ -483,5 +484,75 @@ describe('删除挂载中的标签（M4b-6 T4）', () => {
       .where(and(eq(assetLabel.assetId, hiddenAsset!.id), eq(assetLabel.labelId, label!.id)));
     expect((await del(`/api/labels/${name}`, sa)).status).toBe(204);
     await db.delete(asset).where(eq(asset.id, hiddenAsset!.id));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F215：displayName 回退链（06 §2.3 永不空显示）—— 精确 → 主语言精确 → **主语言前缀** → en → slug
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('标签显示名回退链（F215 · labels/service.pickDisplayName）', () => {
+  const tr = (...pairs: Array<[string, string]>) =>
+    pairs.map(([locale, displayName]) => ({ locale, displayName }));
+
+  it('① 请求语言精确命中（`_` / 大小写归一后比较）', () => {
+    expect(pickDisplayName(tr(['zh-cn', '中文']), 'zh-CN', 'slug')).toBe('中文');
+    expect(pickDisplayName(tr(['zh_cn', '中文']), 'ZH-CN', 'slug')).toBe('中文');
+  });
+
+  it('② 主语言精确命中（行内 `zh`）', () => {
+    expect(pickDisplayName(tr(['zh', '中文']), 'zh-CN', 'slug')).toBe('中文');
+  });
+
+  it('③ 主语言**前缀**回退（行内带地区码/书写系统 · 请求主语言）—— F215 修复点', () => {
+    expect(pickDisplayName(tr(['zh-cn', '中文']), 'zh', 'slug')).toBe('中文');
+    expect(pickDisplayName(tr(['zh-Hans', '中文']), 'zh-CN', 'slug')).toBe('中文');
+  });
+
+  it('④ `en` 回退 → ⑤ `slug` 兜底（永不空显示）', () => {
+    expect(pickDisplayName(tr(['en', 'English'], ['fr', 'Français']), 'zh-CN', 'slug')).toBe(
+      'English',
+    );
+    expect(pickDisplayName(tr(['fr', 'Français']), 'zh-CN', 'slug')).toBe('slug');
+    expect(pickDisplayName(undefined, 'zh-CN', 'slug')).toBe('slug');
+  });
+
+  it('精确优先于前缀（`zh-cn` 与 `zh-hans` 并存时取请求语言那行）', () => {
+    expect(pickDisplayName(tr(['zh-hans', '书写系统'], ['zh-cn', '简体']), 'zh-cn', 'slug')).toBe(
+      '简体',
+    );
+  });
+});
+
+describe('标签翻译 locale 端到端（F215）', () => {
+  it('管理页写入 `zh-CN` ⇒ 落库 `zh-cn` ⇒ 公开面中文请求返回中文名（不再回退英文）', async () => {
+    const sa = await cookieFor(superAdmin);
+    const name = slug('locale-fallback');
+    expect(
+      (
+        await post(
+          '/api/labels',
+          {
+            slug: name,
+            type: 'RECOMMENDED',
+            translations: [
+              { locale: 'zh-CN', displayName: '中文名' },
+              { locale: 'en', displayName: 'English name' },
+            ],
+          },
+          sa,
+        )
+      ).status,
+    ).toBe(201);
+
+    const zh = await get('/api/labels', undefined, 'zh-CN');
+    const zhBody = (await zh.json()) as Array<{ slug: string; displayName: string }>;
+    expect(zhBody.find((l) => l.slug === name)?.displayName).toBe('中文名');
+
+    const en = await get('/api/labels', undefined, 'en-US');
+    const enBody = (await en.json()) as Array<{ slug: string; displayName: string }>;
+    expect(enBody.find((l) => l.slug === name)?.displayName).toBe('English name');
+
+    expect((await del(`/api/labels/${name}`, sa)).status).toBe(204);
   });
 });

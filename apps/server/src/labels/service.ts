@@ -423,21 +423,33 @@ export async function reorderLabels(
   });
 }
 
+/** locale 归一（07 BCP47）：trim + `_`→`-` + 小写 —— 与写入侧 `normalizeTranslations` **同一条规则** */
+const normLocale = (value: string): string => value.trim().replaceAll('_', '-').toLowerCase();
+
 /**
- * displayName 回退链（06 §2.3 永不空显示）：locale 精确 → 主语言前缀（`zh-CN` → `zh`）→ `en` → **slug**。
+ * displayName 回退链（06 §2.3 永不空显示）：locale 精确 → 主语言精确 → **主语言前缀** → `en` → **slug**。
  * M4b-4 T14：由 `listPublicLabels` 内联逻辑**抽出单点** —— 候选面与「资产已挂标签」面共用，
  * 防两条路径的回退链漂移。
+ *
+ * **F215（2026-09-24）**：此前第 ② 步写成 `x.locale === primary`（**只认精确 `zh`**），注释承诺的
+ * 「前缀回退」从未实现；而管理页表单写入 `locale: 'zh-CN'` ⇒ 落库被归一为 `zh-cn` ⇒ 「请求 `zh-CN`
+ * vs 行内 `zh-cn`」三步全不匹配 ⇒ 中文请求一律落 `en`（中文界面上显示英文标签名）。
+ * 现按承诺补齐：两侧都走 `normLocale`（大小写/`_` 差异免疫），并在主语言精确之后补**主语言前缀**一级
+ * （吃 `zh-cn` / `zh-Hans` 等带地区码或书写系统的行）；**精确优先于前缀**（请求语言那行胜出）。
  */
 export function pickDisplayName(
   translations: Array<{ locale: string; displayName: string }> | undefined,
   locale: string,
   fallback: string,
 ): string {
-  const primary = locale.split('-')[0]!;
+  const want = normLocale(locale);
+  const primary = want.split('-')[0]!;
+  const byExact = (target: string) => translations?.find((x) => normLocale(x.locale) === target);
   const hit =
-    translations?.find((x) => x.locale === locale) ??
-    translations?.find((x) => x.locale === primary) ??
-    translations?.find((x) => x.locale === 'en');
+    byExact(want) ??
+    byExact(primary) ??
+    translations?.find((x) => normLocale(x.locale).startsWith(`${primary}-`)) ??
+    byExact('en');
   return hit?.displayName ?? fallback;
 }
 

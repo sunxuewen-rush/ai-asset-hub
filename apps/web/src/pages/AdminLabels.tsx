@@ -90,11 +90,17 @@ type TreeRow = {
 
 /** 翻译取值（zh-CN → zh → en → slug 回退链；服务端已归一 locale 为小写） */
 function displayNameOf(row: ManagedLabelRow, locale: string): string {
-  const primary = locale.split('-')[0] ?? locale;
+  // F215：与服务端 `pickDisplayName` **同一条链**（locale 精确 → 主语言精确 → 主语言前缀 → en → slug）。
+  // 此前两侧都只做精确匹配 ⇒ 行内 locale 是 `zh-cn`（管理页表单写 `zh-CN` 归一而来）时，中文界面显示英文名。
+  const norm = (value: string) => value.trim().replaceAll('_', '-').toLowerCase();
+  const want = norm(locale);
+  const primary = want.split('-')[0] ?? want;
+  const byExact = (target: string) => row.translations.find((x) => norm(x.locale) === target);
   const hit =
-    row.translations.find((x) => x.locale === locale) ??
-    row.translations.find((x) => x.locale === primary) ??
-    row.translations.find((x) => x.locale === 'en');
+    byExact(want) ??
+    byExact(primary) ??
+    row.translations.find((x) => norm(x.locale).startsWith(`${primary}-`)) ??
+    byExact('en');
   return hit?.displayName ?? row.slug;
 }
 

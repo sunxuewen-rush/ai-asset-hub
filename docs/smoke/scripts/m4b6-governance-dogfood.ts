@@ -658,6 +658,28 @@ if (want('G8')) {
     await sleep(600);
   }
   await sleep(500);
+  // F215：公开面 locale 回退 —— 真库断言「带 zh* 翻译的行，中文请求必须返回该中文名（不再落 en）」。
+  // 数据自适应：期望值取自管理面同一条数据的 zh* 翻译行，不写死标签名/文案。
+  const pubZh = (await evalJs(
+    `(async () => { const r = await fetch('/api/labels', { headers: { 'accept-language': 'zh-CN' } }); return await r.json(); })()`,
+  )) as Array<{ slug: string; displayName: string }>;
+  const mgd = (api.body?.items ?? []) as Array<{
+    slug: string;
+    translations?: Array<{ locale: string; displayName: string }>;
+  }>;
+  const zhExpect = mgd
+    .map((r) => ({
+      slug: r.slug,
+      want: (r.translations ?? []).find((t) => t.locale.trim().toLowerCase().startsWith('zh'))
+        ?.displayName,
+      got: pubZh?.find((x) => x.slug === r.slug)?.displayName,
+    }))
+    .filter((x) => !!x.want && x.got !== undefined);
+  ok(
+    'G8.7 公开面中文请求命中 `zh*` 翻译（F215：前缀回退生效 · 不落 en）',
+    zhExpect.length >= 2 && zhExpect.every((x) => x.got === x.want),
+    JSON.stringify(zhExpect),
+  );
   await shot('g8-labels-tree');
 }
 
