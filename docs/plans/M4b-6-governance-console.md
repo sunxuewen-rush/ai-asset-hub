@@ -4,10 +4,10 @@
 > Updated: 2026-09-24（**v0.19：F221 收口 —— M4b-2 三脚本 18 条断言过时** —— 定性 = 断言写死历史结构真值（非本轮引入 · 正反双证）⇒ 新增**共享真值件** `nav-truth.ts`（`navItems.tsx` SSOT）把条数/组集合/图标取 SSOT + 修 3 处脚本缺陷 + 补自带桌面视口 ⇒ 四支复跑 **24/0 · 14/0 · 49/0 · 34/0**（121 断言全绿）；证据 §5.10）
 > Updated: 2026-09-24（**v0.18：挂账 ③ 收口 —— (B) 类 lint 清零** —— 实测 **71** 条 → **0**：`noNonNullAssertion` 66（52 条统一走**新增取值器** `http/context-access.ts`；14 条显式收窄）· `noTemplateCurlyInString` 3 · `noExplicitAny` 1 · `noDocumentCookie` 1 ⇒ `bunx biome lint` 三包 **258 文件 0 warning/0 error**；`typecheck`/`format:check`/`test` **599 pass·0 fail** 全绿 + 真页回归（本批 dogfood + 零回归四脚本 · seed→dogfood 成对跑）；证据 §1/§5.9/§8）
 > Updated: 2026-09-24（**v0.17：挂账 ② 收口 —— 证据 §8 item ⑦⑧ 闭环** —— 用户授权写库：造 14 个零挂载一级标签 + 1 个「仅挂 `HIDDEN` 资产」标签 ⇒ **22 PASS / 0 FAIL**（13 色池换圈 · F212 第三支 + 对照组）⇒ **自清**回落（22 → 7 · 54 → 53）；一次性脚本 `docs/smoke/scripts/m4b6-probe-colorpool-and-hidden-mount.ts` + 3 张留证截图；证据 §5.8/§7/§8 + 批 design **v0.45** 同步）
-> Status: ✅ **已落地（T1–T10）· 看板维重做（T6⁺ · 2026-09-23）** —— 批 design **v0.41**· 四页真页 + 服务端 8 项 + 迁移 0014 · dogfood **G1–G16 = 108/0**（G16 后）· 逐 Task 落地记录见 §7（含 F203–F220）
-> 上游：批 design `docs/designs/2026-09-23-m4b6-governance-console-design.md`（**v0.30 · 定稿 · 8 维 9.50** · D1–D55 · 未决 U5–U14）
-> · 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.65**）§2.3 批件登记
-> · `docs/00-product-direction.md` §5 M4b-6 行（**v1.91** · ✅ 完成）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）
+> Status: ✅ **已落地（T1–T10）· 看板维重做（T6⁺ · 2026-09-23）** —— 批 design **v0.47**· 四页真页 + 服务端 8 项 + 迁移 0014 · dogfood **G1–G16 = 108/0**（G16 后）· 逐 Task 落地记录见 §7（含 F203–F220）
+> 上游：批 design `docs/designs/2026-09-23-m4b6-governance-console-design.md`（**v0.47 · 定稿 · 8 维 9.44**〔§11.2 T6⁺ 复评〕· D1–D55 · 门槛项已清空）
+> · 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.70**）§2.3 批件登记
+> · `docs/00-product-direction.md` §5 M4b-6 行（**v1.94** · ✅ 完成）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）
 > 依赖顺序：**M4b-1 ✅ / M4b-2 ✅ / M4b-3 ✅ / M4b-4 ✅ / M4b-5 ✅** ⇒ 本批开工条件已满足；本批之后 = **M4b-8**（发布批）→ **M4b-7**（视觉打磨）
 
 ---
