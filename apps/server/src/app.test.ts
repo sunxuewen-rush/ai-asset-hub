@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, gte, inArray, like } from 'drizzle-orm';
+import { eq, gte, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import type { Hono } from 'hono';
 import ldap from 'ldapjs';
@@ -29,7 +29,7 @@ import { cleanupCreatedUsers, createTestUser, TEST_PASSWORD } from './test-utils
  */
 
 let db: Db;
-let auth: AihAuth;
+let _auth: AihAuth;
 const PREFIX = 'authit-';
 
 function makeApp(depsOverrides?: Partial<AppDeps>): Hono {
@@ -59,7 +59,7 @@ const ORIGIN_HEADERS = { origin: 'http://localhost:3000', host: 'localhost:3000'
 beforeAll(async () => {
   db = createClient(process.env.DATABASE_URL!);
   await migrate(db, { migrationsFolder: './drizzle' });
-  auth = createAuth({ ldap: null });
+  _auth = createAuth({ ldap: null });
 });
 
 afterAll(async () => {

@@ -4,15 +4,10 @@ import { and, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { AssetError, assetErrorCodes } from '../assets/errors.js';
 import { createAuditWriter } from '../audit/audit.js';
-import { ACCOUNT_ROLE, type AccountRole } from '../auth/roles.js';
+import { ACCOUNT_ROLE } from '../auth/roles.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetVersion, auditLog, reviewTask, user } from '../db/schema/index.js';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { asset, assetVersion, auditLog, reviewTask } from '../db/schema/index.js';
+import { cleanupCreatedUsers, createTestUser } from '../test-utils/auth-fixture.js';
 import { ReviewError, reviewErrorCodes } from './errors.js';
 import {
   approveReview,

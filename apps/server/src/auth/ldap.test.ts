@@ -65,14 +65,14 @@ function startFakeServer(): Promise<{ server: ldap.Server; port: number }> {
       }
       res.end();
     });
-    server.bind('dc=example,dc=com', (req: any, res: any) => {
+    server.bind('dc=example,dc=com', (_req: any, res: any) => {
       res.send(LDAP_INVALID_CREDENTIALS);
     });
     // search（读自身属性，base scope）。
     // 注：ldapjs v3 服务端 send entry 的属性编码/过滤行为异常（白名单过滤大小写敏感 +
     // 属性序列化问题），fake 不返回属性 → 客户端走 CN 兜底（searchSelf 的 fallback 路径）。
     // searchSelf 属性增强路径留真实 LDAP/AD 服务器验证（T26 人工项）。
-    server.search(BASE, (req: any, res: any) => {
+    server.search(BASE, (_req: any, res: any) => {
       res.end();
     });
     server.listen(0, '127.0.0.1', () => {

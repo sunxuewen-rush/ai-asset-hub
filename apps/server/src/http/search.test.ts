@@ -3,15 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { eq, like } from 'drizzle-orm';
+import { like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { cleanupCreatedUsers, createTestUser, signInCookie } from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -132,7 +127,7 @@ afterAll(async () => {
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
-  for (const u of users) {
+  for (const _u of users) {
     await cleanupCreatedUsers(db);
   }
   await rm(storageDir, { recursive: true, force: true });

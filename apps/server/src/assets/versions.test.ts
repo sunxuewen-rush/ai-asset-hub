@@ -10,12 +10,7 @@ import { ACCOUNT_ROLE, type AccountRole } from '../auth/roles.js';
 import { createClient, type Db } from '../db/client.js';
 import { asset, assetFile, assetVersion, auditLog, user } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { cleanupCreatedUsers, createTestUser, setUserRole } from '../test-utils/auth-fixture.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { AssetError, assetErrorCodes, UploadValidationError } from './errors.js';
 import { createVersion } from './versions.js';

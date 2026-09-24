@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, inArray, like } from 'drizzle-orm';
+import { inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import {
@@ -148,7 +148,7 @@ afterAll(async () => {
         ownedAssets.map((a) => a.id),
       ),
     );
-  for (const u of users) {
+  for (const _u of users) {
     await cleanupCreatedUsers(db);
   }
   await rm(storageDir, { recursive: true, force: true });

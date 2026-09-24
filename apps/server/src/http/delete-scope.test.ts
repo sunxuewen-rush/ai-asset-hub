@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { and, eq, like } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import {
@@ -140,7 +140,7 @@ afterAll(async () => {
   await db.delete(assetVersion).where(like(assetVersion.createdBy, `${PREFIX}%`));
   await db.delete(asset).where(like(asset.ownerId, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
-  for (const u of users) {
+  for (const _u of users) {
     await cleanupCreatedUsers(db);
   }
   await rm(storageDir, { recursive: true, force: true });

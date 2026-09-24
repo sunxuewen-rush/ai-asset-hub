@@ -137,7 +137,7 @@ afterAll(async () => {
   await db.delete(asset).where(eq(asset.ownerId, ownerId));
   await db.delete(labelDefinition).where(like(labelDefinition.createdBy, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
-  for (const u of users) {
+  for (const _u of users) {
     await cleanupCreatedUsers(db);
   }
   await rm(storageDir, { recursive: true, force: true });

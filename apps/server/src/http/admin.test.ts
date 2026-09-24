@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, like, sql } from 'drizzle-orm';
+import { eq, inArray, like, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import {

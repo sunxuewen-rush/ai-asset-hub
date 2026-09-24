@@ -475,7 +475,7 @@ export default function AdminLabels() {
             <DialogTitle>{t('admin', 'labels.delete.title')}</DialogTitle>
             <DialogDescription>
               {/* F214：文案按**服务端判定顺序**分四支（有子级 ⇒ 任一状态挂载 ⇒ 已发布挂载 ⇒ 无挂载） */}
-              {delTarget && delTarget.hasChildren
+              {delTarget?.hasChildren
                 ? t('admin', 'labels.delete.hasChildren')
                 : delTarget && delTarget.mountCountAny > 0
                   ? delTarget.assetCount > 0

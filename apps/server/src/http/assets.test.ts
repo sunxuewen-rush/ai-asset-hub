@@ -26,14 +26,7 @@ import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import {
-  type AssetType,
-  asset,
-  assetFile,
-  assetVersion,
-  auditLog,
-  user,
-} from '../db/schema/index.js';
+import { type AssetType, asset, assetFile, assetVersion, auditLog } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { createAssetRoutes } from './assets.js';
@@ -583,7 +576,7 @@ describe('R5/R6：assetItem latest 版本投影 + ownerDisplayName（M4a）', ()
 
 describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', () => {
   const vids: number[] = [];
-  let pubAssetId = 0;
+  let _pubAssetId = 0;
   beforeAll(async () => {
     // 懒建：PUBLISHED 资产（SKILL.md 文本 + 超大文件 + 二进制文件）+ YANKED 资产
     const [a] = await db
@@ -594,7 +587,7 @@ describe('R8 文件内容读取（M4a——GET versions/:version/files/*）', ()
         ownerId: member,
       })
       .returning({ id: asset.id });
-    pubAssetId = a!.id;
+    _pubAssetId = a!.id;
     const [v] = await db
       .insert(assetVersion)
       .values({

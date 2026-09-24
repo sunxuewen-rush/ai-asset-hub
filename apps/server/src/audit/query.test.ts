@@ -2,12 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
 import { eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { cleanupCreatedUsers, createTestUser } from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:aih@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -60,7 +55,7 @@ describe('queryAudit（T19：组合过滤 + 稳定分页 + 总数）', () => {
       await db.delete(auditLog).where(eq(auditLog.id, r.id));
     }
     const staleUsers = await db.select({ id: user.id }).from(user).where(like(user.name, 'aq-%'));
-    for (const u of staleUsers) {
+    for (const _u of staleUsers) {
     }
 
     u1 = await makeUser('aq-u1');

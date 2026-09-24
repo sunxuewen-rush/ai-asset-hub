@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
-import { createTestUser, setUserRole, signInCookie } from '../test-utils/auth-fixture.js';
+import { createTestUser } from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);

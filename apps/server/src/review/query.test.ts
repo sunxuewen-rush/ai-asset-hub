@@ -1,15 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, like } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetFile, assetVersion, auditLog, reviewTask, user } from '../db/schema/index.js';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { asset, assetFile, assetVersion, reviewTask } from '../db/schema/index.js';
+import { cleanupCreatedUsers, createTestUser } from '../test-utils/auth-fixture.js';
 import { type ReviewError, reviewErrorCodes } from './errors.js';
 import { getReviewDetail, listMine, listQueue } from './query.js';
 

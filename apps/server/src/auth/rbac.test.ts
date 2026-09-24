@@ -1,20 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, like } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  roleNameOf,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { cleanupCreatedUsers, createTestUser, roleNameOf } from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import { auditLog, user } from '../db/schema/index.js';
+import { user } from '../db/schema/index.js';
 import { ACCOUNT_ROLE, RbacService } from './rbac.js';
 
 /**

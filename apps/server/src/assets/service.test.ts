@@ -2,18 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
 import { eq, inArray, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { cleanupCreatedUsers, createTestUser } from '../test-utils/auth-fixture.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetVersion, auditLog, user } from '../db/schema/index.js';
+import { asset, assetVersion } from '../db/schema/index.js';
 import { AssetError, type AssetErrorCode, assetErrorCodes } from './errors.js';
 import {
   type AssetSort,

@@ -17,7 +17,7 @@ import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import { auditLog, user } from '../db/schema/index.js';
+import { user } from '../db/schema/index.js';
 import {
   officialSessionMiddleware,
   rbacContext,
@@ -79,7 +79,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // 精确清理自己创建的测试用户（displayName 前缀）
   const mine = await db.select({ id: user.id }).from(user).where(like(user.name, 'mw-%'));
-  for (const u of mine) {
+  for (const _u of mine) {
     await cleanupCreatedUsers(db);
   }
   await db.$client.end();

@@ -1,7 +1,6 @@
 import { LayoutGrid, List } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {} from '@/components/ui/shadcn/select';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../api/assets.js';

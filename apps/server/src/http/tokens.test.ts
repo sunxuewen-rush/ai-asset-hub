@@ -19,7 +19,7 @@ import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
 import { createClient, type Db } from '../db/client.js';
-import { apikey, auditLog, user } from '../db/schema/index.js';
+import { apikey, auditLog } from '../db/schema/index.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 import { tokenAuthMiddleware } from './token-middleware.js';
 import { createTokenRoutes } from './tokens.js';

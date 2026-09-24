@@ -45,7 +45,7 @@ export class RbacService {
       .from(user)
       .where(eq(user.id, userId));
     const row = rows[0];
-    if (!row || row.status !== 'ACTIVE') return null;
+    if (row?.status !== 'ACTIVE') return null;
     return accountRoleOf(row.role);
   }
 

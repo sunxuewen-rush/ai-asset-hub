@@ -102,7 +102,7 @@ afterAll(async () => {
     .where(like(user.id, `${PREFIX}%`));
   await db.delete(labelDefinition).where(like(labelDefinition.createdBy, `${PREFIX}%`));
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
-  for (const u of users) {
+  for (const _u of users) {
     await cleanupCreatedUsers(db);
   }
   await db.$client.end();

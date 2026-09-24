@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import {
@@ -144,7 +143,7 @@ export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
         pkceCodeVerifier: stored.codeVerifier,
         idTokenExpected: true,
       });
-    } catch (err) {
+    } catch (_err) {
       // 授权被拒（error 参数）或 code exchange 校验失败（state 已在库校验、此处为
       // nonce/iss/aud/exp/签名/PKCE 面失败）→ 结构化 403
       throw new AuthError('auth.oidc_denied');

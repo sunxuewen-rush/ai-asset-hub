@@ -4,13 +4,8 @@ import { and, eq, like } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetVersion, auditLog, user } from '../db/schema/index.js';
-import {
-  cleanupCreatedUsers,
-  createTestUser,
-  setUserRole,
-  signInCookie,
-} from '../test-utils/auth-fixture.js';
+import { asset, assetVersion, auditLog } from '../db/schema/index.js';
+import { cleanupCreatedUsers, createTestUser } from '../test-utils/auth-fixture.js';
 import { type AssetError, assetErrorCodes } from './errors.js';
 import { canYank, yankVersion } from './yank.js';
 

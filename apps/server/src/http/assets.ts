@@ -19,8 +19,6 @@ import { decideDownload, resolveDownload } from '../assets/download.js';
 import { AssetError, assetErrorCodes, UploadValidationError } from '../assets/errors.js';
 import { canManageAsset } from '../assets/manage.js';
 import {
-  type AssetItemMeta,
-  type AssetRow,
   assetSortQueryFields,
   createAsset,
   getAsset,
@@ -209,7 +207,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // token scope = asset:publish（原「空间成员 + rbac.can FROZEN 拒写」判定已随空间删除））
   app.post('/', requireAuth(), async (c) => {
     const principal = c.get('principal')!;
-    const rbac = c.get('rbac')!;
+    const _rbac = c.get('rbac')!;
     let payload: unknown;
     try {
       payload = await c.req.json();
@@ -521,14 +519,14 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
 
     // multipart 解析（file 必填 + version 必填 + changelog 可选）
     const body = await c.req.parseBody();
-    const rawFile = body['file'];
+    const rawFile = body.file;
     if (!(rawFile instanceof File) || rawFile.size === 0) {
       return c.json(
         { code: 'request.invalid', message: 'multipart field "file" (zip) is required' },
         400,
       );
     }
-    const rawVersion = typeof body['version'] === 'string' ? body['version'] : undefined;
+    const rawVersion = typeof body.version === 'string' ? body.version : undefined;
     const versionParsed = versionFieldSchema.safeParse(rawVersion);
     if (!versionParsed.success) {
       return c.json(
@@ -536,7 +534,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
         400,
       );
     }
-    const rawChangelog = typeof body['changelog'] === 'string' ? body['changelog'] : undefined;
+    const rawChangelog = typeof body.changelog === 'string' ? body.changelog : undefined;
     const changelogParsed = changelogFieldSchema.safeParse(rawChangelog);
     if (!changelogParsed.success) {
       return c.json({ code: 'request.invalid', message: 'changelog too long (≤4096)' }, 400);
@@ -555,7 +553,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
     const can = canManageAsset({
       ownerId: assetRow.ownerId,
       viewerId: principal.userId,
-      viewerRole: (await c.get('rbac')!.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST,
+      viewerRole: (await c.get('rbac')?.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST,
     });
     if (!can) throw new AuthError('auth.forbidden');
     assertTokenScoped(c, TOKEN_SCOPES.assetPublish); // T15：token scope 交集

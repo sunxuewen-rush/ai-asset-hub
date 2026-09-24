@@ -10,15 +10,12 @@
  *   （withdrawReview 服务内判定——路由传 viewerRole）
  * 错误出口统一 app.onError（ReviewError 认领——见 app.ts 装配）。
  */
-import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AuditWriter } from '../audit/audit.js';
-import { AuthError } from '../auth/errors.js';
 import { ACCOUNT_ROLE } from '../auth/rbac.js';
 import { TOKEN_SCOPES } from '../auth/token-scopes.js';
 import type { Db } from '../db/client.js';
-import { reviewTask } from '../db/schema/index.js';
 import { ReviewError, reviewErrorCodes } from '../review/errors.js';
 import {
   getReviewDetail,

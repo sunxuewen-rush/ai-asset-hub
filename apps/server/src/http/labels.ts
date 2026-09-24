@@ -19,7 +19,6 @@ import {
   listManagedLabels,
   listPublicLabels,
   reorderLabels,
-  translationInputSchema,
   updateLabel,
 } from '../labels/service.js';
 import { requestLocale } from './asset-item.js';

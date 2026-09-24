@@ -12,7 +12,7 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { asset, assetFile, assetVersion, auditLog, user } from '../db/schema/index.js';
+import { asset, assetFile, assetVersion, user } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { buildSkillZip } from '../test-utils/zip-builder.js';
 import type { AssetError } from './errors.js';

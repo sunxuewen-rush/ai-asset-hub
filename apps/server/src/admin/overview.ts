@@ -28,7 +28,7 @@
  * 性能：**10 条查询** —— 6 条聚合并发（①–⑥）+ 下载事件 2 条顺序（先探 `download_event` 存在性、再计数）
  * + 标签名批次 2 条（`displayNamesOf`：定义 + 翻译）；真库 53 资产 / 3 标签 ⇒ 实时查询足够（**不加缓存**，D54）。
  */
-import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { asset, assetLabel, labelDefinition, reviewTask, user } from '../db/schema/index.js';
 import { displayNamesOf } from '../labels/service.js';

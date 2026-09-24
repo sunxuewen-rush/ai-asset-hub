@@ -13,7 +13,6 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/shadcn/input-group';
-import {} from '@/components/ui/shadcn/select';
 import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/shadcn/toggle-group';
 import { fetchAssetList } from '../../api/assets.js';

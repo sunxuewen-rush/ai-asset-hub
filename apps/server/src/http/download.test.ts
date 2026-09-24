@@ -152,7 +152,7 @@ afterAll(async () => {
     await db.delete(asset).where(inArray(asset.id, allAssetIds));
   }
   await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
-  for (const u of users) {
+  for (const _u of users) {
     await cleanupCreatedUsers(db);
   }
   await rm(storageDir, { recursive: true, force: true });

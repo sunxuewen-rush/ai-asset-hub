@@ -10,7 +10,7 @@
  * 详情内容 = task 行 + 版本 manifest/文件清单（sha256 审核预览——授权走 task 面，不经
  * version-read 门：提交人本人可能非上传者（owner 代提场景），task 授权通过即内容可读）。
  */
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Db } from '../db/client.js';
 import {

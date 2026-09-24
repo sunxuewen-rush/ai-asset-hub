@@ -25,14 +25,14 @@ export type FrontmatterResult =
  */
 export function parseFrontmatter(content: string): FrontmatterResult {
   const lines = content.split(/\r?\n/);
-  if (lines.length === 0 || lines[0]!.trim() !== '---') {
+  if (lines.length === 0 || lines[0]?.trim() !== '---') {
     return { ok: false, error: 'missing_frontmatter' };
   }
 
   const yamlLines: string[] = [];
   let closeIndex = -1;
   for (let i = 1; i < lines.length; i++) {
-    if (lines[i]!.trim() === '---') {
+    if (lines[i]?.trim() === '---') {
       closeIndex = i;
       break;
     }

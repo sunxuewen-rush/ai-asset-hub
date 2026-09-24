@@ -32,7 +32,8 @@
 > ② `chart.tsx:89 noDangerouslySetInnerHtml`（本批 T6 **官方 shadcn 图表件转正**）⇒ **保留官方原样代码**，
 > 按仓库既有先例加 `/* biome-ignore ... */`（先例 = `apps/web/src/hooks/useApi.ts:43`），并写明理由（仅注入主题 CSS 变量 · 无用户输入）
 > 顺带清掉本批文件的 8 条 warning（`AdminBoard.tsx` 未用 import ×2 + `noNonNullAssertion` ×6）。
-> **非本批文件（`AppShell.tsx` / `CenterPage.tsx` / `Search.tsx`，最后提交早于本批）未动** —— 其中 `noDocumentCookie` 为 warning 级，不影响 exit 0。
+> **非本批文件（`AppShell.tsx` / `CenterPage.tsx` / `Search.tsx`，最后提交早于本批）当时未动** —— 其中 `noDocumentCookie` 为 warning 级，不影响 exit 0。
+> **2026-09-24 补记（③ lint 整理笔）**：全仓既有 warning **138 → 73**（清 65 条）—— (A) 自动修（未用 import / 未用变量 / 字面量键 / 安全可选链，含 `CenterPage.tsx`+`Search.tsx` 两处 `import {} from '…/select'` 空导入）+ (C) `biome.json` 忽略写法迁移（`!…/meta/**` → `!…/meta`）；**5 处类型敏感改写已回退**（会引入 `T | undefined`）；余 **73 条 (B) 类**（noNonNullAssertion 66 · noTemplateCurlyInString 5 · noExplicitAny 1 · noDocumentCookie 1）= **0 error**，登记后置（见 §8）。
 
 ## 2. 本批 dogfood（G1–**G16** · design §9.3）· **108 PASS**
 
@@ -386,8 +387,9 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 | 5 | ~~零回归造数复位~~（`m4b3-seed-submissions` / `m4b5-seed-reviews` / `m4b6-seed-downloads --clean`） | ✅ **已执行**（2026-09-24 用户授权后）—— `m4b3` **43/0** · `m4b5` **62/0** · 本批 dogfood **102/0** | 已闭合（余 `m4a` 2 · `m4b4` 6 另有根因，见 §6 复位留痕） |
 | 6 | ~~T6⁺ / F210 后零回归四脚本未重跑~~ | ✅ **已重跑**（2026-09-24 串行 · 同一环境）—— `m4a` **58/2** · `m4b3` **38/3** · `m4b4` **83/6** · `m4b5` **52/10**，**逐项等于 T10 基线 = 零漂移** ⇒ 看板重做 / `labels[]` / `downloads7d` / 上卷口径单点化 / F210 脚本修复**均未影响**这四个脚本的断言面（实测，非判断） | 已闭合 |
 | 7 | **>13 个一级标签的 13 色池循环** | **未实测**（真库仅 2 个一级标签 ⇒ 取色只走到 `--chart-1/2`） | 代码路径为 `index % 13` 常量表取模（无分支）；如需实证须造 ≥14 个标签（写库需授权） |
-| 9 | ~~F218 重挂对看板「一级上卷」成员的影响~~ | ✅ **已证**（2026-09-24）—— 新增 dogfood **G16**（6 条）在**重挂态**下实测：原子行从一级上卷消失 · 零计数目标新父 count **0 → 1** 严格等值 · 上卷 sum **3 → 3** 守恒 · `rankings` 同面 · 真页图例行数对齐 · 复原逐字段回落；**反证**停掉重挂 ⇒ 3 条 FAIL | 已闭合（常驻断言） |
 | 8 | **F212「仅挂已隐藏/已归档」分支的真页实测** | **未在真页实测**（真库当前该状态 **0 条** · 实测 SQL）—— 服务端用例已覆盖语义（`assetCount 0 / mountCountAny 1 / 删除仍被拒`），前端三分支代码 + dogfood G8.6 覆盖「有已发布挂载」分支 | 若要实证须造一条「仅挂 HIDDEN 资产」的标签（写库需授权） |
+| 9 | ~~F218 重挂对看板「一级上卷」成员的影响~~ | ✅ **已证**（2026-09-24）—— 新增 dogfood **G16**（6 条）在**重挂态**下实测：原子行从一级上卷消失 · 零计数目标新父 count **0 → 1** 严格等值 · 上卷 sum **3 → 3** 守恒 · `rankings` 同面 · 真页图例行数对齐 · 复原逐字段回落；**反证**停掉重挂 ⇒ 3 条 FAIL | 已闭合（常驻断言） |
+| 10 | **既有 lint warning（B) 类 · 73 条** | **未清**（登记 · 后置）：`noNonNullAssertion` 66（多数应显式判空/类型收窄而非加 `!`，且部分在测试面）· `noTemplateCurlyInString` 5（疑为**有意**的字面量模板串，如正则）· `noExplicitAny` 1 · `noDocumentCookie` 1（shadcn 目录外） | 全部 warning 级（**0 error**，不影响门禁 exit 0）；(A)+(C) 类已于 2026-09-24 清理（138 → 73） |
 
 > ⚠️ **环境备注（2026-09-24 · 自测试 → 追根为 F215 · **已修**）**：真库新增两条一级标签 `software` / `hardware`
 > （13:50 由超管账号在管理页创建）⇒ 其 zh 翻译以 **`zh-cn`** 落库（UI 表单写 `zh-CN`，服务端归一为小写）

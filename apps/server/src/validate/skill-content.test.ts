@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
-import { assetErrorCodes } from '../assets/errors.js';
 import { ensureTestEnv } from '../test-utils/env-setup.js';
 import { buildZip } from '../test-utils/zip-builder.js';
 import { parseFrontmatter } from './frontmatter.js';
