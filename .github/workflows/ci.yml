@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   verify:
-    name: install · typecheck · lint · format · build · test
+    name: install · typecheck · lint · format · doc · build · test
     runs-on: ubuntu-latest
 
     services:
@@ -60,6 +60,11 @@ jobs:
       # 纯只读、无外部依赖（不连库）⇒ 紧跟 format:check，早失败早暴露
       - name: 文档体检
         run: bun docs/smoke/scripts/doc-audit.ts
+
+      # 文档断言回读（doc-claims-check）：把文档里的量化声明（i18n 叶子键数 / 迁移号 / 断言数 …）
+      # 与代码真值回读比对 —— 纯静态、不连库（doc-audit 管「形式」，本件管「声明 vs 真值」）
+      - name: 文档断言回读
+        run: bun docs/smoke/scripts/doc-claims-check.ts
 
       - name: build
         run: bun run build
