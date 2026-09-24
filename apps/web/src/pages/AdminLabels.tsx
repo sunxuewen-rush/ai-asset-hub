@@ -33,6 +33,7 @@ import {
   reorderLabels,
   updateLabel,
 } from '@/api/admin';
+import { ApiError } from '@/api/client';
 import { PageHeader } from '@/components/console/PageHeader';
 import { DataTable } from '@/components/ui/DataTable';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -111,7 +112,7 @@ function typeText(t: Translate, type: string): string {
 }
 
 export default function AdminLabels() {
-  const { t } = useI18n();
+  const { t, tErr } = useI18n();
   const locale = 'zh-CN';
   const [tick, setTick] = useState(0);
   const { data, error, loading } = useApi((signal) => fetchAllLabels({ signal }), [tick]);
@@ -224,6 +225,10 @@ export default function AdminLabels() {
       }
       setFormOpen(false);
       setTick((v) => v + 1);
+    } catch (err) {
+      // F217：写面失败**必须可见** —— 此前只有 `try/finally`（无 catch）⇒ 400/409 被静默吞掉，
+      // 表现为「保存不生效、也没提示」；仓内范式见 `StarButton.tsx:69` / `AssetAdminCard.tsx:100`。
+      toast.error(tErr(err instanceof ApiError ? err.code : 'network'));
     } finally {
       setBusy(false);
     }
@@ -236,6 +241,9 @@ export default function AdminLabels() {
       await deleteLabel(delTarget.slug);
       setDelTarget(null);
       setTick((v) => v + 1);
+    } catch (err) {
+      // F217：删除失败同样不得静默（与提交同范式）
+      toast.error(tErr(err instanceof ApiError ? err.code : 'network'));
     } finally {
       setBusy(false);
     }
@@ -268,6 +276,9 @@ export default function AdminLabels() {
     });
     setFormOpen(true);
   };
+
+  /** F217：编辑态下目标是**一级**标签 ⇒ 父级选择锁定（与服务端「锁两级校验」同面） */
+  const parentLocked = editing?.parentId === null;
 
   const firstParents = rows.filter((r) => r.parentId === null);
 
@@ -531,14 +542,17 @@ export default function AdminLabels() {
               </p>
             </div>
             <div className="space-y-1">
-              <Label>{t('admin', 'labels.field.parent')}</Label>
+              <Label htmlFor="label-parent">{t('admin', 'labels.field.parent')}</Label>
+              {/* F217：编辑**一级**标签时禁用父级选择 —— 服务端 `updateLabel` 对「一级降级」直接 400
+                  （06 §5.2 锁两级校验），UI 必须前置同面（本批 F212/F214 同一原则）。 */}
               <Select
+                disabled={parentLocked}
                 value={form.parentId === '' ? '__none__' : form.parentId}
                 onValueChange={(v) =>
                   setForm((f) => ({ ...f, parentId: v === '__none__' ? '' : v }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="label-parent">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -550,6 +564,11 @@ export default function AdminLabels() {
                   ))}
                 </SelectContent>
               </Select>
+              {parentLocked ? (
+                <p className="text-xs text-muted-foreground">
+                  {t('admin', 'labels.parentLockedHint')}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1">
               <Label htmlFor="label-zh">{t('admin', 'labels.field.nameZh')}</Label>

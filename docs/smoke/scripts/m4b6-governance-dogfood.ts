@@ -681,6 +681,77 @@ if (want('G8')) {
     zhExpect.length >= 2 && zhExpect.every((x) => x.got === x.want),
     JSON.stringify(zhExpect),
   );
+  // F217：父级前置与服务端「锁两级校验」**同面** —— 一级标签的父级下拉禁用、二级可用（正反同断言）
+  const rootRow = rows.find((r) => r.parentId === null);
+  const childRow = rows.find((r) => r.parentId !== null);
+  const openEdit = async (slug: string) =>
+    evalJs(`(() => {
+      const tr = [...document.querySelectorAll('tbody tr')].find((x) => (x.textContent || '').includes(${JSON.stringify(slug)}));
+      if (!tr) return false;
+      const b = [...tr.querySelectorAll('button[aria-label]')].find((x) => (x.getAttribute('aria-label') || '').includes('编辑'));
+      if (b) b.click();
+      return !!b;
+    })()`);
+  const parentDisabled = async () =>
+    evalJs(
+      `(() => { const e = document.querySelector('#label-parent'); return e ? e.disabled === true : null; })()`,
+    );
+  const cancelDialog = async () =>
+    evalJs(
+      `(() => { const b = [...document.querySelectorAll('[role=dialog] button')].find((x) => (x.textContent || '').trim() === '取消'); if (b) b.click(); return !!b; })()`,
+    );
+  await openEdit(rootRow?.slug ?? '');
+  await sleep(1100);
+  const rootDisabled = await parentDisabled();
+  const lockedHint = await evalJs(`(document.body.innerText || '').includes('一级标签不可降级')`);
+  await cancelDialog();
+  await sleep(700);
+  // 树**默认折叠** ⇒ 子行不在 DOM：先展开首个一级（`aria-label="toggle"`）
+  await evalJs(
+    `(() => { const b = document.querySelector('tbody tr button[aria-label="toggle"]'); if (b) b.click(); return !!b; })()`,
+  );
+  await sleep(1000);
+  await openEdit(childRow?.slug ?? '');
+  await sleep(1100);
+  const childDisabled = await parentDisabled();
+  await cancelDialog();
+  await sleep(700);
+  ok(
+    'G8.8 父级前置：**一级**禁用 / **二级**可用（F217 · 与服务端锁两级同面）',
+    rootDisabled === true && childDisabled === false,
+    `一级(${rootRow?.slug})=${rootDisabled} 二级(${childRow?.slug})=${childDisabled}`,
+  );
+  ok(
+    'G8.9 一级标签弹窗给出「不可降级」说明（F217）',
+    lockedHint === true,
+    `hint 命中=${lockedHint}`,
+  );
+
+  // F217：写面失败**不得静默** —— 用**已存在 slug** 创建 ⇒ 409 ⇒ 必须出现可见提示且弹窗不关闭
+  const dupSlug = rows[0]?.slug ?? '';
+  await realClickExpr(
+    `[...document.querySelectorAll('button')].find((b) => /创建/.test(b.textContent || ''))`,
+  );
+  await sleep(1200);
+  await fillInput('#label-slug', dupSlug);
+  await fillInput('#label-zh', '重复探针');
+  await sleep(300);
+  await evalJs(
+    `(() => { const b = [...document.querySelectorAll('[role=dialog] button')].find((x) => /保存/.test(x.textContent || '')); if (b) b.click(); return !!b; })()`,
+  );
+  await sleep(2800);
+  const toastText = (await evalJs(
+    `(() => { const t = document.querySelector('[data-sonner-toast]'); return t ? (t.textContent || '').trim().slice(0, 60) : null; })()`,
+  )) as string | null;
+  const stillOpen = await evalJs(`!!document.querySelector('[role=dialog]')`);
+  ok(
+    'G8.10 保存失败给出可见提示（409 `label.slug_taken` 不静默 · F217）',
+    !!toastText && String(toastText).includes('占用') && stillOpen === true,
+    `toast=${JSON.stringify(toastText)} 弹窗仍在=${stillOpen}（dup=${dupSlug}）`,
+  );
+  await cancelDialog();
+  await sleep(600);
+
   await shot('g8-labels-tree');
 }
 

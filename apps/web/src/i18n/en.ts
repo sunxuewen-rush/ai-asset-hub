@@ -424,7 +424,10 @@ export const en: Dict = {
       'When off, the label is hidden from the portal label filter bar (default on)',
     'labels.field.nameZh': 'Name (zh)',
     'labels.field.nameEn': 'Name (en)',
-    'labels.parentHint': 'Two levels only: a second-level label cannot have children',
+    'labels.parentHint':
+      'Two levels only: the parent must be a top-level label, and a top-level label cannot become a child',
+    'labels.parentLockedHint':
+      'A top-level label cannot become a child (delete and recreate it if you need it nested)',
     'labels.slugLocked': 'slug cannot be changed after creation',
     'labels.delete.title': 'Delete this label?',
     'labels.delete.inUse': 'Attached to {n} published asset(s)',
@@ -584,6 +587,15 @@ export const en: Dict = {
     'review.access_denied': 'You do not have access to this review task',
     'token.not_found': 'Token not found',
     'label.limit_exceeded': 'Label limit reached (10)',
+    'label.not_found': 'Label not found or already deleted',
+    'label.parent.has_children': 'This label still has child labels - remove or move them first',
+    'label.in_use': 'Still attached to assets (including hidden/archived) - detach them first',
+    'label.slug_taken': 'That slug is already taken - pick another',
+    'label.invalid_parent':
+      'Invalid parent: it must be a top-level label, and a top-level label cannot become a child (two levels only)',
+    'label.definition_limit_exceeded': 'Label definitions reached the limit (100)',
+    'label.translation.locale_duplicate': 'Only one name per language is allowed',
+    'label.translation.blank': 'Language and name cannot be empty',
     'label.access_denied': 'You do not have permission to modify this label',
     network: 'Network error, please try again later',
     unknown: 'Request failed, {code}',

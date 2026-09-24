@@ -169,7 +169,7 @@ const NUMBERS: { label: string; expected: string; re: RegExp; group?: number; al
     // （首改放宽字符类时实测被它误吞 ⇒ 取值 17 报假红）。判据未放宽：值仍须被声明、且不得出现其它值。
     {
       label: 'i18n 本批新增键数',
-      expected: '123',
+      expected: '132',
       re: /(?:本批|i18n)\s*\*\*\+(\d{2,4})\*{0,2}\s*键/g,
     },
     // F209（2026-09-23 T6⁺ 自检发现）：上一条按**措辞**锚定 ⇒ 只保证「文档多处一致」，**不校验是否等于真值**
@@ -177,7 +177,7 @@ const NUMBERS: { label: string; expected: string; re: RegExp; group?: number; al
     // 口径 = `apps/web/src/i18n/zh.ts` 深层叶子键计数（与 [5] 成对检查同法）与 `board.` 前缀计数。
     {
       label: 'i18n 叶子键绝对值（各 N 键）',
-      expected: '527',
+      expected: '536',
       re: /叶子键\s*\*{0,2}各\s*(\d{3,4})/g,
     },
     {
