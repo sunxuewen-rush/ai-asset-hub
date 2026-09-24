@@ -635,7 +635,9 @@ if (want('G10', 'G4', 'G5', 'G6', 'G7', 'G9')) {
     ok(
       'G6 本批三态各一行（ACTIVE/HIDDEN/ARCHIVED · 按本批 `m4b4-seed-` 前缀锚定）',
       snap?.ownRows === 3 &&
-        snap.body.includes('活跃') &&
+        // F219 修：ACTIVE 的界面文案是「**已上线**」（`filter.status.active`）——原写「活跃」是**过时用词**，
+        // 恒假红（与「断言写死条数」同类：断言跟随真值文案，不跟随历史记忆）
+        snap.body.includes('已上线') &&
         snap.body.includes('已隐藏') &&
         snap.body.includes('已归档'),
       `ownRows=${snap?.ownRows ?? 'n/a'} · 全表 rows=${snap?.rows ?? 'n/a'}`,
@@ -1149,10 +1151,19 @@ if (want('G20')) {
     ok('G20-8 匿名点「列表视图」⇒ 生效', await clickView('列表视图'));
     await sleep(1600);
     const s5 = await viewState();
+    // F219 修：行数**不写死** —— 取端点真值（公开面同源 `/api/assets?type=skill&limit=20`）与 UI 行数比对；
+    // 「无分页控件」= 条数 ≤ limit 时的**正当缺席**（原写死 6 曾随各批夹具累积而假红：2026-09-24 实测 11）
+    const skillsTruth = (await evalJs(
+      `(async () => { try { const r = await fetch('/api/assets?type=skill&limit=20', { credentials: 'include' }); const j = await r.json(); return (j.items ?? []).length; } catch (e) { return -1; } })()`,
+    )) as number;
     ok(
-      'G20-9 匿名列表形态生效（/skills 6 行 · 无分页控件 = 正当缺席）',
-      s5?.on[0] === '列表视图' && s5?.grid === false && s5?.rows === 6 && s5?.pagination === false,
-      JSON.stringify(s5),
+      `G20-9 匿名列表形态生效（/skills 行数 = 端点真值 ${skillsTruth} · 无分页控件 = 正当缺席）`,
+      skillsTruth > 0 &&
+        s5?.on[0] === '列表视图' &&
+        s5?.grid === false &&
+        s5?.rows === skillsTruth &&
+        s5?.pagination === false,
+      `${JSON.stringify(s5)} truth=${skillsTruth}`,
     );
     await shot('20-skills-list-view-anon');
 
