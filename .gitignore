@@ -6,6 +6,9 @@ build/
 *.local
 *.log
 .DS_Store
+# Windows 缩略图缓存（工具/系统副产物 · 与 OS 无关地一律不入库）
+Thumbs.db
+desktop.ini
 coverage/
 .idea/
 .vscode/
