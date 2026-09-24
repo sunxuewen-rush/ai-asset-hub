@@ -6,8 +6,9 @@
  * ② **两级严格树**：一级缩进 0 · 二级 **28px + 2px 引导线**（`border-l-2`）· **chevron 仅在有子级的一级行** · 默认折叠
  * ③ 六列：显示名（zh）· slug · 类型徽标 · 过滤可见 · **挂载数**（可点 → `/admin/assets?label=<slug>`）· 操作
  * ④ 行内动作：↑↓（**首/末禁用** · 一次 `PUT /order` 提交整组）· 编辑 · 删除
- * ⑤ 删除确认：**任一状态**有挂载（`mountCountAny` · F212）⇒ 确认钮禁用 + 解挂指引（服务端 400
- *    `label.in_use` 语义前置）；仅已发布挂载与含隐藏/归档两种情形给不同文案（`assetCount` 只算已发布）
+ * ⑤ 删除确认（F212 + F214）：禁用条件 = **有子标签**(`hasChildren`) **或** 任一状态有挂载(`mountCountAny`)
+ *    —— 与服务端 `deleteLabel` 的两条拒绝路径（`label.parent.has_children` → `label.in_use`）**逐条同面**；
+ *    文案按同一优先级四分支（有子级 / 有已发布挂载 / 仅隐藏归档挂载 / 无挂载）
  * ⑥ 创建/编辑对话框（同一对话框两态）：slug（创建后禁改）· 类型 · 父级 · 中/英文名 · **过滤可见开关（默认打开）**
  */
 
@@ -114,7 +115,8 @@ export default function AdminLabels() {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [delTarget, setDelTarget] = useState<ManagedLabelRow | null>(null);
+  // F214：弹窗目标改吃 `TreeRow`（= 行 + 层级信息）—— 删除前置条件需要 `hasChildren`（服务端两条拒绝路径之一）
+  const [delTarget, setDelTarget] = useState<TreeRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedLabelRow | null>(null);
   const [form, setForm] = useState({
@@ -246,7 +248,7 @@ export default function AdminLabels() {
     setFormOpen(true);
   };
 
-  const openEdit = (row: ManagedLabelRow) => {
+  const openEdit = (row: TreeRow) => {
     setEditing(row);
     setForm({
       slug: row.slug,
@@ -419,7 +421,7 @@ export default function AdminLabels() {
                     size="icon"
                     variant="ghost"
                     aria-label={t('admin', 'labels.edit')}
-                    onClick={() => openEdit(r as unknown as ManagedLabelRow)}
+                    onClick={() => openEdit(r)}
                   >
                     <Pencil className="size-4" aria-hidden />
                   </Button>
@@ -427,7 +429,7 @@ export default function AdminLabels() {
                     size="icon"
                     variant="ghost"
                     aria-label={t('admin', 'labels.delete')}
-                    onClick={() => setDelTarget(r as unknown as ManagedLabelRow)}
+                    onClick={() => setDelTarget(r)}
                   >
                     <Trash2 className="size-4" aria-hidden />
                   </Button>
@@ -452,15 +454,20 @@ export default function AdminLabels() {
           <DialogHeader>
             <DialogTitle>{t('admin', 'labels.delete.title')}</DialogTitle>
             <DialogDescription>
-              {delTarget && delTarget.mountCountAny > 0
-                ? delTarget.assetCount > 0
-                  ? t('admin', 'labels.delete.inUse', { n: delTarget.assetCount })
-                  : t('admin', 'labels.delete.inUseHidden', { n: delTarget.mountCountAny })
-                : t('admin', 'labels.delete.unrecoverable')}
+              {/* F214：文案按**服务端判定顺序**分四支（有子级 ⇒ 任一状态挂载 ⇒ 已发布挂载 ⇒ 无挂载） */}
+              {delTarget && delTarget.hasChildren
+                ? t('admin', 'labels.delete.hasChildren')
+                : delTarget && delTarget.mountCountAny > 0
+                  ? delTarget.assetCount > 0
+                    ? t('admin', 'labels.delete.inUse', { n: delTarget.assetCount })
+                    : t('admin', 'labels.delete.inUseHidden', { n: delTarget.mountCountAny })
+                  : t('admin', 'labels.delete.unrecoverable')}
             </DialogDescription>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">
-            {delTarget && delTarget.mountCountAny > 0 ? t('admin', 'labels.delete.detachHint') : ''}
+            {delTarget && !delTarget.hasChildren && delTarget.mountCountAny > 0
+              ? t('admin', 'labels.delete.detachHint')
+              : ''}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDelTarget(null)}>
@@ -468,7 +475,10 @@ export default function AdminLabels() {
             </Button>
             <Button
               variant="destructive"
-              disabled={busy || (delTarget?.mountCountAny ?? 0) > 0}
+              // F214：禁用条件 = 服务端**两条**拒绝路径的完整前置（有子标签 · 任一状态挂载）
+              disabled={
+                busy || (delTarget?.hasChildren ?? false) || (delTarget?.mountCountAny ?? 0) > 0
+              }
               onClick={confirmDelete}
             >
               {t('admin', 'labels.delete.ok')}

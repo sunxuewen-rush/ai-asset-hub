@@ -599,43 +599,64 @@ if (want('G8')) {
   const disabled = await evalJs("document.querySelectorAll('button[disabled]').length");
   ok('G8.4 首行 ↑ 禁用（存在 disabled 按钮）', (disabled ?? 0) >= 1, `disabled=${disabled}`);
   // F212：出参双口径（`assetCount` = 仅已发布 · `mountCountAny` = 任一状态 · 恒 ≥）
-  const rows = (api.body?.items ?? []) as Array<{ assetCount: number; mountCountAny: number }>;
+  const rows = (api.body?.items ?? []) as Array<{
+    slug: string;
+    parentId: string | null;
+    assetCount: number;
+    mountCountAny: number;
+  }>;
   ok(
     'G8.5 出参带 mountCountAny 且逐行 ≥ assetCount（F212）',
     rows.length > 0 &&
       rows.every((r) => typeof r.mountCountAny === 'number' && r.mountCountAny >= r.assetCount),
     `rows=${rows.length} 首行=${JSON.stringify(rows[0])}`,
   );
-  // F212：删除确认的软件前置 —— 有（任一状态）挂载 ⇒ 确认钮禁用 + 文案讲清已发布/含隐藏归档
-  await evalJs(
-    `(() => { const b = [...document.querySelectorAll('button[aria-label]')].find((x) => (x.getAttribute('aria-label') || '').includes('删除')); if (b) b.click(); return !!b; })()`,
-  );
-  await sleep(900);
-  const dlg = await evalJs(`(() => {
-    const d = document.querySelector('[role=dialog]');
-    if (!d) return null;
-    // 官方 Dialog 末尾另有 sr-only 的 Close 钮 ⇒ 按文案取「最后一个含『删除』的按钮」（= 确认删除）
-    const confirm = [...d.querySelectorAll('button')]
-      .filter((b) => (b.textContent || '').includes('删除'))
-      .pop();
-    return {
-      text: (d.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 140),
-      confirmText: (confirm?.textContent || '').trim(),
-      confirmDisabled: confirm ? confirm.disabled : null,
-    };
-  })()`);
-  const mounted = rows.some((r) => r.mountCountAny > 0);
-  ok(
-    'G8.6 删除确认：任一状态有挂载 ⇒ 确认钮禁用 + 文案讲清口径（F212）',
-    !!dlg &&
-      (dlg?.confirmText ?? '').includes('删除') &&
-      (mounted ? dlg.confirmDisabled === true : dlg.confirmDisabled === false) &&
-      (dlg?.text ?? '').includes(mounted ? '已发布资产' : '未挂载任何资产'),
-    JSON.stringify(dlg),
-  );
-  await evalJs(
-    `(() => { const d = document.querySelector('[role=dialog]'); const b = d && [...d.querySelectorAll('button')].find((x) => (x.textContent || '').trim() === '取消'); if (b) b.click(); return !!b; })()`,
-  );
+  // F212 + F214：删除确认的**软件前置** = 服务端两条拒绝路径（① 有子标签 ② 任一状态挂载）+ 文案同优先级。
+  // **按数据特征挑行**（不写死行号 / 不写死标签名 —— F213 同类教训：真库数据一变就换靶）。
+  // 页面树的 `hasChildren` 由行集算（一级且存在子级者）= `parentId` 出现在行集里的 slug。
+  const parentSlugs = new Set(rows.map((r) => r.parentId).filter((x): x is string => !!x));
+  const cases = [
+    { name: '有子标签', row: rows.find((r) => parentSlugs.has(r.slug)), expect: '子标签' },
+    {
+      name: '零子级 · 有挂载',
+      row: rows.find((r) => !parentSlugs.has(r.slug) && r.mountCountAny > 0),
+      expect: '已发布资产',
+    },
+  ].filter((c) => !!c.row);
+  for (const c of cases) {
+    const opened = await evalJs(`(() => {
+      const tr = [...document.querySelectorAll('tbody tr')].find((x) => (x.textContent || '').includes(${JSON.stringify(c.row?.slug ?? '')}));
+      if (!tr) return false;
+      const b = [...tr.querySelectorAll('button[aria-label]')].find((x) => (x.getAttribute('aria-label') || '').includes('删除'));
+      if (b) b.click();
+      return !!b;
+    })()`);
+    await sleep(900);
+    const dlg = await evalJs(`(() => {
+      const d = document.querySelector('[role=dialog]');
+      if (!d) return null;
+      // 官方 Dialog 末尾另有 sr-only 的 Close 钮 ⇒ 取「最后一个含『删除』的按钮」（= 确认删除）
+      const confirm = [...d.querySelectorAll('button')].filter((b) => (b.textContent || '').includes('删除')).pop();
+      return {
+        text: (d.textContent || '').slice(0, 160),
+        confirmText: (confirm?.textContent || '').trim(),
+        confirmDisabled: confirm ? confirm.disabled : null,
+      };
+    })()`);
+    ok(
+      `G8.6 删除确认前置「${c.name}」（slug=${c.row?.slug}）⇒ 确认钮禁用 + 文案命中「${c.expect}」（F212/F214）`,
+      !!opened &&
+        !!dlg &&
+        (dlg?.confirmText ?? '').includes('删除') &&
+        dlg.confirmDisabled === true &&
+        (dlg?.text ?? '').includes(c.expect),
+      JSON.stringify(dlg),
+    );
+    await evalJs(
+      `(() => { const d = document.querySelector('[role=dialog]'); const b = d && [...d.querySelectorAll('button')].find((x) => (x.textContent || '').trim() === '取消'); if (b) b.click(); return !!b; })()`,
+    );
+    await sleep(600);
+  }
   await sleep(500);
   await shot('g8-labels-tree');
 }

@@ -425,6 +425,7 @@ export const zh = {
     'labels.delete.title': '删除该标签？',
     'labels.delete.inUse': '已挂载 {n} 个已发布资产',
     'labels.delete.inUseHidden': '仍被 {n} 个资产挂载（含已隐藏/已归档）',
+    'labels.delete.hasChildren': '存在子标签，请先删除子标签',
     'labels.delete.detachHint': '请先在资产上解挂',
     'labels.delete.ok': '确认删除',
     'labels.delete.unrecoverable': '该标签未挂载任何资产，删除后不可恢复',

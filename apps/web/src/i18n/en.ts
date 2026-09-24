@@ -429,6 +429,7 @@ export const en: Dict = {
     'labels.delete.title': 'Delete this label?',
     'labels.delete.inUse': 'Attached to {n} published asset(s)',
     'labels.delete.inUseHidden': 'Still attached to {n} asset(s) (incl. hidden/archived)',
+    'labels.delete.hasChildren': 'Has child labels; delete them first',
     'labels.delete.detachHint': 'Detach it from those assets first',
     'labels.delete.ok': 'Delete',
     'labels.delete.unrecoverable': 'This label has no attachments; deleting it cannot be undone',
