@@ -54,6 +54,7 @@ const SECTION_IDS = [
   'G13',
   'G14',
   'G15',
+  'G16',
 ] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 const only = (process.env.SMOKE_ONLY ?? '')
@@ -1227,6 +1228,125 @@ if (want('G15')) {
     `(async () => { try { const m = await import('/src/api/admin.ts'); await m.deleteLabel(${JSON.stringify(SLUG)}); return 'ok'; } catch (e) { return 'err ' + String(e).slice(0, 80); } })()`,
   )) as string;
   ok('G15.5 自清临时标签', del === 'ok', del);
+}
+
+/* ── G16 标签重挂 ⇒ 看板「一级上卷」归属（**F218 语义守护** · 证据 §8 item 9 由「未证」升「已证」） ──
+ * 口径：① **端点三态**（重挂前 / 重挂态 / 复原后）逐值对比 —— 原子行从一级上卷消失、新父 += 原子 count、
+ *          全局总数守恒、复原后**逐字段回落**（含 rankings 同面）；
+ *       ② **真页**在重挂态下比对「标签维度两图」（复用 G3.5 口径：图例 = 上卷行数）。
+ * 数据自适应：候选 = 「一级 ∧ 无子级 ∧ 上卷 count > 0」的标签（真库现为 `m4b4-seed-privileged`）；目标 = 另一一级。
+ * ⚠️ 重挂走**应用自身** `updateLabel`（含 F216 的缓存失效）—— 裸 fetch 不会失效响应缓存 ⇒ 真页读到旧值。 */
+if (want('G16')) {
+  await loginAs(SUPER);
+  const snap = async () => {
+    const ov = (await readJson('/api/admin/overview')) as {
+      body?: { labels?: Array<{ slug: string; count: number }> };
+    };
+    const rk = (await readJson('/api/admin/rankings?limit=100')) as {
+      body?: { labels?: Array<{ id: string; value: number }> };
+    };
+    return {
+      ov: (ov.body?.labels ?? []).map((l) => `${l.slug}=${l.count}`),
+      rk: (rk.body?.labels ?? []).map((l) => `${l.id}=${l.value}`),
+    };
+  };
+  const moveTo = async (slug: string, parentSlug: string | null) =>
+    (await evalJs(
+      `(async () => { try { const m = await import('/src/api/admin.ts'); await m.updateLabel(${JSON.stringify(slug)}, { parentSlug: ${JSON.stringify(parentSlug)} }); return 'ok'; } catch (e) { return 'err ' + String(e).slice(0, 120); } })()`,
+    )) as string;
+  const all = (await readJson('/api/labels/all')) as {
+    body?: { items?: Array<{ slug: string; parentId: string | null }> };
+  };
+  const items = all.body?.items ?? [];
+  const parentSlugs = new Set(
+    items.filter((x) => x.parentId !== null).map((x) => x.parentId as string),
+  );
+  const before = await snap();
+  const aMap = new Map(
+    before.ov.map((r) => {
+      const [k, v] = r.split('=');
+      return [k as string, Number(v)] as [string, number];
+    }),
+  );
+  const cand = items.find(
+    (x) => x.parentId === null && !parentSlugs.has(x.slug) && (aMap.get(x.slug) ?? 0) > 0,
+  );
+  // 目标优先取**零计数一级标签**：原子挂的资产可能**同时挂着目标**（真库即如此：`m4b4-seed-skill` 既挂
+  // `agentic` 又挂 `m4b4-seed-privileged`）⇒ `selectDistinct` 去重后目标计数**不变**才是**设计口径**
+  // （`overview.ts` 口径第 6 条：一资产挂多标签 ⇒ 各标签 count 之和 ≠ 已发布资产数）。
+  // 取零计数目标 ⇒ ②③ 可做**严格等值**断言（首次自检即栽在这一点：naive「+=」断言假红）。
+  const zeroTarget = items.find(
+    (x) => x.parentId === null && x.slug !== cand?.slug && (aMap.get(x.slug) ?? 0) === 0,
+  );
+  const target = zeroTarget ?? items.find((x) => x.parentId === null && x.slug !== cand?.slug);
+  const candSlug = cand?.slug ?? '';
+  const targetSlug = target?.slug ?? '';
+  const moveRes = await moveTo(candSlug, targetSlug);
+  const moved = await snap();
+  const bMap = new Map(
+    moved.ov.map((r) => {
+      const [k, v] = r.split('=');
+      return [k as string, Number(v)] as [string, number];
+    }),
+  );
+  const origCount = aMap.get(candSlug) ?? 0;
+  const tgtBefore = aMap.get(targetSlug) ?? 0;
+  const tgtAfter = bMap.get(targetSlug) ?? 0;
+  const othersSame = [...aMap.keys()]
+    .filter((k) => k !== candSlug && k !== targetSlug)
+    .every((k) => aMap.get(k) === bMap.get(k));
+  const sum = (rows: string[]) => rows.reduce((s, r) => s + Number(r.split('=')[1] ?? 0), 0);
+  ok(
+    'G16.1 重挂生效：原子行从**一级上卷**消失（且其余行不动）',
+    moveRes === 'ok' && !!candSlug && !bMap.has(candSlug) && othersSame,
+    `候选=${candSlug}(count=${origCount}) 目标=${targetSlug} move=${moveRes} 上卷行=${JSON.stringify(moved.ov)}`,
+  );
+  const exactTarget = tgtBefore === 0;
+  ok(
+    'G16.2 上卷归属换家：零计数目标 ⇒ 新父 count **严格等于**原子 count（非零计数目标 ⇒ 落去重区间）',
+    origCount > 0 &&
+      (exactTarget
+        ? tgtAfter === origCount
+        : tgtAfter >= tgtBefore && tgtAfter <= tgtBefore + origCount),
+    `${targetSlug} ${tgtBefore} → ${tgtAfter}（原子 ${origCount} · 零计数目标=${exactTarget}）`,
+  );
+  ok(
+    'G16.3 上卷口径不丢数据（零计数目标 ⇒ 严格守恒；有交集时按去重口径只允许不增）',
+    sum(before.ov) > 0 &&
+      (exactTarget ? sum(before.ov) === sum(moved.ov) : sum(moved.ov) <= sum(before.ov)),
+    `sum ${sum(before.ov)} → ${sum(moved.ov)}`,
+  );
+  ok(
+    'G16.4 排行榜同面：rankings.labels 与上卷逐条相等（重挂态下）',
+    moved.rk.length > 0 &&
+      moved.rk.every((r) => {
+        const [id, v] = r.split('=');
+        return bMap.get(id as string) === Number(v);
+      }),
+    `rankings=${JSON.stringify(moved.rk)}`,
+  );
+  await nav(`${APP}/admin`, 4000);
+  const ringRows = (await evalJs(
+    `(() => { const c = [...document.querySelectorAll('[data-slot=card]')].find((x) => x.textContent.includes('标签资产数量')); return c ? c.querySelectorAll('span[aria-hidden]').length : -1; })()`,
+  )) as number;
+  ok(
+    'G16.5 真页：重挂态下图例行数 = 上卷行数（原子行已不再单独出图）',
+    ringRows === moved.ov.length && ringRows > 0,
+    `图例=${ringRows} 上卷=${moved.ov.length}`,
+  );
+  const backRes = await moveTo(candSlug, null);
+  const after = await snap();
+  const restored = JSON.stringify(after) === JSON.stringify(before);
+  ok(
+    'G16.6 复原：逐字段回落 = 重挂前快照（**自清** · 含 rankings）',
+    backRes === 'ok' && restored,
+    `back=${backRes} 回落=${restored}`,
+  );
+  if (!restored) {
+    console.log(
+      `  ⚠️ 真库未复原：label_definition.slug='${candSlug}' 仍挂在 '${targetSlug}' —— 需手工 update parent_id=null`,
+    );
+  }
 }
 
 /* ── JS 错误门 + 汇总 ── */
