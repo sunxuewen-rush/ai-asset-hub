@@ -388,11 +388,23 @@ if (want('G3')) {
   ok('G3.4 雷达轴文字在场', (s?.radarAngle ?? 0) >= 1, `ticks=${s?.radarAngle}`);
   const same = (a: string[], b: string[]) =>
     a.length > 0 && a.length === b.length && a.every((x, i) => x === b[i]);
+  // 图例/取色的**行序**基准 = `overview.labels[]`（一级 + 上卷 + 仅 ACTIVE + 去重）
+  const ov = await readJson('/api/admin/overview');
+  const ovLabels = (ov.body?.labels ?? []) as Array<{ slug: string; count: number }>;
+  // ⚠️ 0 计数值的一级标签：图例仍列（行序不变），但**环图不渲染 0 长度扇区**（recharts 行为，
+  // 与「零高柱不渲染 rectangle」同族）⇒ 扇区数 = count>0 的行数，不能与图例做长度相等的比较（否则假红）。
+  const keepIdx = ovLabels.map((l, i) => (l.count > 0 ? i : -1)).filter((i) => i >= 0);
+  const ringChips = s?.ringChips ?? [];
   ok(
-    'G3.5 取色三处一致（环扇区↔环图例 · 雷达点↔雷达图例）',
-    same(s?.sectorFills ?? [], s?.ringChips ?? []) &&
+    'G3.5 取色三处一致（图例 = 一级标签逐行 · 扇区 = count>0 行 · 雷达点 = 全行）',
+    ringChips.length === ovLabels.length &&
+      (s?.radarDotFills ?? []).length === ovLabels.length &&
+      same(
+        s?.sectorFills ?? [],
+        keepIdx.map((i) => ringChips[i] ?? ''),
+      ) &&
       same(s?.radarDotFills ?? [], s?.radarChips ?? []),
-    `ring=${JSON.stringify(s?.sectorFills)} radar=${JSON.stringify(s?.radarDotFills)}`,
+    `行=${ovLabels.length} 有扇区行=${keepIdx.length} ring=${JSON.stringify(s?.sectorFills)} radar=${JSON.stringify(s?.radarDotFills)}`,
   );
   ok(
     'G3.6 两图无副标题（T6⁺ 拍板）',
@@ -400,7 +412,6 @@ if (want('G3')) {
     `ring=${s?.ringDesc} radar=${s?.radarDesc}`,
   );
   // 口径三向一致：overview.labels[] ↔ rankings.labels（逐条 count 相等 ⇒ 一级 + 上卷 + 仅 ACTIVE + 去重同面）
-  const ov = await readJson('/api/admin/overview');
   const rk = await readJson('/api/admin/rankings?limit=100');
   const ovMap = new Map((ov.body?.labels ?? []).map((l: any) => [l.slug, l.count]));
   const rkLabels = rk.body?.labels ?? [];
