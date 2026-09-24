@@ -10,6 +10,8 @@
  *
  * 运行：`SMOKE_M4B2_PASSWORD=… bun docs/smoke/scripts/m4b2-acceptance-checklist.ts`
  */
+import { NAV_ROLE, navGroupCounts } from './nav-truth.js';
+
 const DBG = 'http://127.0.0.1:9222';
 const APP = 'http://localhost:5173';
 const API = 'http://localhost:3000';
@@ -112,8 +114,10 @@ const clearCookies = async () => {
   await send('Network.clearBrowserCookies');
   await sleep(350);
 };
-const signIn = async (user: string, password = PW) => {
-  await nav(`${APP}/login`);
+/** `inPlace`：**在当前页**直接提交（不重导航）—— 供「带 `?next=` 的登录回原页」用。
+ *  F221：重导航会**丢掉 `next`** ⇒ 原 ① 断言恒假（2026-09-17 默认落点改「首页」后暴露）。 */
+const signIn = async (user: string, password = PW, opts: { inPlace?: boolean } = {}) => {
+  if (!opts.inPlace) await nav(`${APP}/login`);
   await evalJs(setInput('#login-username', user));
   await evalJs(setInput('#login-password', password));
   await evalJs(`document.querySelector('form button[type="submit"]').click()`);
@@ -123,6 +127,13 @@ const signIn = async (user: string, password = PW) => {
 await send('Page.enable');
 await send('Runtime.enable');
 await send('Network.enable');
+// F221：**自带桌面视口**（同 c2 —— 不再依赖复用标签页的残留覆盖）
+await send('Emulation.setDeviceMetricsOverride', {
+  width: 1440,
+  height: 1000,
+  deviceScaleFactor: 1,
+  mobile: false,
+});
 await clearCookies();
 jsErrors.length = 0;
 
@@ -136,7 +147,7 @@ ok(
   p1a.startsWith('/login?next=') && p1a.includes('%2Fdashboard'),
   `path=${p1a}`,
 );
-await signIn('m4b2_user');
+await signIn('m4b2_user', PW, { inPlace: true }); // F221：不重导航 ⇒ `next` 保留（真契约 = `next` **优先**）
 const p1b = (await evalJs(`location.pathname`)) as string;
 ok('① 登录后回原页 /dashboard', p1b === '/dashboard', `path=${p1b}`);
 
@@ -148,11 +159,12 @@ await evalJs(setInput('#login-password', 'definitely-wrong-password'));
 await evalJs(`document.querySelector('form button[type="submit"]').click()`);
 await sleep(1800);
 const p2path = (await evalJs(`location.pathname`)) as string;
+// F221：真值 = **inline 错误行**（`Login.tsx` §14.4 A 明写「失败态 = inline 错误行（**非 Alert 块**）」）
 const p2alert = (await evalJs(
-  `document.querySelector('[data-slot="alert"]')?.textContent ?? ''`,
+  `document.querySelector('[role="alert"]')?.textContent ?? ''`,
 )) as string;
 ok(
-  '② 错密码 ⇒ inline Alert 且 URL 不变',
+  '② 错密码 ⇒ inline 错误行（`<p role="alert">` · 非 Alert 块）且 URL 不变',
   p2path === '/login' && p2alert.trim().length > 0,
   `path=${p2path} alert=${p2alert.trim()}`,
 );
@@ -246,9 +258,17 @@ let s6 = JSON.parse((await evalJs(sidebarProbe)) as string) as {
   counts: Record<string, number>;
   portal: number;
 };
+// F221：四档期望条数**全部取 navItems SSOT**（此前写死 4/2/3 ⇒ 后续批加条目即红）
+const G_anon = navGroupCounts('anon');
+const G_user = navGroupCounts(1);
+const G_admin = navGroupCounts(NAV_ROLE.ADMIN);
+const G_super = navGroupCounts(NAV_ROLE.SUPER_ADMIN);
 ok(
-  '⑥ 档0 未登录：仅门户 4 条 + 三档组零渲染',
-  s6.portal === 4 && s6.labels.length === 0,
+  '⑥ 档0 未登录：仅门户（SSOT）· 三档组零渲染',
+  s6.portal === G_anon['门户'] &&
+    !s6.counts['个人'] &&
+    !s6.counts['管理'] &&
+    !s6.counts['超级管理'],
   `portal=${s6.portal} groups=${JSON.stringify(s6.counts)}`,
 );
 
@@ -256,8 +276,8 @@ await signIn('m4b2_user');
 await nav(`${APP}/dashboard`, 2300);
 s6 = JSON.parse((await evalJs(sidebarProbe)) as string);
 ok(
-  '⑥ 档1 user：个人组 4 条 · 其余零',
-  s6.counts['个人'] === 4 && !s6.counts['管理'] && !s6.counts['超级管理'],
+  '⑥ 档1 user：个人组 = SSOT · 其余零',
+  s6.counts['个人'] === G_user['个人'] && !s6.counts['管理'] && !s6.counts['超级管理'],
   JSON.stringify(s6.counts),
 );
 
@@ -266,8 +286,10 @@ await signIn('m4b2_mgr');
 await nav(`${APP}/dashboard`, 2300);
 s6 = JSON.parse((await evalJs(sidebarProbe)) as string);
 ok(
-  '⑥ 档10 admin：个人 4 + 管理 2 · 超管组零',
-  s6.counts['个人'] === 4 && s6.counts['管理'] === 2 && !s6.counts['超级管理'],
+  '⑥ 档10 admin：个人 + 管理（SSOT）· 超管组零',
+  s6.counts['个人'] === G_admin['个人'] &&
+    s6.counts['管理'] === G_admin['管理'] &&
+    !s6.counts['超级管理'],
   JSON.stringify(s6.counts),
 );
 
@@ -276,8 +298,10 @@ await signIn('m4b2_super');
 await nav(`${APP}/dashboard`, 2300);
 s6 = JSON.parse((await evalJs(sidebarProbe)) as string);
 ok(
-  '⑥ 档100 superadmin：个人 4 + 管理 2 + 超管 3',
-  s6.counts['个人'] === 4 && s6.counts['管理'] === 2 && s6.counts['超级管理'] === 3,
+  '⑥ 档100 superadmin：个人 + 管理 + 超管（SSOT）',
+  s6.counts['个人'] === G_super['个人'] &&
+    s6.counts['管理'] === G_super['管理'] &&
+    s6.counts['超级管理'] === G_super['超级管理'],
   JSON.stringify(s6.counts),
 );
 

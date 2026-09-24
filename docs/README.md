@@ -85,7 +85,7 @@ docs/
 | F10–F107 | M4b-4 个人面 B（含早期号回溯登记） | `designs/2026-09-18-m4b4-personal-b-design.md`（§11.9 表 · §4.7.6 纠错留痕） | 简表另见 `docs/smoke/2026-09-18-m4b4-personal-b.md` §13.5 / §14.5 |
 | F108–F128 | T11-j 表格族统一 | `designs/2026-09-21-table-family-alignment-design.md` | |
 | F129–F196 | M4b-5 审核工作台 | `designs/2026-09-21-m4b5-review-workbench-design.md`（§11.2 + §11.3/§11.4/§11.8 回评） | |
-| F203–**F220** | **M4b-6 治理批（当前批）** | `designs/2026-09-23-m4b6-governance-console-design.md` **§9.8 实施期发现与处置** | 摘要另见该批证据 §5（含 §5.1–§5.6 单条小节） |
+| F203–**F221** | **M4b-6 治理批（当前批）** | `designs/2026-09-23-m4b6-governance-console-design.md` **§9.8 实施期发现与处置** | 摘要另见该批证据 §5（含 §5.1–§5.6 单条小节） |
 | **F39 / F40 / F144–F148 / F197–F202** | — | **未登记（全仓零命中）** | ⚠️ 空洞：原因未知；未来跳号/预留须在分配处注明原因 |
 
 > 规则（号 · 落点 · 形态）见 `docs/designs/README.md`；本表只做**导航**，明细一律在落点文档，不在此复制。

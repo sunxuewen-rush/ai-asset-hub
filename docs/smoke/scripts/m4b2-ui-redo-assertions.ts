@@ -9,6 +9,11 @@
  *
  * 运行：`SMOKE_M4B2_PASSWORD=… bun docs/smoke/scripts/m4b2-ui-redo-assertions.ts`
  */
+import { NAV_ROLE, navIconSequence, navItemTotal } from './nav-truth.js';
+
+/** 侧栏**导航条目数**（SSOT · 超级管理员全组可见）—— C 块与 D 块共用（F221） */
+const NAV_TOTAL = navItemTotal(NAV_ROLE.SUPER_ADMIN);
+
 const DBG = 'http://127.0.0.1:9222';
 const APP = 'http://localhost:5173';
 const API = 'http://localhost:3000';
@@ -520,7 +525,10 @@ if (want('C')) {
   const sb = document.querySelector('[data-slot="sidebar"]');
   const inner = sb && sb.querySelector('[data-slot="sidebar-inner"]');
   const labels = [...document.querySelectorAll('[data-slot="sidebar-group-label"]')].map((e) => e.innerText.trim());
-  const items = [...document.querySelectorAll('[data-slot="sidebar-menu-button"]')];
+  // F221：**导航条目**（排除侧栏搜索触发器 —— 它带 aria-haspopup="dialog"，T11-i B″ 加入）
+  const items = [...document.querySelectorAll('[data-slot="sidebar-menu-button"]')].filter(
+    (b) => b.getAttribute('aria-haspopup') !== 'dialog',
+  );
   const withSvg = items.filter((b) => b.querySelector('svg')).length;
   const icons = items.map((b) => {
     const s = b.querySelector('svg');
@@ -611,13 +619,17 @@ if (want('C')) {
     JSON.stringify(shell.labels) === JSON.stringify(['门户', '个人', '管理', '超级管理']),
     shell.labels.join('/'),
   );
+  // F221：条数**取 navItems SSOT**（`NAV_TOTAL` 见文件头）；此前写死 14 ⇒ 后续批加条目即红
   ok(
-    'C4 侧栏条目 14 条且每条含 SVG',
-    shell.itemCount === 14 && shell.withSvg === 14,
+    'C4 侧栏导航条目 = SSOT 且每条含 SVG',
+    shell.itemCount === NAV_TOTAL && shell.withSvg === NAV_TOTAL,
     `${shell.itemCount} 条 / ${shell.withSvg} 含 SVG`,
   );
   const geom = (await evalJs(`(() => {
-    const btns = Array.from(document.querySelectorAll('[data-slot="sidebar"] [data-slot="sidebar-menu-button"]'));
+    // F221：同上，排除搜索触发器（其图标槽为 146×20，非 22×22）
+    const btns = Array.from(document.querySelectorAll('[data-slot="sidebar"] [data-slot="sidebar-menu-button"]')).filter(
+      (b) => b.getAttribute('aria-haspopup') !== 'dialog',
+    );
     return btns.map((el) => {
       const r = el.getBoundingClientRect();
       const slot = el.querySelector('span');
@@ -642,8 +654,8 @@ if (want('C')) {
   }>;
   const uniqOf = (xs: unknown[]) => [...new Set(xs.map((x) => JSON.stringify(x)))];
   ok(
-    'C4b 14 条形态统一（行高 32 · 宽 224 = 239 − 滚动条槽 15 · 图标槽 22x22 · 字号 14 · 副标已降级）',
-    geom.length === 14 &&
+    'C4b 导航条目（SSOT 条数）形态统一（行高 32 · 宽 224 · 图标槽 22x22 · 字号 14 · 副标已降级）',
+    geom.length === NAV_TOTAL &&
       uniqOf(geom.map((g) => g.h)).length === 1 &&
       geom[0].h === 32 &&
       uniqOf(geom.map((g) => g.w)).length === 1 &&
@@ -657,28 +669,14 @@ if (want('C')) {
   const idleBg = geom.filter((g) => !g.active).map((g) => g.bg);
   const activeBg = geom.filter((g) => g.active).map((g) => g.bg);
   ok(
-    'C4c 衬底统一：常态 13 条全中性（同色 · 非类型色）· 激活 1 条落 primary',
-    uniqOf(idleBg).length === 1 && idleBg.length === 13 && activeBg.length === 1,
+    'C4c 衬底统一：常态（SSOT 条数 − 1）全中性（同色 · 非类型色）· 激活 1 条落 primary',
+    uniqOf(idleBg).length === 1 && idleBg.length === NAV_TOTAL - 1 && activeBg.length === 1,
     `常态种类=${uniqOf(idleBg)}（${idleBg.length} 条）· 激活=${uniqOf(activeBg)}`,
   );
-  const expectIcons = [
-    'lucide-house',
-    'TypeIcon',
-    'TypeIcon',
-    'TypeIcon',
-    'lucide-layout-dashboard',
-    'lucide-package',
-    'lucide-send',
-    'lucide-key-round',
-    'lucide-gauge',
-    'lucide-clipboard-check',
-    'lucide-scroll-text',
-    'lucide-tags',
-    'lucide-settings',
-    'lucide-users',
-  ];
+  // F221：图标序列**取 navItems SSOT**（原为 §14.6 硬编码表 ⇒ 后续批加/换条目即红）
+  const expectIcons = navIconSequence();
   ok(
-    'C5 图标逐条匹配 §14.6 映射表',
+    'C5 图标逐条匹配 = navItems SSOT（门户 + 三组，按渲染顺序）',
     JSON.stringify(shell.icons) === JSON.stringify(expectIcons),
     shell.icons.join(','),
   );
@@ -706,10 +704,25 @@ if (want('C')) {
     windowsVirtualKeyCode: 27,
   });
   await sleep(400);
-  ok('C8 顶栏高 58 且含页面标题区', shell.headerH === 58 && shell.hasTitle, `h=${shell.headerH}`);
+  // F221：**F207 真值** = 顶栏回归官方 block 形态（撤动态标题区）⇒ 顶栏**无 h1**；页面名只由页内渲染
+  // 内容区标题判据**沿用 G13 既有口径**（`m4b6-governance-dogfood.ts`）：首个
+  // `[data-slot="card-title"] / h1 / h2 / h3`（排除 `header` 内）—— 本仓多数页用 `PageHeader`，
+  // 其标题渲染为 `<div data-slot="card-title">`，**不必**是 `<h1>`。
+  const contentTitle = (await evalJs(`(() => {
+    const root = document.querySelector('main') || document.body;
+    const cand = Array.from(root.querySelectorAll('[data-slot="card-title"], h1, h2, h3'))
+      .filter((e) => !e.closest('header'));
+    const t = cand.map((e) => ((e && e.textContent) || '').trim()).filter(Boolean);
+    return t[0] || null;
+  })()`)) as string | null;
   ok(
-    'C8c 顶栏结构 = 官方 `SiteHeader`（内层容器 div + 语义 `<h1>` 标题）',
-    shell.headerInnerDiv === true && shell.titleTag === 'H1',
+    'C8 顶栏高 58 且**无标题区**（F207）· 内容区有标题（页面名只由页内渲染）',
+    shell.headerH === 58 && shell.hasTitle === false && !!contentTitle,
+    `h=${shell.headerH} 顶栏 h1=${shell.hasTitle} 内容区标题=${JSON.stringify(contentTitle)}`,
+  );
+  ok(
+    'C8c 顶栏结构 = 官方 block 形态（header > 内层容器 div · **无 h1**〔F207〕）',
+    shell.headerInnerDiv === true && shell.titleTag === null,
     `innerDiv=${shell.headerInnerDiv} titleTag=${shell.titleTag}`,
   );
   ok(
@@ -741,7 +754,10 @@ if (want('C')) {
     (await evalJs(`(() => {
     const sb = document.querySelector('[data-slot="sidebar"]');
     const inner = sb && sb.querySelector('[data-slot="sidebar-inner"]');
-    const items = [...document.querySelectorAll('[data-slot="sidebar-menu-button"]')];
+    // F221：排除侧栏搜索触发器（其图标非居中轨内元素）
+    const items = [...document.querySelectorAll('[data-slot="sidebar-menu-button"]')].filter(
+      (b) => b.getAttribute('aria-haspopup') !== 'dialog',
+    );
     return {
       state: sb ? sb.getAttribute('data-state') : null,
       iconVar: sb ? getComputedStyle(sb).getPropertyValue('--sidebar-width-icon').trim() : null,
@@ -807,12 +823,12 @@ if (want('C')) {
     if (collapsedW.state === 'collapsed') break;
   }
   ok(
-    'C1b 图标态：容器/面板收到 **48 / 47** · 14 条图标**全部居中**（偏差 0）· 顶栏**保持 58**（跟官方 dashboard-01）',
+    'C1b 图标态：容器/面板收到 **48 / 47** · 导航条目图标（SSOT 条数）**全部居中**（偏差 ≤1）· 顶栏**保持 58**',
     collapsedW.state === 'collapsed' &&
       collapsedW.iconVar === '48px' &&
       collapsedW.containerW === 48 &&
       collapsedW.innerW === 47 &&
-      collapsedW.svg === 14 &&
+      collapsedW.svg === NAV_TOTAL &&
       Array.isArray(collapsedW.iconDeltas) &&
       collapsedW.iconDeltas.every((d: number) => Math.abs(d) <= 1) &&
       collapsedW.headerH === 58,
@@ -898,30 +914,34 @@ if (want('D')) {
   }))()`)) as any;
     if (toastState.toast) break;
   }
+  // F221：「管理看板」已由 **M4b-6 T6** 落地为**真页**（原重定向撤除）⇒ 真值 = 真链接跳转
   ok(
-    'D2a 「管理看板」占位条目 ⇒ 轻提示且**不跳转**（URL 不变）',
-    toastState.toast && toastState.path === '/dashboard',
+    'D2a 「管理看板」= **真页**（点击跳 `/admin` · 非占位轻提示）',
+    toastState.path === '/admin',
     `path=${toastState.path}`,
   );
-  await nav(`${APP}/admin`);
-  const adminRedirect = (await evalJs(`location.pathname`)) as string;
+  await nav(`${APP}/admin`, 2800);
+  const adminPath = (await evalJs(`location.pathname`)) as string;
+  const adminCards = (await evalJs(
+    `document.querySelectorAll('[data-slot="card"]').length`,
+  )) as number;
   ok(
-    'D2b `/admin` 维持既有重定向 → `/admin/reviews`',
-    adminRedirect === '/admin/reviews',
-    adminRedirect,
+    'D2b `/admin` = **看板真页**（M4b-6 T6：不再重定向 · 页面含 KPI/图表卡）',
+    adminPath === '/admin' && adminCards >= 2,
+    `path=${adminPath} cards=${adminCards}`,
   );
   ok(
     'D3 全程 `NO JS ERRORS`',
     jsErrors.length === 0,
     `errors=${jsErrors.length}${jsErrors[0] ? ` (${jsErrors[0]})` : ''}`,
   );
-  const items14 = (await evalJs(
-    `document.querySelectorAll('[data-slot="sidebar-menu-button"]').length`,
+  const itemsNow = (await evalJs(
+    `[...document.querySelectorAll('[data-slot="sidebar-menu-button"]')].filter((b) => b.getAttribute('aria-haspopup') !== 'dialog').length`,
   )) as number;
   ok(
-    'D4 门户零回归由 `m4a-dogfood.ts` / `m4a-chain-smoke.ts` 另跑（本脚本不重复）· 侧栏条目 14',
-    true,
-    `条目实测 ${items14} · 门户零回归见 T15 证据文件`,
+    'D4 门户零回归由 `m4a-dogfood.ts` / `m4a-chain-smoke.ts` 另跑（本脚本不重复）· 侧栏导航条目 = SSOT',
+    itemsNow === NAV_TOTAL,
+    `条目实测 ${itemsNow} · SSOT ${NAV_TOTAL} · 门户零回归见 T15 证据文件`,
   );
 }
 

@@ -99,10 +99,11 @@
 | `/api/audit/actions` | 分组 **8 组**（潜在全集 9；`ldap`/`oidc` 尚未出现） |
 | 鉴权（负向 · 实测） | 用户档三端点 **403** · `/api/labels/all` 对 `ADMIN`(10) **403**（仅超管 —— 设计如此） |
 
-## 5. 实施期发现与处置（F203–**F220**）
+## 5. 实施期发现与处置（F203–**F221**）
 
 | 号 | 面 | 问题（真） | 处置 |
 |----|----|-----------|------|
+| **F221** | **跨批 dogfood 断言**（`m4b2-auth-dogfood.ts` / `m4b2-acceptance-checklist.ts` / `m4b2-ui-redo-assertions.ts` = M4b-2 批脚本 · 收口期「记账」轮跑出） | **18 条恒红**（实测 4 + 5 + 9）：断言写死**历史结构真值** —— 「侧栏条目 **14** 条 / 管理组 **2** 条 / 超管占位 toast / 顶栏 **4** 件 / 错密码找 `[data-slot="alert"]` / `/admin` 必重定向 / 管理看板=占位」；后续批演进后**无人回改**（M4b-4 个人组 +3 条 · M4b-6 加「管理看板/资产管理/标签定义」并把 `/admin` 改**真页** · T11-i 加**侧栏搜索触发器** ⇒ 条目 14 → 16 · F207 顶栏回归官方 block 形态并撤标题区 · 2026-09-17 登录默认落点改首页）—— 与 F219/F220 **同族**（断言写「历史记忆」而非真值） | **已修**（2026-09-24 · 见 §5.10）：新增**共享真值件** `docs/smoke/scripts/nav-truth.ts`（从 `navItems.tsx` **SSOT** 解析 门户/各组/占位/图标）⇒ 三脚本的条数与图标断言**一律取 SSOT**；另修三处**脚本自身缺陷**（`signIn()` 重导航丢 `next` · ② 选择器错 · G4 点到**搜索触发器**而非占位条目）+ **补自带桌面视口** ⇒ 复跑 **24/0 · 14/0 · 49/0** ✅（87 断言全绿） |
 | **F220** | **跨批 dogfood 断言**（`docs/smoke/scripts/m4a-dogfood.ts` · M4a 批脚本） | 本批收口期挂账 ①：「`diff 三型徽章`」+「`diff +/− 行内容`」两条**恒假红**。定性（真页 + 源码双证）= **断言过时**，非夹具缺失：真值口径已从字面词 `MODIFIED/ADDED/DELETED` 改为 **`+N/−M` 签名**（`apps/web/src/components/ui/DiffWorkspace.tsx`：折叠行 = `▸<path>+N −M` 的 `button`；展开后 = `<section aria-label="<path> +N −M">`）⇒ ①恒假；② 原「+− 行内容」取**全页** `innerText`，命中的是右侧「**变更历史**」文案 = **假命中**（同 F219 病灶） | **已修**（2026-09-24）：① 三类变更改按**签名**断言（修改 = 有增有删 / 新增 = 只增 / 删除 = 只删；文件行从 DOM 读，**不写死**文件名与数字）② 先**展开「只增」行**、只在**该文件 diff 区内**取证（含幂等兜底）⇒ `m4a` **58/2 → 60 PASS / 0 FAIL** ✅ · **正反双证**见 §5.7 |
 | **F219** | **跨批 dogfood 断言**（`docs/smoke/scripts/m4b4-personal-b-dogfood.ts` · M4b-4 批脚本） | 本批收口期造数复位时发现两条**断言侧**缺陷：① `G20-9` 把 `/skills` 行数**写死 6**（实测 **11** = 公开 ACTIVE 资产随各批夹具累积 ⇒ 数据漂移，与 F213/G3.5 同类）② `G6 三态各一行` 断言 `body.includes('活跃')`，界面真值 `filter.status.active` = 「**已上线**」⇒ **恒假红** | **已修**（2026-09-24）：① 行数改**端点真值**比对（`/api/assets?type=skill&limit=20` → `items.length`）② 文案改「已上线」③ 夹具复位（`m4b4-seed-assets`）修另 4 条（根因 = `m4b4-seed-skill@1.0.0` 被历史跑测打成 `YANKED` + `latest_version_id=null`）⇒ `m4b4` **83/6 → 89/0** ✅ · 固化「**seed → dogfood 成对跑**」口径。详见 **§6 复位留痕** |
 | **F218** | 标签定义页 / 服务端标签校验（`labels/service.ts` × `AdminLabels.tsx` × i18n × `docs/06`） | **用户拍板（2026-09-24）**：F217 真页验证成功后逐字「**现在就落2**」。①「**一级不可降级**」硬拒 ⇒ 一级误建后**无法归位**（删除路径在有挂载 `label_in_use` / 有子级 `label.parent.has_children` 时均被拒）；② 前端编辑一级标签时父级下拉被禁用 ⇒ 规则本身无出口 | **已修**（2026-09-24）：服务端硬拒 → **安全重挂**（前置 = 目标必须一级 + **自身无子级**）；前端下拉**放开**（候选 = 一级且**排除自身**；仅「有子级」禁用 + 说明）；i18n `parentHint` 改写 + `parentLockedHint` → `parentHasChildrenHint`；**规范层 `docs/06` v1.7** + **明写相对兄弟仓 SkillHub 契约的偏离 + 理由**；用例 5 步 + dogfood **G8.8/G8.9 改写 + G8.11/G8.12**（含反证）⇒ 全量 **100 → 102**。明细见 **§5.6** |
@@ -385,6 +386,44 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 
 **验证（本地全量）**：`bunx biome lint`（server+web+cli）**258 文件 0 warning / 0 error** · `typecheck --force` 4/4 ✓ · `format:check` **305** 文件 ✓ · `test --force` **599 pass / 0 fail** ✓ · `doc-audit` **113/0** · `doc-claims` **46/0** · 真页回归（本批 dogfood G1–G16 + 零回归四脚本，**seed → dogfood 成对跑**）见 §6：**108/0 · 60/0 · 43/0 · 89/0 · 62/0**（逐项等于基线）。
 
+### 5.10 F221 · M4b-2 三脚本 18 条断言过时（收口「记账」轮 · 2026-09-24 · **已修并复跑全绿**）
+
+**怎么发现的**：本轮挂账清零后，把这批「口径外未跑」的四支补跑（`m4a-chain-smoke` / `m4b2-auth-dogfood` /
+`m4b2-acceptance-checklist` / `m4b2-ui-redo-assertions`）⇒ 契约链 **34/0 全绿**，但 M4b-2 三支报 **18 条恒红**。
+
+**定性 = 断言过时**（逐条撞到的演进）：
+
+| # | 撞到的演进 | 命中断言 |
+|---|-----------|---------|
+| ① | 侧栏条目 14 → **16**（M4b-4 个人组 +3 · M4b-6 管理组 +2 · **T11-i 侧栏搜索触发器 +1**） | `C4` `C4b` `C4c` `C1b`（c4）· `G1 顶栏 4 件`→ 实为顶栏结构变更（见 ②）· `G3/G4` 管理组 2 → **4**（c2）· `⑥档10/档100` 管理 2 → **4**（c3） |
+| ② | **F207**（2026-09-23）顶栏回归官方 block 形态 · 撤动态标题区 | `G1 顶栏 4 件`（c2）· `C8 顶栏+标题区` · `C8c 语义 h1`（c4） |
+| ③ | 2026-09-17 登录默认落点改「首页」+ 错密码态 = inline 错误行 | `① 登录后回原页` · `② inline Alert`（c3） |
+| ④ | 「管理看板」由占位变**真页**（M4b-6 T6）· `/admin` 重定向撤除 | `D2a` · `D2b`（c4）· `G4 占位 toast`（c2，另因点到搜索触发器） |
+| ⑤ | nav 图标换代 / 常态衬底多一条（搜索触发器） | `C5 图标映射` · `C4c`（c4）· `⑥档0` 未登录组集合判定（c3） |
+
+**「非本轮引入」的证据（正反双证 · 不靠推断）**：
+① 本轮 6 笔**未触碰** nav / topbar / login / i18n 任何文件（27 个改动文件里 0 个）；
+② 相关文件最后改动 = navItems+SideNav **2026-09-23**（F206）· TopBar **2026-09-23**（F207）· Login **2026-09-17**，
+   而三脚本最后改动 = **09-16 / 09-17 / 09-20**（**都早于**上述演进）；
+③ **反证**：把改动前的脚本原文（`git show HEAD:`）单独复跑 ⇒ **同样红**（实测 c2 5 条中 4 条同红）。
+
+**修法（结构性，非改数字）**：新增共享真值件 `docs/smoke/scripts/nav-truth.ts`（**138** 行）——
+从 `navItems.tsx`（自述 = 导航清单**单一事实源**）解析「门户条数 / 各组门槛与条目 / 占位条目 / 图标序列」，
+三脚本的条数、组集合、图标断言**一律取 SSOT** ⇒ **后续批再加条目不再红**（这是本次修法的核心，不是把 14 改成 16）。
+另修三处脚本自身缺陷：① `signIn()` 重导航 ⇒ `next` 丢失（改 **inPlace** 提交，真契约「`next` 优先」得以被测）
+② `②` 断言选择器 `[data-slot="alert"]` → 真值 `<p role="alert">`（`Login.tsx` §14.4 A 明写「非 Alert 块」）
+③ `G4` 点「菜单钮索引 0」—— T11-i 后它是**搜索触发器**（只开命令面板）⇒ 改**按组定位占位条目**；
+④ **补 `Emulation.setDeviceMetricsOverride` 桌面视口**：c2/c3 此前**不设视口**、靠「复用标签页里**残留的覆盖**」才拿到 1440
+（实拍新页 = `748×472` 移动态 ⇒ 侧栏退化 Sheet ⇒ 断言全红）—— 脚本自此**自带视口**，不再依赖标签页残留状态。
+
+**复跑（收口实测）**：`m4b2-auth-dogfood` **24 PASS / 0 FAIL**（= 基线 24/0）· `m4b2-acceptance-checklist` **14/0**（= 基线 14/0）·
+`m4b2-ui-redo-assertions` **49/0**（基线 39/0 ⇒ 断言数随历代追加至 49）· `m4a-chain-smoke` **34/0** ⇒ 四支 **121 断言全绿 · NO JS ERRORS**。
+
+> ⚠️ **本轮另踩两坑（记账 · 已入纪律）**：① 被 kill 的跑测会留**僵尸 bun 子进程**（实测 2 个各吃 **100% CPU**）且各自挂着同一标签页的 CDP 会话
+> ⇒ 抢/堵实时跑的 `Runtime.evaluate` ⇒ **假死**（脚本无 CDP 超时）；纪律 = 重跑前 `pkill -f docs/smoke/scripts`。
+> ② 跨批脚本 `attach` **既有标签页**（不新开）⇒ 前一轮被 kill 的**残留页**会被下一轮接管（污染态）；
+> 纪律 = 跑前把标签页清到 1 个（或新开干净页），与「跑完必关标签页」互为配套。
+
 ## 6. 零回归（口径 = 无新增失败 · design §9.1）
 
 **执行方式**：**串行逐脚本**（首轮并发无效，见下注）。结果与**逐条定性**：
@@ -444,7 +483,7 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 **件行数（`wc -l` 实测 · T6⁺ 重测）**：`AdminBoard.tsx` **840** · `AdminAssets.tsx` **625** · `AdminLabels.tsx` **574** ·
 `AdminAudit.tsx` **565** · `api/admin.ts` **165** · `http/admin.ts` **67** · `http/admin.test.ts` **564** ·
 `overview.ts` **169** · `rankings.ts` **135** · `trends.ts` **150** · `labels/service.ts` **708** ·
-`chart.tsx` **340** · `combobox.tsx` **283** · `AdminLabels.tsx` **578** · `labels/service.ts` **727** · `api/admin.ts` **170** · `m4b6-governance-dogfood.ts` **948**（F212 + F210 后）· `m4b6-probe-colorpool-and-hidden-mount.ts` **196**（§5.8 ⑦⑧ 一次/度探针，自带自清）·（F218 后重测）`labels/service.ts` **748** · `AdminLabels.tsx` **617** · `labels.test.ts` **600** · `errors.ts` **63** · `i18n/zh.ts` **604** · `m4b6-governance-dogfood.ts` **1247**。
+`chart.tsx` **340** · `combobox.tsx` **283** · `AdminLabels.tsx` **578** · `labels/service.ts` **727** · `api/admin.ts` **170** · `m4b6-governance-dogfood.ts` **948**（F212 + F210 后）· `m4b6-probe-colorpool-and-hidden-mount.ts` **196**（§5.8 ⑦⑧ 一次/度探针，自带自清）· `nav-truth.ts` **138**（§5.10 侧栏真值件 · 供跨批脚本取 SSOT）·（F218 后重测）`labels/service.ts` **748** · `AdminLabels.tsx` **617** · `labels.test.ts` **600** · `errors.ts` **63** · `i18n/zh.ts` **604** · `m4b6-governance-dogfood.ts` **1247**。
 
 **截图（10 张 · `docs/smoke/`）**：`m4b6-g1-board-kpi.png` · **`m4b6-g2-board-trend-7.png`**（F210 后改拍「近 7 天」态）· **`m4b6-g4-board-rank-label.png`**（F210 后改拍「标签」口径态）·
 `m4b6-g6-assets-list.png` · `m4b6-G6-assets-colhidden.png` · `m4b6-G7-assets-drawer.png` · `m4b6-g8-labels-tree.png` ·
