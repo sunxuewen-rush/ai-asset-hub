@@ -183,6 +183,56 @@ for (const rel of [...docs, ...sources]) {
   }
 }
 
+// E. 缺陷总览（docs/README §6.1）双向一致性 —— F216 后新增：防「新批登记了却没进总览」与「标了空洞其实有记录」
+{
+  const readme = readFileSync(join(ROOT, 'docs/README.md'), 'utf8');
+  const sec = readme.slice(readme.indexOf('### 6.1 缺陷总览'));
+  const covered = new Set<number>();
+  const holes = new Set<number>();
+  const take = (cell: string): number[] => {
+    const out: number[] = [];
+    for (const m of cell.replaceAll('*', '').matchAll(/F(\d{1,3})(?:\s*[–—-]\s*F?(\d{1,3}))?/g)) {
+      const a = Number(m[1]);
+      const b = m[2] ? Number(m[2]) : a;
+      for (let i = a; i <= b; i += 1) out.push(i);
+    }
+    return out;
+  };
+  for (const line of sec.split('\n')) {
+    if (!line.startsWith('|')) continue;
+    if (/[---]\|---/.test(line)) continue;
+    const cells = line.split('|');
+    const isHoleRow = line.includes('未登记');
+    const nums = take(cells[1] ?? '');
+    for (const n of nums) (isHoleRow ? holes : covered).add(n);
+  }
+  // 全仓实际出现的 F 号（含源码/脚本注释）
+  const seen = new Map<number, string>();
+  const REGISTRY_DOCS = new Set(['docs/README.md', 'docs/designs/README.md']);
+  for (const rel of [...listDocs(), ...listSources()]) {
+    if (REGISTRY_DOCS.has(rel)) continue; // 总览/规则文档自身只指路，不算「有记录」
+    const text = readFileSync(join(ROOT, rel), 'utf8');
+    for (const m of text.matchAll(/\bF(\d{1,3})\b/g))
+      if (!seen.has(Number(m[1]))) seen.set(Number(m[1]), rel);
+  }
+  const unlisted = [...seen.keys()]
+    .filter((n) => !covered.has(n) && !holes.has(n))
+    .sort((a, b) => a - b);
+  ok(
+    unlisted.length === 0,
+    `[E] 缺陷总览 §6.1 覆盖全部已出现的 F 号（${seen.size} 个）`,
+    unlisted.length
+      ? `未登记进总览：${unlisted.map((n) => `F${n}(${seen.get(n)})`).join(' · ')}`
+      : '',
+  );
+  const wrongHoles = [...holes].filter((n) => seen.has(n)).sort((a, b) => a - b);
+  ok(
+    wrongHoles.length === 0,
+    `[E] §6.1 标注的「未登记」空洞确为零命中（${holes.size} 个）`,
+    wrongHoles.length ? `实际有记录：${wrongHoles.map((n) => `F${n}`).join(' · ')}` : '',
+  );
+}
+
 console.log(`\n=== 结果：${pass} PASS / ${fail} FAIL ===`);
 if (bad.length) console.log('FAIL 明细：\n' + bad.map((b) => '  · ' + b).join('\n'));
 process.exit(fail === 0 ? 0 : 1);

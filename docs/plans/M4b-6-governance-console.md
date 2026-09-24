@@ -271,6 +271,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 
 | Task | 日期 | 实测 | 门禁 | 发现 / 偏差 |
 |------|------|------|------|------------|
+| **收口复核 Ⅱ** | 2026-09-24 | 自测试 → 真库/真页追根：**F213**（G3.5 假红 · 断言用长度相等较取色）· **F214**（标签删除前置漏「有子标签」）· **F215**（`pickDisplayName` 漏主语言前缀回退 ⇒ 中文界面显示英文；`m4a` 因此 56/4，修复后恢复 58/2）· **F216**（标签写面漏 `invalidateCache` ⇒ 创建后要刷新才显示 · 用户报）· 门禁 8/8 + dogfood **92/0** + 四脚本等于基线 | 八门禁 + doc-audit 111/0 + doc-claims 46/0 | **F213–F216 —— 明细见批 design §9.8**（本表只留一行摘要；登记形态约定见 `docs/designs/README.md`） |
 | **T1** | 2026-09-23 | `/api/admin` 三只读端点 + `http/admin.test.ts`（新建 · 14 例）⇒ 全包 **576 pass** | typecheck + biome + `bun test` exit 0 | — |
 | **T2** | 2026-09-23 | `/api/assets` 扩 `status`/`owner`（**仅管理档**；非admin传参与不传逐条相同）+ `/api/audit/actions`（含动作目录反漂移测试）⇒ 全包 **586 pass** | 同上 | — |
 | **T3** | 2026-09-23 | `download_event` 表 + 迁移 **0014** + **同事务**写入（事件写失败 ⇒ 回滚计数 + warn + 仍放行 · D39）⇒ 全包 **589 pass** | + `db:migrate` exit 0 | 顺带修 `migration-rules.test.ts` 表数守卫 15 → **16** |

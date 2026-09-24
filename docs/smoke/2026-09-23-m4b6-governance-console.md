@@ -81,10 +81,11 @@
 | `/api/audit/actions` | 分组 **8 组**（潜在全集 9；`ldap`/`oidc` 尚未出现） |
 | 鉴权（负向 · 实测） | 用户档三端点 **403** · `/api/labels/all` 对 `ADMIN`(10) **403**（仅超管 —— 设计如此） |
 
-## 5. 实施期发现与处置（F203–**F215**）
+## 5. 实施期发现与处置（F203–**F216**）
 
 | 号 | 面 | 问题（真） | 处置 |
 |----|----|-----------|------|
+| **F216** | 标签写后刷新（`api/admin.ts`） | **用户报缺陷（2026-09-24）**：「创建标签后不显示，刷新才出现」。根因 = `api/client.ts` **语言感知 Promise 缓存**在标签写面**漏失效**（其他写面均有）⇒ `setTick` 重取命中旧 Promise；整页刷新 = 模块重建才见。影响面四消费者：标签页自身 / 看板标签维度 / 门户 chip / 资产卡内嵌标签名 | **定案（待执行）**：`api/admin.ts` 加 `invalidateLabelCaches()`（`/api/labels` + `/api/admin` + `/api/assets`）在四个写函数**成功后**调用（同 `api/stars.ts` 范式）· 验证 = 缓存级直证 + 真页 E2E（创建→立现→改名→立变→删除→立隐，全程不刷新）+ **反证** + dogfood G15 —— 明细见批 design **§9.8** |
 | **F203** | design §4.1 (e)(f) | 两图指向 §5.1，但该处**未列 `types[]` 出参**（实现者会漏取数） | **最小加性补** `overview.types[]`（`admin/overview.ts` + `admin.test.ts` 断言） |
 | **F204** | 审计查询 | `select().from(auditLog)` **无 join ⇒ 拿不到「姓名」**（D48 要求工号 + 姓名同列） | 补 `leftJoin` 出 `actorName`（`audit/query.ts`）+ 测试 |
 | **F205** | i18n（实现面） | **AdminAssets 19 处 + AdminAudit 9 处**硬编码中文（含 `aria-label` / `title` / `placeholder` / 空态 / 抽屉字段名）+ **1 行 stale DEV 提示**（「状态筛选依赖改动 4，尚未实现」——改动 4 已落，属过期信息） | 全部走 i18n（**新增 17 键**：`admin.assets.*` 8 + `admin.audit.*` 8 + `common.close`）；stale 行**删除**；`doc-claims-check` ⑤ 纳入门禁防复发 |
@@ -181,6 +182,34 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 
 首检问题清单（12 项，逐条已闭环）：🔴 F208（档位污染）· 🟡 注释腐化 5 处（文件头 3 + `api/admin.ts` slug 1 + `renderLabelDot` 1）· 🟡 孤儿注释 1 处 · 🟡 数字声明漂移 2 处（`overview.ts`「4 条并行」实为 **10 条**查询 · i18n 键数）· 🟡 前端 3 处 `config`/内联件每渲染重建（已 `useMemo` + 提件 `HeroPanel`）· ⚪ 双重类型断言 1 处（已收单次）· 🟡 文档未同步（本文件 + 批 design/plan + 主 design + `docs/00`）· 🟡 dogfood 6 条旧断言（已重写 + 追加 G14）。
 **口径说明**：上一轮给**批 design 文档**的 8 维 **9.50** 与本轮**代码** 18 维不同靶，不构成同分重报；文档侧本轮复评见批 design §11.2 = **9.44**。
+
+### 5.4 F216 · 标签写后刷新（用户报缺陷 · 2026-09-24 · 定案待执行）
+
+**现象（用户逐字）**：「标签定义--创建标签--标签不显示，需要刷新才显示。」
+
+**根因链（逐环有码为证）**：
+
+1. `apps/web/src/api/client.ts` 有一层**语言感知的 Promise 缓存**：`responseCache: Map<`${lang} ${path}`, Promise>`；
+   `apiGet()` 默认走缓存（`opts.cache !== false` 命中即返回旧 Promise），并导出 `invalidateCache(prefix?)` 供写面失效。
+2. `fetchAllLabels()` = `apiGet('/api/labels/all', opts)` —— **未传 `cache:false`** ⇒ 走缓存。
+3. 标签页写后重取**逻辑本身没错**：`submitForm()` 成功后 `setTick(v=>v+1)` → `useApi(loader,[tick])` 重跑 →
+   `fetchAllLabels()` **再次命中同一份缓存 Promise** ⇒ `data` 内容不变 ⇒ `setRows` 拿到旧行集。
+4. 整页刷新 = 模块重新初始化（缓存空）⇒ 才拿到新数据 —— 即「要刷新才显示」。
+5. **对照证据（决定性）**：仓内其他写面都有失效 —— `api/stars.ts` → `/api/assets` · `pages/Tokens.tsx` → `/api/tokens` ·
+   `ReviewDetail/Submissions` → `/api/reviews` · `AssetAdminCard` → `/api/assets` · 登录/登出 → 全量清；
+   **唯 `api/admin.ts` 的 `createLabel / updateLabel / deleteLabel / reorderLabels` 零失效调用**。
+
+**影响面（四消费者 · 同源）**：① 标签定义页自身（创建/编辑/删除/排序保存）② 看板标签维度两图（`/api/admin/overview`）
+③ 门户筛选 chip 与公开列表（`/api/labels`）④ 资产卡内嵌标签名（`/api/assets`）。
+
+**修复设计（定案）**：落点 `api/admin.ts`（与 `api/stars.ts` 同范式：失效收口在 api 层，覆盖所有调用者），
+新增内部 `invalidateLabelCaches()` = `invalidateCache('/api/labels')` + `invalidateCache('/api/admin')` + `invalidateCache('/api/assets')`，
+在四个写函数**成功后**调用；服务端零改动 · 无新依赖 · 无新 i18n 键。
+
+**验证方案**：① 缓存级直证（写后 `apiGet` 立即取到新行数）② 真页 E2E（创建→列表立现→改名→行内立变→删除→即刻消失，**全程不刷新**）
+③ **反证**（注释掉失效 ⇒ 断言必 FAIL）④ dogfood 新增 G15（写后即见）+ 八步门禁 + 四脚本零回归；临时标签自建自清。
+
+**状态**：登记 + 定案已落（本节）；**代码修复待拍板执行**。
 
 ## 6. 零回归（口径 = 无新增失败 · design §9.1）
 
