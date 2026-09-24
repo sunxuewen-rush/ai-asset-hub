@@ -67,6 +67,10 @@ export interface ManagedLabel {
    *  一资产一标签至多一行 ⇒ 天然去重）。**与删除守卫口径刻意不同**：守卫按「任一状态挂载即拒删」
    *  （见 `deleteLabel` 注释——守卫若只认 ACTIVE，删除会 CASCADE 掉隐藏/归档资产上的挂载行）。 */
   assetCount: number;
+  /** **任一状态**挂载数（F212）：`asset_label` 行数**不分资产状态** = 删除守卫的判据。
+   *  UI 用它做删除钮禁用条件与文案 —— 否则「页面说 0（仅算已发布）、点删被拒（守卫算任一状态）」
+   *  正是 `deleteLabel` 注释警告的误读场景。恒有 `mountCountAny >= assetCount`。 */
+  mountCountAny: number;
 }
 
 /**
@@ -224,12 +228,13 @@ export async function createLabel(
     });
     // D2：响应 parentId = 父 slug（06 §5.2 对外契约——skillhub 同构）
     const parentSlug = await parentSlugOf(db, created.def.parentId);
-    // 新建标签必然零挂载（M4b-6 T4 · `assetCount` 字段契约）
+    // 新建标签必然零挂载（M4b-6 T4 · `assetCount` 字段契约；F212 同：`mountCountAny` 亦为 0）
     return {
       ...created.def,
       parentId: parentSlug,
       translations: created.translations,
       assetCount: 0,
+      mountCountAny: 0,
     };
   } catch (err) {
     const cause = (err as { cause?: { code?: string; constraint?: string } }).cause;
@@ -337,12 +342,18 @@ export async function updateLabel(
     .from(assetLabel)
     .innerJoin(asset, and(eq(assetLabel.assetId, asset.id), eq(asset.status, 'ACTIVE')))
     .where(eq(assetLabel.labelId, existing.id));
+  // F212：同一响应的**任一状态**挂载数（守卫口径 —— 不加 asset 过滤，`asset_label` 行数即所求）
+  const [anyRow] = await db
+    .select({ n: count() })
+    .from(assetLabel)
+    .where(eq(assetLabel.labelId, existing.id));
   // D2：响应 parentId = 父 slug
   return {
     ...updated,
     parentId: await parentSlugOf(db, updated.parentId),
     translations: (await translationsOf(db, [existing.id])).get(existing.id) ?? [],
     assetCount: Number(mountRow?.n ?? 0),
+    mountCountAny: Number(anyRow?.n ?? 0),
   };
 }
 
@@ -510,6 +521,13 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
     .innerJoin(asset, and(eq(assetLabel.assetId, asset.id), eq(asset.status, 'ACTIVE')))
     .groupBy(assetLabel.labelId);
   const mountById = new Map(mountRows.map((r) => [r.labelId, Number(r.n)]));
+  // F212：**任一状态**挂载数 —— 同一 groupBy 形态但**去掉 asset 状态过滤**（`asset_label` 行数本身即任一状态
+  // 挂载数，连 asset 表都不必 join）；供删除确认的禁用条件与文案使用（守卫口径的 UI 前置）。
+  const anyRows = await db
+    .select({ labelId: assetLabel.labelId, n: count() })
+    .from(assetLabel)
+    .groupBy(assetLabel.labelId);
+  const anyById = new Map(anyRows.map((r) => [r.labelId, Number(r.n)]));
   const parentSlugById = new Map(defs.map((d) => [d.id, d.slug]));
   return defs.map((d) => ({
     id: d.id,
@@ -521,6 +539,7 @@ export async function listManagedLabels(db: Db): Promise<ManagedLabel[]> {
     parentId: d.parentId === null ? null : (parentSlugById.get(d.parentId) ?? null),
     translations: translations.get(d.id) ?? [],
     assetCount: mountById.get(d.id) ?? 0,
+    mountCountAny: anyById.get(d.id) ?? 0,
   }));
 }
 

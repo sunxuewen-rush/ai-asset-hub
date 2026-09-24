@@ -6,7 +6,8 @@
  * ② **两级严格树**：一级缩进 0 · 二级 **28px + 2px 引导线**（`border-l-2`）· **chevron 仅在有子级的一级行** · 默认折叠
  * ③ 六列：显示名（zh）· slug · 类型徽标 · 过滤可见 · **挂载数**（可点 → `/admin/assets?label=<slug>`）· 操作
  * ④ 行内动作：↑↓（**首/末禁用** · 一次 `PUT /order` 提交整组）· 编辑 · 删除
- * ⑤ 删除确认：有挂载 ⇒ 「已挂载 N 个资产」+ 解挂指引 + **确认钮禁用**（服务端 400 `label.in_use` 语义前置）
+ * ⑤ 删除确认：**任一状态**有挂载（`mountCountAny` · F212）⇒ 确认钮禁用 + 解挂指引（服务端 400
+ *    `label.in_use` 语义前置）；仅已发布挂载与含隐藏/归档两种情形给不同文案（`assetCount` 只算已发布）
  * ⑥ 创建/编辑对话框（同一对话框两态）：slug（创建后禁改）· 类型 · 父级 · 中/英文名 · **过滤可见开关（默认打开）**
  */
 
@@ -79,6 +80,8 @@ type TreeRow = {
   parentId: string | null;
   translations: Array<{ locale: string; displayName: string }>;
   assetCount: number;
+  /** 任一状态挂载数（F212 —— 删除禁用条件与文案用；`assetCount` 只算已发布） */
+  mountCountAny: number;
   /** 0 = 一级 · 1 = 二级 */
   depth: number;
   hasChildren: boolean;
@@ -449,13 +452,15 @@ export default function AdminLabels() {
           <DialogHeader>
             <DialogTitle>{t('admin', 'labels.delete.title')}</DialogTitle>
             <DialogDescription>
-              {delTarget && delTarget.assetCount > 0
-                ? t('admin', 'labels.delete.inUse', { n: delTarget.assetCount })
+              {delTarget && delTarget.mountCountAny > 0
+                ? delTarget.assetCount > 0
+                  ? t('admin', 'labels.delete.inUse', { n: delTarget.assetCount })
+                  : t('admin', 'labels.delete.inUseHidden', { n: delTarget.mountCountAny })
                 : t('admin', 'labels.delete.unrecoverable')}
             </DialogDescription>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">
-            {delTarget && delTarget.assetCount > 0 ? t('admin', 'labels.delete.detachHint') : ''}
+            {delTarget && delTarget.mountCountAny > 0 ? t('admin', 'labels.delete.detachHint') : ''}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDelTarget(null)}>
@@ -463,7 +468,7 @@ export default function AdminLabels() {
             </Button>
             <Button
               variant="destructive"
-              disabled={busy || (delTarget?.assetCount ?? 0) > 0}
+              disabled={busy || (delTarget?.mountCountAny ?? 0) > 0}
               onClick={confirmDelete}
             >
               {t('admin', 'labels.delete.ok')}

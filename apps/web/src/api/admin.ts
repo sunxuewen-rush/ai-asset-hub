@@ -84,6 +84,11 @@ export interface ManagedLabelRow {
   parentId: string | null;
   translations: Array<{ locale: string; displayName: string }>;
   assetCount: number;
+  /**
+   * **任一状态**挂载数（F212）：删除守卫的判据（含已隐藏/已归档）。
+   * 页面「挂载数」列仍走 `assetCount`（仅已发布 · 与看板同面）；**删除钮禁用条件与确认文案**走本字段。
+   */
+  mountCountAny: number;
 }
 
 export interface ManagedLabelsResponse {

@@ -445,4 +445,43 @@ describe('删除挂载中的标签（M4b-6 T4）', () => {
     // 清理 fixture 资产（标签已删）
     await db.delete(asset).where(eq(asset.id, mountAsset!.id));
   });
+
+  // F212：`mountCountAny`（任一状态）与 `assetCount`（仅已发布）两口径并存。
+  // 只挂 HIDDEN 资产时：显示口径 = 0 而守卫口径 = 1 ⇒ UI 的删除禁用条件/文案必须走 `mountCountAny`，
+  // 否则「页面说 0、点删被拒」（`deleteLabel` 注释警告的场景）。
+  it('F212：仅挂 HIDDEN 资产 ⇒ assetCount = 0 而 mountCountAny = 1（且删除仍被拒）', async () => {
+    const sa = await cookieFor(superAdmin);
+    const name = slug('hidden-only');
+    expect((await post('/api/labels', { slug: name, type: 'RECOMMENDED' }, sa)).status).toBe(201);
+    const [label] = await db
+      .select({ id: labelDefinition.id })
+      .from(labelDefinition)
+      .where(eq(labelDefinition.slug, name));
+    const owner = await makeUser('hidden-only-owner');
+    const hiddenSlug = `${PREFIX}${randomUUID().slice(0, 8)}`;
+    const [hiddenAsset] = await db
+      .insert(asset)
+      .values({ slug: hiddenSlug, type: 'skill', ownerId: owner, status: 'HIDDEN' })
+      .returning({ id: asset.id });
+    await db.insert(assetLabel).values({ assetId: hiddenAsset!.id, labelId: label!.id });
+
+    const res = await get('/api/labels/all', sa);
+    const body = (await res.json()) as {
+      items: Array<{ slug: string; assetCount: number; mountCountAny: number }>;
+    };
+    const row = body.items.find((l) => l.slug === name);
+    expect(row?.assetCount).toBe(0); // 显示口径：仅已发布（与看板同面）
+    expect(row?.mountCountAny).toBe(1); // 守卫口径：任一状态
+    // 不变量：任一状态挂载数恒 ≥ 已发布挂载数（全表逐行）
+    expect(body.items.every((l) => l.mountCountAny >= l.assetCount)).toBe(true);
+
+    // 删除确实被拒（守卫按任一状态）—— 这正是 UI 必须禁用删除钮的原因
+    expect((await del(`/api/labels/${name}`, sa)).status).toBe(400);
+
+    await db
+      .delete(assetLabel)
+      .where(and(eq(assetLabel.assetId, hiddenAsset!.id), eq(assetLabel.labelId, label!.id)));
+    expect((await del(`/api/labels/${name}`, sa)).status).toBe(204);
+    await db.delete(asset).where(eq(asset.id, hiddenAsset!.id));
+  });
 });
