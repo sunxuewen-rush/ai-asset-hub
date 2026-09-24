@@ -1,10 +1,10 @@
 # M4b-6 治理批：管理控制台四页（看板 · 资产管理 · 标签定义 · 审计日志）—— 批计划
 
 > Date: 2026-09-23
+> Updated: 2026-09-24（**v0.10：收口复核（F211 / F212）** —— ① F212（真缺陷 · 潜在）：`assetCount` 仅 ACTIVE 与删除守卫（任一状态）之间缺 UI 前置 ⇒ `/all` 加性补 `mountCountAny` + 标签页禁用条件/三段文案 + 服务端用例 + dogfood G8.5/G8.6（含反证）② F211：资产页分页 URL 定案跟门户 `?page=`（撤回 v0.9 的 limit/offset 条）③ dogfood **90/0**）
 > Updated: 2026-09-23（**v0.9：T6⁺ 收口（F210 门禁腐化修复）** —— ① Status 读数 → dogfood **88/0**（G1–G14）· 批 design **v0.33** ② §3 T10 步骤 2 补 F210 ③ §7 追加 **T6⁺ 收口** 行（G2/G4 换真断言 + 两条反证 + 截图换名）④ F210 = dogfood 4 条空断言：G2.2 文案随换靶消失恒真 · G2.3 用已不存在的原生 `select` 切档位 · G4.1/G4.2 按钮定位文案不匹配 ⇒ 全部改「真点击 + 读真值」）
 > Updated: 2026-09-23（**v0.8：T6⁺ 管理看板重做（用户逐条拍板 · 非计划外新增内容）** —— ① §3 T6 步骤 1 与断言行按当前实现重写（六段：KPI / 趋势 / **标签维度两图** / 排行榜 / 英雄榜；件选型全部对齐官方配方）② §1 目标行：创意四项 → 标签维度两图 ③ §3 T1 步骤 1：overview 出参 `creative` → **`labels[]` + `downloads7d`** ④ dogfood 追加 **G14**（8 条）⇒ 全量 **71 → 84 PASS / 0 FAIL / 0 超时** ⑤ §7 追加 **T6⁺** 行（含 F208 / F208-A）⑥ Status 读数同步。**本版含服务端改动（加性 + 一处口径纠偏）**）
-> Updated: 2026-09-23（**v0.7：F207 顶栏标题漏项 → 用户拍板「甲」（顶栏回归官方 block 形态 · 非计划内）** —— ① 删 `TopBar.titleOf` 自造路由表（官方无「路由 → 标题」机制 ⇒ 标题只在页内）② dogfood 追加 **G13**（15 条）⇒ 全量 **56 → 71 PASS / 0 FAIL / 0 超时** ③ §7 追加 F207 记录（并入 T10⁺ 行）④ Status 读数同步。**本版零服务端改动**）
-> Status: ✅ **已落地（T1–T10）· 看板维重做（T6⁺ · 2026-09-23）** —— 批 design **v0.33**（文档 8 维见 §11.2 = **9.44**）· 四页真页 + 服务端 8 项 + 迁移 0014 · dogfood **G1–G14 = 88/0**（F210 后）· 逐 Task 落地记录见 §7（含 F203–F210）
+> Status: ✅ **已落地（T1–T10）· 看板维重做（T6⁺ · 2026-09-23）** —— 批 design **v0.33**（文档 8 维见 §11.2 = **9.44**）· 四页真页 + 服务端 8 项 + 迁移 0014 · dogfood **G1–G14 = 90/0**（F212 后）· 逐 Task 落地记录见 §7（含 F203–F212）
 > 上游：批 design `docs/designs/2026-09-23-m4b6-governance-console-design.md`（**v0.30 · 定稿 · 8 维 9.50** · D1–D55 · 未决 U5–U14）
 > · 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.65**）§2.3 批件登记
 > · `docs/00-product-direction.md` §5 M4b-6 行（**v1.91** · ✅ 完成）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）
@@ -276,6 +276,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 | **T3** | 2026-09-23 | `download_event` 表 + 迁移 **0014** + **同事务**写入（事件写失败 ⇒ 回滚计数 + warn + 仍放行 · D39）⇒ 全包 **589 pass** | + `db:migrate` exit 0 | 顺带修 `migration-rules.test.ts` 表数守卫 15 → **16** |
 | **T4** | 2026-09-23 | `/api/labels/all` 形态变更（`items`/`total`/`limit` + `assetCount`）+ `DELETE /:slug` 有挂载 ⇒ **400** `label.in_use` ⇒ 全包 **590 pass** | 同上 | — |
 | **T5** | 2026-09-23 | i18n 四页键表（`board` 新组 + `admin` 扩键 · zh/en 差集 0） | 脚本自检（前端无单测基建，§4 已声明） | 泄漏面当时未复查出 ⇒ 见 T10 **F205** |
+| **收口复核** | 2026-09-24 | **F211 / F212**：① F212 标签删除口径前置（`/all` 加性补 `mountCountAny` · 标签页禁用条件 + 三段文案 · 服务端用例 · dogfood G8.5/G8.6 含反证）② F211 资产页分页 URL **定案跟门户 `?page=`**（撤回 v0.9 的 limit/offset 条） | dogfood **88 → 90 PASS / 0 FAIL** · 门禁八步绿 | **F211 / F212** |
 | **T6⁺ 收口** | 2026-09-23 | **F210 门禁腐化修复**：dogfood G2 重写（官方 Combobox 真换档 + 首刻度龄硬证据）· G2.2 改题注数值态 · G4 改 `data-active` 定位 + 柱数=端点非零条数 · 两条反证（翻期望⇒FAIL）· 截图换 `g2-board-trend-7` / `g4-board-rank-label` | dogfood 全量 **84 → 88 PASS / 0 FAIL** | **F210** |
 | **T6⁺** | 2026-09-23 | **看板维重做（用户逐条拍板）**：删创意四项/类型维度（出参连带）· 加标签维度两图（官方 `Radial Chart - Grid` / `Radar Chart - Grid Circle` · 13 色池按行序）· 趋势档位改官方 `Combobox`（右上）· 排行榜换竖柱 + 斜排截断 + 卡级 `isolate` · 英雄榜换官方 `Bar Chart - Label`（竖柱 + 柱顶数值 + 水平多行类目名）· 副标题/页脚全清 · 服务端加 `kpi.downloads7d` + 标签口径三处同面 | typecheck + biome + dogfood **G14**（8 条） | **F208**（KPI 副行随趋势档位漂移）· **F208-A**（官方按钮 `z-30` 盖住 TopBar）· **F209**（`doc-claims` 键数锚点盲区） |
 | **T6** | 2026-09-23 | 看板真页 `AdminBoard.tsx`（645 行）+ `api/admin.ts` + PoC 图表件转正（`chart`/`combobox`）· 冒烟：overview 33/52/1521/9/331 · trends downloads **0** · 用户档 **403** | typecheck + biome + dogfood G1–G5 | **F203**（`overview.types[]` 加性补） |
@@ -353,6 +354,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.10** | 2026-09-24 | sunxuewen-rush | **收口复核（F211 / F212）** —— ① F212 标签删除口径前置：`/all` 加性补 `mountCountAny`（任一状态挂载数）+ 标签页禁用条件与三段文案 + 服务端用例（仅挂 HIDDEN）+ dogfood G8.5/G8.6（含反证）② F211 资产页分页 URL 定案**跟门户 `?page=`**（撤回 v0.9 的 `limit`/`offset` 条；理由：复用共享 `useMarketQuery`，强改需回归门户三页）③ dogfood 全量 **88 → 90** |
 | **v0.9** | 2026-09-23 | sunxuewen-rush | **T6⁺ 收口（F210）** —— ① dogfood 读数 84 → **88**（G2 官方 Combobox 真换档 + 首刻度龄硬证据 · G2.2 题注数值态 · G4 `data-active` 定位 + 柱数=端点非零条数）② 两条反证（翻期望 ⇒ FAIL）证明判别力 ③ 截图换 `g2-board-trend-7` / `g4-board-rank-label`，删 2 张重复旧图 ④ Status/批件指向批 design **v0.33** |
 | **v0.8** | 2026-09-23 | sunxuewen-rush | **T6⁺ 管理看板重做（用户逐条拍板）** —— ① 步骤/断言行按当前实现重写 ② dogfood 追加 **G14**（8 条）⇒ 全量 **71 → 84 PASS / 0 FAIL** ③ §7 追加 T6⁺ 行（F208 / F208-A / F209）④ 批 design **v0.32** 同步。**含服务端改动** |
 | **v0.7** | 2026-09-23 | sunxuewen-rush | **F207 顶栏标题漏项 → 用户拍板「甲」（非计划内 · 不占新编号）** —— ① 删 `TopBar.titleOf` 自造路由表（官方 `registry:ui` 无 header/topbar 件；顶栏仅存在于 block 示例且标题写死 ⇒ 官方无「路由 → 标题」机制），页面名只在页内 ② dogfood 追加 **G13**（15 条）⇒ 全量 **56 → 71 PASS / 0 FAIL** ③ §7 T10⁺ 行并入 F207 记录 ④ Status 读数同步。**本版零服务端改动** |

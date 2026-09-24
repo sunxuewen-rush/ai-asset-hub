@@ -1,9 +1,9 @@
 # M4b-6 治理批：管理看板 + 资产管理 + 标签定义 + 审计日志 —— 批设计
 
 > Date: 2026-09-23
+> Updated: 2026-09-24（**v0.34：收口复核（F211 / F212）** —— ① **F212**（真缺陷 · 潜在）：`assetCount` 改「仅 ACTIVE」后，删除守卫按「任一状态」拒删，两者之间缺 UI 前置 ⇒ 标签只挂 HIDDEN/ARCHIVED 时「页面说未挂载、点删被拒」。修法 = `/all` 加性补 **`mountCountAny`**（任一状态 · 恒 ≥ `assetCount`）+ 标签页禁用条件/三段文案改用它 + 服务端用例 + dogfood **G8.5/G8.6**（含反证）② **F211**（口径）：资产页分页 URL **定案跟门户 `?page=`**，撤回 v0.9 的 `limit`/`offset` 条（§4.2/§4.8b 改写 + 登记为接受项）③ 数字实测 **526 / +122** ④ dogfood **90/0**）
 > Updated: 2026-09-23（**v0.33：T6⁺ 收口补记（F210）** —— ① §7.2 dogfood 读数 84 → **88**（G1–G14）② 代码侧 18 维打分统一为 **9.15**（并记录 F210 期间一度 **9.14** 的口径变化）③ §5.3 打分表补三行（最高档复审 / F210 发现 / F210 修复）④ Status 版本指针订正为 `docs/00` **v1.94** · 主 design **v1.69**。**F210 = 提交后核验发现 4 条空断言**：G2.2 文案随换靶消失恒真 · G2.3 用已不存在的原生 `select` 切档位 · G4.1/G4.2 按钮定位文案不匹配 ⇒ 口径从未切换（4 张看板截图字节相同为物理证据）⇒ 全部改为「真点击 + 读真值」并加两条反证）
 > Updated: 2026-09-23（**v0.32：T6⁺ 管理看板重做（用户逐条拍板）** —— ① §4.1 **整节按当前实现重写**：删「创意四项」与「类型维度」（出参 `overview.creative` / `overview.types` 一并移除）、加「标签维度」两图（同心环官方 `Radial Chart - Grid` / 雷达官方 `Radar Chart - Grid Circle`，数据源 `overview.labels[]`）、趋势时间档位改官方 `Combobox`（右上）、副标题与页脚全清、全页件选型对齐官方配方 ② **服务端加性字段 `kpi.downloads7d`**（固定「近 7 个自然日」窗口）修 **F208**（副行原按趋势窗口切片 ⇒ 切「近 7 天」退化成总量；实测 38 vs 真值 23）③ 排行榜卡加 **`isolate`** 修 **F208-A**（官方按钮 `relative z-30` 盖住 sticky TopBar `z-20`，`elementFromPoint` 正反双证）④ §9.3 追加 dogfood **G14**（看板重做段）⑤ §9.7 追加 **F208 / F208-A / F209**（F209 = `doc-claims-check` 键数锚点按措辞锚定 ⇒ 数字漂移不报警的盲区，已补「各 N 键」绝对值锚）⑥ §7.2 i18n 行改**实测值**（各 **525** · 本批 **+121**（404 → 525）· `board` 组 **30**）⑦ §7 服务端表 overview 行补 `labels[]` / `downloads7d`。**本版含服务端改动（加性 + 一处口径纠偏）**）
-> Updated: 2026-09-23（**v0.31：F207 顶栏标题漏项 —— 用户拍板「甲」：顶栏回归官方 block 形态** —— ① 撤除 `TopBar` 自造 `titleOf` 路由表（官方 `registry:ui` **无** header/topbar 件；顶栏仅存在于 block 示例源码且标题**写死** ⇒ 官方无「路由 → 标题」机制）② §9.3 追加 dogfood **G13**（14 路径「顶栏无 `h1` 且内容区有标题」+ 1 聚合 = 15 条）⇒ §9.7 分组 PASS **56 → 71** ③ §9.7 追加 **F207** ④ §9.4 验收清单补「顶栏形态 + 页内标题」⑤ 主 design **v1.67** 同步（§2.4 U1 / §4 顶栏行 / §10 变更清单 / §12 线框）。**本版零服务端改动**）
 > Status: **定稿**（**2026-09-23 用户批准**）· **实现已落地（T1–T10）· 看板维重做（T6⁺）**—— 文档 8 维见 §11（§11.2 为重做轮复评）· 换靶 5 轮 + grilling 4 轮 · 门槛项已清空 · 已回填 `docs/00` §5（**v1.94**）与主 design §2.3（**v1.69**）；dogfood **88/0**（G1–G14，F210 后）；后续实现以批 plan 为准
 > Scope: 本批 = `docs/00` §5「M4b-6」行（治理批四项交付物）· 服务端改动 **8 项**（见 §7）：4 个只读端点新建 + 2 处出参扩 + 1 处语义收紧 + 1 张表/写入（实现期）
 > 引用链: 上游主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（拍板表 / 页面职责矩阵）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）· 前序批 M4b-5 `docs/designs/2026-09-21-m4b5-review-workbench-design.md`
@@ -274,7 +274,7 @@ M4b（管理后台）拆八批中的第 6 批，前序 M4b-1…M4b-5 已交付�
 | 详情抽屉 | 复用仓内既有 **`console/Drawer`**（**官方 `Sheet` 的薄封装** —— 主 design §6.3 已定「宽 560 + 必带 `SheetTitle`」）；**只读**：字段 = slug / 类型 / 状态 / 归属人 / 最新版本 / 下载 / 收藏 / 更新于 / **描述**（`latestDescription` —— 与门户列表「描述」列、卡片描述**同字段**，零新增请求；空值显「—」；整段 `whitespace-pre-wrap` 不截断，抽屉正文 `overflow-y-auto` 可滚动）+ footer「关闭 · **打开详情**」（文案复用既有 `assets.action.open`；真链接 `/assets/{slug}`）。⚠️ **可达性实测**：详情面 `assertAssetReadable`（`http/assets.ts:135,159`）授权集 = **owner 本人 ∨ 管理档（`isPlatformReviewer` = `role >= ACCOUNT_ROLE.ADMIN`）**，超管短路 ⇒ **管理档从治理页点进 `HIDDEN`/`ARCHIVED` 资产详情不会 404**（集外才 404）⇒ 按钮**恒显**，不按状态隐藏；**管理动作仍归资产详情页管理区**（零口径漂移） |
 | 密度 | `density="default"`（控制台操作态 `p-2`；门户阅读态是 `comfortable`/`py-4` —— 本页取操作态） |
 | 列显示 | `ColumnVisibilityMenu` + **保护列 2**（名称 / 操作，`meta.hidable=false`）—— 与 M4b-5 审核队列同口径；**状态不持久化**（刷新/离开即回默认全显，与门户中心页、审核队列同口径 —— Q9 拍板，不落 URL 也不落 localStorage）。菜单文案复用既有 `market.colShow`「列显示」· `market.colRequired`「**必显**」· `market.colReset`「**重置为默认**」（实测文案，勿自造「保护列 / 重置」） |
-| 分页 | 共享 `Pagination` 件，**仅 `total > PAGE_SIZE` 时渲染** + 翻页回顶；URL 用 `limit`/`offset`（**控制台口径**，与 M4b-5 审核队列同款 —— 见 §4.8(b)） |
+| 分页 | 共享 `Pagination` 件，**仅 `total > PAGE_SIZE` 时渲染** + 翻页回顶；**URL 用 `?page=`（F211 定案：跟门户 `useMarketQuery`；v0.9 的 `limit`/`offset` 条已撤回 —— 见 §4.8(b)）** |
 | 三态 | 载态 `loadingVariant="keepHeader"`（表头保留 + 5 行骨架）· 空态 `EmptyState` · 错态 `ErrorState` + 重试 |
 | 服务端 | 见 §5.3（复用公开面 + 仅管理档生效的 2 个加性参数，**不新建端点**） |
 
@@ -288,7 +288,7 @@ M4b（管理后台）拆八批中的第 6 批，前序 M4b-1…M4b-5 已交付�
 | 上限提示 | 页头「已用 N / 上限 M」（数据来自 `GET /all` 的 `total`/`limit`，`limit` = env 现值）；用量 ≥90% 时用 `tone="warn"` 色调 |
 | 新建/编辑 | 表单字段见 D30；翻译两栏**整组提交**（D29）；slug 创建后禁改（服务端 `PATCH` 也不接受 slug —— `UPDATE_BODY.slug = z.never()`）；**`visibleInFilter` 开关在创建与编辑对话框均保留、默认打开**（v0.23 定 · U12 闭环；列 `default true` ⇒ 零服务端改动） |
 | 排序 | 行内 ↑↓ 逐条移动；一次 `PUT /order` 提交整组（`order[{slug,sortOrder}]`，上限 200）；失败回滚本地顺序 + toast |
-| 删除 | 二次确认弹窗：**「已挂载 N 个资产」+ 写明后果**；服务端「有挂载 ⇒ 拒绝」（`label.in_use`）⇒ 前端提示「请先在资产上解挂」（D27） |
+| 删除 | 二次确认弹窗**按两口径分行文案**（F212）：① 有已发布挂载 ⇒ 「已挂载 {n} 个已发布资产」② 仅隐藏/归档挂载 ⇒ 「仍被 {n} 个资产挂载（含已隐藏/已归档）」③ 无任何挂载 ⇒ 「未挂载任何资产，删除后不可恢复」；**确认钮禁用条件 = `mountCountAny > 0`**（任一状态 —— 与守卫同口径）；服务端「任一状态有挂载 ⇒ 400 `label.in_use`」⇒ 提示「请先在资产上解挂」（D27） |
 | `type` 语义 | `RECOMMENDED`（owner / 管理档可挂）· `PRIVILEGED`（**仅超管可挂** —— 表单内联提示） |
 | 错误出口 | 复用既有 `LabelError` 映射（`labels/errors.ts` 穷尽 switch）；本批新增 **1 个码** `label.in_use` |
 | 空态 | 无标签时给「创建第一个标签」引导（沿用既有 `admin.empty` 键风格） |
@@ -457,10 +457,13 @@ AdminDashboard
 | `sort` / `dir` | 既有 `assetSortQueryFields` 档位与方向 | `newest`（服务端兜底） |
 | `limit` / `offset` | `limit` 1–100；`offset ≥ 0` | `20` / `0` |
 
-> **分页参数口径（实测两套并存，本页取控制台口径）**：门户中心页用 `?page=`（`market/CenterPage` + `useMarketQuery`），
-> **控制台列表用 `?limit=` + `?offset=`**（`pages/ReviewQueue.tsx` 注释「筛选与分页 URL 状态化（`?status=&limit=&offset=`）」）。
-> 本页在 `/admin/*` 控制台壳内 ⇒ 跟**控制台口径**（`limit`/`offset`），与 M4b-5 审核队列**同款**；分页控件仍是共享 `Pagination` 件（门户同一件）。
-> **对齐门户的范围** = 页头卡 / `FilterStrip` / 工具条与折叠搜索 / 列与单元格语法 / `Pagination` 件 / 三态件；**URL 分页参数跟控制台** —— 这是唯一一处「不跟门户」的取舍。
+> **分页参数口径（F211 定案 · 2026-09-24）**：门户中心页用 `?page=`（`market/CenterPage` + `useMarketQuery`）；
+> 控制台另一列表（`pages/ReviewQueue.tsx`）用 `?limit=` + `?offset=`。
+> **本页最终采用 `?page=`（跟门户）** —— 实现复用 `useMarketQuery`（页码/防抖/竞态/回退同步/翻页回顶全复用），
+> 强行改 `limit`/`offset` 需给该**共享** hook 加模式开关并回归门户三页，收益（URL 参数名一致）远小于风险。
+> **撤回 v0.9 的「本页取控制台口径」条**；控制台内两列表页 URL 参数不同 = **已登记的接受项**（F211）。
+> 分页控件仍是共享 `Pagination` 件（门户同一件），API 侧仍是 `limit`/`offset`（URL 与 API 两层口径各自统一）。
+> **对齐门户的范围** = 页头卡 / `FilterStrip` / 工具条与折叠搜索 / 列与单元格语法 / `Pagination` 件 / 三态件 / **URL 分页参数**（F211 后亦跟门户）。
 > **UI 暴露面（v0.16）**：`status` **暴露**（状态 Select，默认「全部」= 本表默认值）· `owner` **服务端交付但本批无 UI 入口**（登记 U11：需选人组件 + 用户搜索面，归 U6 范畴）。
 
 **（c）`/admin/audit` 审计日志**
@@ -720,7 +723,7 @@ AdminDashboard
 | 4 | `GET /api/assets`（扩参） | 加性 | 门户不变 + 管理档全状态 | 本批 |
 | 5 | `download_event` 表 + 写入 | 新建表 | 无（内部） | 本批（实现期） |
 | 6 | `GET /api/audit/actions` | 新建（只读 · D23） | `role >= 10` | 本批 |
-| 7 | `GET /api/labels/all` | **形态变更**（数组 → `{ items, total, limit }` + 每条 `assetCount` · D26/D27）· **T6⁺ 口径修订**：`assetCount` = **仅 `ACTIVE`** 资产挂载数（与看板同面；删除守卫仍按「任一状态挂载即拒删」，两口径刻意不同 —— 防级联丢挂载行） | `role >= 100`（不变） | 本批 |
+| 7 | `GET /api/labels/all` | **形态变更**（数组 → `{ items, total, limit }` + 每条 `assetCount` · D26/D27）· **T6⁺ 口径修订**：`assetCount` = **仅 `ACTIVE`** 资产挂载数（与看板同面）· **F212 加性补 `mountCountAny`** = **任一状态**挂载数（删除守卫口径的 UI 前置；恒 `>= assetCount`），两口径刻意不同 —— 防级联丢挂载行 | `role >= 100`（不变） | 本批 |
 | 8 | `DELETE /api/labels/:slug` | **语义收紧**（有挂载 ⇒ 400 `label.in_use` · D27） | `role >= 100`（不变） | 本批 |
 
 ## 8. UI-UX 变动总览（本批用户可见变化）
@@ -769,7 +772,7 @@ AdminDashboard
 | # | 回填项 | 实测值（口径 / 出处） |
 |---|--------|----------------------|
 | 1 | 三端点出参 ↔ 页面消费点 | `overview`（**KPI 8**〔含 `downloads7d`〕+ **`labels[]`** · T6⁺ 换靶）↔ 看板四卡 + **标签维度两图** · `trends`（`assets`/`downloads` 序列）↔ 趋势两张小图 · `rankings`（三口径 + 稳定键）↔ 排行榜单卡 + **英雄榜（单卡两内层分区块）** · `/api/audit/actions`（8 组）↔ 动作分组下拉 |
-| 2 | i18n 键数 | zh / en 叶子键 **各 525**（差集 **0**）· 本批 **+121 键**（404 → 525）· `board` 组 **30**（新组）· `admin` 组 **6 → 95**（+89，含 F205 补的 17 键）<br>**T6⁺ 实测（2026-09-23 重算）**：口径 = `flatten(zh)` 叶子键计数（与门禁脚本同法）· 基线 404 = 批前提交 `c44e348` 同法计数；本轮净 **−9 键**（删 `creative.*` 9 + `type.*` 2 + `trend.desc`/`label.note`/`rank.sumNote`/`hero.desc`/`hero.foot` + 孤儿键 `trend.empty.downloadsWait`，加 `trend.downloadsNote`/`label.countTitle`/`label.heatTitle`/`hero.title`） |
+| 2 | i18n 键数 | zh / en 叶子键 **各 526**（差集 **0**）· 本批 **+122 键**（404 → 526）· `board` 组 **30**（新组）· `admin` 组 **6 → 95**（+89，含 F205 补的 17 键）<br>**T6⁺ 实测（2026-09-23 重算）**：口径 = `flatten(zh)` 叶子键计数（与门禁脚本同法）· 基线 404 = 批前提交 `c44e348` 同法计数；本轮净 **−8 键**（删 `creative.*` 9 + `type.*` 2 + `trend.desc`/`label.note`/`rank.sumNote`/`hero.desc`/`hero.foot` + 孤儿键 `trend.empty.downloadsWait`，加 `trend.downloadsNote`/`label.countTitle`/`label.heatTitle`/`hero.title` + **F212 的 `labels.delete.inUseHidden`**） |
 | 3 | 件行数（`wc -l`） | `AdminBoard` **645** · `AdminAssets` **625** · `AdminLabels` **574** · `AdminAudit` **565** · `api/admin.ts` **165** · `http/admin.ts` **68** · `http/admin.test.ts` **566** · `overview` **200** · `rankings` **116** · `trends` **134** · `chart.tsx` **340** · `combobox.tsx` **283** |
 | 4 | dogfood 分组 PASS 数 | **PASS 88 / FAIL 0 / 超时 0**（G1–**G14** · 每段 `NO JS ERRORS`）· 首跑（T10）= 41/0 ⇒ F206 追加 G12 = 56 ⇒ F207 追加 G13 = 71 ⇒ T6⁺ 重写 G3/G4.4/G5 + 追加 G14（8 条）= 84 ⇒ **F210 修 4 条空断言 + G2/G4 补强 = 88** |
 | 5 | 迁移 **0014** | `0014_simple_blizzard.sql` · **11 行** · 表 `download_event` · 索引 `idx_download_event_created_at` / `idx_download_event_asset_id`（2 条）· 迁移后表数 **16** |
@@ -784,6 +787,9 @@ AdminDashboard
 | **F207** | 顶栏标题区（`TopBar.tsx`） | **用户报缺陷（2026-09-23）**：点侧栏「管理看板」/「资产管理」，**顶栏不显示对应名称**。根因 = `titleOf(pathname)` 是**手维护「路由 → 标题」表**（M4b-2 建立，只登记 reviews/audit/labels 三条），漏 `/admin` 与 `/admin/assets` ⇒ 两页 `return null` ⇒ 标题区整块不渲染（同族：与 F206 同为「手维护清单漏条」） | **用户拍板「甲」：删表**而非补两条 —— 事实基础：官方 `registry:ui` **无** header/topbar 件（63 件），顶栏只存在于 **block 示例源码**且标题**写死**（`dashboard-01` 的 `<h1>Documents</h1>`、`sidebar-07` 顶栏 Breadcrumb 每页硬编码）⇒ 官方无「路由 → 标题」机制；顶栏只留 `SidebarTrigger` + 右侧动作（`TopBar.tsx` **110 → 82 行**），页面名只在**页内**渲染（每页均有 `PageHeader`/`<h1>`，逐路由实测）；副产物：消除「顶栏标题 + 页内标题」同字重复。守护断言 = dogfood **G13**（正反双证：旧版 **12 FAIL** / 新形态 **16/0**） |
 | **F206** | §4.1 形制 / 侧栏激活（`SideNav.tsx`） | **用户报缺陷（2026-09-23）**：点「管理看板」→ 再点「资产管理」，「管理看板」**仍为选中态**。根因 = 判定为「`EXACT_MATCH_PATHS`（`/` + `/dashboard`）精确、其余 `pathname.startsWith(to)` 前缀」⇒ **手维护精确集漏 `/admin`**（管理组分区父项）⇒ `/admin/*` 任一子页与父项**双亮**（同坑 M4b-3 T9④ 已在 `/dashboard` 上踩过一次 ⇒ 形态性复发） | 收敛为**全精确匹配**：删 `EXACT_MATCH_PATHS`（`navItems.tsx`）· `isActive = pathname === to`（`SideNav.tsx`）· 门户 `<NavLink>` 补 `end`（同源 `aria-current` 前缀问题）；dogfood **G12** 常驻断言防复发（正反双证：旧逻辑 **5 FAIL** / 新逻辑 **16 PASS**） |
 | **F208-A** | §4.1(e) 排行榜卡头 | **用户报缺陷（2026-09-23）**：三口径按钮「人 / 资产 / 标签」**悬浮在顶栏之上**（卡片滚到顶栏下方时按钮压住 TopBar）。点击仍正常、布局也无错位 ⇒ 属**层叠顺序**缺陷。根因 = 官方那段按钮类名自带 `relative z-30`（官方 demo 无 sticky 顶栏 ⇒ 无冲突），而本仓 TopBar 为 `sticky top-0 z-20`（F207 定稿形态）⇒ `30 > 20`。**全仓实测 `z-30` 仅此一处** | **卡级加 `isolate`**（`isolation:isolate`）：在卡内建立层叠上下文，把 `z-30` 关进卡片；**官方按钮写法零字符改动**，卡内「按钮压图表 hover 层」关系保持。正反双证：修前同一点 `elementFromPoint` 命中 `BUTTON`（`人34`）· 修后命中 `HEADER`（顶栏）；dogfood **G14** 常驻守护 |
+| **F212** | 标签定义页删除确认（`AdminLabels.tsx`）+ `GET /api/labels/all` | **收口复核发现（2026-09-24 · T6⁺ 的涟漪）**：本轮把 `assetCount` 口径改为「仅 `ACTIVE`」，而删除守卫按「**任一状态**挂载即拒删」（防 CASCADE 丢挂载行）⇒ 两者之间缺一个 UI 前置：**标签只被 `HIDDEN`/`ARCHIVED` 资产挂载时**，页面显示「未挂载任何资产」、删除钮**可点**，点删被 400 `label.in_use` 拒绝 —— 正是 `deleteLabel` 注释警告的「页面说 0、点删被拒」误读场景（真库当前该状态 **0 条** ⇒ 潜在缺陷） | ① `/all` 加性补 `mountCountAny`（任一状态挂载数 · 恒 ≥ `assetCount`）② 标签页禁用条件改 `mountCountAny > 0` ③ 文案三段化（仅已发布 / 含隐藏归档 / 无挂载）④ 服务端用例「仅挂 HIDDEN ⇒ assetCount 0 而 mountCountAny 1 且删除仍被拒」⑤ dogfood **G8.5**（出参双口径不变量）+ **G8.6**（弹窗禁用态与文案 · 含反证） |
+| **F211** | 资产页分页 URL 口径（`AdminAssets.tsx` · §4.8b） | **收口复核发现（2026-09-24）**：设计 §4.8b（v0.9 拍板）要求「本页跟控制台口径 `limit`/`offset`」，实现走门户 `useMarketQuery` 的 `?page=`（文件头注释亦写「对齐门户」）⇒ 拍板未落地 | **改设计接受 `?page=`**（F211 定案）：复用共享 hook 的页码/防抖/竞态/回退同步；强行统一需给共享 hook 加模式开关并回归门户三页 ⇒ 收益远小于风险。§4.2 / §4.8b 已改写 + 撤回 v0.9 条，登记为「控制台内两列表页 URL 参数不同」的接受项 |
+| **F210** | 门禁脚本（`docs/smoke/scripts/m4b6-governance-dogfood.ts`） | **提交后核验发现（门禁腐化）**：4 张看板截图**字节完全相同** ⇒ 回查证实 **4 条空断言**（G2.2 文案随换靶消失恒真 · G2.3 用已不存在的原生 `select` 切档位 · G4.1/G4.2 按钮定位文案不匹配）| G2 换官方 Combobox 真换档 + 首刻度龄硬证据 · G2.2 改题注数值态 · G4 改 `data-active` + 「柱数 = 端点非零条数」· 两条反证 · 全量 **84 → 88**。明细见证据文件 §5.3 |
 | **F209** | §3.1 换靶校验（`doc-claims-check.ts`） | **门禁盲区（2026-09-23 T6⁺ 自检发现）**：「i18n 本批新增键数」断言**按声明式措辞锚定**（`本批 **+N 键`），只校验「文档里写的那个数在多处一致」，**不校验它是否等于真值** ⇒ 本轮删键后文档的 `+130 / 各 534 / board 39` 全已漂移，而门禁仍 **44/0 PASS**（假绿） | ① 断言补**绝对值锚**：新增「叶子键 **各 N**」与「`board` 组 **N**」两条（真值来自 `flatten(zh)` 实数）② 断言期望值改实测（`+122`）③ 文档 §7.2 改实测值并在本行登记漂移口径 |
 | **F205** | §6 i18n（实现面） | 两页共 **28 处**硬编码中文（`aria-label` / `title` / `placeholder` / 空态 / 抽屉字段名）+ 1 行 stale DEV 提示 | 两页文案全部走 i18n（**F205 新增键 17 个**）；stale 行删除；`doc-claims-check` ⑤ 纳入门禁防复发 |
 
@@ -861,7 +867,7 @@ AdminDashboard
 | 维度 | 评分 | 说明 |
 |------|:--:|------|
 | 完整性（标准） | 9.5/10 | §4.1 按**当前实现**整节重写（(a)–(g) 含删项登记）· §2.4 六条决策行补 T6⁺ 修订 · §5.1/§7 出参换靶 · §9.3 追加 G14 · §9.7 追加三项 · §7.2 数字改实测；扣分项 = 下载事件表保留策略（U5）仍属后续批 |
-| 一致性（标准） | 9.5/10 | 「三处同面」口径在 §4.1/§5.1/§7 表述统一 · 数字全部改为**实测值**（525 / +121 / 30 / 10 条查询 / 14 字符截断）· 术语「标签维度」「口径色」「13 色池」唯一 |
+| 一致性（标准） | 9.5/10 | 「三处同面」口径在 §4.1/§5.1/§7 表述统一 · 数字全部改为**实测值**（526 / +122 / 30 / 10 条查询 / 14 字符截断）· 术语「标签维度」「口径色」「13 色池」唯一 |
 | 清晰度（标准） | 9.5/10 | 每段标明**官方配方名**与**本地化差异**（如雷达 `dot` 单色 vs 13 色池）· 删项单列 (g) 段 · F208-A 给出正反双证 |
 | 可验证性（标准） | 9.5/10 | G14 八类断言逐条可跑（含档位无关性专条与层叠守护专条）· F209 把「措辞锚定」补成「措辞 + 绝对值双锚」 |
 | 边界覆盖（深度） | 9.0/10 | 覆盖：空标签 / 零挂载一级标签 / 45 字符类目名越界 / 短柱名称兜底 / 层叠遮挡 / 表不可用两态；未覆盖：>13 个一级标签的色池循环（真库无此数据，仅代码路径） |
@@ -886,6 +892,7 @@ AdminDashboard
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| **v0.34** | 2026-09-24 | **收口复核（F211 / F212）** —— ① **F212**：标签删除口径前置 —— `/api/labels/all` 加性补 `mountCountAny`（任一状态挂载数）· 标签页禁用条件与三段文案改用它 · 服务端用例 + dogfood G8.5/G8.6（含反证）② **F211**：资产页分页 URL 口径**定案为跟门户 `?page=`**，撤回 v0.9 的 `limit`/`offset` 条（§4.2 / §4.8b 改写 + 接受项登记）③ i18n 实测数字 **526 / +122**（新增 `labels.delete.inUseHidden`）④ dogfood 全量 **88 → 90 PASS / 0 FAIL** |
 | **v0.33** | 2026-09-23 | **T6⁺ 收口补记（F210 · 门禁腐化修复）** —— ① dogfood 读数 84 → **88**（G1–G14）：G2 整段重写（官方 Combobox 真换档 + 首刻度龄硬证据）· G2.2 改题注数值态 · G4 改 `data-active` 定位 + 「柱数 = 端点非零条数」断言 ② 两条反证（翻期望 ⇒ FAIL）③ 截图换有区分度的状态（`g2-board-trend-7` / `g4-board-rank-label`，删两张重复旧图）④ 代码侧 18 维统一 **9.15**（F210 期间 9.14）⑤ Status 版本指针 → `docs/00` v1.94 · 主 design v1.69 |
 | **v0.32** | 2026-09-23 | **T6⁺ 管理看板重做（用户逐条拍板 · 实现 + 文档同步）** —— ① §4.1 整节按当前实现重写：删创意四项/类型维度（出参连带）、加标签维度两图、趋势档位改官方 `Combobox`（右上）、副标题与页脚全清、件选型逐段标官方配方名 ② §2.4 六条决策行（D1/D11/D13/D14/D15/D31）补修订指针 ③ **服务端**：`kpi.downloads7d` 加性字段（D31/F208）+ 标签口径三处同面（`overview.labels[]` / `rankings.labels` / `assetCount` 仅 ACTIVE）④ §7.2 i18n 数字改**实测**（各 **525** · 本批 **+121** · `board` **30**）⑤ §9.3 追加 dogfood **G14**（八类断言，含档位无关性与层叠守护专条）⑥ §9.7 追加 **F208-A**（层叠遮挡，`isolate`）/ **F209**（门禁盲区，补绝对值锚）⑦ §11.2 重做轮复评 **9.44**（代码侧 18 维并行：8.44 → 9.2）。**本版含服务端改动** | → 用户拍板「甲」：顶栏回归官方 block 形态** —— ① 删 `TopBar.titleOf` 路由表（官方无「路由 → 标题」机制，见 §9.7 F207）· 顶栏构成 5 → **4 件** ② §9.3 追加 dogfood **G13**（15 条）⇒ §9.7 PASS **56 → 71** ③ §9.7 追加 **F207**（含正反双证）④ §9.4 补验收项 ⑤ 主 design **v1.67** 同步四处。**本版零服务端改动** |
 | **v0.30** | 2026-09-23 | **F206 侧栏激活唯一性修缮**（用户报缺陷 · 提交面） —— ① 判定收敛为**路径精确相等**（删 `EXACT_MATCH_PATHS` · 门户 `<NavLink>` 补 `end`）② §9.3 追加 dogfood **G12**（15 条断言）⇒ §9.7 分组 PASS **41 → 56** ③ §9.7 追加 **F206**（根因 + 修法 + 正反双证）④ §9.4 补验收项。**本版零设计语义改动**（口径取代 M4b-2/M4b-3 旧文档的 `EXACT_MATCH_PATHS` 表述） |
