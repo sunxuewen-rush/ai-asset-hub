@@ -32,11 +32,13 @@ export function parseFrontmatter(content: string): FrontmatterResult {
   const yamlLines: string[] = [];
   let closeIndex = -1;
   for (let i = 1; i < lines.length; i++) {
-    if (lines[i]?.trim() === '---') {
+    const line = lines[i];
+    if (line === undefined) break; // 越界即结束（`i < lines.length` ⇒ 不可达）
+    if (line.trim() === '---') {
       closeIndex = i;
       break;
     }
-    yamlLines.push(lines[i]!);
+    yamlLines.push(line);
   }
   if (closeIndex < 0) return { ok: false, error: 'invalid_yaml' };
 

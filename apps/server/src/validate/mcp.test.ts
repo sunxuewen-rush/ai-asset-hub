@@ -98,7 +98,7 @@ describe('mcp 族规则（03 §2/§3/§4/§5）', () => {
     expect(r.errors[0]?.code).toBe(protocolErrorCodes.stdioRequiresCommand);
   });
 
-  it('敏感头明文 → sensitive_header_plaintext（03 §4 强制 ${VAR} 引用）', async () => {
+  it(`敏感头明文 → sensitive_header_plaintext（03 §4 强制 \${VAR} 引用）`, async () => {
     const r = await validator.validate(
       mcpZip(
         [],
@@ -120,7 +120,7 @@ describe('mcp 族规则（03 §2/§3/§4/§5）', () => {
     expect(r.errors[0]?.code).toBe(protocolErrorCodes.sensitiveHeaderPlaintext);
   });
 
-  it('敏感头 ${VAR} 引用 → ok（03 §4 合规形式）', async () => {
+  it(`敏感头 \${VAR} 引用 → ok（03 §4 合规形式）`, async () => {
     const r = await validator.validate(
       mcpZip(
         [],
@@ -132,7 +132,7 @@ describe('mcp 族规则（03 §2/§3/§4/§5）', () => {
               type: 'http',
               url: 'https://example.com',
               enabled: true,
-              headers: { Authorization: '${GITHUB_TOKEN}' },
+              headers: { Authorization: `\${GITHUB_TOKEN}` },
             },
           },
         }),

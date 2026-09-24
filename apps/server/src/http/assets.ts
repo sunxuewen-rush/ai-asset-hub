@@ -54,6 +54,7 @@ import { canSubmitReview, submitVersion } from '../review/service.js';
 import type { ObjectStorage } from '../storage/types.js';
 import { assetItem, requestLocale } from './asset-item.js';
 import { assertTokenScoped, requireAuth } from './auth-middleware.js';
+import { paramOf, principalOf, rbacOf } from './context-access.js';
 
 export interface AssetRoutesDeps {
   db: Db;
@@ -128,7 +129,7 @@ async function viewerContext(c: import('hono').Context): Promise<{
       isSuperAdmin: false,
       isPlatformReviewer: false,
     };
-  const rbac = c.get('rbac')!;
+  const rbac = rbacOf(c);
   const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
   return {
     viewerId: principal.userId,
@@ -180,7 +181,7 @@ async function assertManageable(
   c: import('hono').Context,
   row: { ownerId: string },
 ): Promise<{ isSuperAdmin: boolean }> {
-  const principal = c.get('principal')!;
+  const principal = principalOf(c);
   const viewer = await viewerContext(c);
   // R14 scope 交集先于超管短路（superAdmin + 收窄 scope = 收窄生效——design §8「无 scope 概念」
   // 仅指无码超管面如 label 管理；管理写面有 asset:manage 码可交）
@@ -206,8 +207,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // POST /api/assets（T3：注册——M4-pre §2.2「用户+」：requireAuth 保证账号 ACTIVE；
   // token scope = asset:publish（原「空间成员 + rbac.can FROZEN 拒写」判定已随空间删除））
   app.post('/', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const _rbac = c.get('rbac')!;
+    const principal = principalOf(c);
+    const _rbac = rbacOf(c);
     let payload: unknown;
     try {
       payload = await c.req.json();
@@ -389,8 +390,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // PUT /api/assets/:slug/star（M4b-4 v1.8 §5.1 ⑧：收藏——**任意登录用户**（社交动作，
   // 不受 canManageAsset 约束）；幂等：已收藏 ⇒ 200 且不重复计数；授权集外沿 assertAssetReadable 404）
   app.put('/:slug/star', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const row = await loadAssetBySlug(db, c.req.param('slug')!);
+    const principal = principalOf(c);
+    const row = await loadAssetBySlug(db, paramOf(c, 'slug'));
     await assertAssetReadable(c, row);
     const result = await starAsset(db, row.id, principal.userId);
     return c.json(result);
@@ -398,8 +399,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
 
   // DELETE /api/assets/:slug/star（取消收藏——同上述权限与幂等口径）
   app.delete('/:slug/star', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const row = await loadAssetBySlug(db, c.req.param('slug')!);
+    const principal = principalOf(c);
+    const row = await loadAssetBySlug(db, paramOf(c, 'slug'));
     await assertAssetReadable(c, row);
     const result = await unstarAsset(db, row.id, principal.userId);
     return c.json(result);
@@ -408,8 +409,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // PATCH /api/assets/:slug/status（T4：状态治理——05 §6.4 asset:manage；
   // owner 下架自己资产 / 管理档治理全站；HIDDEN/ARCHIVED 即从活跃读面消失）
   app.patch('/:slug/status', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
     const row = await loadAssetBySlug(db, slug);
     await assertManageable(c, row);
 
@@ -439,16 +440,17 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       targetId: String(row.id),
       detail: { from, to: status },
     });
-    const starredByMe = await hasStarred(db, principal.userId, updated!.id);
-    return c.json(assetItem(updated!, null, starredByMe));
+    if (!updated) throw new Error('unreachable: asset.status_update 未返回行');
+    const starredByMe = await hasStarred(db, principal.userId, updated.id);
+    return c.json(assetItem(updated, null, starredByMe));
   });
 
   // DELETE /api/assets/{slug}（T4：资产删除——Q5 纠错非治理；M3 R10 条件升级）
   // 无 PUBLISHED 且无 YANKED 版本才可删（曾分发即留档——has_yanked 400）；事务删
   // review_task/file/version/asset + 事后存储清理（孤儿文件容忍：存储删失败不阻断行删除）
   app.delete('/:slug', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
     const row = await loadAssetBySlug(db, slug);
     await assertManageable(c, row);
 
@@ -499,8 +501,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // 限流 = 每用户 10 次/分钟（skillhub publish 同构）；413 = 包体超上限前置（multipart）；
   // 校验失败 400 = 首错误码 + issues 全量（UploadValidationError 特异响应）
   app.post('/:slug/versions', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
     if (!slugSchema.safeParse(slug).success) {
       throw new AssetError(assetErrorCodes.notFound);
     }
@@ -584,9 +586,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // → 身份面（owner/管理档可删 DRAFT/SCAN_FAILED/REJECTED/UPLOADED；上传者本人仅
   // DRAFT/SCAN_FAILED——草稿族例外扩展）。删除连带 review_task/存储清理（deleteVersion）。
   app.delete('/:slug/versions/:version', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
-    const version = c.req.param('version')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
+    const version = paramOf(c, 'version');
     if (!slugSchema.safeParse(slug).success || !versionFieldSchema.safeParse(version).success) {
       throw new AssetError(assetErrorCodes.notFound);
     }
@@ -643,9 +645,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // （hasReviewSubmit = `role >= ADMIN`；∪ 上传者
   // 本人例外 ∪ owner 本人——05 §6.4 + R2）→ submitVersion（前态/并发/version 递增事务）。
   app.post('/:slug/versions/:version/submit', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
-    const version = c.req.param('version')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
+    const version = paramOf(c, 'version');
     if (!slugSchema.safeParse(slug).success || !versionFieldSchema.safeParse(version).success) {
       throw new AssetError(assetErrorCodes.notFound);
     }
@@ -697,9 +699,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // 非 owner/管理档——治理最严面）→ reason 必填（400 yank_reason_required）→
   // yankVersion（YANKED 三列 + latest 重算事务 + 审计）。
   app.post('/:slug/versions/:version/yank', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
-    const version = c.req.param('version')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
+    const version = paramOf(c, 'version');
     if (!slugSchema.safeParse(slug).success || !versionFieldSchema.safeParse(version).success) {
       throw new AssetError(assetErrorCodes.notFound);
     }
@@ -710,7 +712,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       .where(and(eq(assetVersion.assetId, row.id), eq(assetVersion.version, version)));
     if (!versionRow) throw new AssetError(assetErrorCodes.notFound);
 
-    const rbac = c.get('rbac')!;
+    const rbac = rbacOf(c);
     const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     if (!canYank(role >= ACCOUNT_ROLE.ADMIN, role >= ACCOUNT_ROLE.SUPER_ADMIN)) {
       throw new AuthError('auth.forbidden');
@@ -735,9 +737,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // ADMIN/OWNER——06 §3 挂载权限）+ SUPER_ADMIN 短路；PRIVILEGED = 仅 SUPER_ADMIN。
   // 幂等：重复挂 200 / 移除不存在 204。≤10 上限（06 §1）。
   app.put('/:slug/labels/:labelSlug', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
-    const labelSlug = c.req.param('labelSlug')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
+    const labelSlug = paramOf(c, 'labelSlug');
     if (!labelSlugSchema.safeParse(labelSlug).success)
       throw new LabelError(labelErrorCodes.notFound);
     const row = await loadAssetBySlug(db, slug);
@@ -763,9 +765,9 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   });
 
   app.delete('/:slug/labels/:labelSlug', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const slug = c.req.param('slug')!;
-    const labelSlug = c.req.param('labelSlug')!;
+    const principal = principalOf(c);
+    const slug = paramOf(c, 'slug');
+    const labelSlug = paramOf(c, 'labelSlug');
     if (!labelSlugSchema.safeParse(labelSlug).success)
       throw new LabelError(labelErrorCodes.notFound);
     const row = await loadAssetBySlug(db, slug);
@@ -796,8 +798,8 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
   // 限流（60/分·IP——design G9；匿名公开下载面）→ 计数（授权过即 ++）→
   // presigned 直链 302 / Local 服务端流式 200。下载不入审计。
   app.get('/:slug/versions/:version/download', async (c) => {
-    const slug = c.req.param('slug')!;
-    const version = c.req.param('version')!;
+    const slug = paramOf(c, 'slug');
+    const version = paramOf(c, 'version');
     if (!slugSchema.safeParse(slug).success || !versionFieldSchema.safeParse(version).success) {
       throw new AssetError(assetErrorCodes.notFound);
     }

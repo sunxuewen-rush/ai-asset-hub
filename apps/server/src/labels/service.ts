@@ -208,16 +208,17 @@ export async function createLabel(
           parentId: labelDefinition.parentId,
           createdBy: labelDefinition.createdBy,
         });
+      if (!def) throw new Error('unreachable: label_definition.insert 未返回行');
       if (translations.length > 0) {
         await tx.insert(labelTranslation).values(
           translations.map((t) => ({
-            labelId: def!.id,
+            labelId: def.id,
             locale: t.locale,
             displayName: t.displayName,
           })),
         );
       }
-      return { def: def!, translations };
+      return { def, translations };
     });
 
     await audit({
@@ -452,7 +453,8 @@ export function pickDisplayName(
   fallback: string,
 ): string {
   const want = normLocale(locale);
-  const primary = want.split('-')[0]!;
+  // `split` 必返回 ≥1 段 ⇒ `?? want` 为不可达兜底（仅满足 noUncheckedIndexedAccess）
+  const primary = want.split('-')[0] ?? want;
   const byExact = (target: string) => translations?.find((x) => normLocale(x.locale) === target);
   const hit =
     byExact(want) ??

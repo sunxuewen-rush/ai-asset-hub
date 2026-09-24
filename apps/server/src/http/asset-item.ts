@@ -21,7 +21,9 @@ import type { PublicLabel } from '../labels/service.js';
  * 「候选标签」语言一致，不出现中英混排。
  */
 export function requestLocale(c: import('hono').Context): string {
-  return (c.req.header('accept-language') ?? 'en').split(',')[0]!.split(';')[0]!.trim();
+  const header = c.req.header('accept-language') ?? 'en';
+  // `split` 必返回 ≥1 段 ⇒ `?? ''` 为不可达兜底（仅满足 noUncheckedIndexedAccess）
+  return (header.split(',')[0] ?? '').split(';')[0]?.trim() ?? '';
 }
 
 export function assetItem(

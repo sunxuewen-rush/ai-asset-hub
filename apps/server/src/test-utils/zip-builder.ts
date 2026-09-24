@@ -22,8 +22,9 @@ const CRC_TABLE = (() => {
 function crc32(buf: Buffer): number {
   let crc = 0xffffffff;
   for (let i = 0; i < buf.length; i++) {
-    const idx = (crc ^ buf[i]!) & 0xff;
-    crc = CRC_TABLE[idx]! ^ (crc >>> 8);
+    // `i < buf.length` / `idx ∈ [0,255]` ⇒ 两处 `?? 0` 均为不可达兜底（仅满足 noUncheckedIndexedAccess）
+    const idx = (crc ^ (buf[i] ?? 0)) & 0xff;
+    crc = (CRC_TABLE[idx] ?? 0) ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }

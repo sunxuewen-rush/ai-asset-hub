@@ -35,6 +35,15 @@
 > 按仓库既有先例加 `/* biome-ignore ... */`（先例 = `apps/web/src/hooks/useApi.ts:43`），并写明理由（仅注入主题 CSS 变量 · 无用户输入）
 > 顺带清掉本批文件的 8 条 warning（`AdminBoard.tsx` 未用 import ×2 + `noNonNullAssertion` ×6）。
 > **非本批文件（`AppShell.tsx` / `CenterPage.tsx` / `Search.tsx`，最后提交早于本批）当时未动** —— 其中 `noDocumentCookie` 为 warning 级，不影响 exit 0。
+> **2026-09-24 补记（③-B 收口 · 挂账 ③ 清零）**：余 **73 → 0**（清 **71** 条 ⇒ `bunx biome lint` 三包 **258 文件 0 warning / 0 error**）：
+> ① **`noNonNullAssertion` 66 → 0**（**非机械 `!`→`?.`**）：**52 条 = Hono 上下文取值**，统一改走新增取值器 **`apps/server/src/http/context-access.ts`**
+>   （`principalOf(c)` / `rbacOf(c)` / `paramOf(c, name)` —— 显式取值 + 缺即抛，语义不变〔同为一个 500〕但错误可诊断）；
+>   **14 条 = 「必然存在的行/索引」**，逐处**显式收窄**（`if (!row) throw new Error('unreachable: …')` 5 处 · `?? 兜底`+注释 6 处 · 循环内 `const line = lines[i]; if (line === undefined) break;` 1 处 · `findSkillMainEntry` 前置判空 1 处 · 测试工具 CRC 表 2 处）
+> ② **`noTemplateCurlyInString` 3 → 0**：`validate/mcp.test.ts` 的**有意字面量** `${VAR}` / `${GITHUB_TOKEN}` 改用模板串 **`\${…}`**（值等价）
+> ③ **`noExplicitAny` 1 → 0**：`db/schema/governance.ts` 自引用 `(): any =>` → **`(): AnyPgColumn =>`**（drizzle 官方惯用法）
+> ④ **`noDocumentCookie` 1 → 0**：`AppShell.tsx` 写 cookie 加**带理由的** `biome-ignore`（Cookie Store API 至今仅 Chromium 系支持 ⇒ `document.cookie` 是唯一跨浏览器写面；官方 shadcn `SidebarProvider` 同款）
+> **验证**：`typecheck` 4/4 ✓ · `bunx biome lint` 三包 **0 warning** ✓ · `format:check` **305** 文件 ✓ · `test` **599 / 0 fail** ✓；真页回归见 §5.9。
+>
 > **2026-09-24 补记（③ lint 整理笔）**：全仓既有 warning **138 → 73**（清 65 条）—— (A) 自动修（未用 import / 未用变量 / 字面量键 / 安全可选链，含 `CenterPage.tsx`+`Search.tsx` 两处 `import {} from '…/select'` 空导入）+ (C) `biome.json` 忽略写法迁移（`!…/meta/**` → `!…/meta`）；**5 处类型敏感改写已回退**（会引入 `T | undefined`）；余 **73 条 (B) 类**（noNonNullAssertion 66 · noTemplateCurlyInString 5 · noExplicitAny 1 · noDocumentCookie 1）= **0 error**，登记后置（见 §8）。
 
 ## 2. 本批 dogfood（G1–**G16** · design §9.3）· **108 PASS**
@@ -360,6 +369,21 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 
 **截图（真页 · 造数在位时留证）**：`docs/smoke/m4b6-27-board-22labels.png`（看板图例 22 行）· `docs/smoke/m4b6-27-board-22labels-full.png`（整页）· `docs/smoke/m4b6-27-delete-hidden-branch.png`（删除确认第三支）。
 
+### 5.9 挂账 ③ · (B) 类 lint 清零（71 条 · 零行为变更 · 2026-09-24）
+
+**口径**：修复一律**显式收窄/显式取值**，**禁机械 `!` → `?.`**（③ 首轮已踩坑回退 5 处：`T` 变 `T | undefined`，`typecheck` 实测拦下 4 处 + 人工审出 1 处）。
+
+| 规则 | 修前 | 修法（逐族） | 修后 |
+|------|:---:|--------------|:---:|
+| `noNonNullAssertion` | **66** | ① **52 条**（`c.get('principal')` 23 · `c.get('rbac')` 7 · `c.req.param(...)` 22）统一走**新增取值器** `http/context-access.ts`（`principalOf` / `rbacOf` / `paramOf`）② **14 条**「必然存在的行/索引」逐处显式收窄（单行解构后 `if (!row) throw new Error('unreachable: …')` · 数组下标 `?? 兜底` + 注释 · 循环内 `if (line === undefined) break` · CRC 表等） | **0** |
+| `noTemplateCurlyInString` | 3 | `validate/mcp.test.ts` 的**有意字面量**（`${VAR}` / `${GITHUB_TOKEN}`）改模板串 `\${…}`（运行时值等价） | **0** |
+| `noExplicitAny` | 1 | `db/schema/governance.ts` 自引用 `(): any =>` → **`(): AnyPgColumn =>`**（drizzle 官方惯用法） | **0** |
+| `noDocumentCookie` | 1 | `AppShell.tsx` 写 cookie 处加**带理由**的 `biome-ignore`（Cookie Store API 至今仅 Chromium 系支持 ⇒ `document.cookie` 是唯一跨浏览器写面；官方 shadcn `SidebarProvider` 同款做法） | **0** |
+
+**约定（后续新码请沿用）**：HTTP 层取路由/中间件保证存在的值时，**一律走 `http/context-access.ts` 取值器**，不再写 `c.get('x')!` / `c.req.param('x')!`。
+
+**验证（本地全量）**：`bunx biome lint`（server+web+cli）**258 文件 0 warning / 0 error** · `typecheck --force` 4/4 ✓ · `format:check` **305** 文件 ✓ · `test --force` **599 pass / 0 fail** ✓ · `doc-audit` **113/0** · `doc-claims` **46/0** · 真页回归（本批 dogfood G1–G16 + 零回归四脚本，**seed → dogfood 成对跑**）见 §6：**108/0 · 60/0 · 43/0 · 89/0 · 62/0**（逐项等于基线）。
+
 ## 6. 零回归（口径 = 无新增失败 · design §9.1）
 
 **执行方式**：**串行逐脚本**（首轮并发无效，见下注）。结果与**逐条定性**：
@@ -408,6 +432,12 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 > 只跑 dogfood 会在同一份夹具上二次破坏，实测踩到：单跑 → 4 条 yank 类红）。另：`m4b4` 的 `/skills` 行数、
 > `m4b4` 表行数等**一律按端点真值**，不写死条数（本批同类教训 F213 / F219①）。
 
+> **③ lint 清零后复跑（2026-09-24 · **逐项等于基线 · 零漂移**）**：本批 dogfood **108 / 0**（CDP 超时 0）· `m4a` **60/0** ·
+> `m4b3` **43/0** · `m4b4` **89/0** · `m4b5` **62/0**（后三支按「**seed → dogfood 成对跑**」口径：`m4b3-seed-submissions` /
+> `m4b4-seed-assets` / `m4b5-seed-reviews` **先复位再跑**）⇒ 14 个改动面（HTTP 取值器化 + 逐处显式收窄）**零行为变更**得证。
+> ⚠️ **本轮踩到一次假红并当场定性**（记账）：首跑出现连续 `CDP 超时：Runtime.evaluate` ⇒ 根因 = 当日探针累计开了 **262 个标签页**
+> 把浏览器拖垮（**非代码问题**）；清理到 3 个后复跑即全绿。**纪律**：探针跑完必须 `json/close` 关掉自己的标签页，勿留堆积。
+
 ## 7. 出口件与截图
 
 **件行数（`wc -l` 实测 · T6⁺ 重测）**：`AdminBoard.tsx` **840** · `AdminAssets.tsx` **625** · `AdminLabels.tsx` **574** ·
@@ -440,7 +470,7 @@ FAIL G13.15 顶栏 h1 计数 = 0                                ← 旧版顶栏
 | 7 | ~~**>13 个一级标签的 13 色池循环**~~ | ✅ **已实证**（2026-09-24 · 用户授权写库 · **§5.8**）：真库原 **7** 个一级标签 ⇒ 造 14 个零挂载一级标签（一级标签 **7 → 22**）⇒ 两图图例各 **22** 行，`index 13..21` 取色**换圈**回 `0..8`、前 13 行 **13 色互异**（含解析后 rgb）· 实测后自清回 **7** | 已闭合（一次性探针脚本 + 截图留证） |
 | 8 | ~~**F212「仅挂已隐藏/已归档」分支的真页实测**~~ | ✅ **已实证**（2026-09-24 · **§5.8**）：造「仅挂 `HIDDEN` 资产」标签 + 真页删除弹窗 ⇒ **第三支**文案逐字命中 + 「确认删除」钮**禁用**（`disabled` / `opacity 0.5` / `pointer-events:none`）；**对照组**（零挂载）走第四支且按钮可用 ⇒ 分支判别力已证 · 实测后自清 | 已闭合（原服务端用例与 G8.6 覆盖保留） |
 | 9 | ~~F218 重挂对看板「一级上卷」成员的影响~~ | ✅ **已证**（2026-09-24）—— 新增 dogfood **G16**（6 条）在**重挂态**下实测：原子行从一级上卷消失 · 零计数目标新父 count **0 → 1** 严格等值 · 上卷 sum **3 → 3** 守恒 · `rankings` 同面 · 真页图例行数对齐 · 复原逐字段回落；**反证**停掉重挂 ⇒ 3 条 FAIL | 已闭合（常驻断言） |
-| 10 | **既有 lint warning（B) 类 · 73 条** | **未清**（登记 · 后置）：`noNonNullAssertion` 66（多数应显式判空/类型收窄而非加 `!`，且部分在测试面）· `noTemplateCurlyInString` 5（疑为**有意**的字面量模板串，如正则）· `noExplicitAny` 1 · `noDocumentCookie` 1（shadcn 目录外） | 全部 warning 级（**0 error**，不影响门禁 exit 0）；(A)+(C) 类已于 2026-09-24 清理（138 → 73） |
+| 10 | ~~**既有 lint warning（B) 类 · 73 条**~~ | ✅ **已清零**（2026-09-24 · 实测 **71** 条 · **§5.9**）：`noNonNullAssertion` 66 → 0（52 条走新增 `http/context-access.ts` 取值器 · 14 条显式收窄）· `noTemplateCurlyInString` 3 → 0（模板串 `\${…}`）· `noExplicitAny` 1 → 0（`AnyPgColumn`）· `noDocumentCookie` 1 → 0（带理由 `biome-ignore`）⇒ `bunx biome lint` 三包 **258 文件 0 warning / 0 error** | 已闭合（(A)+(C) 类此前 138 → 73；本轮 73 → 0） |
 
 > ⚠️ **环境备注（2026-09-24 · 自测试 → 追根为 F215 · **已修**）**：真库新增两条一级标签 `software` / `hardware`
 > （13:50 由超管账号在管理页创建）⇒ 其 zh 翻译以 **`zh-cn`** 落库（UI 表单写 `zh-CN`，服务端归一为小写）

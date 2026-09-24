@@ -45,7 +45,8 @@ async function parseMainFile(
   const read = (path: string) => readZipEntry(zip, path);
   if (type === 'skill') {
     const main = findSkillMainEntry(entries);
-    const content = (await read(main!.path)).toString('utf8');
+    if (!main) throw new Error('unreachable: skill main file missing after validation');
+    const content = (await read(main.path)).toString('utf8');
     const parsed = parseFrontmatter(content);
     if (!parsed.ok)
       throw new Error(

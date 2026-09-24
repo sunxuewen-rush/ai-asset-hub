@@ -26,6 +26,7 @@ import {
 } from '../review/query.js';
 import { approveReview, rejectReview, withdrawReview } from '../review/service.js';
 import { assertTokenScoped, requireAuth } from './auth-middleware.js';
+import { principalOf, rbacOf } from './context-access.js';
 
 const PAGE_SCHEMA = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -41,8 +42,8 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   /** 审核队列（管理档面——design §9 → M4-pre：全站单队列） */
   app.get('/', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
-    const rbac = c.get('rbac')!;
+    const principal = principalOf(c);
+    const rbac = rbacOf(c);
     const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     if (role < ACCOUNT_ROLE.ADMIN) throw new ReviewError(reviewErrorCodes.accessDenied);
 
@@ -64,7 +65,7 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   // 我的提交（登录面）
   app.get('/mine', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const query = PAGE_SCHEMA.safeParse(c.req.query());
     if (!query.success)
       return c.json({ code: 'request.invalid', message: 'invalid pagination params' }, 400);
@@ -84,10 +85,10 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   // 详情（review:approve 面 or 提交人本人——design §9；404/403 服务内）
   app.get('/:id', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const taskId = Number(c.req.param('id'));
     if (!Number.isInteger(taskId) || taskId <= 0) throw new ReviewError(reviewErrorCodes.notFound);
-    const rbac = c.get('rbac')!;
+    const rbac = rbacOf(c);
     const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     const canApprove = role >= ACCOUNT_ROLE.ADMIN;
     const detail = await getReviewDetail(db, { taskId, viewerId: principal.userId, canApprove });
@@ -96,12 +97,12 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   // 审核通过（防自审服务内；SUPER_ADMIN 例外）
   app.post('/:id/approve', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const taskId = Number(c.req.param('id'));
     if (!Number.isInteger(taskId) || taskId <= 0) throw new ReviewError(reviewErrorCodes.notFound);
     const body = APPROVE_BODY.safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ code: 'request.invalid', message: 'invalid body' }, 400);
-    const rbac = c.get('rbac')!;
+    const rbac = rbacOf(c);
     const canApprove = await rbac.hasRole(principal.userId, ACCOUNT_ROLE.ADMIN);
     assertTokenScoped(c, TOKEN_SCOPES.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
@@ -116,13 +117,13 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   // 审核拒绝（comment 必填——服务内校验）
   app.post('/:id/reject', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const taskId = Number(c.req.param('id'));
     if (!Number.isInteger(taskId) || taskId <= 0) throw new ReviewError(reviewErrorCodes.notFound);
     const body = REJECT_BODY.safeParse(await c.req.json().catch(() => ({})));
     if (!body.success)
       return c.json({ code: 'request.invalid', message: 'reject requires non-empty comment' }, 400);
-    const rbac = c.get('rbac')!;
+    const rbac = rbacOf(c);
     const canApprove = await rbac.hasRole(principal.userId, ACCOUNT_ROLE.ADMIN);
     assertTokenScoped(c, TOKEN_SCOPES.reviewApprove); // T15：token scope 交集（R14——scope 无码即拒）
     if (!canApprove) throw new ReviewError(reviewErrorCodes.accessDenied);
@@ -137,10 +138,10 @@ export function createReviewRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   // 撤回提审（PENDING_REVIEW → UPLOADED——design §3.5 R6）
   app.post('/:id/withdraw', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const taskId = Number(c.req.param('id'));
     if (!Number.isInteger(taskId) || taskId <= 0) throw new ReviewError(reviewErrorCodes.notFound);
-    const rbac = c.get('rbac')!;
+    const rbac = rbacOf(c);
     // R14：withdraw 写动作 scope 交集（design §8 ②「submit/withdraw = review:submit」）
     assertTokenScoped(c, TOKEN_SCOPES.reviewSubmit);
     const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;

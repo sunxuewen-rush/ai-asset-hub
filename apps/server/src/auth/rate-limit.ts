@@ -25,7 +25,8 @@ export class InMemoryRateLimiter implements RateLimiter {
     this.hits.set(key, entries);
 
     if (entries.length > this.maxHits) {
-      const oldest = entries[0]!;
+      // `entries` 刚 `push(now)` ⇒ 必非空；`?? now` 为不可达兜底（仅满足 noUncheckedIndexedAccess）
+      const oldest = entries[0] ?? now;
       const retryAfterMs = Math.max(0, oldest + this.windowMs - now);
       return { allowed: false, retryAfterSec: Math.ceil(retryAfterMs / 1000) };
     }

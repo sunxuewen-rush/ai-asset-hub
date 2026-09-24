@@ -112,7 +112,8 @@ export class LdapChannel {
     if (username.includes('@')) {
       candidates.push(username); // UPN 直 bind
     }
-    const localPart = username.includes('@') ? username.split('@')[0]! : username;
+    // `split` 必返回 ≥1 段 ⇒ `?? username` 为不可达兜底（仅满足 noUncheckedIndexedAccess）
+    const localPart = username.includes('@') ? (username.split('@')[0] ?? username) : username;
     if (this.config.userBase) {
       candidates.push(`CN=${localPart},${this.config.userBase}`);
     }

@@ -23,6 +23,7 @@ import {
 } from '../labels/service.js';
 import { requestLocale } from './asset-item.js';
 import { requireAuth } from './auth-middleware.js';
+import { paramOf, principalOf, rbacOf } from './context-access.js';
 
 const TRANSLATION = z.object({
   locale: z.string().min(2).max(16),
@@ -56,8 +57,8 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   /** SUPER_ADMIN 门（06 §3：定义 CRUD 仅超管——requireAuth 后 principal 恒有） */
   async function assertSuperAdmin(c: import('hono').Context): Promise<void> {
-    const principal = c.get('principal')!;
-    const rbac = c.get('rbac')!;
+    const principal = principalOf(c);
+    const rbac = rbacOf(c);
     const role = (await rbac.roleOf(principal.userId)) ?? ACCOUNT_ROLE.GUEST;
     if (role < ACCOUNT_ROLE.SUPER_ADMIN) throw new LabelError(labelErrorCodes.accessDenied);
   }
@@ -83,7 +84,7 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const body = CREATE_BODY.safeParse(await c.req.json().catch(() => ({})));
     if (!body.success)
       return c.json({ code: 'request.invalid', message: 'invalid label body' }, 400);
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const created = await createLabel(db, audit, {
       ...body.data,
       translations: body.data.translations?.map((t) => ({
@@ -97,12 +98,12 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   app.patch('/:slug', requireAuth(), async (c) => {
     await assertSuperAdmin(c);
-    const slug = c.req.param('slug')!;
+    const slug = paramOf(c, 'slug');
     if (!labelSlugSchema.safeParse(slug).success) throw new LabelError(labelErrorCodes.notFound);
     const body = UPDATE_BODY.safeParse(await c.req.json().catch(() => ({})));
     if (!body.success)
       return c.json({ code: 'request.invalid', message: 'invalid label body' }, 400);
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const updated = await updateLabel(db, audit, {
       slug,
       actorId: principal.userId,
@@ -117,9 +118,9 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
 
   app.delete('/:slug', requireAuth(), async (c) => {
     await assertSuperAdmin(c);
-    const slug = c.req.param('slug')!;
+    const slug = paramOf(c, 'slug');
     if (!labelSlugSchema.safeParse(slug).success) throw new LabelError(labelErrorCodes.notFound);
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     await deleteLabel(db, audit, { slug, actorId: principal.userId });
     return c.body(null, 204);
   });
@@ -129,7 +130,7 @@ export function createLabelRoutes(deps: { db: Db; audit: AuditWriter }): Hono {
     const body = REORDER_BODY.safeParse(await c.req.json().catch(() => ({})));
     if (!body.success)
       return c.json({ code: 'request.invalid', message: 'invalid order body' }, 400);
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     await reorderLabels(db, audit, { order: body.data.order, actorId: principal.userId });
     return c.body(null, 204);
   });

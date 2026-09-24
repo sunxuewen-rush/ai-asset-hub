@@ -93,7 +93,8 @@ export async function submitVersion(
         .set({ status: 'PENDING_REVIEW' })
         .where(eq(assetVersion.id, version.id));
 
-      return { id: taskRow!.id, reviewVersion };
+      if (!taskRow) throw new Error('unreachable: review_task.insert 未返回行');
+      return { id: taskRow.id, reviewVersion };
     });
 
     await audit({

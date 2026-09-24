@@ -70,6 +70,10 @@ export function AppShell() {
   }, []);
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
+    // writes 侧不能走 Cookie Store API —— `cookieStore` 至今仅 Chromium 系支持（Safari/Firefox 未实现）
+    // ⇒ `document.cookie` 是唯一跨浏览器写面；且这是官方 shadcn `SidebarProvider` 同款做法
+    // （`sidebar_state` cookie 持久化折叠态，读侧见 `readSidebarOpen()`）。
+    // biome-ignore lint/suspicious/noDocumentCookie: Cookie Store API 非跨浏览器实现（理由见上）
     document.cookie = `${SIDEBAR_COOKIE}=${next}; path=/; max-age=${60 * 60 * 24 * 7}`;
   };
   return (

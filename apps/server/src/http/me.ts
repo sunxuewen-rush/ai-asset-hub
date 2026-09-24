@@ -18,6 +18,7 @@ import { assetStatusSchema } from '../db/schema/index.js';
 import { labelsOfAssets } from '../labels/service.js';
 import { assetItem, requestLocale } from './asset-item.js';
 import { requireAuth } from './auth-middleware.js';
+import { principalOf } from './context-access.js';
 
 /** 与公开面 `listQuerySchema` 对齐（差异 = `status` 维度：本面默认 `'ALL'`） */
 const meQuerySchema = z.object({
@@ -38,7 +39,7 @@ export function createMeRoutes({ db }: MeRoutesDeps): Hono {
 
   // GET /api/me/assets（R6：owner-only 集合 · 全状态 · 分页 · q 检索）
   app.get('/assets', requireAuth(), async (c) => {
-    const principal = c.get('principal')!;
+    const principal = principalOf(c);
     const parsed = meQuerySchema.safeParse(c.req.query());
     if (!parsed.success) {
       return c.json({ code: 'request.invalid', message: parsed.error.issues[0]?.message }, 400);
