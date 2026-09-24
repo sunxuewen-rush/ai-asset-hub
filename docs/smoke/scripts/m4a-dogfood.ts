@@ -910,13 +910,57 @@ async function main() {
     '版本历史两行',
     ((await vtxt()) ?? '').includes('v1.1.0') && ((await vtxt()) ?? '').includes('v1.0.0'),
   );
+  // F220 修（2026-09-24）：真值口径已变更 —— diff 文件行的**类型标记**不再是字面词
+  // `MODIFIED/ADDED/DELETED`，而由 `+N −M` **签名**承载（`apps/web/src/components/ui/DiffWorkspace.tsx`：
+  // 折叠行 = `▸<path>+N −M` 的 `button`；展开后 = `<section aria-label="<path> +N −M">` 内含真 diff 行）
+  // ⇒ 原「找三个字面词」**恒假红**。另：原「+− 行内容」取全页 `document.body.innerText` 搜 `searchByPrefix`，
+  // 命中的其实是右侧「**变更历史**」文案（**假命中** —— 同 F219 的「断言取全文而非真源」病灶）
+  // ⇒ 现改为**在 diff 区内**取证。
+  const signOf = (tx: string) => {
+    const m = tx.match(/\+(\d+) −(\d+)$/);
+    return m ? ([Number(m[1]), Number(m[2])] as [number, number]) : null;
+  };
+  const fileRows = JSON.parse(
+    (await evalJs(
+      `JSON.stringify([...document.querySelectorAll('button')].map((b) => (b.textContent || '').trim()).filter((x) => /^[▸▾]?[^\\s].*\\+\\d+ −\\d+$/.test(x) && x.length < 60))`,
+    )) as string,
+  ) as string[];
+  const sigs = fileRows.map(signOf).filter((x): x is [number, number] => x !== null);
   ok(
-    'diff 三型徽章',
-    ((await vtxt()) ?? '').includes('MODIFIED') &&
-      ((await vtxt()) ?? '').includes('ADDED') &&
-      ((await vtxt()) ?? '').includes('DELETED'),
+    'diff 三类变更（真值口径 `+N/−M` 签名：修改 = 有增有删 / 新增 = 只增 / 删除 = 只删）',
+    fileRows.length >= 2 &&
+      sigs.some(([a, d]) => a > 0 && d > 0) &&
+      sigs.some(([a, d]) => a > 0 && d === 0) &&
+      sigs.some(([a, d]) => a === 0 && d > 0),
+    `文件行=${JSON.stringify(fileRows)}`,
   );
-  ok('diff +/− 行内容', ((await vtxt()) ?? '').includes('searchByPrefix'));
+  // 真源取证：按**签名**挑「只增」那行（不写死文件名）⇒ 展开后在**该 section 内**找 `searchByPrefix`
+  const addRow = fileRows[sigs.findIndex(([a, d]) => a > 0 && d === 0)] ?? '';
+  const addPath = addRow
+    .replace(/^[^A-Za-z0-9_.\-/]+/, '')
+    .replace(/\+\d+ −\d+$/, '')
+    .trim();
+  const clickRow = () =>
+    evalJs(
+      `(() => { const b = [...document.querySelectorAll('button')].find((x) => (x.textContent || '').trim() === ${JSON.stringify(addRow)}); if (b) b.click(); return !!b; })()`,
+    );
+  const sectionText = async () =>
+    ((await evalJs(
+      `(() => { const s = [...document.querySelectorAll('section[aria-label]')].find((x) => (x.getAttribute('aria-label') || '').startsWith(${JSON.stringify(addPath)})); return s ? s.innerText || '' : ''; })()`,
+    )) as string) ?? '';
+  await clickRow();
+  await sleep(1700);
+  let diffText = await sectionText();
+  if (!diffText) {
+    await clickRow();
+    await sleep(1700);
+    diffText = await sectionText();
+  }
+  ok(
+    'diff +/− 行内容（**diff 区内**取证：`只增` 行展开后含增行 `searchByPrefix` · 排除「变更历史」假命中）',
+    diffText.includes('searchByPrefix'),
+    `path=${addPath} · 长度=${diffText.length} · 首段=${JSON.stringify(diffText.slice(0, 120))}`,
+  );
   await shot('5-skill-versions');
 
   await nav(`${BASE}/assets/demo-http-mcp`);
