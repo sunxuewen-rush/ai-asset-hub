@@ -415,9 +415,11 @@ if (want('G3')) {
   );
   // 口径三向一致：overview.labels[] ↔ rankings.labels（逐条 count 相等 ⇒ 一级 + 上卷 + 仅 ACTIVE + 去重同面）
   const rk = await readJson('/api/admin/rankings?limit=100');
-  const ovMap = new Map((ov.body?.labels ?? []).map((l: any) => [l.slug, l.count]));
+  const ovMap = new Map(
+    (ov.body?.labels ?? []).map((l: Record<string, unknown>) => [l.slug, l.count]),
+  );
   const rkLabels = rk.body?.labels ?? [];
-  const mismatch = rkLabels.filter((l: any) => ovMap.get(l.id) !== l.value);
+  const mismatch = rkLabels.filter((l: Record<string, unknown>) => ovMap.get(l.id) !== l.value);
   ok(
     'G3.7 标签口径与排行榜同面（逐条 count 相等）',
     rkLabels.length > 0 && mismatch.length === 0,
@@ -496,7 +498,7 @@ if (want('G5')) {
       };
     });
   })()`);
-  const hs = (h ?? []) as Array<any>;
+  const hs = (h ?? []) as Array<Record<string, unknown>>;
   ok(
     'G5.1 英雄榜两榜在位（员工榜 / 资产榜）',
     hs.length === 2 &&
@@ -536,7 +538,7 @@ if (want('G6')) {
   const t = await bodyText();
   ok(
     'G6.2 端点 status=ALL 含非 ACTIVE',
-    (apiAll.body?.items ?? []).some((x: any) => x.status !== 'ACTIVE'),
+    (apiAll.body?.items ?? []).some((x: Record<string, unknown>) => x.status !== 'ACTIVE'),
   );
   await shot('g6-assets-list');
   // 排序接线：点「下载」列头 ⇒ URL 出 sort

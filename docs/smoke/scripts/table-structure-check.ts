@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process';
 /**
  * 修订表结构完整性检查 —— table-structure-check.ts
  *
@@ -19,7 +20,6 @@
  * 退出码：0 = 全绿（含 N/A 与豁免）；1 = 有 FAIL
  */
 import { readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -75,7 +75,7 @@ for (const file of files) {
     if (m) seg.push({ idx: i, key: [Number(m[1]), Number(m[2]), m[3] ?? ''] });
   }
   if (seg.length) segs.push(seg);
-  const all = segs.flatMap((s) => s);
+  const all = segs.flat();
   if (!all.length) {
     skips.push(`${file} 修订记录节无表行`);
     continue;

@@ -9,6 +9,7 @@ const remoteHttpManifest = {
     github: {
       type: 'http',
       url: 'https://mcp.example.com/github',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: 断言目标即字面量 `${VAR}`（MCP manifest 允许 ${VAR} 占位 · 上游契约，勿改语义）
       headers: { Authorization: '${GITHUB_TOKEN}' },
       enabled: true,
     },
@@ -53,6 +54,7 @@ const mcpServersKeyManifest = {
 };
 
 describe('McpManifestSchema', () => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: 断言目标即字面量 `${VAR}`（MCP manifest 允许 ${VAR} 占位 · 上游契约，勿改语义）
   it('accepts remote http manifest with ${VAR} header', () => {
     const result = McpManifestSchema.safeParse(remoteHttpManifest);
     expect(result.success).toBe(true);

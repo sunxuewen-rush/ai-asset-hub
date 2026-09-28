@@ -16,7 +16,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     }
   },
   "overrides": [
@@ -59,6 +59,29 @@
             "noExplicitAny": "off"
           },
           "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["docs/smoke/scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noUndeclaredEnvVars": "off"
+          },
+          "complexity": {
+            "useLiteralKeys": "off",
+            "useOptionalChain": "off"
+          },
+          "correctness": {
+            "noUnusedVariables": "off",
+            "noUnsafeOptionalChaining": "off"
+          },
+          "style": {
+            "useTemplate": "off",
             "noNonNullAssertion": "off"
           }
         }

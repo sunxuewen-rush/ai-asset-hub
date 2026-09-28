@@ -69,7 +69,9 @@ const { rows: seedRows } = await pg.query<{ id: string }>(
    RETURNING id`,
   [SEED_SLUG, ownerId],
 );
-const assetId = seedRows[0]!.id;
+const seed = seedRows[0];
+if (!seed) throw new Error('造数失败：asset INSERT 未返回 id');
+const assetId = seed.id;
 
 const { rows: verRows } = await pg.query<{ id: string }>(
   `INSERT INTO asset_version (asset_id, version, status, published_at, parsed_metadata_json)
@@ -77,7 +79,9 @@ const { rows: verRows } = await pg.query<{ id: string }>(
    RETURNING id`,
   [assetId, JSON.stringify({ name: 'M4b-6 造数资产', description: '造数用（可 --clean 回收）' })],
 );
-const versionId = verRows[0]!.id;
+const ver = verRows[0];
+if (!ver) throw new Error('造数失败：asset_version INSERT 未返回 id');
+const versionId = ver.id;
 await pg.query('UPDATE asset SET latest_version_id = $1 WHERE id = $2', [versionId, assetId]);
 
 let inserted = 0;
