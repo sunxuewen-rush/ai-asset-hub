@@ -6,7 +6,8 @@
  * 根因是**写文档时只改一边**、且没有校验机制。本脚本把该检查自动化，防复发。
  *
  * 检查项：
- *   A. 版本头一致性 —— 头部最新版必须出现在修订记录表内；且头部只留最近 1-2 版
+ *   A. 版本头一致性 —— 头部最新版必须出现在修订记录表内；且头部**版本行 ≤3**
+ *      （计数口径 = HEAD_DECL 三形态；目标最近 1-2 版、硬上限 3）
  *   F. 修订表**行结构**完整性 —— 禁「孤立残段」与「两版号拼进同一行」（截断锚点编辑的残留）
  *   F2. 修订表**版号重复** —— 同一修订表内同一版号不得出现两次（顺序不查：仓内无统一方向）
  *   B. 死路径引用 —— 形如 `docs/xxx.md` 的引用必须真实存在（更名/旧名史实行豁免）
@@ -36,6 +37,18 @@ const NEUTRAL_PATTERNS: { label: string; re: RegExp }[] = [
   { label: '内部仓编号', re: /21-skillhub/i },
   { label: '本机绝对路径', re: /\/Users\/[A-Za-z]|\/home\/[A-Za-z]|[A-Z]:\\Users/ },
 ];
+
+/**
+ * 头部「版本声明行」三种形态（2026-09-28 升级 · F-111 同族盲区第二例）：
+ *   A `> Updated: 2026-09-28（**v1.97：…**）`
+ *   B `> 2026-09-23（**v1.92：…**）`      ← 日期在前（无 `Updated:` 前缀）
+ *   C `> v1.78（2026-09-20）：…`          ← 版号在前
+ * 旧实现只数 `startsWith('> Updated:')` ⇒ B / C 两种形态**逃过计数**：实测 5 份文档头部版本行
+ * 超限（最多 21 条）而门禁全 PASS。**续行**（如 `> 2026-09-18 拍板「…」`）刻意不匹配 ——
+ * 声明行在日期/版号后紧跟 `（`，续行是空格 + 正文，用该锚点避免把续行算成新条目。
+ */
+const HEAD_DECL =
+  /^> (?:Updated: )?(?:\d{4}-\d{2}-\d{2}（\*{0,2}v\d|v\d+\.\d+（\d{4}-\d{2}-\d{2}）)/;
 
 function walk(dir: string, out: string[], exts: string[]): void {
   const abs = join(ROOT, dir);
@@ -80,6 +93,15 @@ const ok = (cond: boolean, label: string, detail = '') => {
   }
 };
 
+/*
+ * N/A：**检查未运行**的显式标记（2026-09-28 加 · 关闭「静默跳过」盲区族）。
+ * 不计入 pass/fail（N/A 不参与分母），但必须**打印** —— 「跳过」与「通过」在输出里
+ * 长得一样，是本仓已三次踩的同一族盲区（F-111 同族；本例由换靶自检抓出）。
+ */
+const na = (label: string) => {
+  console.log(`N/A  ${label}`);
+};
+
 const docs = listDocs();
 const sources = listSources();
 console.log(`=== 文档体检 doc-audit（文档 ${docs.length} 份 · 源码 ${sources.length} 份）===\n`);
@@ -94,28 +116,50 @@ for (const rel of docs) {
    */
   const headLines = lines.filter((l) => l.startsWith('> Updated:'));
   const headLine = headLines[0];
+  /* 头部块（首个 `## ` 之前）内的「版本声明行」—— 三形态见 HEAD_DECL。 */
+  const h2a = lines.findIndex((l) => l.startsWith('## '));
+  const headDeclLines = lines
+    .slice(0, h2a < 0 ? lines.length : h2a)
+    .filter((l) => HEAD_DECL.test(l));
 
-  // A. 版本头 vs 修订表
-  if (headLine) {
-    const hv = [...headLine.matchAll(/v(\d+\.\d+)：/g)].map((m) => m[1]);
-    const rv = lines
-      .filter((l) => /^\|\s*\*{0,2}v?\d+\.\d+\s*\*{0,2}\s*\|/.test(l))
-      .map((l) => (l.match(/^\|\s*\*{0,2}v?(\d+\.\d+)/) as RegExpMatchArray)[1]);
-    if (hv.length > 0) {
+  // A. 版本头 vs 修订表（首项）
+  /*
+   * 取值口径（2026-09-28 三次修正 · 关闭「静默跳过」残留）：原实现
+   * `if (headLine) { … if (hv.length > 0) { … } }` —— 首行取不到「vX.Y：」形态时
+   * **不发也不报**（检查静默消失）。现改为：优先「vX.Y：」形态，取不到则回退首个 `vX.Y`；
+   * 连版号都没有才免检，且**显式打印 N/A**。
+   */
+  const firstDecl = headDeclLines[0] ?? headLine;
+  if (firstDecl) {
+    const hv = [...firstDecl.matchAll(/v(\d+\.\d+)：/g)].map((m) => m[1]);
+    const ver = hv[0] ?? (firstDecl.match(/v(\d+\.\d+)/) ?? [])[1];
+    if (ver) {
+      const rv = lines
+        .filter((l) => /^\|\s*\*{0,2}v?\d+\.\d+\s*\*{0,2}\s*\|/.test(l))
+        .map((l) => (l.match(/^\|\s*\*{0,2}v?(\d+\.\d+)/) as RegExpMatchArray)[1]);
       ok(
-        rv.includes(hv[0]),
-        `[A] ${rel} 头部最新版 v${hv[0]} 在修订表内`,
+        rv.includes(ver),
+        `[A] ${rel} 头部最新版 v${ver} 在修订表内`,
         `表内 ${rv.length} 版：${rv.slice(0, 5).join(', ')}…`,
       );
+    } else {
+      na(`[A] ${rel} 头部未声明版号 ⇒ 首项免检`);
     }
-    ok(
-      headLines.length <= 3,
-      `[A] ${rel} 头部版本行 ≤3（当前 ${headLines.length}）`,
-      `口径：头部只留最近 1-2 版，完整历史见修订表｜本文件头部行：${headLines
-        .map((l) => (l.match(/v(\d+\.\d+)/) ?? [])[1] ?? '?')
-        .join(', ')}`,
-    );
+  } else {
+    na(`[A] ${rel} 无头部版本声明行 ⇒ 首项免检`);
   }
+  /*
+   * ≤3 检查**必须在 `if (headLine)` 之外**（2026-09-28 二次修正 · 换靶夹具实证）：
+   * 原先它在里面 ⇒ 头部**只用「日期在前 / 版号在前」形态**（无 `> Updated:` 行）的文档
+   * 整个计数检查被跳过 —— 4 条头部夹具实测 `exit 0` 且无 FAIL（假绿 · F-111 同族第三例）。
+   */
+  ok(
+    headDeclLines.length <= 3,
+    `[A] ${rel} 头部版本行 ≤3（当前 ${headDeclLines.length}）`,
+    `口径：目标最近 1-2 版 · 硬上限 3；完整历史见修订表｜本文件头部版本行：${headDeclLines
+      .map((l) => (l.match(/v(\d+\.\d+)/) ?? [])[1] ?? '?')
+      .join(', ')}`,
+  );
 
   /*
    * A2. 修订表 → 头部（**反向检查** · 2026-09-22 加）：
@@ -126,6 +170,7 @@ for (const rel of docs) {
    *   若某文件头部引用了**别的文档**的版号，可能掩盖本文件的落后（假绿）。
    */
   const secIdx = lines.findIndex((l) => /^##\s+\d*\.?\s*修订记录/.test(l));
+  if (secIdx < 0) na(`${rel} 无修订记录节 ⇒ [A2]/[F]/[F2] 免检（3 项）`);
   if (secIdx >= 0) {
     const h2 = lines.findIndex((l) => l.startsWith('## '));
     const headVs = new Set(
