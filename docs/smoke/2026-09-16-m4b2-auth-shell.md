@@ -140,7 +140,7 @@ bun docs/smoke/scripts/m4b2-seed-roles.ts   # DATABASE_URL 从 apps/server/.env 
 
 ## 11. 出口件 ④ 七项验收（**CDP 自动断言 · 14 PASS / 0 FAIL**）
 
-**口径变更（2026-09-16 用户授权代跑 + 认可）**：执行方式由「用户实机逐项确认」改为**CDP 自动断言**——七项全为**功能/行为项**（是/否二值），自动化更可重放、更可留证；脚本入仓 `docs/smoke/scripts/m4b2-acceptance-checklist.ts`（口令从 env 读）。实测 **14 PASS / 0 FAIL + NO JS ERRORS**；结论经用户**认可**。⚠️ **审美面不在本批范围**（本批口径 = 只看功能；视觉打磨归 **M4b-7**）
+**口径变更（2026-09-16 用户授权代跑 + 认可）**：执行方式由「用户实机逐项确认」改为**CDP 自动断言**——七项全为**功能/行为项**（是/否二值），自动化更可重放、更可留证；脚本入仓 `docs/smoke/scripts/m4b2-acceptance-checklist.ts`（口令从 env 读）。实测 **14 PASS / 0 FAIL + NO JS ERRORS**；结论经用户**认可**。⚠️ **审美面不在本批范围**（本批口径 = 只看功能；视觉打磨归 **M4b-8**）
 
 > 脚本：`docs/smoke/scripts/m4b2-acceptance-checklist.ts`（七项逐条断言，可重放）。
 > 运行：`SMOKE_M4B2_PASSWORD=… bun docs/smoke/scripts/m4b2-acceptance-checklist.ts`

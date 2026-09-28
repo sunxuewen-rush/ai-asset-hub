@@ -21,7 +21,7 @@
 **非目标（Out）**：
 - 详情页 `/reviews/:id` 的内容（**归 M4b-5**；本批只做入口 —— 用户 2026-09-16 定 A）
 - 我的资产 / 工作台三卡（**M4b-4**）· 审核队列 + 裁决（**M4b-5**）· 标签/审计（**M4b-6**）
-- token `scope` 策略扩展 · 关键词搜索（YAGNI，量小）· **全站去红**（登记 **M4b-7**）
+- token `scope` 策略扩展 · 关键词搜索（YAGNI，量小）· **全站去红**（登记 **M4b-8**）
 - 有效期展示（一律永不过期，**不显示** —— 用户定）
 
 ---
@@ -308,7 +308,7 @@
 ```
 ① `bun docs/smoke/scripts/m4b3-personal-a-dogfood.ts`（登录态传入方式沿用 M4b-2 脚本）⇒ G1-G15 全绿 + `NO JS ERRORS`（清单见批 design §9.3）
 ② 出口五件：批 design 8 维 ≥9（已 9.81）· T1-T10 全绿 · 五门禁 exit 0 ·
-   dogfood/观感（合规则核对，审美归 M4b-7）· **整体审计**（十一维无未决项）
+   dogfood/观感（合规则核对，审美归 M4b-8）· **整体审计**（十一维无未决项）
 ③ 证据文件含：门禁输出 · dogfood 输出 · 权威行数表（`wc -l` 实测）· 出口件状态
 ④ 全量测试：`CI=true bun run test` 零新失败（基线 500 pass / 1 skip / 0 fail）
 ⑤ 门户零回归：`m4a-dogfood.ts` 36/36 · `m4a-chain-smoke.ts` PASS

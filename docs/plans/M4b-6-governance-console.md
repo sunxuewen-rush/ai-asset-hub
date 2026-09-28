@@ -8,7 +8,7 @@
 > 上游：批 design `docs/designs/2026-09-23-m4b6-governance-console-design.md`（**v0.47 · 定稿 · 8 维 9.44**〔§11.2 T6⁺ 复评〕· D1–D55 · 门槛项已清空）
 > · 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.70**）§2.3 批件登记
 > · `docs/00-product-direction.md` §5 M4b-6 行（**v1.94** · ✅ 完成）· 规范 `docs/05` §6（角色）· `docs/06`（label 两级树）· `docs/08`（数据模型）
-> 依赖顺序：**M4b-1 ✅ / M4b-2 ✅ / M4b-3 ✅ / M4b-4 ✅ / M4b-5 ✅** ⇒ 本批开工条件已满足；本批之后 = **M4b-8**（发布批）→ **M4b-7**（视觉打磨）
+> 依赖顺序：**M4b-1 ✅ / M4b-2 ✅ / M4b-3 ✅ / M4b-4 ✅ / M4b-5 ✅** ⇒ 本批开工条件已满足；本批之后 = **M4b-7**（发布批）→ **M4b-8**（视觉打磨）
 
 ---
 

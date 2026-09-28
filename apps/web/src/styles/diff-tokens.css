@@ -78,7 +78,7 @@
   color: #cf222e;
 }
 
-/* —— 行内编辑高亮（词级 —— 本批不开，登记 M4b-7；底色变量由库提供） —— */
+/* —— 行内编辑高亮（词级 —— 本批不开，登记 M4b-8；底色变量由库提供） —— */
 .token.prefix.inserted,
 .token.prefix.deleted {
   color: inherit;
