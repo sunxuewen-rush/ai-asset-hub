@@ -36,7 +36,11 @@ jobs:
       SESSION_SECRET: ci-only-session-secret-placeholder-32chars
 
     steps:
+      # fetch-depth: 0 —— 「头部下沉覆盖」检查需要**提交区间**（doc-audit 只看当前状态，
+      # 看不见「删了什么」）；浅克隆会让该检查退化为 N/A（显式打印，不静默）
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -65,6 +69,14 @@ jobs:
       # 与代码真值回读比对 —— 纯静态、不连库（doc-audit 管「形式」，本件管「声明 vs 真值」）
       - name: 文档断言回读
         run: bun docs/smoke/scripts/doc-claims-check.ts
+
+      # 头部下沉覆盖（head-sink-coverage）：**被删的头部版本行**，其裸 token（路径 / 版号 / F 号 /
+      # 反引号标识 / ≥2 位数）必须在 post-state 同文件内仍可找到 —— 拦「头部行删了但内容没留住」
+      # （2026-09-28 实证：该缺陷既无状态可见性、doc-audit 也看不见 ⇒ 单立本维）。
+      # 比对区间 = push 的 before..HEAD。base / head **缺失、为空或不可解析**（首推 / force push /
+      # pull_request 事件无 before）⇒ 本步骤**显式 N/A 并退出 0，不替换成其它区间**（不猜、不静默假绿）。
+      - name: 头部下沉覆盖
+        run: bun docs/smoke/scripts/head-sink-coverage.ts --base "${{ github.event.before }}" --head "${{ github.sha }}"
 
       - name: build
         run: bun run build

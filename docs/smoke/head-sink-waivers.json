@@ -1,0 +1,11 @@
+{
+  "_comment": "头部下沉覆盖检查（head-sink-coverage.ts）的豁免册。每条必须带 reason；N/A 明细会逐条打印，评审可见。仅限「同一事实的记法差异」或「补录会引入不准确 / 已退役形态」。",
+  "waivers": [
+    {
+      "file": "docs/designs/2026-09-18-m4b4-personal-b-design.md",
+      "version": "1.38",
+      "tokens": ["--muted-foreground"],
+      "reason": "表行同一事实写作 `text-muted-foreground`（实用类名 = 真值）；被删头部行为 CSS 变量记法 `--muted-foreground` ⇒ 属记法差异，非信息丢失；补录反而引入不准确形态"
+    }
+  ]
+}
