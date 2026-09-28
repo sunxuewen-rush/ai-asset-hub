@@ -35,13 +35,6 @@
   --color-tint-mcp: var(--tint-mcp);
   --color-tint-agent: var(--tint-agent);
   --color-ava-1: var(--ava-1);
-  --color-ava-2: var(--ava-2);
-  --color-ava-3: var(--ava-3);
-  --color-ava-4: var(--ava-4);
-  --color-ava-5: var(--ava-5);
-  --color-ava-6: var(--ava-6);
-  --color-ava-7: var(--ava-7);
-  --color-ava-8: var(--ava-8);
 }
 
 /* ── 动效（AIH 层：官方 preset 不含；`--animate-*` 与其 keyframes 同处 = 官方「Adding New Tokens」姿势） ──

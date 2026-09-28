@@ -7,7 +7,7 @@ import { useApi } from '../../hooks/useApi.js';
 import { useI18n } from '../../i18n/I18nProvider.js';
 
 /** 两级组树：parentId null = 根 chips 行；其余 = 子标签行（06 §2.3） */
-export function buildLabelRows(labels: readonly LabelDto[]): {
+function buildLabelRows(labels: readonly LabelDto[]): {
   roots: LabelDto[];
   children: LabelDto[];
 } {
@@ -18,7 +18,7 @@ export function buildLabelRows(labels: readonly LabelDto[]): {
 }
 
 /** 展示名回退链：displayName → slug（06 §2.3） */
-export function labelName(label: LabelDto): string {
+function labelName(label: LabelDto): string {
   return label.displayName ?? label.slug;
 }
 

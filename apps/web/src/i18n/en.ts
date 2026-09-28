@@ -96,9 +96,6 @@ export const en: Dict = {
     labelsTitle: 'Labels (+/-)',
     starToast: 'Starred',
     unstarToast: 'Unstarred',
-    installTitle: 'Install & usage',
-    installText:
-      'Download the zip and extract it; verify file sha256 checksums; YANKED versions cannot be downloaded.',
     dlLatest: 'Download latest',
     dlDownloading: 'Downloading…',
     dlSubAnon: 'Anonymous download',
@@ -549,7 +546,6 @@ export const en: Dict = {
     save: 'Save',
     close: 'Close',
     cancel: 'Cancel',
-    download: 'Download',
     pageOf: '{n} / {total} · page size {size}',
     comingSoon: 'This feature will be available in a later release',
     noPermission: 'Your account does not have access to this page',

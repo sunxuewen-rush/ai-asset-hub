@@ -1,20 +1,20 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider, bootstrapAuth } from '@/auth/AuthProvider';
 import { ROLE } from '@/auth/roles';
 import { AppShell } from '@/components/ui/AppShell';
 import { RoleGuard } from '@/components/ui/RoleGuard';
+// 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
+import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { Toaster } from '@/components/ui/Toaster';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import AdminAssets from '@/pages/AdminAssets';
 import AdminAudit from '@/pages/AdminAudit';
 import AdminBoard from '@/pages/AdminBoard';
 import AdminLabels from '@/pages/AdminLabels';
-// 一次性原型（DEV-only · M4b-2 UI 方向评审；定稿后随原型删除）
-import { AssetDetail } from '@/pages/AssetDetail';
 import { Assets } from '@/pages/Assets';
-import { Center, type CenterType } from '@/pages/Center';
+import type { CenterType } from '@/pages/Center';
 import { Dashboard } from '@/pages/Dashboard';
 import { Device } from '@/pages/Device';
 import { Home } from '@/pages/Home';
@@ -28,6 +28,29 @@ import { Tokens } from '@/pages/Tokens';
 // Tailwind Preflight / 工具类与 AIH 层（含「Tailwind 不提供的项」迁移面）均经此文件生效。
 // T24 已删除旧层（原 `styles/tokens.css` + `styles/global.css`，双栈共存期结束）。
 import './index.css';
+
+/**
+ * 路由级 code-split（M4a-visual §3 评估项 3 · 2026-09-28 用户「按推荐来」落地）。
+ *
+ * **只拆两组最大页**（门户中心三页 `/skills`·`/mcps`·`/agents` + 资产详情 `/assets/:slug`），
+ * 其余页保持同步加载 ⇒ 其余路由行为零变化。两页均为**具名导出** ⇒ 经 `then()` 映射为 default。
+ * 兜底骨架用官方 `Skeleton`（与各页载态同源），**不新增视觉面**。
+ */
+const CenterLazy = lazy(() => import('@/pages/Center').then((m) => ({ default: m.Center })));
+const AssetDetailLazy = lazy(() =>
+  import('@/pages/AssetDetail').then((m) => ({ default: m.AssetDetail })),
+);
+
+/** 懒加载路由兜底（仅上面两页可见；同步页零影响）。 */
+function RouteFallback() {
+  return (
+    <div className="flex flex-col gap-2 px-6 py-8">
+      <Skeleton className="h-6 w-[32%]" />
+      <Skeleton className="h-4 w-[64%]" />
+      <Skeleton className="h-4 w-[56%]" />
+    </div>
+  );
+}
 
 // 首帧预热（批 design §4.1 · 主 design U3）：模块级调用、**不 `await`**——`/me` 与首屏渲染并行，
 // 结果由 `<AuthProvider>` 挂载时复用（不重复请求）。
@@ -88,12 +111,27 @@ function AppRoutes() {
             {/* 门户 6 条（公开读面，**无守卫**）—— T11-i A 增 `/search`（全资产搜索结果页） */}
             <Route path="/" element={<Home />} />
             {CENTER_ROUTES.map(({ path, type }) => (
-              <Route key={path} path={path} element={<Center type={type} />} />
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <Suspense fallback={<RouteFallback />}>
+                    <CenterLazy type={type} />
+                  </Suspense>
+                }
+              />
             ))}
             {/* 全资产搜索结果页（T11-i A · 顶栏与首页搜索的落地页；`?q=&type=&sort=&dir=&page=`） */}
             <Route path="/search" element={<Search />} />
             {/* 扁平化坐标：全局唯一裸 slug（M4-pre R5） */}
-            <Route path="/assets/:slug" element={<AssetDetail />} />
+            <Route
+              path="/assets/:slug"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <AssetDetailLazy />
+                </Suspense>
+              }
+            />
 
             {/* ── 个人段（USER = 1）── */}
             <Route element={<RoleGuard minRole={ROLE.USER} />}>
