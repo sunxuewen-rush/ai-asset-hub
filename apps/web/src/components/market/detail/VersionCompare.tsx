@@ -7,6 +7,7 @@ import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
 import { StatusPill } from '../../console/StatusPill.js';
 import { DiffWorkspace } from '../../ui/DiffWorkspace.js';
+import { EmptyState } from '../../ui/EmptyState.js';
 import { formatBytes } from '../../ui/fileTreeNodes.js';
 import { Spinner } from '../../ui/shadcn/spinner.js';
 import { formatDate } from '../format.js';
@@ -187,9 +188,7 @@ export function VersionCompare({
           ) : null}
         </>
       ) : (
-        <p className="px-1 py-2.5 text-center text-xs text-muted-foreground">
-          {t('common', 'empty')}
-        </p>
+        <EmptyState message={t('common', 'empty')} />
       )}
 
       <div className="mt-4 border-t border-border pt-3">

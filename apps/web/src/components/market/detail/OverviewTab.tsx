@@ -3,6 +3,7 @@ import { fetchVersionFile } from '../../../api/content.js';
 import type { AssetType, VersionFileEntry } from '../../../api/types.js';
 import { useApi } from '../../../hooks/useApi.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
+import { EmptyState } from '../../ui/EmptyState.js';
 import { ErrorState } from '../../ui/ErrorState.js';
 import { MarkdownRenderer } from '../../ui/MarkdownRenderer.js';
 import { Skeleton } from '../../ui/shadcn/skeleton.js';
@@ -92,9 +93,7 @@ export function OverviewTab({
           {docPath ?? 'manifest'} · v{version}
         </div>
         {fields.length === 0 ? (
-          <p className="py-5 text-center text-[13px] text-muted-foreground">
-            {t('common', 'empty')}
-          </p>
+          <EmptyState message={t('common', 'empty')} />
         ) : (
           <div className="grid grid-cols-2 gap-x-[22px] gap-y-3">
             {fields.map(([key, value]) => (

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { VersionFileEntry } from '../../../api/types.js';
 import { useI18n } from '../../../i18n/I18nProvider.js';
+import { EmptyState } from '../../ui/EmptyState.js';
 import { FilePreviewDialog } from '../../ui/FilePreviewDialog.js';
 import { FileTree } from '../../ui/FileTree.js';
 import { Skeleton } from '../../ui/shadcn/skeleton.js';
@@ -35,7 +36,7 @@ export function FilesTab({
           <Skeleton className="h-4 w-[44%]" />
         </div>
       ) : files.length === 0 ? (
-        <p className="py-5 text-center text-[13px] text-muted-foreground">{t('common', 'empty')}</p>
+        <EmptyState message={t('common', 'empty')} />
       ) : (
         <FileTree files={files} onOpenFile={setPreview} />
       )}
