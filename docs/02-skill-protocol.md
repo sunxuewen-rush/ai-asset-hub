@@ -100,6 +100,6 @@ agent 是声明型（行为 + 模型偏好 + 技能引用，无执行代码）�
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：OpenSkills 兼容的 skill 包协议（含与其他资产类型的差异对照） |
-| v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol skill manifest 落地（name/description/slug 规则） |
 | v1.2 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§3 name→坐标映射表述去 `@namespace/slug`（坐标改**全局唯一裸 slug**，无命名空间段）——design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |
+| v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol skill manifest 落地（name/description/slug 规则） |
+| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：OpenSkills 兼容的 skill 包协议（含与其他资产类型的差异对照） |

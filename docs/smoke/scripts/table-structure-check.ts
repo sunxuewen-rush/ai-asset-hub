@@ -6,9 +6,11 @@
  * 修订表结构完整性（候选检查 = 行首单元格形态 + `|` 计数 + **版本序无空洞**）」。
  * 2026-09-28 负控实证（沙箱删除一行表行）：doc-audit / doc-claims / head-sink **三道门禁全绿**
  * ⇒ 该缺陷无闸；且历史已发生 3 例（`39d1b21` 主设计 27 行 + M4b-4 11 行 · `aef6b31` M4b-6 1 行）。
+ * 2026-09-28（**F100-b 收口**）：全仓 18 份 ASC 表（161 行）统一重排为 DESC ⇒ 检查项 1 由
+ * 「表向自定（以多数方向为准）」改为「**固定 DESC（最新在上）**」，ASC 表直接 FAIL。
  *
- * 检查项（4 类 · 见 §检查项）：
- *   1. 段内版本序**单调**（表向自定：以多数方向为准）—— 逆序即 FAIL
+ * 检查项（5 类 · 见 §检查项）：
+ *   1. **表向 = DESC（最新在上）**（仓级统一口径）+ 段内版本序**单调**（逐段判）
  *   2. 版本号**不重复**（同 `主.次+后缀` 唯一）
  *   3. 同主版号内**无空洞**（`v0.30 → v0.32` 型）—— 允许豁免册逐条带理由
  *   4. 若存在「**历史版本段说明**」条：其「最早一行 = `vX`」须与表首一致
@@ -88,25 +90,32 @@ for (const file of files) {
           : a[2] > b[2]
             ? 1
             : 0;
-  let up = 0;
-  let down = 0;
-  for (let i = 1; i < all.length; i += 1) {
-    if (cmp(all[i].key, all[i - 1].key) > 0) up += 1;
-    else if (cmp(all[i].key, all[i - 1].key) < 0) down += 1;
-  }
-  const desc = up <= down; // 递减为主 ⇒ 表向 = DESC
-  const kind = (a: [number, number, string], b: [number, number, string]) =>
-    desc ? cmp(b, a) > 0 : cmp(b, a) < 0;
-
-  // 1) 逆序 —— **逐段**判定（跨表头不算；同节多表各自单调）
+  // 1) 表向统一（DESC）+ 段内单调 —— **逐段**判定（跨表头不算；同节多表各自判）
+  //    2026-09-28（F100-b 收口）起仓级口径 = **DESC（最新在上）**：旧「表向自定（以多数方向为准）」
+  //    逻辑移除 —— 整段 ASC 直接 FAIL（不逐行报噪声）；混合序仍逐行报。
   for (const s of segs) {
+    let up = 0;
+    let down = 0;
     for (let i = 1; i < s.length; i += 1) {
-      if (kind(s[i - 1].key, s[i].key)) {
+      if (cmp(s[i].key, s[i - 1].key) > 0) up += 1;
+      else if (cmp(s[i].key, s[i - 1].key) < 0) down += 1;
+    }
+    if (up > down) {
+      const w = waivers.find((x) => x.file === file && x.kind === 'order' && x.detail === 'ASC');
+      if (w) skips.push(`${file} · 表向豁免（ASC）：${w.reason}`);
+      else
+        fails.push(
+          `${file}:${s[0].idx + 1} 表向为 ASC ⇒ 仓级口径 = DESC（最新在上）` +
+            `（段首 v${s[0].key.join('.')} → 段尾 v${s[s.length - 1].key.join('.')}）`,
+        );
+      continue;
+    }
+    for (let i = 1; i < s.length; i += 1) {
+      if (cmp(s[i].key, s[i - 1].key) > 0) {
         const detail = `v${s[i - 1].key.join('.')} → v${s[i].key.join('.')}`;
         const w = waivers.find((x) => x.file === file && x.kind === 'order' && x.detail === detail);
         if (w) skips.push(`${file} · 逆序豁免 ${detail}：${w.reason}`);
-        else
-          fails.push(`${file}:${s[i].idx + 1} 版本序逆序（${desc ? 'DESC' : 'ASC'} 表）${detail}`);
+        else fails.push(`${file}:${s[i].idx + 1} 版本序逆序（DESC 表）${detail}`);
       }
     }
   }
@@ -161,7 +170,7 @@ console.log(
 );
 if (fails.length) {
   console.log(
-    '说明：修订表须「段内单调 · 无重复版号 · 同主版号无空洞」；空洞如属史实（编号未使用）须入豁免册并写明理由。',
+    '说明：修订表须「表向 DESC（最新在上）· 段内单调 · 无重复版号 · 同主版号无空洞」；空洞如属史实（编号未使用）须入豁免册并写明理由。',
   );
 }
 process.exit(fails.length === 0 ? 0 : 1);

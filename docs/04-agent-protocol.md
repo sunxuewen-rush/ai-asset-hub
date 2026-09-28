@@ -120,5 +120,5 @@ agent 与 skill **包格式同构**（markdown + frontmatter），语义差异�
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：agent 定义包协议（markdown + frontmatter，声明型） |
 | v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol agent manifest 落地（label/icon/color/category 可选项） |
+| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：agent 定义包协议（markdown + frontmatter，声明型） |

@@ -146,6 +146,6 @@ mcp 是**连接/执行语义**资产：可能含实现脚本（安全扫描从�
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：mcp 双形态包协议 + secret 不入包规则 |
-| v1.1 | 2026-09-04 | sunxuewen-rush | server 条目 schema 对齐主流 MCP 运行时契约：顶层 `servers` 键（兼容 mcpServers/mcp 导入）、`type` 必填（stdio/http/sse）、补 `enabled`/`timeout` 字段 |
 | v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol mcp manifest 落地（含敏感头 `${VAR}` 规则） |
+| v1.1 | 2026-09-04 | sunxuewen-rush | server 条目 schema 对齐主流 MCP 运行时契约：顶层 `servers` 键（兼容 mcpServers/mcp 导入）、`type` 必填（stdio/http/sse）、补 `enabled`/`timeout` 字段 |
+| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：mcp 双形态包协议 + secret 不入包规则 |

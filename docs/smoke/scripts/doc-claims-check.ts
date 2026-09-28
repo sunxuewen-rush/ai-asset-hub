@@ -14,16 +14,21 @@
  *   3. 三向一致         —— 件表 ↔ 服务端改动号 ↔ 端点表
  *   4. 机制声明实测复核 —— 源码里确实存在该机制（非「文档说已做」）
  *   5. UI 契约 ↔ 真码回读 —— 件路径 / 路由 / i18n 键覆盖与成对 / 页面零中文泄漏
- *   6. 头部版本行不得陈旧或乱序
+ *   6. 头部版本行不得陈旧或乱序（**覆盖面 = 全仓有修订表的文档** —— 2026-09-28 扩面，见 `HEAD_DOCS`）
  *
  * 用法：bun docs/smoke/scripts/doc-claims-check.ts
  * 退出码：0 = 全通过；1 = 有 FAIL
  *
- * 维护口径：本脚本的**期望值**随批定稿更新；批切换时同步 `DOCS` / `HEAD_DOCS` 与各表。
+ * 维护口径：本脚本的**期望值**随批定稿更新；批切换时同步 `DOCS` 与各表
+ * （`HEAD_DOCS` 已改为**自动扫描**，不再需要手工同步）。
  * 踩坑记录（2026-09-23 首跑）：① 数值正则过宽 ⇒ 抓到 before→after 叙述里的旧值（假缺陷）
  * ② 中文泄漏检查漏掉「纯 JSX 文本行」（漏报）③ 头部版号取「行内最大」⇒ 误读承接文档的版号。
+ * 2026-09-28 扩面（`HEAD_DOCS` 改自动扫描）踩坑 ④：修订表版号正则的 `v` 前缀原为**可选** ⇒
+ * 把正文普通表格的「编号行」（如 M4b-1 §8 观感表的 `| 8.7 | …`）误判为版本行，报出假「表最新 v8.7」
+ * ⇒ 现要求 `v` 前缀（与 `doc-audit` / `table-structure-check` 同口径）。
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,12 +39,19 @@ const DOCS = [
   'docs/designs/2026-09-23-m4b6-governance-console-design.md',
   'docs/plans/M4b-6-governance-console.md',
 ];
-/** 头部检查范围（含上游登记文档） */
-const HEAD_DOCS = [
-  ...DOCS,
-  'docs/00-product-direction.md',
-  'docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md',
-];
+/** 头部检查范围 = **全仓有修订表的文档**（2026-09-28 扩面 · 见检查项 6）。
+ *  原为 `DOCS` + `docs/00` + 主 design 的**白名单**（批 design 不在内）⇒ [6] 漏检：
+ *  实证 = M4b-4 design 头部版本行乱序当时未被拦（改动 m4b6/m4b4 头部行自伤后由手工复核发现）。
+ *  现改为扫描 `git ls-files docs` + 判定「含修订记录节 **且** 含 `> Updated:` 头部行」，
+ *  批切换无需再手工同步（新增批件自动纳入）。 */
+const HEAD_DOCS = execFileSync('git', ['ls-files', 'docs'], { cwd: ROOT, encoding: 'utf8' })
+  .split('\n')
+  .filter((f) => f.endsWith('.md'))
+  .filter((f) => {
+    if (!existsSync(join(ROOT, f))) return false;
+    const t = readFileSync(join(ROOT, f), 'utf8');
+    return /^#{1,4}.*修订记录/m.test(t) && t.includes('> Updated:');
+  });
 /** PoC / 临时物料行豁免（这些件**刻意不进仓**） */
 const TRANSIENT_RE = /不进仓|临时|已删|PoC|__proto|tmp-/;
 
@@ -88,7 +100,7 @@ const ANCHORS: { file: string; line: number; keyword: string; why: string }[] = 
     keyword: 'label.in_use',
     why: '改动 8 · 错误码',
   },
-  { file: 'apps/web/src/main.tsx', line: 120, keyword: '/admin/assets', why: '路由 4 条之一' },
+  { file: 'apps/web/src/main.tsx', line: 158, keyword: '/admin/assets', why: '路由 4 条之一' },
   {
     file: 'apps/server/src/app.ts',
     line: 214,
@@ -419,7 +431,7 @@ for (const d of HEAD_DOCS) {
     `实测序：${headVs.join(' > ') || '(未识别到 vX.Y： 形式)'}`,
   );
   const tableVs = lines
-    .map((l) => l.match(/^\|\s*\*{0,2}v?(\d+\.\d+)\s*\*{0,2}\s*\|/))
+    .map((l) => l.match(/^\|\s*\*{0,2}v(\d+\.\d+)\s*\*{0,2}\s*\|/))
     .filter((m): m is RegExpMatchArray => m !== null)
     .map((m) => pick(m, 1));
   if (tableVs.length > 0) {

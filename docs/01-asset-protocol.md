@@ -127,11 +127,11 @@ interface AssetValidator {
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：类型登记/包形态/投影/校验器插拔/兼容边界 |
-| v1.1 | 2026-09-04 | sunxuewen-rush | 类型体系对齐 00 v1.1（skill/mcp/agent）；演进路径中立化 |
-| v1.2 | 2026-09-04 | sunxuewen-rush | §4 生命周期补扫描态全序；资产状态独立于版本（指向 08 §7） |
-| v1.3 | 2026-09-07 | sunxuewen-rush | 族协议状态同步：02/03/04「待写」→ 已定稿（03 v1.1），Status 改定稿；§6 校验器已落地 packages/protocol |
-| v1.4 | 2026-09-08 | sunxuewen-rush | M0/M1 复验同步：§2 登记表 mcp 行族协议版本标注 v1.1 → v1.2（03 已升版未回写） |
-| v1.5 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§3.2 投影 searchText 补「正文摘要 ≤500 字符」截断数值（T11 D1 拍板落档——族协议文档原无数值） |
-| v1.6 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§4 生命周期补全八态注记（REJECTED/YANKED——M3 治理管线落地，指向 08 §7 状态语义） |
 | v1.7 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§3.3 坐标由 `@namespace/slug` 改为**全局唯一裸 slug**（空间段删除；slug 跨类型唯一范围由「同 namespace 下」改为「全局」）；可见性维度删除（资产对外恒公开，读面仅由 `status` 决定）——迁移 0005/0006/0007、design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |
+| v1.6 | 2026-09-08 | sunxuewen-rush | M3 实现同步：§4 生命周期补全八态注记（REJECTED/YANKED——M3 治理管线落地，指向 08 §7 状态语义） |
+| v1.5 | 2026-09-08 | sunxuewen-rush | M2 实现同步：§3.2 投影 searchText 补「正文摘要 ≤500 字符」截断数值（T11 D1 拍板落档——族协议文档原无数值） |
+| v1.4 | 2026-09-08 | sunxuewen-rush | M0/M1 复验同步：§2 登记表 mcp 行族协议版本标注 v1.1 → v1.2（03 已升版未回写） |
+| v1.3 | 2026-09-07 | sunxuewen-rush | 族协议状态同步：02/03/04「待写」→ 已定稿（03 v1.1），Status 改定稿；§6 校验器已落地 packages/protocol |
+| v1.2 | 2026-09-04 | sunxuewen-rush | §4 生命周期补扫描态全序；资产状态独立于版本（指向 08 §7） |
+| v1.1 | 2026-09-04 | sunxuewen-rush | 类型体系对齐 00 v1.1（skill/mcp/agent）；演进路径中立化 |
+| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：类型登记/包形态/投影/校验器插拔/兼容边界 |

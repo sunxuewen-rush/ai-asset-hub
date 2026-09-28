@@ -362,9 +362,9 @@ skillhub AccountMerge 同构——OIDC 与本地同 email 双账号是预期行�
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-07 | sunxuewen-rush | 初稿：M1 阶段二计划（命名空间 API/对象存储/API Token/审计浏览/OIDC/Device Flow 六块 38 Task，R1-R9 待拍板） |
-| v1.1 | 2026-09-07 | sunxuewen-rush | 自检 P1-P7：T6 角色分配链（OWNER 不可经添加产生/转让后置）、T14 过期语义（省略=不过期）、T24 state 改独立 HttpOnly cookie（访客无 session）、T25 provision 引用 T26+执行序、§5 断言顺序 A→B→C→D→E→F、T22 discovery https-only（防降级窃听）、T14 明文不落日志断言、T30 CSRF 豁免表述定稿、草稿残留清零 |
-| v1.2 | 2026-09-07 | sunxuewen-rush | R1-R9 skillhub 源码对标（§1.1 S1-S8）：R2 用户拍板对齐 skillhub（TEAM 建空间权 = ASSET_ADMIN/SUPER_ADMIN，T1 补 requirePlatformRole、T3 权限与断言更新）；T9 SPI 补 deleteMany/presignedGetUrl（S2）；T19/T20 审计过滤补 requestId/clientIp（S4）；§5 板块 A 断言补建空间 403；再审修复：R1 执行顺序收敛为 §4 编号序（A→B→C→D→E→F）、T1 引用修正（platformGrants 在 rbac.ts 非 T23）、T23 工厂参数化显式化（S6 落地） |
-| v1.3 | 2026-09-07 | sunxuewen-rush | 评审定稿：R1-R9 全部采纳推荐值（R2 对齐 skillhub）；§1.1 补 S9/S10（token 永不过期同构、账号合并后置——OIDC 同 email 双账号为预期行为）；后置清单补账号合并 |
-| v1.4 | 2026-09-07 | sunxuewen-rush | 工具链迁移同步：pnpm 11/vitest/tsx → bun 1.3.14（install/test/dev；tsc/turbo/biome 保留）；命令引用与 §3 技术基线更新 |
 | v1.5 | 2026-09-08 | sunxuewen-rush | M0/M1 复验：头部引用链补 design 决策档案（2026-09-08-m1-platform-foundation-design.md）——本 plan 保持执行记录原貌，决策另存档案（00 §7 ② 约定） |
+| v1.4 | 2026-09-07 | sunxuewen-rush | 工具链迁移同步：pnpm 11/vitest/tsx → bun 1.3.14（install/test/dev；tsc/turbo/biome 保留）；命令引用与 §3 技术基线更新 |
+| v1.3 | 2026-09-07 | sunxuewen-rush | 评审定稿：R1-R9 全部采纳推荐值（R2 对齐 skillhub）；§1.1 补 S9/S10（token 永不过期同构、账号合并后置——OIDC 同 email 双账号为预期行为）；后置清单补账号合并 |
+| v1.2 | 2026-09-07 | sunxuewen-rush | R1-R9 skillhub 源码对标（§1.1 S1-S8）：R2 用户拍板对齐 skillhub（TEAM 建空间权 = ASSET_ADMIN/SUPER_ADMIN，T1 补 requirePlatformRole、T3 权限与断言更新）；T9 SPI 补 deleteMany/presignedGetUrl（S2）；T19/T20 审计过滤补 requestId/clientIp（S4）；§5 板块 A 断言补建空间 403；再审修复：R1 执行顺序收敛为 §4 编号序（A→B→C→D→E→F）、T1 引用修正（platformGrants 在 rbac.ts 非 T23）、T23 工厂参数化显式化（S6 落地） |
+| v1.1 | 2026-09-07 | sunxuewen-rush | 自检 P1-P7：T6 角色分配链（OWNER 不可经添加产生/转让后置）、T14 过期语义（省略=不过期）、T24 state 改独立 HttpOnly cookie（访客无 session）、T25 provision 引用 T26+执行序、§5 断言顺序 A→B→C→D→E→F、T22 discovery https-only（防降级窃听）、T14 明文不落日志断言、T30 CSRF 豁免表述定稿、草稿残留清零 |
+| v1.0 | 2026-09-07 | sunxuewen-rush | 初稿：M1 阶段二计划（命名空间 API/对象存储/API Token/审计浏览/OIDC/Device Flow 六块 38 Task，R1-R9 待拍板） |

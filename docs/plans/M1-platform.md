@@ -369,7 +369,7 @@
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-07 | sunxuewen-rush | 初稿：M1 平台底座计划（monorepo/protocol/drizzle/认证四板块，R1-R7 待拍板） |
-| v1.1 | 2026-09-07 | sunxuewen-rush | 实战对标（§1.1 D1-D9）：08 增补至 v1.1；T11-T14 枚举列 VARCHAR+z.enum、role/permission 三表、audit_log 网络字段、review_task 部分唯一索引；T16 种子三表+大写 code；T19 补 CSRF（D8）；T20/T22 吸收 usr_uuid/行级锁定/dummy verify（D2/D3/D9）；T23 权限码单源；后置清单补治理扩展表（D7） |
-| v1.2 | 2026-09-07 | sunxuewen-rush | 自检 P1-P8 修复（scrypt maxmem/CSRF 双缺失分支/T15 抽查清单/评审记录表述/username 规则/审计字段断言等）后 8 维重评 9.3；评审定稿：R1-R7 全部采纳推荐值 |
 | v1.3 | 2026-09-08 | sunxuewen-rush | M0/M1 复验：头部引用链补 design 决策档案（2026-09-08-m1-platform-foundation-design.md）——本 plan 保持执行记录原貌，决策另存档案（00 §7 ② 约定） |
+| v1.2 | 2026-09-07 | sunxuewen-rush | 自检 P1-P8 修复（scrypt maxmem/CSRF 双缺失分支/T15 抽查清单/评审记录表述/username 规则/审计字段断言等）后 8 维重评 9.3；评审定稿：R1-R7 全部采纳推荐值 |
+| v1.1 | 2026-09-07 | sunxuewen-rush | 实战对标（§1.1 D1-D9）：08 增补至 v1.1；T11-T14 枚举列 VARCHAR+z.enum、role/permission 三表、audit_log 网络字段、review_task 部分唯一索引；T16 种子三表+大写 code；T19 补 CSRF（D8）；T20/T22 吸收 usr_uuid/行级锁定/dummy verify（D2/D3/D9）；T23 权限码单源；后置清单补治理扩展表（D7） |
+| v1.0 | 2026-09-07 | sunxuewen-rush | 初稿：M1 平台底座计划（monorepo/protocol/drizzle/认证四板块，R1-R7 待拍板） |

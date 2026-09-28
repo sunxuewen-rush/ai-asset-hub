@@ -141,11 +141,11 @@ label 定义 CRUD + 批量排序：
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：label 三表/两级树/多语言/挂载筛选语义/权限矩阵 |
-| v1.1 | 2026-09-04 | sunxuewen-rush | §5.3 API 路径前缀统一 /api |
-| v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 落 label 三表结构（definition/translation/asset_label），管线后置 M3 |
-| v1.3 | 2026-09-08 | sunxuewen-rush | M3 实现同步：标签管理管线落地——定义 CRUD/排序（SUPER_ADMIN，slug_taken 409 补码）、挂载 API（RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN，PRIVILEGED = 仅 SUPER_ADMIN；重复挂幂等 200、≤10 超限 400 label.limit_exceeded、删定义级联挂载） |
-| v1.4 | 2026-09-08 | sunxuewen-rush | 复盘对标 skillhub 源码修正：§5.2 管理面响应 parentId 回父 slug（LabelDefinitionResponse 同构）；定义总数 ≤100（definition_limit_exceeded）；翻译整组替换（PUT 语义——删未列 locale）；locale 归一与去重预检（translation.locale_duplicate）；parent_id 索引 + 搜索重建句改「无重建——实时 join 模型」落实 |
-| v1.5 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§1 「空间运营」去空间维度；§3 挂载 `RECOMMENDED` 判定「命名空间 ADMIN」→ **管理档（`role >= ADMIN`）**；§5.3 API 路径去命名空间段（`/api/assets/:slug/labels/:labelSlug`）；§6 `05` §6 引用同步 |
-| v1.6 | 2026-09-24 | sunxuewen-rush | **§2.3 解析链精确化（F215 修复同步）**：原文只写「请求语言 → 回退链 → slug」，实现只做了「精确 + 主语言精确」而**漏了注释承诺的主语言前缀回退** ⇒ 管理页表单写入 `zh-CN`（落库归一为 `zh-cn`）后，中文请求一律落 `en`（中文界面显示英文标签名）。现补齐五级链（归一精确 → 主语言精确 → **主语言前缀** → `en` → `slug`）并写明「精确优先于前缀」 |
 | v1.7 | 2026-09-24 | sunxuewen-rush | **§5.2 一级可重挂（F218 修复同步）**：原「**一级不可降级**」硬拒 → **安全重挂**（原一级可挂到另一个一级下变二级；前置 = 目标必须一级 + **自身无子级**，后者违规报 `label.parent.has_children`）；**明写相对兄弟仓 SkillHub 契约的偏离 + 理由**（一级误建后原路径只有删除重建，而删除在有挂载/有子级时均被拒 ⇒ 运营无法归位；重挂为纯结构变更、不动挂载/翻译/排序）；守卫顺序 = 先 `resolveParent`（自指/目标非一级报更具体的 `label.invalid_parent`）后自身子级检查 |
+| v1.6 | 2026-09-24 | sunxuewen-rush | **§2.3 解析链精确化（F215 修复同步）**：原文只写「请求语言 → 回退链 → slug」，实现只做了「精确 + 主语言精确」而**漏了注释承诺的主语言前缀回退** ⇒ 管理页表单写入 `zh-CN`（落库归一为 `zh-cn`）后，中文请求一律落 `en`（中文界面显示英文标签名）。现补齐五级链（归一精确 → 主语言精确 → **主语言前缀** → `en` → `slug`）并写明「精确优先于前缀」 |
+| v1.5 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§1 「空间运营」去空间维度；§3 挂载 `RECOMMENDED` 判定「命名空间 ADMIN」→ **管理档（`role >= ADMIN`）**；§5.3 API 路径去命名空间段（`/api/assets/:slug/labels/:labelSlug`）；§6 `05` §6 引用同步 |
+| v1.4 | 2026-09-08 | sunxuewen-rush | 复盘对标 skillhub 源码修正：§5.2 管理面响应 parentId 回父 slug（LabelDefinitionResponse 同构）；定义总数 ≤100（definition_limit_exceeded）；翻译整组替换（PUT 语义——删未列 locale）；locale 归一与去重预检（translation.locale_duplicate）；parent_id 索引 + 搜索重建句改「无重建——实时 join 模型」落实 |
+| v1.3 | 2026-09-08 | sunxuewen-rush | M3 实现同步：标签管理管线落地——定义 CRUD/排序（SUPER_ADMIN，slug_taken 409 补码）、挂载 API（RECOMMENDED = owner/空间 ADMIN/SUPER_ADMIN，PRIVILEGED = 仅 SUPER_ADMIN；重复挂幂等 200、≤10 超限 400 label.limit_exceeded、删定义级联挂载） |
+| v1.2 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 落 label 三表结构（definition/translation/asset_label），管线后置 M3 |
+| v1.1 | 2026-09-04 | sunxuewen-rush | §5.3 API 路径前缀统一 /api |
+| v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：label 三表/两级树/多语言/挂载筛选语义/权限矩阵 |

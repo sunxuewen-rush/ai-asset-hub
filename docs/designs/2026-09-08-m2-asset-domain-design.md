@@ -201,12 +201,12 @@ DRAFT → SCANNING/PUBLISHED 流转、版本下线与已发布资产治理 = M3 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域设计——R1-R9 评审拍板全锁（范围切分/坐标版本语义/校验器架构/解析投影/上传流程/权限细分/转让/审计/端点形态）；对标 skillhub 源码（配置化上限/transferOwnership/上传限流吸收） |
-| v1.1 | 2026-09-08 | sunxuewen-rush | grilling Q1-Q5 修复：版本读面按状态过滤（DRAFT 仅 owner/上传者/空间 ADMIN+，08 §7 可见性补注同步）；DRAFT 上传者可删自己草稿（05 §6.4 补判定同步）；visibility 修改端点（owner/ADMIN+，注册可带）；资产删除端点（仅无 PUBLISHED，纠错非治理）；规范同步项 8.1 |
-| v1.2 | 2026-09-08 | sunxuewen-rush | 校验器契约修正：砍 warnings/confirmWarnings 机制（族协议 02/03/04 纯 error 无 warning 级——skillhub 单根目录提升场景在 AIH root 级契约下不存在，不为空转机制造接口）；补 zip root 级主文件布局与白名单扩展名拒绝语义 |
-| v1.3 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义对标修正（T3 实现期对标 skillhub SkillQueryService）：不可见 404 防枚举 → 403 明示分层（namespace_archived / access_denied 新码，error.namespace.archived / error.skill.access.denied 对齐；明确性优先拍板，权衡 403 泄露存在性已记录）；版本级 DRAFT 读面 Q1 维持，T14 复核 assertPreviewAccessible |
-| v1.4 | 2026-09-08 | sunxuewen-rush | 管理面判定契约修正（T4 实现期发现）：§7b 状态治理「仅超管」与 05 §6.4 明文（asset:manage = 空间 ADMIN+/owner，含归档/版本）冲突 → 对齐 05：三端点（visibility/status/删除）统一 `canManageAsset`（owner 或 ADMIN+ + 超管短路 + 空间非 ACTIVE 拒写） |
-| v1.5 | 2026-09-08 | sunxuewen-rush | 版本读面拒绝语义对齐 skillhub（T14 实现期对标实证）：详情无预览权 404 隐藏 → 400 `asset.version_not_published` 明示（error.skill.version.notPublished 对齐；列表过滤语义保持——skillhub listVersions 同构） |
-| v1.6 | 2026-09-08 | sunxuewen-rush | 实施收敛（converge）：§8.1 规范同步项全部落地（00 v1.10 M2 完成注记 + M3 治理语义 / 05 v1.6 §6.4 DRAFT 上传者删除例外 + asset:publish M2 注 / 08 v1.3 版本读面可见性补注 / 01 v1.5 searchText 截断 ≤500）；代码-文档对齐回查通过 |
 | v1.7 | 2026-09-28 | sunxuewen-rush | **头部声明行补日期（闭 `doc-audit` [A] 盲区）** —— 原形态「> Updated: （**vX：…」缺日期 ⇒ 此前恒 N/A；补日期后 [A] 可校验（用户「1A」）。零实现改动 |
+| v1.6 | 2026-09-08 | sunxuewen-rush | 实施收敛（converge）：§8.1 规范同步项全部落地（00 v1.10 M2 完成注记 + M3 治理语义 / 05 v1.6 §6.4 DRAFT 上传者删除例外 + asset:publish M2 注 / 08 v1.3 版本读面可见性补注 / 01 v1.5 searchText 截断 ≤500）；代码-文档对齐回查通过 |
+| v1.5 | 2026-09-08 | sunxuewen-rush | 版本读面拒绝语义对齐 skillhub（T14 实现期对标实证）：详情无预览权 404 隐藏 → 400 `asset.version_not_published` 明示（error.skill.version.notPublished 对齐；列表过滤语义保持——skillhub listVersions 同构） |
+| v1.4 | 2026-09-08 | sunxuewen-rush | 管理面判定契约修正（T4 实现期发现）：§7b 状态治理「仅超管」与 05 §6.4 明文（asset:manage = 空间 ADMIN+/owner，含归档/版本）冲突 → 对齐 05：三端点（visibility/status/删除）统一 `canManageAsset`（owner 或 ADMIN+ + 超管短路 + 空间非 ACTIVE 拒写） |
+| v1.3 | 2026-09-08 | sunxuewen-rush | 读面拒绝语义对标修正（T3 实现期对标 skillhub SkillQueryService）：不可见 404 防枚举 → 403 明示分层（namespace_archived / access_denied 新码，error.namespace.archived / error.skill.access.denied 对齐；明确性优先拍板，权衡 403 泄露存在性已记录）；版本级 DRAFT 读面 Q1 维持，T14 复核 assertPreviewAccessible |
+| v1.2 | 2026-09-08 | sunxuewen-rush | 校验器契约修正：砍 warnings/confirmWarnings 机制（族协议 02/03/04 纯 error 无 warning 级——skillhub 单根目录提升场景在 AIH root 级契约下不存在，不为空转机制造接口）；补 zip root 级主文件布局与白名单扩展名拒绝语义 |
+| v1.1 | 2026-09-08 | sunxuewen-rush | grilling Q1-Q5 修复：版本读面按状态过滤（DRAFT 仅 owner/上传者/空间 ADMIN+，08 §7 可见性补注同步）；DRAFT 上传者可删自己草稿（05 §6.4 补判定同步）；visibility 修改端点（owner/ADMIN+，注册可带）；资产删除端点（仅无 PUBLISHED，纠错非治理）；规范同步项 8.1 |
+| v1.0 | 2026-09-08 | sunxuewen-rush | 初稿：M2 资产域设计——R1-R9 评审拍板全锁（范围切分/坐标版本语义/校验器架构/解析投影/上传流程/权限细分/转让/审计/端点形态）；对标 skillhub 源码（配置化上限/transferOwnership/上传限流吸收） |
 | ⚠ 失效标注 | 2026-09-11 | sunxuewen-rush | **T26 converge**（跨文档同步）：头部加失效标注行——坐标（`@namespace/slug`）· 可见性（`visibility`）· `nsSlug` 参数 · 空间角色/权限码相关表述随 **M4-pre 扁平化重构**失效（事实源 `2026-09-10-flat-model-refactor-design`）；**正文不改**（史实不改，同 M4a design §12 口径） |
