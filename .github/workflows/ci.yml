@@ -78,6 +78,13 @@ jobs:
       - name: 头部下沉覆盖
         run: bun docs/smoke/scripts/head-sink-coverage.ts --base "${{ github.event.before }}" --head "${{ github.sha }}"
 
+      # 修订表结构完整性（table-structure-check）：段内**单调** · 无**重复**版号 · 同主版号**无空洞**
+      # （兑现主 design v1.58 行登记 F96 的候选检查；2026-09-28 负控实证：此前 doc-audit /
+      #  doc-claims / head-sink 三道门禁对「删一行表行」**全绿** ⇒ 该缺陷无闸，历史已发生 3 例）
+      # 史实性跳号入 `docs/smoke/table-structure-waivers.json`（逐条带理由，N/A 明细打印）
+      - name: 修订表结构完整性
+        run: bun docs/smoke/scripts/table-structure-check.ts
+
       - name: build
         run: bun run build
 

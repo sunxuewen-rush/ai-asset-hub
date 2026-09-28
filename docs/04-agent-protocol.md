@@ -2,6 +2,7 @@
 
 > Date: 2026-09-04
 > Updated: 2026-09-07（v1.1：实现状态同步——M1 已按本文档落地 packages/protocol 的 agent manifest）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§9 修订记录**。
 > Status: 定稿（M1 已实现 packages/protocol 的 agent 族 zod schema，docs/01 §6 单源）
 > Scope: `agent` 类型资产的包协议 —— agent 定义包（声明型）
 

@@ -5,7 +5,7 @@
 > Updated: 2026-09-22（**v1.9：M4b-5 规范同步 · 审核人 = 提交人已放开（R2）** —— §5.2 `review_task` 注记 · §7 状态机行 · §6 授权集行三处同步。**补登记**：内容随 M4b-5 收口（`ad05b4e`）已改入正文，当时漏记版本头与修订记录，本行补齐）
 > v1.7（M4b-4 T15 收藏最小集落地）——§5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`**（迁移 0012）· 新增 **§5.35 `asset_star`**（收藏关系：`UNIQUE(asset_id,user_id)` + 双向 `ON DELETE CASCADE`）· 运行库终态 **15 表** = 官方认证 6 + **业务 9**）
 > v1.6（M4b-pre 认证整车迁移同步）——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.rol**；**v1.5：M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 **）
-> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **10 修订记录**。
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§10 修订记录**。
 > Status: 定稿（M1 已按 v1.1 落地 drizzle schema 四域全表迁移/种子；M2 已按 v1.3 同步 §7 版本读面可见性注记；M3 已按 v1.4 同步八态/asset_version 五列/review_task WITHDRAWN/读面分治；**M4-pre 已按 v1.5 同步扁平化模型（迁移 0005-0007）；M4b-pre 已按 v1.6 同步认证整车迁移——迁移 0008-0011 实落；**M4b-4 已按 v1.7 同步收藏最小集——迁移 0012 实落，运行库终态 15 表 = 官方认证 6 表（user/session/account/verification/device_code/apikey）+ 业务 9 表**）
 > Scope: AI Asset Hub 表结构蓝图 —— 用户/资产/版本/文件/审核/label/审计（M4-pre：空间域已删除）
 > 设计来源：以企业实战验证的注册中心数据模型为基准（同构继承），按 00-07 规范资产化/中立化

@@ -2,6 +2,7 @@
 
 > Date: 2026-09-04
 > Updated: 2026-09-10（v1.2：**M4-pre 扁平化重构同步**——§3 name→坐标映射表述去 `@namespace/slug`（坐标改全局唯一裸 slug）；v1.1：实现状态同步——M1 已按本文档落地 packages/protocol 的 skill manifest）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§7 修订记录**。
 > Status: 定稿（M1 已实现 packages/protocol 的 skill 族 zod schema，docs/01 §6 单源）
 > Scope: `skill` 类型资产的包协议 —— 兼容 OpenSkills / Claude 技能生态
 

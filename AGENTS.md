@@ -76,7 +76,10 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
   文档里的数值 / 件 / 端点 / 机制声明逐条回读真码真值）→ **`头部下沉覆盖`**
   （`bun docs/smoke/scripts/head-sink-coverage.ts` `--base <before> --head <sha>`：被删头部版本行的
   裸 token 须在 post-state 同文件内仍可寻 —— 拦「头部行删了但内容没留住」；区间端点缺失 / 为空 /
-  不可解析时**显式 N/A 退出 0，不替换区间**）→ `build` → `db:migrate` → `test`
+  不可解析时**显式 N/A 退出 0，不替换区间**）→ **`修订表结构完整性`**
+  （`bun docs/smoke/scripts/table-structure-check.ts`：修订表**段内单调 / 无重复版号 / 同主版号无空洞** +
+  「历史版本段说明」条的「最早一行」须与表首一致；史实跳号逐条入
+  `docs/smoke/table-structure-waivers.json` 并打印明细）→ `build` → `db:migrate` → `test`
   （`.github/workflows/ci.yml`，push main + PR）。
 
 ## 协作约定
