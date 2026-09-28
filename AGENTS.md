@@ -72,7 +72,11 @@ _M1 阶段一 platform-core 落地后实测（2026-09-07）_：
   生成器；纳入会让每次 `db:migrate` 后 format:check 周期性翻红）。调整 biome 规则时保持该边界。
 - **CI 顺序 MUST 被本地复现**：`bun install --frozen-lockfile` → `typecheck` → `lint` →
   `format:check` → **`文档体检`**（`bun docs/smoke/scripts/doc-audit.ts`：版本头 ↔ 修订表一致性 ·
-  死路径引用 · 头部长度告警；纯只读不连库）→ `build` → `db:migrate` → `test`
+  死路径引用 · 头部长度告警；纯只读不连库）→ **`文档断言回读`**（`bun docs/smoke/scripts/doc-claims-check.ts`：
+  文档里的数值 / 件 / 端点 / 机制声明逐条回读真码真值）→ **`头部下沉覆盖`**
+  （`bun docs/smoke/scripts/head-sink-coverage.ts` `--base <before> --head <sha>`：被删头部版本行的
+  裸 token 须在 post-state 同文件内仍可寻 —— 拦「头部行删了但内容没留住」；区间端点缺失 / 为空 /
+  不可解析时**显式 N/A 退出 0，不替换区间**）→ `build` → `db:migrate` → `test`
   （`.github/workflows/ci.yml`，push main + PR）。
 
 ## 协作约定
