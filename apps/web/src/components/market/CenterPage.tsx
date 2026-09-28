@@ -26,6 +26,7 @@ import { type ColumnToggleItem, ColumnVisibilityMenu } from '../ui/ColumnVisibil
 import { EmptyState } from '../ui/EmptyState.js';
 import { ErrorState } from '../ui/ErrorState.js';
 import { Pagination } from '../ui/Pagination.js';
+import { StatTile } from '../ui/StatTile.js';
 import { TypeIcon } from '../ui/TypeIcon.js';
 import { AssetCard, AssetGrid } from './AssetCard.js';
 import { AssetList, PORTAL_COLUMNS } from './AssetList.js';
@@ -265,14 +266,10 @@ export function CenterPage({ type }: { type: AssetType }) {
         {/* 页头搜索框**已移除**（用户 2026-09-18：「title 上的搜索就重复设计了，需要去掉」）
             —— 唯一搜索入口 = 工具条右侧折叠面板（T11-e）；`meta.ph` 三键改由面板消费。
             计数块随 `CardHeader` 的 `flex-1` 自动贴右，页头形态不变。 */}
-        <div className="shrink-0 rounded-xl border border-border bg-secondary px-5 py-2.5 text-center">
-          <b className="block text-[22px] leading-tight font-bold text-primary tabular-nums">
-            {count === undefined ? '—' : count.toLocaleString()}
-          </b>
-          <span className="text-[11px] whitespace-nowrap text-muted-foreground">
-            {t('market', meta.badge)}
-          </span>
-        </div>
+        <StatTile
+          value={count === undefined ? '—' : count.toLocaleString()}
+          label={t('market', meta.badge)}
+        />
       </Card>
 
       <FilterStrip selected={labels} onToggle={toggleLabel} onClearAll={clearLabels} />

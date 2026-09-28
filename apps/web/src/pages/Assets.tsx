@@ -32,6 +32,7 @@ import { AssetAvatar } from '@/components/ui/AssetAvatar';
 import { type ColumnToggleItem, ColumnVisibilityMenu } from '@/components/ui/ColumnVisibilityMenu';
 import { type ColumnUiMeta, DataTable, type TableSortingProps } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
+import { Badge } from '@/components/ui/shadcn/badge';
 import { Button } from '@/components/ui/shadcn/button';
 import {
   Collapsible,
@@ -227,12 +228,9 @@ export function Assets() {
               title={labels.map((label) => label.displayName).join(' / ')}
             >
               {shown.map((label) => (
-                <span
-                  key={label.slug}
-                  className="inline-flex items-center rounded-full bg-secondary px-2 py-[1px] text-[11px] font-medium text-secondary-foreground"
-                >
+                <Badge key={label.slug} variant="secondary" size="chip-sm">
                   {label.displayName}
-                </span>
+                </Badge>
               ))}
               {rest > 0 ? (
                 <span className="text-[11px] tabular-nums text-muted-foreground">+{rest}</span>

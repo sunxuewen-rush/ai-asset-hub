@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/shadcn/badge';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -355,12 +356,9 @@ export function AssetDetail() {
         {(detail.labels?.length ?? 0) > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {detail.labels?.map((label) => (
-              <span
-                key={label.slug}
-                className="inline-flex items-center rounded-full bg-secondary px-3 py-[3px] text-[11px] font-medium text-secondary-foreground"
-              >
+              <Badge key={label.slug} variant="secondary" size="chip">
                 {label.displayName}
-              </span>
+              </Badge>
             ))}
           </div>
         )}

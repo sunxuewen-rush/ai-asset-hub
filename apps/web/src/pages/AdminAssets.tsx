@@ -18,6 +18,7 @@ import { type ColumnUiMeta, DataTable, type TableSortingProps } from '@/componen
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Pagination } from '@/components/ui/Pagination';
+import { StatTile } from '@/components/ui/StatTile';
 import { Badge } from '@/components/ui/shadcn/badge';
 import { Button } from '@/components/ui/shadcn/button';
 import { Card, CardHeader } from '@/components/ui/shadcn/card';
@@ -371,14 +372,10 @@ export function AdminAssetsProto() {
             </span>
             <p className="mt-1 text-[13px] text-muted-foreground">{t('admin', 'assets.desc')}</p>
           </CardHeader>
-          <div className="shrink-0 rounded-xl border border-border bg-secondary px-5 py-2.5 text-center">
-            <b className="block text-[22px] leading-tight font-bold text-primary tabular-nums">
-              {stats ? stats.totalAssets.toLocaleString() : '—'}
-            </b>
-            <span className="text-[11px] whitespace-nowrap text-muted-foreground">
-              {t('board', 'kpi.assets')}
-            </span>
-          </div>
+          <StatTile
+            value={stats ? stats.totalAssets.toLocaleString() : '—'}
+            label={t('board', 'kpi.assets')}
+          />
         </Card>
 
         <FilterStrip selected={labels} onToggle={toggleLabel} onClearAll={clearLabels} />

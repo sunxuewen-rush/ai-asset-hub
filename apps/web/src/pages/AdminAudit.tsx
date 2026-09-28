@@ -7,6 +7,7 @@ import { PAGE_SIZE } from '@/components/market/sortOptions';
 import { DataTable } from '@/components/ui/DataTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { StatTile } from '@/components/ui/StatTile';
 import { Badge } from '@/components/ui/shadcn/badge';
 import { Button } from '@/components/ui/shadcn/button';
 import { Calendar } from '@/components/ui/shadcn/calendar';
@@ -306,17 +307,13 @@ export default function AdminAudit() {
               <p className="mt-1 text-[13px] text-muted-foreground">{t('admin', 'audit.desc')}</p>
             </div>
           </CardHeader>
-          <div className="shrink-0 rounded-xl border border-border bg-secondary px-5 py-2.5 text-center">
-            <b className="block text-[22px] leading-tight font-bold text-primary tabular-nums">
-              {(allCount.data?.total ?? 0).toLocaleString()}
-            </b>
-            <span className="text-[11px] whitespace-nowrap text-muted-foreground">
-              {t('admin', 'audit.headerCount', {
-                all: allCount.data?.total ?? 0,
-                last7: last7.data?.total ?? 0,
-              })}
-            </span>
-          </div>
+          <StatTile
+            value={(allCount.data?.total ?? 0).toLocaleString()}
+            label={t('admin', 'audit.headerCount', {
+              all: allCount.data?.total ?? 0,
+              last7: last7.data?.total ?? 0,
+            })}
+          />
         </Card>
 
         {/* 过滤区（常显）：动作分组下拉 + 日期区间快捷项 */}

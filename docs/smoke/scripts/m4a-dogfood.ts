@@ -996,6 +996,64 @@ async function main() {
     await until(async () => ((await homeTxt()) ?? '').includes('技能中心')),
   );
 
+  // ── 项 24 收口（2026-09-28）：标签 pill = 官方 `Badge` + 新增 `size` 变体 ──────────────
+  // 依据 = M4a design §4.1 ③「就地加变体的批，其 dogfood 脚本须含该变体的渲染 / class 契约断言」。
+  // ① 真实消费点 = 门户资产详情页标签 pill（`size="chip"`）—— **条数取 API 真值**（真库是活的，不写死）。
+  //    ⚠ **跨批 fixture 依赖（已知 · 有意为之）**：本组依赖 `m4b4-seed-skill`（M4b-4 的 seed 资
+  //    产，带 2 标签）。该 fixture 若被清/改状态，本组会红 —— 那是**预期信号**（提示先跑
+  //    `m4b4-seed-assets`），不是产品缺陷；改断言前先看这条。
+  // ② 契约守门 = 探针注入 `chip-sm` / 官方 `default` 两档 —— 守的是 **Tailwind 定序**（size 轴类须压过
+  //    官方 base 的 `px-2 / py-0.5 / text-xs`）；Tailwind 升版致定序变化时此处翻红。
+  //    ⚠ 探针类串**须与 `ui/shadcn/badge.tsx` 的 `size.chip-sm` 同步**（改 cva 即改此串）。
+  await nav(`${BASE}/assets/m4b4-seed-skill`);
+  await sleep(1500);
+  const pillApiN = await fetch(`${API_BASE}/api/assets/m4b4-seed-skill`)
+    .then((r) => r.json() as Promise<{ labels?: unknown[] }>)
+    .then((d) => (d.labels ?? []).length)
+    .catch(() => -1);
+  const pillDom = (await evalJs(`(() => {
+    const els = [...document.querySelectorAll('[data-slot="badge"][data-size="chip"][data-variant="secondary"]')];
+    const rd = (el) => { const c = getComputedStyle(el);
+      return [parseFloat(c.fontSize), parseFloat(c.paddingTop), parseFloat(c.paddingLeft), parseFloat(c.borderTopWidth)]; };
+    return { n: els.length, box: els.map(rd) };
+  })()`)) as { n: number; box: number[][] } | null;
+  ok(
+    '标签 pill 真实消费点：详情页 badge 数 = API 标签数',
+    pillApiN > 0 && pillDom?.n === pillApiN,
+    `api=${pillApiN} dom=${pillDom?.n}`,
+  );
+  ok(
+    '标签 pill chip 档尺寸契约（font 11 / 内距 3·12 / 边框 1）',
+    !!pillDom &&
+      pillDom.box.length > 0 &&
+      pillDom.box.every((x) => x[0] === 11 && x[1] === 3 && x[2] === 12 && x[3] === 1),
+    JSON.stringify(pillDom?.box[0] ?? null),
+  );
+  const pillProbe = (await evalJs(`(() => {
+    // ⚠ BASE_CLS = 官方 badge.tsx 的 cva base 原样（含 px-2 / py-0.5 / text-xs —— 这三项正是
+    //   与 size 轴撞属性的部分，漏抄即失去定序守门意义；首次落地时漏抄，被 default 档断言当场抓出）。
+    const BASE_CLS = 'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap bg-secondary text-secondary-foreground';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;top:-2000px;left:0';
+    document.body.appendChild(wrap);
+    const mk = (sizeCls) => { const s = document.createElement('span');
+      s.className = BASE_CLS + (sizeCls ? ' ' + sizeCls : ''); s.textContent = '标签'; wrap.appendChild(s); return s; };
+    const rd = (el) => { const c = getComputedStyle(el);
+      return [parseFloat(c.fontSize), parseFloat(c.paddingTop), parseFloat(c.paddingLeft)]; };
+    return { sm: rd(mk('py-[1px] text-[11px]')), def: rd(mk('')) };
+  })()`)) as { sm: number[]; def: number[] } | null;
+  ok(
+    '标签 pill chip-sm 档契约（font 11 / 内距 1·8）',
+    !!pillProbe && pillProbe.sm[0] === 11 && pillProbe.sm[1] === 1 && pillProbe.sm[2] === 8,
+    JSON.stringify(pillProbe?.sm ?? null),
+  );
+  ok(
+    '官方 Badge default 档未被 size 轴污染（font 12 / 内距 2·8）',
+    !!pillProbe && pillProbe.def[0] === 12 && pillProbe.def[1] === 2 && pillProbe.def[2] === 8,
+    JSON.stringify(pillProbe?.def ?? null),
+  );
+  await shot('9-pill-contract');
+
   // 全态 ⑤ 404：不存在坐标 → ErrorState（含重试），不白屏（T25 补）
   await nav(`${BASE}/assets/__no_such_asset__`);
   ok(

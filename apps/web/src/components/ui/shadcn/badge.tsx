@@ -32,9 +32,25 @@ const badgeVariants = cva(
         ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 [a&]:hover:underline',
       },
+      /**
+       * AIH 站点级补丁（官方第 ④ 条路径「改组件源码加 variant」· M4a 挂账项 24 收口 2026-09-28）：
+       * 标签 pill 盒模型 —— 在官方默认 `px-2 py-0.5 text-xs` 之上补两档，沿用 M4a 时代自绘 pill
+       * 真值（详情档 `px-3 py-[3px]` · 列表紧凑档 `px-2 py-[1px]`），字阶 11px（design §4.4 轴内值）
+       * ⇒ **不逐点用 className 覆盖尺寸**。`default` 档保持官方原样（空串 ⇒ base 值生效）。
+       *
+       * ⚠️ 与 base 的 `px-2 / py-0.5 / text-xs` 属同属性撞车 ⇒ 生效与否由**样式表定序**决定
+       * （同 `toggle.tsx` chip variant 的实测结论，与 class 书写顺序无关）；本仓以 dogfood 的
+       * class 契约断言（`m4a-dogfood` 的 pill 组）守门，改 Tailwind 版本后须复跑。
+       */
+      size: {
+        default: '',
+        chip: 'px-3 py-[3px] text-[11px]',
+        'chip-sm': 'py-[1px] text-[11px]',
+      },
     },
     defaultVariants: {
       variant: 'default',
+      size: 'default',
     },
   },
 );
@@ -42,6 +58,7 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = 'default',
+  size,
   asChild = false,
   ...props
 }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
@@ -51,7 +68,8 @@ function Badge({
     <Comp
       data-slot="badge"
       data-variant={variant}
-      className={cn(badgeVariants({ variant }), className)}
+      data-size={size ?? 'default'}
+      className={cn(badgeVariants({ variant, size }), className)}
       {...props}
     />
   );

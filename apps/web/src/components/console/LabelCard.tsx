@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { ApiError } from '@/api/client';
 import { attachLabel, detachLabel, fetchLabels } from '@/api/labels';
 import type { AssetLabelRef } from '@/api/types';
+import { Badge } from '@/components/ui/shadcn/badge';
 import { Button } from '@/components/ui/shadcn/button';
 import { Card } from '@/components/ui/shadcn/card';
 import {
@@ -97,10 +98,7 @@ export function LabelCard({
             // 特权标签 + 非超管 ⇒ 禁用 ×（用户拍板口径；服务端仍会拒 = 双保险）
             const locked = label.type === 'PRIVILEGED' && !privileged;
             return (
-              <span
-                key={label.slug}
-                className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-[3px] text-[11px] font-medium text-secondary-foreground"
-              >
+              <Badge key={label.slug} variant="secondary" size="chip">
                 {label.displayName}
                 {locked ? (
                   <span
@@ -127,7 +125,7 @@ export function LabelCard({
                     <X className="size-3" />
                   </button>
                 )}
-              </span>
+              </Badge>
             );
           })}
         </div>
