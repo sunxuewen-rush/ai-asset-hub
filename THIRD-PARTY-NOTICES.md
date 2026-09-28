@@ -9,7 +9,7 @@ installed dependency tree (2026-09-20), not transcribed by hand.
 
 | Component | How it got here | License |
 |-----------|-----------------|---------|
-| shadcn/ui | UI primitives generated with the shadcn CLI and committed to `apps/web/src/components/ui/shadcn/` (33 components) | MIT |
+| shadcn/ui | UI primitives generated with the shadcn CLI and committed to `apps/web/src/components/ui/shadcn/` (38 components) | MIT |
 
 ## 2. Direct runtime dependencies
 

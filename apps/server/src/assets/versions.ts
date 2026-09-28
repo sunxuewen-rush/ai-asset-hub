@@ -24,7 +24,7 @@ import { projectAsset } from './projection.js';
 export interface CreateVersionInput {
   asset: { id: number; type: AssetType };
   uploaderId: string;
-  /** zip 包体（multipart 前置已界 ≤10MiB——T13） */
+  /** zip 包体（multipart 前置已按 `config/env` 总包上限界——T13） */
   file: Buffer;
   /** 显式版本号（semver 01 §3；UNIQUE(asset_id, version) 防覆写） */
   version: string;

@@ -2,10 +2,10 @@
  * zip 结构校验（M2 design §4；02 §3.3 上限契约 + 服务端安全规则）。
  * yauzl 流式遍历（防 zip bomb：边读边累计，超限即停不继续解压）；
  * 路径安全（穿越/绝对/反斜杠/symlink）拒绝；目录条目跳过不计数。
- * 数值上限 env 可配（skillhub properties 同构）：
- *   AHT_PACKAGE_MAX_BYTES（总包，默认 10MiB）
- *   AHT_FILE_MAX_BYTES（单文件，默认 1MiB）
- *   AHT_MAX_FILES（条目数，默认 100）
+ * 数值上限由 `config/env` 单源（本注释不写死字节数；默认值与解释见 `config/env.ts`）：
+ *   `ASSET_PACKAGE_MAX_BYTES`（总包）
+ *   `ASSET_FILE_MAX_BYTES`（单文件）
+ *   `ASSET_MAX_FILES`（条目数）
  * 超限/结构错误抛 ZipValidationError（code = protocolErrorCodes / assetErrorCodes）。
  */
 import { protocolErrorCodes } from '@ai-asset-hub/protocol';
@@ -191,7 +191,7 @@ export function readZipEntry(zip: Buffer, path: string): Promise<Buffer> {
 }
 
 /**
- * 单遍解压全部文件条目（T12 上传事务用——总量 ≤10MiB 已由 scanZip 界，内存安全）。
+ * 单遍解压全部文件条目（T12 上传事务用——总量已由 scanZip 按 `config/env` 总包上限界，内存安全）。
  * 目录条目跳过；解压流错误（CRC 校验失败等）→ ZipValidationError（上传拒——坏包不入存储）。
  */
 export function extractAll(zip: Buffer): Promise<Array<{ path: string; content: Buffer }>> {

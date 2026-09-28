@@ -74,8 +74,8 @@ keywords: [review, lint]     # 可选，搜索增强
 | `description` | 非空，≤ 1024 |
 | 正文 | frontmatter 后非空 markdown |
 | 文件白名单 | `.md .txt .png .jpg .svg .webp`（assets/ 内） |
-| 单文件大小 | ≤ 1 MiB（可配置） |
-| 总包大小 | ≤ 10 MiB（可配置） |
+| 单文件大小 | ≤ 10 MiB（可配置 · 默认值真源 = `apps/server/src/config/env.ts`） |
+| 总包大小 | ≤ 100 MiB（可配置 · 默认值真源 = `apps/server/src/config/env.ts`） |
 | 文件数量 | ≤ 100（可配置） |
 
 ## 5. 校验错误码
@@ -87,6 +87,8 @@ keywords: [review, lint]     # 可选，搜索增强
 | `missing_description` | description 缺失 |
 | `missing_body` | 正文为空 |
 | `unsupported_file_type` / `file_too_large` / `too_many_files` / `package_too_large` | 包结构违规 |
+
+**建议 i18n（M4b-7 T10 回填）**：agent 族校验码与 skill 族同名同义，键名 = `errors.<码>`（映射见 `docs/02` §4.1）—— 本批已落 `errors.invalid_agent_frontmatter` 等键。
 
 ## 6. 安装语义
 

@@ -542,7 +542,7 @@ export function createAssetRoutes(deps: AssetRoutesDeps): Hono {
       return c.json({ code: 'request.invalid', message: 'changelog too long (≤4096)' }, 400);
     }
 
-    // 413 前置：包体字节 > 总包上限（config/env 单源——02 §3.3 10MiB）
+    // 413 前置：包体字节 > 总包上限（config/env 单源——数值见 config/env.ts，本处不写死）
     const env = getEnv();
     if (rawFile.size > env.ASSET_PACKAGE_MAX_BYTES) {
       throw new AssetError(assetErrorCodes.packageTooLarge);

@@ -25,6 +25,7 @@ import { type AihAuth, createAuth } from '../auth/better-auth.js';
 import { AuthError } from '../auth/errors.js';
 import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { ACCOUNT_ROLE, type AccountRole, RbacService } from '../auth/rbac.js';
+import { resetEnvCache } from '../config/env.js';
 import { createClient, type Db } from '../db/client.js';
 import { type AssetType, asset, assetFile, assetVersion, auditLog } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -348,14 +349,23 @@ describe('POST /api/assets/{slug}/versions（T13 multipart 上传）', () => {
     expect(res.status).toBe(404);
   });
 
-  it('超上限 413（包体 > ASSET_PACKAGE_MAX_BYTES 10MiB）', async () => {
-    const big = buildZip([
-      { name: 'SKILL.md', content: '---\nname: big\ndescription: big\n---\nbody\n' },
-      { name: 'blob.bin', content: Buffer.alloc(11 * 1024 * 1024, 1) },
-    ]);
-    const res = await uploadZip(await cookieFor(member), 'ast-pub-skill', big, '3.5.0');
-    expect(res.status).toBe(413);
-    expect(((await res.json()) as { code: string }).code).toBe('asset.package_too_large');
+  it('超上限 413（包体 > 总包上限 —— 注入小上限，不依赖默认值）', async () => {
+    const prev = process.env.ASSET_PACKAGE_MAX_BYTES;
+    process.env.ASSET_PACKAGE_MAX_BYTES = String(64 * 1024); // 64 KiB
+    resetEnvCache();
+    try {
+      const big = buildZip([
+        { name: 'SKILL.md', content: '---\nname: big\ndescription: big\n---\nbody\n' },
+        { name: 'blob.bin', content: Buffer.alloc(128 * 1024, 1) }, // 解压后 128 KiB > 64 KiB
+      ]);
+      const res = await uploadZip(await cookieFor(member), 'ast-pub-skill', big, '3.5.0');
+      expect(res.status).toBe(413);
+      expect(((await res.json()) as { code: string }).code).toBe('asset.package_too_large');
+    } finally {
+      if (prev === undefined) delete process.env.ASSET_PACKAGE_MAX_BYTES;
+      else process.env.ASSET_PACKAGE_MAX_BYTES = prev;
+      resetEnvCache();
+    }
   });
 
   it('限流 429（第 11 次上传——10 次/分钟窗口）', async () => {

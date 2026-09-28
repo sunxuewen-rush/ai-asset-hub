@@ -186,6 +186,103 @@ export async function apiDelete<T = void>(path: string, opts: ApiWriteOptions = 
   });
 }
 
+/** 上传选项（M4b-7 T4 · design §4.5：唯一需要 `upload.onprogress` 的写路径） */
+export interface ApiUploadOptions {
+  /** 待上传文件（浏览器须能放进 `FormData`） */
+  file: File | Blob;
+  /** multipart **文本**字段（如 `version` / `changelog`）——值一律字符串化 */
+  fields?: Record<string, string>;
+  /** 文件字段名（服务端读 `body.file`，见 `http/assets.ts` 上传端点） */
+  fileField?: string;
+  /** 上传进度（**0–100 整数**；`lengthComputable` 为假时不回调） */
+  onProgress?: (percent: number) => void;
+  signal?: AbortSignal;
+  /** 同 `ApiPostOptions`：true = 该调用的 401 跳过全局分流（交调用方 inline 展示） */
+  skipAuthRedirect?: boolean;
+}
+
+/**
+ * 上传（**XHR**，M4b-7 T4 加性）—— design §4.5。
+ *
+ * 为什么不用 `fetch`：需要一个**上传进度**通道（`xhr.upload.onprogress`；`fetch` 无请求体进度），
+ * 且服务端 multipart 契约要求浏览器自带 boundary ⇒ **不设 `content-type`**（其余头与 `doFetch` 同源）。
+ *
+ * **复用面（与 `doFetch` 同口径，不另立一套语义）**：401 四分类（`handleUnauthorized`）·
+ * 错误归一 `{code,message}` ⇒ `ApiError`（非 JSON 错误体退回 `http_{status}`）· `Accept-Language` ·
+ * 空体 ⇒ `undefined`。**不进响应缓存**（非 GET，§4.1 缓存只服务读面）。
+ *
+ * **取消语义**：`signal.abort()` ⇒ reject `DOMException('AbortError')`，与 `fetch` 分支同形
+ * （调用方按 `err.name === 'AbortError'` 识别，见 design §4.5 C7/C16）。
+ */
+export function apiUpload<T>(path: string, opts: ApiUploadOptions): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (opts.signal?.aborted) {
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
+      return;
+    }
+    const form = new FormData();
+    form.append(opts.fileField ?? 'file', opts.file);
+    for (const [key, value] of Object.entries(opts.fields ?? {})) form.append(key, value);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', path);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Accept-Language', getCurrentLang());
+    // ⚠ 不设 content-type —— 浏览器须自带 multipart boundary（手设会丢 boundary ⇒ 服务端解析失败）
+
+    const onAbort = () => xhr.abort();
+    opts.signal?.addEventListener('abort', onAbort, { once: true });
+    const cleanup = () => opts.signal?.removeEventListener('abort', onAbort);
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return; // 无总长 ⇒ 不报进度（避免 NaN/跳变）
+      opts.onProgress?.(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      cleanup();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const text = xhr.responseText;
+          resolve((text.length === 0 ? undefined : JSON.parse(text)) as T);
+        } catch (err) {
+          // 2xx 但体非 JSON（服务端异常产物）⇒ **归一为 ApiError**：若在此直接抛出，异常发生在
+          // 事件处理器里（非 Promise 执行器同步流）⇒ 不会 reject，调用方会**永久悬挂**。
+          reject(
+            new ApiError(
+              'invalid_response',
+              xhr.status,
+              err instanceof Error ? err.message : 'invalid response',
+            ),
+          );
+        }
+        return;
+      }
+      let code = `http_${xhr.status}`;
+      let message: string | undefined;
+      let body: unknown;
+      try {
+        body = JSON.parse(xhr.responseText);
+        const parsed = body as ApiErrorBody;
+        if (parsed && typeof parsed.code === 'string' && parsed.code.length > 0) code = parsed.code;
+        if (parsed && typeof parsed.message === 'string') message = parsed.message;
+      } catch {
+        // 非 JSON 错误体——保留 http_{status} 归一码（与 doFetch 同）
+      }
+      if (xhr.status === 401) handleUnauthorized(path, opts.skipAuthRedirect === true);
+      reject(new ApiError(code, xhr.status, message ?? xhr.statusText, body));
+    };
+    xhr.onerror = () => {
+      cleanup();
+      reject(new ApiError('network', 0, 'network'));
+    };
+    xhr.onabort = () => {
+      cleanup();
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
+    };
+    xhr.send(form);
+  });
+}
+
 /** `doFetch` 请求形态（T1：method/body/headers；**T2**：401 四分类消费 `skipAuthRedirect`） */
 interface DoFetchInit {
   method?: string;

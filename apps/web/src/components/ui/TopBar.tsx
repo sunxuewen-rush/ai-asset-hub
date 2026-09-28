@@ -1,5 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { Upload } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useAuth } from '@/auth/AuthProvider';
 import { AssetSearch } from '@/components/search/AssetSearch';
+import { Button } from '@/components/ui/shadcn/button';
 import { SidebarTrigger } from '@/components/ui/shadcn/sidebar';
 import { useI18n } from '@/i18n/I18nProvider';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
@@ -58,12 +62,42 @@ import { LanguageSwitcher } from './LanguageSwitcher.js';
 export function TopBar() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { state } = useAuth();
+  const authed = state.status === 'authed';
   return (
     <header className="sticky top-0 z-20 flex h-[var(--header-height)] shrink-0 items-center gap-2 border-b border-border bg-card transition-[width,height] ease-linear">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1" />
         {/* 标题区已撤（2026-09-23 用户拍板 **甲**）：顶栏不含页面名 —— 见头部注释「顶栏回归官方 block 形态」 */}
         <div className="ml-auto flex items-center gap-2">
+          {/* 发布入口（**M4b-7 T8** · design §4.7 #2）：置于 `AssetSearch` **左侧**。
+              · 已登录 ⇒ `Link` 直入 `/dashboard/publish`
+              · 未登录 ⇒ **仍渲染**（不随登录态隐藏）⇒ 点击 = toast `publish.loginRequired` +
+                `/login?next=/dashboard/publish`（回跳白名单 `/dashboard` 天然命中 —— `auth/next.ts`）
+              · `<lg`（1024px）⇒ **纯图标**（`aria-label` 兜可达性；**不隐藏** —— D27） */}
+          {authed ? (
+            <Button asChild variant="ghost" size="sm" className="gap-1.5 px-2 lg:px-3">
+              <Link to="/dashboard/publish" aria-label={t('publish', 'title')}>
+                <Upload className="size-4" />
+                <span className="hidden lg:inline">{t('publish', 'title')}</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 px-2 lg:px-3"
+              aria-label={t('publish', 'title')}
+              onClick={() => {
+                toast.error(t('publish', 'loginRequired'));
+                navigate('/login?next=/dashboard/publish');
+              }}
+            >
+              <Upload className="size-4" />
+              <span className="hidden lg:inline">{t('publish', 'title')}</span>
+            </Button>
+          )}
           {/* 全资产搜索（**T11-i A** · M4a design §8.12 ④）。
               2026-09-20 用户调整：**靠右**、置于**语言切换左侧**（原 = 标题右侧）；固定 **w-320**（非弹性）。
               `<lg`（1024px）整条隐藏（窄屏不挤顶栏、不做图标钮展开）；提交 ⇒ `/search?q=`（跨类型结果页）

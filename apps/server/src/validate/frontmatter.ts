@@ -21,7 +21,7 @@ export type FrontmatterResult =
 
 /**
  * 行式解析：首行须为 `---`；随后行到关闭 `---` 行为 YAML 段；其后为正文。
- * CRLF/尾随空格兼容（行 trim 判定）。主文件内容上限已由 scanZip ≤1MiB 保证。
+ * CRLF/尾随空格兼容（行 trim 判定）。主文件内容上限已由 scanZip 按 `config/env` 单文件上限保证。
  */
 export function parseFrontmatter(content: string): FrontmatterResult {
   const lines = content.split(/\r?\n/);

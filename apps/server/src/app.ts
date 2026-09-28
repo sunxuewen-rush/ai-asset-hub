@@ -17,6 +17,7 @@ import { officialSessionMiddleware, rbacContext } from './http/auth-middleware.j
 import { createAuthRoutes } from './http/auth-routes.js';
 import { createLabelRoutes } from './http/labels.js';
 import { createMeRoutes } from './http/me.js';
+import { createMetaRoutes } from './http/meta.js';
 import { createOidcRoutes } from './http/oidc-routes.js';
 import { trustedOriginGuard } from './http/origin-guard.js';
 import { requestContextMiddleware } from './http/request-context.js';
@@ -209,6 +210,8 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/reviews', createReviewRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/labels', createLabelRoutes({ db: deps.db, audit: deps.audit }));
   app.route('/api/stats', createStatsRoutes({ db: deps.db }));
+  // M4b-7 T1：平台静态上限（**匿名只读** —— 发布页上限文案单一真值源；与 /api/stats 同档）
+  app.route('/api/meta', createMetaRoutes());
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // M4b-6 T1：管理看板三只读端点（`role >= ADMIN`）
   app.route('/api/admin', createAdminRoutes({ db: deps.db }));

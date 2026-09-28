@@ -8,6 +8,7 @@ import {
   Send,
   Settings,
   Tags,
+  Upload,
   Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -107,6 +108,12 @@ export function buildNav(t: Translate): { portal: PortalNavEntry[]; groups: NavG
             to: '/dashboard/tokens',
             text: t('dashboard', 'tokens'),
             icon: <KeyRound className="size-4" />,
+          },
+          // 发布（M4b-7 T8）—— 个人组**第 5 条 · 末位**；图标 `Upload`（全仓零占用，实测）
+          {
+            to: '/dashboard/publish',
+            text: t('publish', 'title'),
+            icon: <Upload className="size-4" />,
           },
         ],
       },

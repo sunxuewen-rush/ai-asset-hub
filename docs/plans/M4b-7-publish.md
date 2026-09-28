@@ -1,9 +1,9 @@
 # M4b-7 发布批：Web 发布流（新建资产 + 单 zip 上传 + 一键链提审）—— 批计划
 
 > Date: 2026-09-28
-> Updated: 2026-09-28（**v0.4：第四轮提交前复核（R1）** —— 角轮 = **文档声称的门禁链 vs 真 CI 逐条比对**（含从未跑过的 `format:check`），实测 **9.46** ⇒ 修 1 条：**plan 6 处写「门禁 11 步」**（T9 出口 / 断言③ / §4 硬规则 / §8 准确性 / §8.1 记录 / v0.1 行），而 **CI 现状实测 = 11 步 · 本批交付后（+第五道）= 12 步**，design §9.2 链本就是 **12 项** ⇒ 全部订正为 **12 步（原 11 + 本批新增第五道）**；design §9.2 标题亦标注步数。**验证安全项**：`format:check` 实跑通过（biome `includes` 仅 `**/*.ts`/`**/*.tsx`/`**/*.json` ⇒ **不覆盖 `.md`**）⇒ docs-only 提交在 format 步零风险）
-> Updated: 2026-09-28（**v0.3：第三轮提交前复核（Q1/Q2）** —— 角轮 = **门禁自身扫什么 + 批指针面**，实测 **9.24** ⇒ 修 2 条：**Q1（真·高价值 · 推翻前两轮自报读数）** `table-structure-check` / `doc-claims-check` 用 **`git ls-files docs`** 枚举 ⇒ **只扫已跟踪文件** ⇒ 两个新件（design/plan）此前**从未入闸**、「门禁全绿」对它们**空转**；暂存后取真读数 = doc-audit **217/0** · doc-claims **116/0** · head-sink **2/0** · table-structure **39/0（56 份）** ⇒ **硬规则入 design §9.2 + plan §4**（新件先暂存再跑门禁）+ §6 风险 12 · **Q2** `docs/README.md` §6.1 F 号导航表 + `AGENTS.md` 批指针 ⇒ 登记 **design §9.7 ⑧**（时点 = 实现期首条 findings 登记时同批；不列件，先例 M4b-6）⇒ §8.4 复评 **9.50**）
-> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本（**v0.1–v0.2**）见 **§9 修订记录**。
+> Updated: 2026-09-28（**v1.5：T10 完成（收尾）** —— 规范层回填 M13–M16 · §9.7 ①–⑧ 实测回填 · 证据文件 `docs/smoke/2026-09-28-m4b7-publish.md` 落仓 · 清理复核（proto 不上仓 · 造数零残留）⇒ **本批十 Task 全绿，均分 9.56**）
+> Updated: 2026-09-28（**v1.4：T9 完成（造数 + dogfood 九段 + 第五道门禁）** —— **N8 dogfood 九段 47 PASS / 0 FAIL**（全量一次跑：入口/未登录/形态/逐态/一键链真上传/错误面/两出口含真撤回/零回归/G9 中文守卫）· **N9 造数**（3 夹具 · 幂等 + `--clean` 实测）· **N10 第五道门禁 36/0 并已接 CI（M22）**；**收尾清理零残留**（10 资产 + 21 审计行）；9 张截图。⇒ §7.1 补 T9 分 · 均分 **9.57**）
+> **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本（**v0.1–v1.3**）见 **§9 修订记录**。
 > Status: ⬜ **待实现**（设计已定稿 · 2026-09-28；本 plan 为实现唯一依据）
 > 上游：批 design `docs/designs/2026-09-28-m4b7-publish-design.md`（**定稿 · v0.8 · 8 维 9.50** · D1–D49 · C1–C17 · U1–U4/U7 为批外登记项）
 > · 主 design `docs/designs/2026-09-10-m4b-admin-console-and-auth-design.md`（**v1.76** · §2.3 批件登记 M4b-7 行 = **已对齐**）· `docs/00-product-direction.md` §5（**v1.100** · M4b-7 行 = 设计定稿）
@@ -24,7 +24,7 @@
 | 4 | **两出口** | 「**放弃该资产**」（二次确认 · POST-409 失败面 · **前提 = 本页会话内创建 ∧ 该资产零版本**）· 「**撤回提交**」（完成态 · `POST /api/reviews/:id/withdraw` 204） |
 | 5 | **三入口** | 侧栏「个人」组第 5 条「发布」（图标 `Upload`）· 顶栏「发布」（`<1024px` ⇒ 纯图标，不隐藏）· 资产详情页卡片「发布新版本」→ `?slug=` 深链 |
 | 6 | **服务端（零写面改动）** | ① **新增** `GET /api/meta/limits`（只读 · **匿名可读** · 出参 `{ packageMaxBytes, fileMaxBytes, maxFiles }`）② `ASSET_PACKAGE_MAX_BYTES` 默认 `10 → 100 MiB` · `ASSET_FILE_MAX_BYTES` 默认 `1 → 10 MiB` ③ **代码侧 6 处**写死字节数的注释 / 用例标题去写死（改引 env 单源） |
-| 7 | **i18n** | 新组 `publish`（**55 键**）· `errors` 组 **40 → 66**（20 协议码 + 6 本页可达业务码）· zh/en 零差集 |
+| 7 | **i18n** | 新组 `publish`（**55 键**）· `errors` 组 **42 → 68**（20 协议码 + 6 本页可达业务码 · F225 订正）· zh/en 零差集 |
 | 8 | **规范层回填** | `docs/02` §4 / `docs/03` §4（**新增**码表）/ `docs/04` §5 / `docs/07` §3（`publish` 组落地注记） |
 | 9 | **验证基建** | 造数脚本（2 + 1 + 1 夹具）· dogfood **九段**（G1–G9）· **第五道文档门禁** `file-ref-closure-check`（件面 ↔ 引用闭合） |
 | 10 | **上限表述全覆盖** | 规范层 3 处 + **代码侧 6 处**（`validate/zip.ts` · `frontmatter.ts` · `http/assets.ts` · `assets.test.ts` · `assets/versions.ts` + `config/env.ts` 注释）随本批同改 |
@@ -55,7 +55,6 @@
 | **T4** | web | 数据层（**M5** `api/client.ts` +`apiUpload` · **M6** `api/assets.ts` +`createAsset` · **M7** `api/versions.ts` +`uploadVersion` · **N3** `api/meta.ts`） | T1 | `typecheck` 绿 · XHR 进度回调与 `abort` 可被 dogfood 观测 |
 | **T5** | web | 一键链编排（**N2** `lib/publish-chain.ts`）：三跳 / 停点 / 预填推导 | T4 | 预填**四支**可断言（+1 / 空壳 1.0.0 / `-pre` 剥段 / 撞号 409） |
 | **T6** | web | 官方件落仓（**N4** `ui/shadcn/progress.tsx` · **N5** `ui/shadcn/radio-group.tsx`） | — | 与官方 registry 逐字一致（10 子件/6 子件口径见 design §2.3） |
-| **T7** | web | 发布页（**N1** `pages/Publish.tsx`）：三段 + 右栏面板 + 四态 + 线框 A–E | T3 · T5 · T6 | dogfood **G3–G7** 绿（形态 / 逐态 / 错误面 / 出口） |
 | **T8** | web | 三入口 + 路由（**M1** `main.tsx` · **M2** `navItems.tsx` · **M3** `TopBar.tsx` · **M4** `AssetAdminCard.tsx`） | T7 | dogfood **G1–G2** 绿（侧栏 5 条 / 顶栏位序 / 深链非 `disabled`） |
 | **T9** | script | 造数 + dogfood 九段 + 第五道门禁（**N9** · **N8** · **N10**） | T1–T8 | 九段逐段落 PASS · 门禁 **12 步** exit 0（原 11 + 本批新增第五道）· 残留零 |
 | **T10** | 文档 / 收尾 | 规范层回填（**M13–M16**）+ §9.7 回填项 + 清理 + 证据归档 | T9 | `docs/02/03/04/07` 改毕 · 键数/行数/断言数回填 · `git status` 清 |
@@ -232,7 +231,7 @@
 2. **改造** `docs/03-mcp-bundle-protocol.md`（**M14**）：§4 **新增**族错误码表（现 §4 为凭据安全规则，无码表）；§5 上限表述同步
 3. **改造** `docs/04-agent-protocol.md`（**M15**）：§5 错误码表补「建议 i18n」列；上限表述同步
 4. **改造** `docs/07-i18n-conventions.md`（**M16**）：§3 `publish` 组落地注记（预留 → 落地 + 键数实测回填）
-5. **回填 §9.7 ①–⑧**（实测值，**不预写**）：上限表述全覆盖（规范 3 + 代码 6）· i18n 键数（设计值 55 / 40→66）· 件行数（新建 10 / 改造 22 的 `wc -l`）· dogfood 与门禁读数 · 端点出参 ↔ 页面消费点 · 造数残留 · **findings 起始号 = 现存最大号 + 1**（2026-09-28 实测基线 **F221**）· **⑧ F 号总览 + 批指针**（`docs/README.md` §6.1 + `AGENTS.md` ⇒ 首条 finding 登记时同批）
+5. **回填 §9.7 ①–⑧**（实测值，**不预写**）：上限表述全覆盖（规范 3 + 代码 6）· i18n 键数（**实测 55 / 42→68**）· 件行数（新建 10 / 改造 25 的 `wc -l`）· dogfood 与门禁读数 · 端点出参 ↔ 页面消费点 · 造数残留 · **findings 起始号 = 现存最大号 + 1**（2026-09-28 实测基线 **F221**）· **⑧ F 号总览 + 批指针**（`docs/README.md` §6.1 + `AGENTS.md` ⇒ 首条 finding 登记时同批）
 6. **清理**：原型物料（`apps/web/proto.html` + `src/proto/`）**不上仓**（`.gitignore` 无需新增 · 本就未跟踪）· 清 `main.tsx:110` 注释（T8 已办）· 收尾 `git status` 零无关改动
 7. **证据归档**：本批证据文件 = `docs/smoke/` 下 **`2026-09-28-m4b7-publish.md`**（**T10 交付** · 九段读数 + 门禁 exit code + 零回归 + 造数清理；证据文件与截图同批落）
 
@@ -248,7 +247,9 @@ bun docs/smoke/scripts/doc-audit.ts → doc-claims-check.ts → head-sink-covera
 table-structure-check.ts → file-ref-closure-check.ts → build → db:migrate → test
 ```
 
-> ⚠️ **门禁覆盖面硬规则（Q1 实证 · 2026-09-28）**：`table-structure-check` 与 `doc-claims-check` 用 **`git ls-files docs`** 枚举 ⇒ **只扫已跟踪文件**（`doc-audit` / `head-sink` 走工作区遍历）。⇒ **新建件必须先 `git add`（逐文件）再跑门禁**，否则新件空转（实测：暂存前 54 份 → 暂存后 **56 份**；`doc-claims` 112 → **116**）。
+> ⚠️ **门禁覆盖面硬规则（Q1 实证 · 2026-09-28）**：`table-structure-check` 与 `doc-claims-check` 用 **`git ls-files docs`** 枚举 ⇒ **只扫已跟踪文件**（`doc-audit` / `head-sink` 走工作区遍历）。⇒ **新建件必须先 `git add`（逐文件）再跑门禁**，否则新件空转（实测：新件入闸后 `doc-claims 112→116` · `table-structure 54→56` 份）。
+
+> ⚠️ **表格/清单编辑三查（本批过程教训 · 同类手误 4 次）**：① **改前先回读该表当前行集合**（禁凭记忆写 `old_string`）② 插入/替换**必须限定段落边界** —— 同一 `| **T<n>** |` 形态在 §2 总览与 §7.1 打分表**两处出现**，全文正则会在错处命中 ③ 改后**回读并断言行序/行数**（升序、无重复行）。已发生：T3/T4 各留重复行 · F228 覆盖 F227 · T6 分数行落入 §2。
 
 逐项 **exit 0** 才算过；顺序**不得调换**（CI 同序）。**每 Task 收尾**先跑本包 `typecheck` + `biome`，**落地前**跑全量。
 
@@ -302,27 +303,59 @@ table-structure-check.ts → file-ref-closure-check.ts → build → db:migrate 
 
 | Task | 状态 | 提交 | 断言读数 | findings |
 |------|:--:|:--:|------|------|
-| T1 | ⬜ | — | — | — |
-| T2 | ⬜ | — | — | — |
-| T3 | ⬜ | — | — | — |
-| T4 | ⬜ | — | — | — |
-| T5 | ⬜ | — | — | — |
-| T6 | ⬜ | — | — | — |
-| T7 | ⬜ | — | — | — |
-| T8 | ⬜ | — | — | — |
-| T9 | ⬜ | — | — | — |
-| T10 | ⬜ | — | — | — |
+| T1 | ✅ | 待末批 push | `bun test src/http/meta.test.ts` **4 pass / 0 fail**（匿名 200 · 键集合精确 · 三键↔env · env 单源正反证）· typecheck **4/4** · biome **0** · 文档门禁四道 **217/116/1/39 全 0 FAIL** | **F224**（`app.ts` 插入 ⇒ 门禁锚点 214→217 + **M23**）· docs/README §6.1 F 号总览同步（F222–F224 · 当前批 → M4b-7） |
+| T2 | ✅ | 待末批 push | 受影响三文件 `bun test`（assets + zip + meta）**101 pass / 0 fail** · typecheck **4/4** · biome **0** · 默认值实测 `100 * 1024 * 1024` / `10 * 1024 * 1024` / `100` | **F222**（413 用例注入式化）· **F223**（`AHT_*` 注释漂移订正） |
+| T3 | ✅ | 待末批 push | `publish` 组 **55 键**（zh/en 集合相等）· `errors` **42 → 68**（+26）· typecheck **4/4** · biome **0 warning** · 文档门禁四道全绿 | **F225**（`errors` 计数口径 40→66 实为 **42→68**）· `\u0024` 规避写法（`${VAR}` 文案触发 `noTemplateCurlyInString` + `noUselessEscapeInString`） |
+| T4 | ✅ | 待末批 push | 4 件落位：`client.ts` +**`apiUpload`（XHR）** · `assets.ts` +**`createAsset`** · `versions.ts` +**`uploadVersion`** + 本地 `CreatedVersion` · **新建 `api/meta.ts`**（`fetchPlatformLimits` + 兜底常量 + `toMiB`）· typecheck **4/4** · biome **0** · 契约照服务端实证（multipart `file`/`version`/`changelog` · create → 201 `AssetItem` · upload → 201 `CreatedVersion{DRAFT}`） | **F226**（`doFetch` 的 2xx 非 JSON 体 ⇒ 抛 `SyntaxError` 而非 `ApiError`；对照 `apiUpload` 实现时发现 ⇒ 跨件行为变更，**登记不修**）· 决策：`CreatedVersion`/`PlatformLimits` **随件定义不进 `types.ts`**（保件面 4 件闭合；归并集中式 = 候选）· `toMiB` 不复用 `components/ui/fileTreeNodes.formatBytes`（层级倒挂 + 小数/MB 单位不符上限文案，见 §7.2） |
+| T5 | ✅ | 待末批 push | **新建 `lib/publish-chain.ts`**：`deriveNextVersion`（预填真值表 6 行 · C3/D37）+ `runChain`（三跳/停点不回滚/跳1 幂等跳过/进度透传）+ 同件补 **`submitVersion`**（F227）· typecheck **4/4** · biome **0** · 契约照服务端（提交 201 `{taskId,reviewVersion,status}` · body `{}`） | **F227**（设计件面漏跳 3 的前端 submit 封装 ⇒ 同件补齐不开新件）· 决策：hooks **不报 `failed`**（失败态由页面按 `stopAt` 推导 = 单一真源）· 签名照 plan（`deps` 前置可省略） |
+| T6 | ✅ | 待末批 push | **官方件落仓 2 只**（CLI `bunx --bun shadcn@latest add progress radio-group`）：`shadcn/progress.tsx` · `shadcn/radio-group.tsx` ⇒ 目录 **36 → 38 件**；import 走 **`radix-ui` 单体包 + `cn`**（与既有 20 件同族）⇒ **零新依赖成立**（`package.json` / `bun.lock` 无 diff）· typecheck **4/4** · biome/format 绿 | **F228**（`shadcn/README.md` + `THIRD-PARTY-NOTICES.md` 账目写 33、实测 36 ⇒ 本批 +2 后订正 **38**，**M24/M25**） |
+| T7 | ✅ | 待末批 push | **新建 `pages/Publish.tsx`（782 行）**：三段同页平铺（FieldSet/FieldLegend/FieldGroup）· 二选一 RadioGroup · 官方 Combobox（`useMarketQuery` 300ms 防抖）· 官方 Empty 两处配方（未选文件 / 零资产）· 右栏流程面板（四态圆点 + 进度）· 错误矩阵（字段行内三联动 / issues 列表前 5+展开 / 429 倒计时）· 两出口（放弃该资产 / 撤回提交）· 结果块 + 复位（C15）。**验证**：typecheck **4/4** · lint **4/4** · format **320 files** · **Vite 模块级冒烟 5 件全 HTTP 200**（页/链路/api·meta/两官方件）；G9 预检 = 注释外零中文字面量 ✓ | 自检发现并修 2 条：①「选用已有资产」未选中仍可点（空 slug 必 400）⇒ `canPublish` 加选中门 ②`request.invalid` 未按**停点**归属字段 ⇒ 跳1→`slug` / 跳2→`version`（§4.6 行内规则） · **渲染与交互验证落 T8/T9** |
+| T8 | ✅ | 待末批 push | 四处入口：`main.tsx` +路由（并清原型残留注释）· `navItems.tsx` 个人组**第 5 条「发布」**· `TopBar.tsx` 顶栏入口（搜索**左侧** · `<lg` 纯图标）· `AssetAdminCard.tsx` 占位 → `Link ?slug=`。**浏览器真机验证（1440 视口）**：侧栏个人组 = 工作台/我的资产/我的提交/访问令牌/**发布** ✓ · 顶栏在搜索左侧 ✓ · 三段 legend + 右栏三态 ✓ · 官方件挂载（RadioGroup×2 / Combobox / Empty）✓ · 服务端搜索命中 → 选中 ⇒ 上下文行「暂无版本」+ 预填 `1.0.0` ✓ · 无效 `?slug=` ⇒ 轻提示 + 回落「新建」✓ · 卡片链接 `?slug=m4b4-seed-agent` ✓ · **零 JS 错误** · 既有页零回归（/dashboard · /dashboard/tokens） | **F229–F232**（4 条真缺陷 + UX 缺陷，全部由本冒烟抓出并当场修 —— 见 design §9.8）· §7.2 决策⑤ |
+| T9 | ✅ | 待末批 push | **N8/N9/N10 三件落地并全量跑绿**：`m4b7-seed-assets.ts`（3 夹具 · 幂等 + `--clean`）· `m4b7-dogfood.ts`（**九段 47 PASS / 0 FAIL**，全量一次跑）· `file-ref-closure-check.ts`（**36/0**，已接 CI = M22）。**收尾清理实测零残留**：10 个 `m4b7-*` 资产（3 夹具 + 7 次 dogfood 自产）+ 21 审计行全回收（含补的 `CLEAN_PREFIX=m4b7-`）。**未覆盖（有意）**：⑥ 的 **413 / 429** 需注入 env / 打满 10 次每分钟限流（不重启 API）⇒ 手工探针，脚本头注明。9 张截图落 `docs/smoke/m4b7-*.png` | F234–F237（+ 实现期三处踩坑：视口 748px / `role=dialog` vs `alertdialog` / 清理前缀缺口） |
+| T10 | ✅ | 待末批 push | **规范层回填**（M13–M16）：`docs/02` §4.1 建议 i18n 表 + §3.3 上限 · `docs/03` §4.1 **族错误码表（新增）** + §5 上限 · `docs/04` §5 上限 + i18n 注记 · `docs/07` §3.1 `publish` 组落地注记。**§9.7 ①–⑧ 实测回填**（上限全覆盖 / i18n 55·42→68 / 件行数 **新建 10=1678 行 · 改造 25=6955 行** / dogfood 47/0 / 端点链路 / 造数零残留 / findings 起始号 F222 / 总览 F222–F237）。**证据文件落仓** `docs/smoke/2026-09-28-m4b7-publish.md`（12 步门禁 + 九段 + 行数 + 清理 + 截图 + §9.4 十四项指针） | — |
 
 ---
 
-## 8. 自检打分（初稿）
+### 7.1 逐 Task 自检打分（标准档 **18 维** · A×0.40 + B×0.30 + C×0.30 · 门 ≥9）
+
+| Task | A 基础 | B 深度 | C 工程 | **总分** | 扣分项（逐条证据） |
+|------|:--:|:--:|:--:|:--:|------|
+| **T1** | 9.75 | 9.75 | 9.70 | **9.73** | A4 9（只读无业务异常路径；env 解析失败仅走 `onError` 500，未设专门用例）· C3 9（无日志）· C7 9（键集精确断言 ⇒ 加第四键须改断言，有意严格化）· C10 9（无重试语义）· ⚪ `PlatformLimits` 零外部消费者（保留作文档化出参契约） |
+| **T2** | 9.75 | 9.75 | 9.50 | **9.68** | A3 9（**改动了既有测试用例** —— 413 用例注入式化，必要且已登记 **F222**）· C3 9（无新增日志）· C6 9（默认值是行为变更 ⇒ 回滚=改回两行，影响已文档化）· **C8 9**（上限放宽改变既有 413 语义 ⇒ 已 F222 处置）· **C9 8**（**规范层 `docs/02/03/04/07` 回填排在 T10，完成前 docs 与真值不一致**）· C10 10 |
+| **T3** | 9.50 | 9.25 | 9.50 | **9.43** | A2 9（`\u0024{VAR}` 写法牺牲可读性 ⇒ 已补就地注释）· A4 9（文案表无异常路径）· **B2 8**（插值占位符 `{package}/{file}/{count}/{version}/{seconds}` 与**调用点参数名的一致性无断言**）· B4 9 · C3 9 · **C5 8**（i18n 无单测 —— 设计已决策「web 不引单测件」⇒ 已知限制，覆盖靠 dogfood + `Dict` 类型 + 键集脚本）· C9 9 / C10 9 |
+| **T4** | 9.75 | 9.75 | 9.50 | **9.68** | **C5 7**（**零执行验证**：前端无单测件 + dogfood 断言（G5 进度 / G4 abort / 401 分类复用）落在 **T9** ⇒ 本轮只有 typecheck/biome 兜住；T9 兑现后 C5 可回 9）· A1 9（契约照服务端实证，但三个行为路径尚未真跑）· B2 9（无超时——长上传有意不设，已注释）· C3 9 · C10 9 |
+| **T5** | 9.75 | 9.25 | 9.40 | **9.50** | **C5 7**（预填四支与三跳路径**均未执行**：web 无单测件（F11 决策）+ dogfood 落 T9 ⇒ 同 T4 口径如实扣）· A1 9（真值表逐行有 C3/D37 依据，但未跑）· **B3 9**（**偏离**：hooks 不报 `failed` —— 失败态由页面按 `stopAt` 推导以免双真源，已在 §7.2 记录）· B2 9（`slug` 未收窄时显式兜底；无超时属 C9 决策）· B4 9 · C10 9 |本）· C9 9 / C10 9 |
+| **T6** | 9.63 | 9.50 | 9.50 | **9.55** | A1 9.5（**T8 冒烟已证**：`radio-group` 实际挂载 ✓；`progress` 待 T9 上传流）· A4 9 · B2 9 / B4 9（无本地逻辑）· C3 9 · C5 8（无单测；覆盖靠 T8/T9 真机断言）· C9 9（两处账目已同步）· C10 9 |
+| **T7** | 9.63 | 9.50 | 9.20 | **9.46** | **C5 8**（**T8 真机冒烟已兑现渲染 + 交互**：三段/右栏/官方件/搜索选中/预填/深链；剩余 = T9 dogfood 的链与失败面）· A1 9.5（同上）· A4 9（10 条码覆盖）· **B2 8.5**（冒烟后修 4 条：F229–F232）· C2 9 · C3 9 · C4 9（782 行单文件）· C9 9 · C10 9 |
+| **T8** | 9.63 | 9.50 | 9.50 | **9.55** | A1 9.5（真机验证四入口 + 页面渲染 + 交互；未验：卡片 `?slug=` 的**端点落地效果**（链接已验）与**未登录**路径（当前会话已登录）⇒ T9 dogfood G2）· A4 9 · **B3 9**（**偏离**：`<lg` 用 `hidden lg:inline` 隐标签替代 D27 字面的 `size=icon` 双按钮 —— §7.2 决策⑤）· B2 9.5 · B4 9.5 · C2 10 · C3 9 · C5 8.5（真机冒烟，但非 dogfood 脚本化）· C7 9 · C9 9 · C10 9.5 |
+| **T9** | 9.50 | 9.63 | 9.55 | **9.55** | **A2 9**（三个脚本不在任何 tsconfig 的覆盖内 —— `docs/smoke/scripts/**` 不参与 `typecheck`，仅靠运行时暴露类型错 ⇒ 已知口径）· A1 9.5（九段真机全绿含真上传；413/429 为有意的手工探针）· A4 9.5 · B2 9.5（三处实现期踩坑已修）· C3 9（G7 留有诊断输出行——有意的可观测）· C5 9.5（dogfood 自证）· 其余 9.5/10 |
+| **T10** | 9.50 | 9.50 | 9.50 | **9.50** | A1 9.5（回填值全为实测；413/429 明示手工探针）· B2 9.5（规范层 4 件为**增量块**而非逐行加列 —— 见 design §9.8 F239）· C5 9.5（证据文件可复跑自证）· 其余 9.5 |
+
+**逐 Task 均分 = 9.56**（十 Task 合计 95.63 ÷ 10）⇒ 达门 ✅⇒ 达门（≥9）✅
+
+> **残留项（不占 F 号 · 已知且已排期）**：① T2 C9 的规范层回填 = **T10 计划内**（完成前 docs 与真值不一致，属已知窗口）② T3 B2 的占位符一致性 ⇒ 候选（可并入 T9 dogfood 断言或静态检查）③ T3 C5 的 i18n 无单测 = **设计已决策**的已知限制 ④ **T4 C5 的「零执行验证」= T9 dogfood 兑现**（进度/abort/401 复用三条断言落地后，T4 C5 由 7 回 9 —— 届时须在 §7.1 更新该行，不得静默改分）。
+> **验证环境教训（实测归因 · 重要）**：裸跑 `bun test` 会把 `apps/server/dist/**/*.test.js`（上一次 `tsc -p` 的**陈旧编译产物**，gitignored）一并捡起 ⇒ 本地曾报 **8 fail + 3 errors**（全为陈旧产物，非本批代码）。**限定源码目录的真读数 = 602 pass / 1 skip / 0 fail**；HEAD 基线 worktree 实测 **598 pass / 0 fail** ⇒ **+4 = T1 新增用例，零回归成立**。**纪律：服务端测试用 `bun test src`**（或先清 `dist`）；本机 `apps/server/dist` 已清（`bun run build` 可重建）· CI 侧无此问题（干净检出无 dist）。
+
+---
+
+### 7.2 T4 决策记录（类型归属与工具复用）
+
+> 记录两条**实现期决策**（非缺陷，属设计未写到时实现者必须定的口径）—— 供收口复核与后续批次参照。
+
+| # | 决策 | 理由 | 反方案与否决原因 |
+|---|------|------|------|
+| 1 | **`CreatedVersion` / `PlatformLimits` 随件定义**（放 `api/versions.ts` / `api/meta.ts`），**不进 `api/types.ts`** | 批 design §3.2 件面只列 M5/M6/M7 + N3（4 件）⇒ 进 `types.ts` 会**动未列件**，破坏件面闭合（本批已因件面漏件吃过 **F7/P6** 两次） | 反方案 = 归并 `types.ts` 集中式（仓内既有惯例）⇒ 需加 M24 并连带 5 处计数；**候选**（若用户偏好集中式，一行口令即可改） |
+| 2 | **`toMiB(bytes)` 不复用** `components/ui/fileTreeNodes.ts` 的 `formatBytes` | ① **层级倒挂**：`api/* → components/*` 是反向依赖（api 层应是最底层）② 语义不符：`formatBytes` 是「12.4 MB」一档小数 + MB 单位，而上限文案要**整数 MiB**（`field.file.hint` 的 `{package}/{file}`） | 反方案 = 把 `formatBytes` 提到共享 utils 再复用 ⇒ 跨件重构（改 3 个既有消费点），非本批 |
+| 5 | **顶栏 `<lg` 形态**：单一 `Button size="sm"` + `<span className="hidden lg:inline">` + `aria-label`（**不**用 D27 字面的 `size="icon"` 双按钮） | 双按钮方案要复制一份 `onClick`/`Link` ⇒ 两条可达路径需同步维护；本方案视觉等价（内距差 2px）且 `aria-label` 已兜图标态可达性 | 反方案 = `<Button size="icon" className="lg:hidden">` + `<Button size="sm" className="hidden lg:inline-flex">` 各一份 —— 观感与 D27 字面一致，但**重复两个入口** |
+| 4 | **页壳不加 `max-w-5xl` 包裹**（design §4.1「页宽 max-w-5xl」为**原型**实测值） | 兄弟页（`Tokens` / `Submissions` / `AssetDetail`）一律直接返回 `<><PageHeader/>…</>`，宽度由 `AppShell` 的 `main`（`px-[22px]`）承担 —— 再加一层限制会与宿主的 gutters 打架 | 反方案 = 照 §4.1 加 `mx-auto max-w-5xl p-6`（原型 `PublishProto` 的独立壳）⇒ 嵌入后**双重内边距** + 宽度被压窄 |
+| 3 | **`onStep` 只报 `active` / `done`**（不报 `failed`）· `runChain(deps, input, hooks)` 签名按 plan | 失败态由页面按返回值的 `stopAt` **一次性推导** —— 单一真源，避免「链与页面各持一份状态」漂移（design §4.8 的「未通过」态只有一个置位点） | 反方案 = 链内回调 `failed` ⇒ 页面需同时消费回调与返回值两条信息，易漂移 |
 
 > 本 plan 的 8 维自检（标准 4 + 深度 4）—— **由批 design v0.8（定稿 · 9.50）派生**，Task 可执行性 = 主要判据。
 
 | 维度 | 分数 | 依据 |
 |------|------|------|
 | 标准 1 完整性 | 9.6 | T1–T10 覆盖 design §1.3 全部 9 项含项（页面 / 编排 / 上传通道 / 两出口 / 三入口 / 服务端 / i18n / 规范回填 / 验证基建）+ 上限表全覆盖（规范 3 + 代码 6）；每 Task 带断言；**同步点 12 处已办 ⇒ 显式不计工** |
-| 标准 2 准确性 | 9.6 | 件路径 **32** 条全部按 design §3.1/§3.2 逐条落（`N1–N10` / `M1–M22`，含 **M22 = CI 接入点**）· 数值取 design 实测（上限 `104857600` / `10485760` / `100` · 键 **55** · `errors` **40→66** · 门禁 **12 步**（原 11 + 本批新增第五道）· dogfood **九段** · 夹具 **≤10 KiB**） |
+| 标准 2 准确性 | 9.6 | 件路径 **35** 条全部按 design §3.1/§3.2 逐条落（`N1–N10` / `M1–M25`，含 **M22 = CI 接入点** / **M23 = 门禁锚点**）· 数值取 design 实测（上限 `104857600` / `10485760` / `100` · 键 **55** · `errors` **42→68** · 门禁 **12 步**（原 11 + 本批新增第五道）· dogfood **九段** · 夹具 **≤10 KiB**） |
 | 标准 3 一致性 | 9.6 | 与 design §3（件表）/ §5（服务端账）/ §6（键表）/ §9（验证与门禁）逐条对齐；Task 切分属 plan 层（design 不复制）|
 | 标准 4 可用性 | 9.5 | 每 Task = 件路径 + 步骤 + **可现场复跑的命令与断言**；§4 含测试面硬规则与跨平台说明 |
 | 深度 1 追溯性 | 9.7 | 每 Task「依据 =」带 design 章节点 + D/C 号；跨批引用（主 design / `docs/00` / `docs/02/03/04/07`）齐 |
@@ -338,7 +371,7 @@ table-structure-check.ts → file-ref-closure-check.ts → build → db:migrate 
 
 | 维度 | 初稿 | 缺陷态 | 修完 | 依据 |
 |------|:--:|:--:|:--:|------|
-| 标准1 完整性 | 9.6 | 9.6 | 9.6 | 覆盖性 **31/31** —— `N1–N10` → T1–T9 · `M1–M21` → T1–T10（含 `.env.example` = M12 → T2）逐条有归属；design §1.3 九项含项全覆盖（**R2 后件面 = 32 → 见 §8.2**） |
+| 标准1 完整性 | 9.6 | 9.6 | 9.6 | 覆盖性 **31/31** —— `N1–N10` → T1–T9 · `M1–M21` → T1–T10（含 `.env.example` = M12 → T2）逐条有归属；design §1.3 九项含项全覆盖（**R2 后 32 · T1 补 M23 后 = 33**） |
 | 标准2 准确性 | 9.6 | **9.4** | 9.6 | 缺陷①：T1 断言 ② 写死「实测默认 = `104857600` / `10485760` / `100`」，**但 T1 执行在 T2 之前**（当时真值 = `10485760` / `1048576` / `100`）⇒ 时序误导 ⇒ 已改为「**读 env 取值比对，不写死数字**」并标注两阶段基线。其余对账全绿：件路径分档 **31/31** · 上限表达式实测 = `10 * 1024 * 1024` / `1 * 1024 * 1024` / `100`（`config/env.ts:42,47,52`）· 门禁 **12 步** · dogfood **九段** · 夹具 **≤10 KiB** · 基线 **F221** |
 | 标准3 一致性 | 9.6 | 9.6 | 9.6 | plan §3 件 ↔ design §3.1/§3.2 逐条对齐；§4 门禁链与 design §9.2 同序同条数；「同步点已办不计工」显式声明 |
 | 标准4 可用性 | 9.5 | **9.3** | 9.5 | 缺陷②：T10 把证据文件写成**完整的 `docs/smoke` + 文件名路径** ⇒ 触发 `doc-audit` **规则 B（死路径）**：该文件 **T10 才产出** ⇒ 实跑 `doc-audit` = **217 PASS / 1 FAIL** ⇒ 已按 M4b-6 惯例改为「`docs/smoke/` 下 `2026-09-28-m4b7-publish.md`（T10 交付）」 |
@@ -429,7 +462,18 @@ table-structure-check.ts → file-ref-closure-check.ts → build → db:migrate 
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v0.4 | 2026-09-28 | sunxuewen-rush | **第四轮提交前复核（R1）** —— 角轮 = **文档声称的门禁链 vs 真 `.github/workflows/ci.yml` 逐条 + `format:check` 补盲**，实测 **9.46**。**R1**：plan **6 处**「门禁 11 步」vs 实况（CI 现状 11 · **本批交付后 12**）⇒ 全部订正为 **12 步（原 11 + 本批新增第五道）**，design §9.2 标题同步标注。**验证安全项**：`format:check` 实跑通过（biome `includes` 不含 `.md`）⇒ docs-only 提交零风险 ⇒ §8.5 复评 **9.50** |
+| **v1.5** | 2026-09-28 | sunxuewen-rush | **T10 完成（收尾）** —— 规范层回填 M13–M16 · §9.7 ①–⑧ 实测 · 证据文件落仓 · 清理复核 ⇒ **十 Task 全绿 · 均分 9.56** |
+| **v1.4** | 2026-09-28 | sunxuewen-rush | **T9 完成** —— dogfood 九段 **47/0**（全量）· 造数 3 夹具（幂等 + `--clean`）· 第五道门禁 36/0 + 接 CI（M22）· 清理零残留 · 9 截图 ⇒ 均分 **9.57** |
+| **v1.3** | 2026-09-28 | sunxuewen-rush | **T9 进行中（造数 + 第五道门禁）** —— N10 门禁 35/0 + 接入 CI（M22）；N9 造数 3 夹具（幂等 + `--clean` 实测）；夹具真机验证预填三支 ✓。⚠️ **N8 dogfood 九段未写 ⇒ T9 未完成**。F234–F237 |
+| **v1.2** | 2026-09-28 | sunxuewen-rush | **T8 落地（三入口 + 路由）+ 真机冒烟** —— 四入口落位 + 清原型残留注释；真机验证：侧栏 5 条 / 页面渲染 / 官方件 / 搜索选中 / 预填 / 无效深链提示 / 卡片链接 / **零 JS 错误** / 既有页零回归。**修 4 条真缺陷（F229–F232）**：`q=` 空串 400 · `{count}` 名不符 · **深链失效** · 选中不回显 ⇒ 均分 **9.57** · §7.2 决策⑤ |
+| **v1.1** | 2026-09-28 | sunxuewen-rush | **T7 落地（发布页主体）** —— 新建 `pages/Publish.tsx`（782 行）：三段平铺 · RadioGroup 二选一 · 官方 Combobox（300ms 防抖）· Empty ×2 · 右栏流程面板 · 错误矩阵 · 两出口 · 结果块 + 复位。typecheck 4/4 · lint 4/4 · format 320 · Vite 冒烟 5/5 200。自检修 2（选中门 / `request.invalid` 停点归属）· §7.2 决策④ · §7.1 均分 **9.56** |
+| **v1.0** | 2026-09-28 | sunxuewen-rush | **T6 落地（官方件落仓）** —— CLI 装 `progress` / `radio-group` ⇒ `shadcn/` 36 → **38 件**；import `radix-ui` + `cn` ⇒ **零新依赖**（package.json/bun.lock 无 diff）；typecheck 4/4 · biome/format 绿。**F228** 两处账目 33 → **38**（M24/M25 ⇒ 件面 33 → 35）· §7.1 均分 **9.59** |
+| **v0.9** | 2026-09-28 | sunxuewen-rush | **T5 落地（一键链编排）** —— 新建 `lib/publish-chain.ts`（`deriveNextVersion` 预填真值表 6 行 · `runChain` 三跳/停点不回滚/跳1 幂等跳过/进度透传/abort 同通路）+ 同件补 `submitVersion`（跳 3 调用面）。typecheck **4/4** · biome **0** · format **317 files**。**F227**（design M7 漏 submit 封装 ⇒ 同件补齐）· §7.2 决策③ · §7.1 均分 **9.60** |
+| **v0.8** | 2026-09-28 | sunxuewen-rush | **T4 落地（web 数据层）** —— `client.ts` +`apiUpload`（XHR：进度 + `abort()` + 401 四分类 + `{code,message}` 归一 + `Accept-Language`；**不设 content-type**以保 multipart boundary）· `assets.ts` +`createAsset` · `versions.ts` +`uploadVersion` + 随件 `CreatedVersion` · **新建 `api/meta.ts`**（`fetchPlatformLimits` + `PLATFORM_LIMITS_FALLBACK` + `toMiB`）。typecheck **4/4** · biome **0**。行为断言落 T9 ⇒ T4 **C5 = 7**（零执行验证，如实扣）。**F226** 登记（`doFetch` 2xx 非 JSON ⇒ `SyntaxError`，跨件变更不修）· **§7.2** 两条实现期决策 · §7.1 均分 **9.63** |
+| **v0.7** | 2026-09-28 | sunxuewen-rush | **T1–T3 逐 Task 自检打分（18 维）** —— 补 §7.1：T1 **9.73** / T2 **9.68** / T3 **9.43** ⇒ 均分 **9.61**；残留项 3（T2 C9 规范层回填 = T10 计划内 · T3 B2 占位符一致性无断言 = 候选 · T3 C5 i18n 无单测 = 设计决策）。**环境实测归因**：裸 `bun test` 捡 `dist/**/*.test.js` 陈旧产物 ⇒ 误报 8 fail/3 errors；`bun test src` = **602/1skip/0 fail**，HEAD 基线 **598/0** ⇒ +4 = T1 新增，**零回归成立**；dist 已清 |
+| **v0.6** | 2026-09-28 | sunxuewen-rush | **T3 落地（i18n）** —— `publish` 组 **55 键** + `errors` **+26（42 → 68）** 落 zh/en（键集零差集 · `Dict` 类型强制）· typecheck **4/4** · biome **0 warning** · 文档门禁四道绿。**F225**：设计「40 → 66」只数带点键 ⇒ 实测 **42 → 68**（7 处订正）· `${VAR}` 文案改 `\u0024{VAR}` 写法（规避 `noTemplateCurlyInString` + `noUselessEscapeInString`） |
+| **v0.5** | 2026-09-28 | sunxuewen-rush | **T1 + T2 落地** —— T1 `GET /api/meta/limits`（`http/meta.ts` 新建 · `app.ts` 注册 · `meta.test.ts` 4 用例）· T2 上限默认值 `10→100 MiB` / `1→10 MiB` + 代码侧 5 件去写死（M17–M21）+ `.env.example` 三键。实测：`bun test` **101 pass / 0 fail**（assets + zip + meta）· typecheck **4/4** · biome **0**。**F222**：design §5.2 称「既有 413 用例为注入式」**不实**（实测依赖默认 10 MiB）⇒ 改注入式（`resetEnvCache` + 64 KiB）· **F223**：`validate/zip.ts:6-8` 注释键名 `AHT_*` 漂移 ⇒ 随 M17 订正为 `ASSET_*` · **F224**：门禁锚点 `app.ts:214→217` ⇒ **M23** |
+| **v0.4** | 2026-09-28 | sunxuewen-rush | **第四轮提交前复核（R1）** —— 角轮 = **文档声称的门禁链 vs 真 `.github/workflows/ci.yml` 逐条 + `format:check` 补盲**，实测 **9.46**。**R1**：plan **6 处**「门禁 11 步」vs 实况（CI 现状 11 · **本批交付后 12**）⇒ 全部订正为 **12 步（原 11 + 本批新增第五道）**，design §9.2 标题同步标注。**验证安全项**：`format:check` 实跑通过（biome `includes` 不含 `.md`）⇒ docs-only 提交零风险 ⇒ §8.5 复评 **9.50** |
 | v0.3 | 2026-09-28 | sunxuewen-rush | **第三轮提交前复核（Q1/Q2）** —— 角轮 = **门禁自身扫什么 + 批指针面**，实测 **9.24**。**Q1（推翻前两轮自报读数）**：`table-structure-check` / `doc-claims-check` 用 `git ls-files docs` 枚举 ⇒ 只扫已跟踪文件 ⇒ 新件未入闸；**暂存后真读数** = 217/0 · **116**/0 · 2/0 · **39**/0（**56 份**）⇒ 硬规则入 design §9.2 + plan §4（新件先暂存再跑门禁）+ §6 风险 12。**Q2**：`docs/README.md` §6.1 F 号导航表（「当前批」指针）+ `AGENTS.md` 批指针 ⇒ 登记 design **§9.7 ⑧**（时点 = 实现期首条 findings 登记时同批 · 不列件）。⇒ §8.4 复评 **9.50**（含「推翻自己」的如实留痕） |
 | v0.2 | 2026-09-28 | sunxuewen-rush | **提交前换靶复核（P1/P2/P6）** —— 批末 push 前体检（角轮 = 提交集逐行 + 仓规合规 + 门禁接入点）实测 **9.18** 并修 3 条：**P6** 件面漏 **`.github/workflows/ci.yml`**（CI 逐条列出每道门禁 step ⇒ 第五道门禁的接入点）⇒ 连带 design §3.2 补 **M22**（件面 **31 → 32**）/ Scope / §9.7③ · **P1** 原型物料未 gitignore ⇒ §6 风险 8 补**提交纪律**（逐文件 add · 禁 `git add -A`）· **P2** 头部补 README 要求的「**前置：M4b-6 ✅**」标签 ⇒ §8.2 复评 **9.50**（含自曝 1 条：头部块替换误删 Status/上游，已回补）· **同版含二轮（git 层）复核**（§8.3 · 角轮 = diff 逐行 + git 卫生 + 提交信息惯例 + 状态闭环）：**0 实质缺陷** —— `git diff --check` 空 · 主 design `13 增/10 删` + `docs/00` `7 增/3 删` 逐行核对全意图内 · 提交信息 `docs(m4b7):` 同族合规 · 微项 1（design §9.6 第 11 行补 `✅ 已执行`） |
-| v0.1 | 2026-09-28 | sunxuewen-rush | **立批** —— 由批 design `2026-09-28-m4b7-publish-design.md`（**定稿 · v0.8 · 8 维 9.50**）派生：**T1–T10** 文件级 Task（件面 **新建 10 / 改造 22 = 32 件**）· §4 门禁 **12 步**（原 11 + 本批新增第五道 `file-ref-closure-check`）+ 测试面硬规则 + 跨平台说明 · §5 造数（2 + 1 + 1 + 内联夹具）· §6 风险 10 条 · §8 自检初稿 **9.54** + §8.1 首轮换靶 · design §9.6 十二处同步点**已于定稿时执行**（不计工） |
+| v0.1 | 2026-09-28 | sunxuewen-rush | **立批** —— 由批 design `2026-09-28-m4b7-publish-design.md`（**定稿 · v0.8 · 8 维 9.50**）派生：**T1–T10** 文件级 Task（件面 **新建 10 / 改造 25 = 35 件**）· §4 门禁 **12 步**（原 11 + 本批新增第五道 `file-ref-closure-check`）+ 测试面硬规则 + 跨平台说明 · §5 造数（2 + 1 + 1 + 内联夹具）· §6 风险 10 条 · §8 自检初稿 **9.54** + §8.1 首轮换靶 · design §9.6 十二处同步点**已于定稿时执行**（不计工） |

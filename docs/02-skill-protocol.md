@@ -67,8 +67,8 @@ x-aih-min-version: "1.0"      # 预留：最低平台版本
 | `description` | 非空，≤ 1024 字符 |
 | body | frontmatter 之后必须存在非空 markdown 正文（指令内容） |
 | 文件白名单 | `.md .txt .json .yaml .yml .js .cjs .mjs .ts .py .sh .png .jpg .svg` |
-| 单文件大小 | ≤ 1 MiB（服务端可配置） |
-| 总包大小 | ≤ 10 MiB（服务端可配置） |
+| 单文件大小 | ≤ 10 MiB（服务端可配置 · 默认值真源 = `apps/server/src/config/env.ts`） |
+| 总包大小 | ≤ 100 MiB（服务端可配置 · 默认值真源 = `apps/server/src/config/env.ts`） |
 | 文件数量 | ≤ 100（服务端可配置） |
 
 超过限制返回结构化校验错误（code 见 §5）。
@@ -103,3 +103,17 @@ agent 是声明型（行为 + 模型偏好 + 技能引用，无执行代码）�
 | v1.2 | 2026-09-10 | sunxuewen-rush | **M4-pre 扁平化重构同步**：§3 name→坐标映射表述去 `@namespace/slug`（坐标改**全局唯一裸 slug**，无命名空间段）——design/plan 见 `2026-09-10-flat-model-refactor-design` + `M4-pre-flat-model-refactor.md` |
 | v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：M1 packages/protocol skill manifest 落地（name/description/slug 规则） |
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：OpenSkills 兼容的 skill 包协议（含与其他资产类型的差异对照） |
+
+### 4.1 建议 i18n（客户端本地化，M4b-7 T10 回填）
+
+> 口径：**码是契约**（`packages/protocol/src/errors.ts` 的 `protocolErrorCodes`），文案由客户端按语言本地化。
+> 下表给出 `apps/web/src/i18n/{zh,en}.ts` 的 `errors` 组键名（AIH 独家客户端本地化；CLI 只透出码）。
+
+| 码 | 建议 i18n 键 |
+|---|---|
+| `invalid_skill_frontmatter` / `invalid_agent_frontmatter` | `errors.<码>` |
+| `missing_name` / `invalid_name` / `missing_description` / `description_too_long` / `missing_body` | `errors.<码>` |
+| `unsupported_file_type` / `file_too_large` / `too_many_files` / `package_too_large` | `errors.<码>` |
+| （MCP 族 10 条：`enabled_required` / `stdio_requires_command` / `url_required` / `url_must_be_http` / `conflicting_url_with_stdio` / `conflicting_command_with_url` / `command_backslash` / `servers_empty` / `sensitive_header_plaintext`） | 见 `docs/03` §4.1 |
+
+**键名映射 = 直用码**（`errors` 组内键与码一一对应，**零转换**）—— 实现见 `apps/web/src/i18n/zh.ts` 的 `errors` 组（本批新增 26 键，实测总数 **42 → 68**）。

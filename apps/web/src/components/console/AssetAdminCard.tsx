@@ -18,6 +18,7 @@
  * 删除资产成功 ⇒ `onDeleted()`（页面离开详情页 —— 资产已不存在）。
  */
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { deleteAsset, patchAssetStatus } from '@/api/assets';
 import { ApiError, invalidateCache } from '@/api/client';
@@ -154,8 +155,12 @@ export function AssetAdminCard({
             {t('assets', 'admin.versionGroup')}
           </p>
           <div className="flex flex-wrap gap-1.5">
-            <Button type="button" size="sm" variant="outline" disabled>
-              {t('assets', 'admin.publishNewVersion')}
+            {/* 真入口（**M4b-7 T8** · design §4.7 #3）：占位 → 深链 `?slug=` 预选该资产。
+                组本身的渲染门槛（`manageable`）**不变**。 */}
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/dashboard/publish?slug=${encodeURIComponent(slug)}`}>
+                {t('assets', 'admin.publishNewVersion')}
+              </Link>
             </Button>
           </div>
         </div>

@@ -100,10 +100,19 @@ const ANCHORS: { file: string; line: number; keyword: string; why: string }[] = 
     keyword: 'label.in_use',
     why: '改动 8 · 错误码',
   },
-  { file: 'apps/web/src/main.tsx', line: 158, keyword: '/admin/assets', why: '路由 4 条之一' },
+  {
+    file: 'apps/web/src/main.tsx',
+    // 行号随代码迁移更新（M4b-7 T8 在个人段插入 `/dashboard/publish` 路由 + 注释 ⇒ 158 → 159；
+    // 同一批 T1 亦曾推动 `app.ts` 锚点 —— 见下条。断言意图不变 = 「改动 4 条 admin 路由已注册」）
+    line: 159,
+    keyword: '/admin/assets',
+    why: '路由 4 条之一',
+  },
   {
     file: 'apps/server/src/app.ts',
-    line: 214,
+    // 行号随代码迁移更新（M4b-7 T1 在 stats 区插入 `/api/meta` 注册 + 注释 + import ⇒ 214 → 217；
+    // 断言意图不变 = 「改动 1–3 的 admin 路由已挂载」）
+    line: 217,
     keyword: 'createAdminRoutes',
     why: '改动 1–3 挂载点',
   },

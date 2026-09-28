@@ -1,5 +1,12 @@
 /** /api/assets（§5.1：q · label 多值 OR · type · limit≤100 默认 20 · offset · 默认 updated_at desc） */
-import { type ApiGetOptions, type ApiWriteOptions, apiDelete, apiGet, apiPatch } from './client.js';
+import {
+  type ApiGetOptions,
+  type ApiWriteOptions,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+} from './client.js';
 import type { AssetItem, AssetListResponse, AssetStatus, AssetType } from './types.js';
 
 export interface AssetListParams {
@@ -59,4 +66,18 @@ export async function patchAssetStatus(
  */
 export async function deleteAsset(slug: string, opts?: ApiWriteOptions): Promise<void> {
   await apiDelete<void>(`/api/assets/${encodeURIComponent(slug)}`, opts);
+}
+
+/**
+ * 新建资产 `POST /api/assets`（M4b-7 T4 加性 · design §4.4 跳 1）。
+ *
+ * 契约（`http/assets.ts` 注册端点实证）：body `{ slug, type }` ⇒ **201 `AssetItem`**
+ * （`latest*` 为 `null`；`status` 由服务端默认 `ACTIVE` —— 前端**不传** status）。
+ * 失败面：`409 asset.slug_taken` ⇒ ① 段 `slug` 字段行内；`400 request.invalid` ⇒ slug 形状非法。
+ */
+export async function createAsset(
+  input: { slug: string; type: AssetType },
+  opts?: ApiWriteOptions,
+): Promise<AssetItem> {
+  return apiPost<AssetItem>('/api/assets', input, opts);
 }

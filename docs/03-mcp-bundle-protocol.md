@@ -104,6 +104,22 @@
   `sensitive_header_plaintext`（防把 Bearer token 明文打进包）
 - `README.md` 说明所需凭据与获取方式（占位说明，不含真实值）
 
+## 4.1 族错误码表（M4b-7 T10 新增）
+
+> §4 为**凭据安全规则**（无码表）；本小节补**校验错误码**（真源 = `packages/protocol/src/errors.ts`）。
+
+| 码 | 触发 | 建议 i18n 键 |
+|---|---|---|
+| `enabled_required` | `servers` 条目缺 `enabled` | `errors.enabled_required` |
+| `stdio_requires_command` | stdio 类型未给 `command` | `errors.stdio_requires_command` |
+| `url_required` | http 类型未给 `url` | `errors.url_required` |
+| `url_must_be_http` | `url` 非 http(s) | `errors.url_must_be_http` |
+| `conflicting_url_with_stdio` | stdio 同时给 `url` | `errors.conflicting_url_with_stdio` |
+| `conflicting_command_with_url` | http 同时给 `command` | `errors.conflicting_command_with_url` |
+| `command_backslash` | `command` 含反斜杠 | `errors.command_backslash` |
+| `servers_empty` | `servers` 为空清单 | `errors.servers_empty` |
+| `sensitive_header_plaintext` | 敏感头写明文（应用 `${VAR}` 引用） | `errors.sensitive_header_plaintext` |
+
 ## 5. 校验规则表
 
 | 项 | 规则 |
@@ -113,8 +129,8 @@
 | `servers` | 非空；条目字段按 §3.2 校验；type/字段匹配按 §3.3 |
 | 敏感头明文 | 见 §4，违规报错 |
 | 文件白名单 | `.json .md .js .cjs .mjs .ts .py .sh .png .svg`（scripts/ 内） |
-| 单文件大小 | ≤ 1 MiB（可配置） |
-| 总包大小 | ≤ 10 MiB（可配置） |
+| 单文件大小 | ≤ 10 MiB（可配置 · 默认值真源 = `apps/server/src/config/env.ts`） |
+| 总包大小 | ≤ 100 MiB（可配置 · 默认值真源 = `apps/server/src/config/env.ts`） |
 | 文件数量 | ≤ 100（可配置） |
 | 依赖目录 | 禁止 `node_modules/`/`vendor/` 等依赖目录入包 |
 

@@ -85,6 +85,13 @@ jobs:
       - name: 修订表结构完整性
         run: bun docs/smoke/scripts/table-structure-check.ts
 
+      # 件面 ↔ 引用闭合（file-ref-closure-check · **M4b-7 T9 新增第五道**）：
+      # 管「批 design 声明的件面」与「全文引用的路径」是否闭合 —— ① 件路径分档断言（N 新建允许不存在 /
+      # M 改造必须已存在）② 引用路径 ⊆ 件面 ∪ 豁免集；拦「改了口径忘了加件」类残留（M4b-7 F7 即此类）。
+      # ⚠️ 该脚本用 `git ls-files`-free 的工作区读取（不依赖暂存），故 CI 与本地同语义。
+      - name: 件面引用闭合
+        run: bun docs/smoke/scripts/file-ref-closure-check.ts
+
       - name: build
         run: bun run build
 

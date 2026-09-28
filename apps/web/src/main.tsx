@@ -19,6 +19,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Device } from '@/pages/Device';
 import { Home } from '@/pages/Home';
 import { Login } from '@/pages/Login';
+import { Publish } from '@/pages/Publish';
 import { ReviewDetail } from '@/pages/ReviewDetail';
 import { ReviewQueue } from '@/pages/ReviewQueue';
 import { Search } from '@/pages/Search';
@@ -104,8 +105,6 @@ function AppRoutes() {
           <Route path="/login" element={<Login />} />
           <Route path="/device" element={<Device />} />
 
-          {/* ── 一次性原型（DEV-only：评审用；**物料不进仓** —— 评审结束后随本行一并删除）── */}
-
           {/* ── 应用壳（顶栏 + 侧栏 + 内容区 Outlet）── */}
           <Route element={<AppShell />}>
             {/* 门户 6 条（公开读面，**无守卫**）—— T11-i A 增 `/search`（全资产搜索结果页） */}
@@ -143,6 +142,8 @@ function AppRoutes() {
               <Route path="/dashboard/submissions" element={<Submissions />} />
               {/* 我的令牌：真页（M4b-3 T7） */}
               <Route path="/dashboard/tokens" element={<Tokens />} />
+              {/* 发布：真页（M4b-7 T8）—— 新建资产 + 单 zip 上传 + 一键链提审（`?slug=` 深链预选） */}
+              <Route path="/dashboard/publish" element={<Publish />} />
               {/* 审核详情：**真页**（M4b-5 T8）—— 提交人可达（撤回入口）；**不进 `/admin` 段**
                   （授权由服务端判：管理档 ∨ 提交人） */}
               <Route path="/reviews/:id" element={<ReviewDetail />} />

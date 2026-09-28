@@ -1,6 +1,6 @@
 # `ui/shadcn/` — vendored shadcn/ui components
 
-These 33 components were generated with the **shadcn/ui** CLI and committed into this repository
+These 38 components were generated with the **shadcn/ui** CLI and committed into this repository
 (MIT licensed — upstream: https://ui.shadcn.com). They are the base primitives of our UI layer
 and **may be modified freely** — shadcn's design intent is that the components belong to the consumer.
 
