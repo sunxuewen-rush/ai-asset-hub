@@ -1,8 +1,7 @@
 # M4b-7 发布批：Web 发布流（新建资产 + 单 zip 上传 + 一键提审）—— 批设计
 
 > Date: 2026-09-28
-> Updated: 2026-09-28（**v0.8：第 6 轮换靶自检修复（F10–F12，F13 登记）** —— 换靶（**决策→落点映射 / 断言覆盖矩阵 / 测试件口径实证**）实测 **9.19** 并撤回上轮 9.50 ⇒ 修 3 条：**F10** 断言覆盖缺口（§4.8 15 行中 读面载/空/错 + 取消上传 无断言）⇒ **G4 扩写为逐行**（段数不变）· **F11** N2「可单测」为空头承诺（`apps/web/src` 单测文件实测 **0**）⇒ **口径决策化：不新增单测件**，预填**四支点名**由 G4/G6 覆盖 · **F12** 「再发布一个」复位语义（C15）补入 §4.4/§4.8 · **F13** 登记不修（16 条 D 无落点回指 · 属风格）⇒ §11.11 复评 **9.50** + **再次建议立即定稿**。**零实现改动**）
-> Updated: 2026-09-28（**v0.7：第 5 轮换靶自检修复（F7–F9 + 方案①）** —— 换靶（件面闭合性 / 施工可完成性）实测 9.13 ⇒ 补 **M17–M21**（件面 16→21 / 总数 25→31）· dogfood 段数归位九段 · 件面口径写明 · 新增 **N10 第五道门禁** `file-ref-closure-check` ⇒ §11.10 复评 9.50）
+> Updated: 2026-09-29（**v0.13：T15 提交前体检** —— 换靶角度「**死导出 / 零消费者扫描**」抓出 **F254**（`compareVersions()` 导出但仓内零消费者）⇒ 去 `export` 收敛为模块内函数；并复核 T15 声明逐条落到实体：**键表 64**（§6.2 表头 + 63/64 两行）· **F252/F253 各 1 行** · README §6.1 区间 · `docs/07` **62 → 64**；**零服务端改动**）
 > 头部口径（2026-09-18 起）：只留最近 1-2 版 · 不复述历史与验收数字；更早版本见 §12 修订记录
 > Status: **定稿**（**2026-09-28 用户批准**）· 6 轮换靶自检 + grilling 4 轮（13 条逐条拍板）+ 提交前体检 **4 轮**（末轮 9.46 → 修毕 9.50）· 文档 8 维 = **9.50**（§11.11 构成说明）· **未修项 0** · 已回填主 design（**v1.75 → v1.76**）与 `docs/00`（**v1.99 → v1.100**）（§9.6 十二处全部落地）· 批 plan = `docs/plans/M4b-7-publish.md`（**v0.4**）⇒ **后续实现以批 plan 为准**
 > Scope: 本批 = `docs/00` §5「M4b-7」行（发布批）—— 件面 **新建 10 / 改造 25 = 35 件**（代码/规范/CI/账目件 · §3.1/§3.2）· 另有**同步点文档 2 份**（主 design · `docs/00`，§9.6 单列不计入件面）· 服务端 **1 项只读端点新增 + 2 处上限默认值**（§5 · **零写面改动**）
@@ -104,7 +103,7 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 | D34 | 上传「未选文件」呈现（**官方件轮 3A**） | 用官方 **`Empty` 完整配方**：`Empty`（`className="border border-dashed"`）+ `EmptyHeader`（`EmptyMedia variant="icon"` = `Upload` + `EmptyTitle` + `EmptyDescription` = 上限文案）+ `EmptyContent`（「选择 zip 文件」按钮）——**直连** `empty.tsx`，不经 `EmptyState` 薄封装 |
 | D35 | 「选用已有资产」零资产空态（**官方件轮 4A** · **F2 订正按钮语义**） | 用官方 **`Empty` + 动作出口**：`EmptyContent` 内**单按钮 = 改用「新建」支**（**页内切支**，零外链 —— 原拟「去首页 / 用 CLI」作废：CLI 归 M5 **未交付**、帮助页不存在，指过去是死路）|
 | D36 | `EmptyState` 薄封装是否扩（**官方件轮 5A**） | **不扩**：本页直连官方 `Empty`，保持 `EmptyState`（只吃 `message`）与 **8 处既有消费零回归**；扩它属跨批重构，另批议 |
-| D37 | 版本号预填与撞号（**grilling 第 1 轮 G1**） | **只按 `latestVersion` 推 patch+1**（**不**拉该资产版本列表）；撞号 **409 ⇒ 字段行内提示交用户手改**（不做自动重试 / 不做自动规避）⇒ **同时订正 D10 措辞**（原「撞号继续 +1 到空缺」作废）· 含 `-pre` ⇒ **剥 pre 段补位**（`2.0.0-pre` ⇒ `2.0.0`） |
+| D37 | 版本号预填与撞号（**grilling 第 1 轮 G1**） | **只按 `latestVersion` 推 patch+1**（**不**拉该资产版本列表）；撞号 **409 ⇒ 字段行内提示交用户手改**（不做自动重试 / 不做自动规避）⇒ **同时订正 D10 措辞**（原「撞号继续 +1 到空缺」作废）· 含 `-pre` ⇒ **剥 pre 段补位**（`2.0.0-pre` ⇒ `2.0.0`） · **T15/D25 取代数据源口径**：改读**真实占号集合**（`GET /assets/{slug}/versions` · 排除 `SCAN_FAILED`）⇒ 增量 design **v2.1** §3.4 · **F252**；其余（不自动重试 / 409 交用户手改 / `-pre` 剥段）不变 |
 | D38 | 资产选择器取数（**grilling 第 1/2 轮 G2**） | 用官方 **`Combobox`**（仓内已有）替代 `Select`；输入 **300ms 防抖**走服务端 `GET /api/me/assets?q=`；空查询拉 `limit=100`（服务端上限）⇒ **单次查询上限 100 条**（撤回对齐轮「不写死条数」的说法） |
 | D39 | 「放弃该资产」可见边界（**grilling 第 1 轮 G3**） | **严格**：仅当「**本页会话内创建** ∧ **该资产零版本**」时显示（只服务失败停点）—— 理由：服务端 `DELETE /api/assets/:slug` 会**连带删掉全部版本与 review_task 行**且只拦 PUBLISHED/YANKED（`http/assets.ts:451-500` 实测）⇒ 提审后露出该按钮 = 绕撤回的删除口 |
 | D40 | 客户端大小预检（**grilling 第 1 轮 G4**） | **预检 + 即时行内提示**（用 `GET /api/meta/limits` 的 `packageMaxBytes` 比对选中文件 `size`），**仍允许提交**，最终以服务端 413 为准；**单文件大小**客户端不可知 ⇒ 不预检 |
@@ -114,7 +113,7 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 | D44 | 撤回成功后的页面态（**grilling 第 2 轮 G8**） | 结果块就地改 **「已撤回」**（`done.withdrawn`）+ 保留「再发布一个」；**不整页复位、不跳转**（版本回 `UPLOADED`，后续去「我的资产」处理） |
 | D45 | `?slug=` 无效（**grilling 第 2 轮 G9**） | **忽略参数、回落「新建」** + 轻提示 `assetNotFound`（资产不存在 / 不在我名下 / 已删的旧链接） |
 | D46 | 资产搜索的 URL 口径（**grilling 第 3 轮 G10**） | **复用** `useMarketQuery`（零新代码）⇒ 本页 URL **读 `?slug=`、写 `?q=`**；§4.8 的 URL 契约同步订正（原「无状态参数写入 URL」作废）· 否决「给共享 hook 加开关」（回归面 = 门户三页 + 个人面两页） |
-| D47 | 选中资产的上下文行（**grilling 第 3 轮 G11**） | 选中项下方显示一行小字 **`field.asset.latest`「当前最新版 {version}」**；`latestVersion === null`（空壳）⇒ `field.asset.latestNone`「暂无版本」 |
+| D47 | 选中资产的上下文行（**grilling 第 3 轮 G11**） | 选中项下方显示一行小字 **`field.asset.latest`「当前最新版 {version}」**；`latestVersion === null`（空壳）⇒ `field.asset.latestNone`「暂无版本」 · **T15/D26 取代取值**：`latestVersion === null` ⇒「暂无版本」**仅当占号集合为空**时成立；含在途版本 ⇒「在途 {version}」（**F253**） |
 | D48 | 「版本数」是否展示（**grilling 第 4 轮 G12**） | **去掉**：列表读面 `AssetItem` **无版本数字段**（实测 `types.ts:45-65` · `asset-item.ts:43-45`），**不为它破本批「零写面改动」** 口径 |
 | D49 | 空壳资产预填（**grilling 第 4 轮 G13**） | 选中资产 `latestVersion === null` ⇒ 预填 **`1.0.0`**（与「新建」同） |
 
@@ -151,7 +150,7 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 |---|---|---|
 | C1 | 上限来源与回落 | `GET /api/meta/limits` → `{ packageMaxBytes, fileMaxBytes, maxFiles }`；请求失败 ⇒ 前端常量 `100 MiB / 10 MiB / 100`（**仅用于文案**，判定恒在服务端） |
 | C2 | 文案单位 | 前端把字节**换算成 MiB** 展示（`≤ {package} MiB`），不显示原始字节 |
-| C3 | 版本号预填算法（**v0.4 订正**） | 新建 = `1.0.0`；已有资产 = 取列表项的 `latestVersion` → `major.minor.(patch+1)`；`latestVersion === null`（空壳）⇒ `1.0.0`；含 `-pre` ⇒ 剥段补位；**撞号（409）⇒ 行内提示用户手改**（**不**自动重试、**不**拉版本列表做规避 —— D37） |
+| C3 | 版本号预填算法（**v0.4 订正**） | 新建 = `1.0.0`；已有资产 = 取列表项的 `latestVersion` → `major.minor.(patch+1)`；`latestVersion === null`（空壳）⇒ `1.0.0`；含 `-pre` ⇒ 剥段补位；**撞号（409）⇒ 行内提示用户手改**（**不**自动重试、**不**拉版本列表做规避 —— D37） · **T15/D25 取代数据源**（`latestVersion` → 真实占号集合 · 增量 design v2.1 §3.4 · **F252**） |
 | C4 | 版本号格式门 | 前端只判**非空**；格式（`^\d+\.\d+\.\d+(-pre)?(\+build)?$`）由服务端判 → 400 `request.invalid` |
 | C5 | `slug` 格式门 | 前端只判**非空**；形态由服务端判（注册 400 `request.invalid`）· 冲突 = 409 `asset.slug_taken`（**字段级行内**） |
 | C6 | 空壳公开（**接受项**） | 新建成功的资产在**有版本前**即对公开读面可见（`status=ACTIVE` 默认 + 读面不要求版本）——本批**不引入**「未发布不可见」新状态；页内以 `assetCreated.hint` 提示，并在 §9.5 造数里登记可删 |
@@ -160,7 +159,7 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 | C9 | 每跳超时 | 上传/提审沿用客户端既有默认（`doFetch` 期）；**不新增**自定义超时（本批不定毫秒数，避免幻数） |
 | C10 | 三跳的审计副作用 | 注册 `asset.register` · 上传 `version.*` · 提审 `review.*`（服务端既有行为，本批不改） |
 | C11 | 资产选择器取数（D38） | 官方 `Combobox` + `useMarketQuery` 的 `q`（300ms 防抖）⇒ `GET /api/me/assets?q=&limit=100`；空查询 = `limit=100`；**单次查询上限 100 条**（服务端 `limit` 上限） |
-| C12 | 选中资产上下文行（D47/D48） | 一行小字 `field.asset.latest`「当前最新版 {version}」/ 空壳 ⇒ `field.asset.latestNone`；**不含版本数**（D48） |
+| C12 | 选中资产上下文行（D47/D48） | 一行小字 `field.asset.latest`「当前最新版 {version}」/ 空壳 ⇒ `field.asset.latestNone`；**不含版本数**（D48） · **T15/D26 扩写**：取值源加**占号集合** ⇒ 含在途版本显示「在途 {version}」（新增键 `field.asset.inflight` · **F253**） |
 | C13 | 客户端预检（D40） | 仅预检**总包**（`packageMaxBytes` vs `file.size`）⇒ 超限**行内即时提示**、**不禁用提交**；单文件/文件数不预检（客户端不可知） |
 | C14 | 限流倒计时（D43） | 429 ⇒ 主按钮 `disabled` + `error.rateLimitedCountdown{seconds}`；倒计时归零自动恢复可用；倒计时期间不发请求 |
 | C15 | 复位语义（D45 补充） | 「再发布一个」= 清 `slug` / 文件 / `changelog` / 版本号 ⇒ 回落「新建」+ `1.0.0`（不复选已有资产、不清 `?q=` 搜索词） |
@@ -245,22 +244,25 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 
 | 段 | 内容 | 态与禁用 |
 |---|---|---|
-| ① 新建资产 | 二选一 `RadioGroup`（**新建** / **选用已有资产**）—— 官方「单选」配方：`<Field orientation="horizontal">` + `<RadioGroup>` + `<FieldLabel>`；新建支：`slug`（`Input` + `FieldDescription` 形态提示 + `FieldError` 409 行内）· `type`（`Select`：技能 / MCP Server / Agent）；已有支：资产 = 官方 `Combobox`（C11/D38：输入 **300ms 防抖**走 `GET /api/me/assets?q=`，空查询 `limit=100`，**单次上限 100 条**）+ 选中项下方一行上下文小字 `field.asset.latest`「当前最新版 {version}」/ 空壳 ⇒ `field.asset.latestNone`（C12/D47） | 读面载态 = 骨架/文案 `field.asset.loading`；读面**失败** = 同页 `ErrorState` + 重试；读面**空** = 官方 `Empty` + 动作出口（D35：**单按钮改用「新建」支**，页内切支；键 `field.asset.emptyAction`）；`?slug=` 命中 ⇒ 预选该项，**无效 ⇒ 忽略参数 + 轻提示 `assetNotFound` + 回落「新建」**（D45） |
-| ② 上传版本 | **未选文件态** = 官方 `Empty` 完整配方（`Empty` + `className="border border-dashed"` · `EmptyMedia variant="icon"`（`Upload`）· `EmptyTitle`「还没有选择包」· `EmptyDescription` = 上限文案 `field.file.hint` · `EmptyContent` 内「选择 zip 文件」按钮 —— D34）；**已选态** = 文件名/大小回显 + 版本号（`Input`，预填按 C3）+ 更新说明（`Textarea`，可选 ≤4096）；按钮触发隐藏 `<input type="file" accept=".zip">` | 一键链执行中：文件名行右侧出「取消上传」；已完成（`done`）：字段只读；**未选文件 ⇒ 主按钮 `disabled`**（存在性门，非格式门 —— 与 D11「不做格式预校验」不冲突）· 选中文件**超总包上限 ⇒ 行内即时提示**（**仍可提交** —— C13/D40） |
-| ③ 提交审核 | 单按钮 `发布（新建 → 上传 → 提交审核）`（`size=lg`）· 卡片外一段 `flow.note` 说明；失败停点按钮文案**复用 `action.publish`**（「发布（重试）」不新增键 —— N6） | 执行中：按钮置「执行中…」+ `disabled`；失败态按 **D39** 出「放弃该资产」（**前提 = 本页会话内创建 ∧ 该资产零版本**；已有版本 ⇒ 改文案 `error.versionedAssetHint` 引导去「我的资产」，**D42**）；完成态整段替换为结果块（见 §4.4） |
+| ① 新建资产 | 二选一 `RadioGroup`（**新建** / **选用已有资产**）—— 官方「单选」配方：`<Field orientation="horizontal">` + `<RadioGroup>` + `<FieldLabel>`；新建支：`slug`（`Input` + `FieldDescription` 形态提示 + `FieldError` 409 行内）· `type`（`Select`：技能 / MCP Server / Agent）；已有支：资产 = 官方 `Combobox`（C11/D38：输入 **300ms 防抖**走 `GET /api/me/assets?q=`，空查询 `limit=100`，**单次上限 100 条**）+ 选中项下方一行上下文小字 `field.asset.latest`「当前最新版 {version}」/ 空壳 ⇒ `field.asset.latestNone`（C12/D47） | 读面载态 = 骨架/文案 `field.asset.loading`；读面**失败** = 同页 `ErrorState` + 重试；读面**空** = 官方 `Empty` + 动作出口（D35：**单按钮改用「新建」支**，页内切支；键 `field.asset.emptyAction`）；`?slug=` 命中 ⇒ 预选该项，**无效 ⇒ 忽略参数 + 轻提示 `assetNotFound` + 回落「新建」**（D45） · **T15**：③ 上下文小字取值源改**占号集合**（在途版本 ⇒「在途 {version}」· D26/F253）；版本号预填改读**真实占号集合**（D25/F252） |
+| ① 上传 | **未选文件态** = 官方 `Empty` 配方（`Empty` + `className="border border-dashed"` · `EmptyMedia variant="icon"` **圆形品牌底**（静默 `bg-primary/10 text-primary` ⇒ 拖拽 `bg-primary text-primary-foreground` + `scale-110`）· `EmptyTitle` = **动作号召**（`field.file` · 拖拽态切 `field.file.dropActive`）· `EmptyDescription` = 拖拽引导（`field.file.drop`）· `EmptyContent` 内 = 实底 `default/lg`「选择 zip 文件」**上限 chips 行**（`Badge variant=secondary` `.zip` + 三项 `field.file.limit.*`）—— D34 · **T13 方向 A 聚焦式**）；**已选态** = 文件名/大小回显（与空态**同轴**）+ 版本号（`Input`，预填按 C3）+ 更新说明（`Textarea`，可选 ≤4096）；按钮触发隐藏 `<input type="file" accept=".zip">` | 一键链执行中：文件名行右侧出「取消上传」；已完成（`done`）：字段只读；**未选文件 ⇒ 主按钮 `disabled`**（存在性门，非格式门 —— 与 D11「不做格式预校验」不冲突）· 选中文件**超总包上限 ⇒ 行内即时提示**（**仍可提交** —— C13/D40） |
+| ③ 提交审核 | 单按钮 **「发布」**（`size=lg` · `action.publish` **改值去括号** —— T14）；失败停点按钮文案**复用 `action.publish`**（「发布（重试）」不新增键 —— N6） | 执行中：按钮置「执行中…」+ `disabled`；失败态按 **D39** 出「放弃该资产」（**前提 = 本页会话内创建 ∧ 该资产零版本**；已有版本 ⇒ 改文案 `error.versionedAssetHint` 引导去「我的资产」，**D42**）；完成态整段替换为结果块（见 §4.4） |
 
-**三段容器（官方配方 · D32）**：每段外层 = `<FieldSet>`，段名 = `<FieldLegend>`（编号圆点作 legend 的**子元素**注入），字段用 `<FieldGroup>` 包 —— **不再**自造「编号 + `<h2>`」分组标题（依既有口径「官方件优先、禁手搓结构件」）。
+> ⚠️ **段号待回填（F248）**：本表 §4.2 于 **T12** 只订正**上传段**一行（「② 上传版本」→「**① 上传**」· 该行是 T12 的触碰面）；余下两行名（① 新建资产 / ③ 提交审核）与 §4.1/§4.3/§4.4/§4.6/§4.8/§4.9 的段号仍按 **F248** 清单待回填（用户 2026-09-29 · 拆账待拍板）。
+> ⚠️ **T14 触碰面（本表待与 F248 一并回填）**：T14 改了**段容器**（`Card` 段卡 + 去数字 + 状态徽标）与**字段归属**（版本号 → ② / 更新说明 → ③），故本表「① 新建资产 / ① 上传 / ③ 提交审核」三行名与字段列亦待回填（唯一源 = 增量 design v2.0 §3.3 · 实现随 T14）。
+**三段容器（T14 改写 · v2.0 §3.3 · 落地形 2026-09-29）**：每段外层 = 官方 `Card`（`gap-4 px-6 py-5`）作**视觉边界**，**内层保留** `FieldSet` + `FieldLegend`（a11y 语义分组 + dogfood 既有读点落点）—— 段图例 = 状态记号 + 段名 + 右侧状态徽标（`Badge` · 三值复用 `state.*` · 取值源 = 同一 `panelStates`）；段内字段仍用 `FieldGroup` / `Field` / `FieldLabel` / `FieldDescription` / `FieldError`（官方件优先、禁手搓结构件口径不变）。**去数字**：段卡标题不再渲染编号（编号位改状态记号）；**字段归属迁移**：版本号 → ② 段 · 更新说明 → ③ 段（唯一源 = 增量 design `2026-09-28-publish-drag-upload-design.md` **v2.0** §3.3）。
 
 **三段同页平铺**：无「下一步」、无折叠、无跨页；未达前置的段**保持可见**（控件可用性由一键链统一裁决，不做逐段禁用）。
 
 ### 4.3 右栏：流程面板
+- **两卡**（T14 改写 · 增量 design v2.0 §3.3）：① `识别摘要`（新键 `summary.title`）—— 3 行 `dl`（标识 `field.slug` / 类型 `field.type` / 版本 `field.version` · 类型值走 `t('assets', TYPE_KEY[...])` 而非原始 type id），**只列该阶段客户端已知的值**（未给包 ⇒ 三值「—」）；② `流程`（`flow.title`）
+- 段宽 **240 → 320px**（`lg:grid-cols-[minmax(0,1fr)_320px]` · `lg:sticky lg:top-6`）；左列加宽上限 `max-w-2xl`（874 → 672px）
+- 流程卡：三段竖排，每段 = **状态记号**（完成 ✓ / 当前 实心圆点 / 待办 空心圆点 —— **不再渲染编号数字**）+ 段名 + **态文字**（`state.pending/active/done/failed`）+ 段间**竖连接线**
+- `active` 段额外显示该段 hint（`step.*.hint`）；第 ② 段在**执行中**就地显示进度条（官方 `Progress`，C8）+ `upload.progress`（`{percent}`）
+- ~~底部 `border-t` 一行 `flow.note`~~ —— **T14 撤除该键**（「三步」与页面三段语义相撞 ⇒ **F251**）
+- **主按钮卡撤除**（T14）：主行动唯一入口 = ③ 段卡内按钮（空态 ③ 段不渲染 ⇒ 无主按钮，与 D21 一致）
+- 记号与徽标视觉：`done` 实心底 + ✓ · `active` 实心点（描边）· `failed` 红 `!` · `pending` 空心点（**图标一律 SVG/字符，不用 emoji**）
 
-- 标题 `flow.title`（流程）
-- 三段竖排，每段 = 编号圆点（`StepDot`）+ 段名 + **态文字**（`state.pending/active/done/failed`）+ 段间**竖连接线**（`absolute left-[10px]` 宽 1px）
-- `active` 段额外显示该段 hint（`step.*.hint`）
-- 第 ② 段在**执行中**就地显示进度条（官方 `Progress`，C8）+ `upload.progress`（`{percent}`）
-- 底部 `border-t` 一行 `flow.note`：一次点击依次执行三步；任一步失败即停在该步
-- 圆点四态视觉：`done` 绿勾 · `active` 实心描边 · `failed` 红 `!` · `pending` 虚线灰号（**图标一律 SVG/字符，不用 emoji**）
 
 ### 4.4 一键链语义（三跳 · 失败停点 · 出口）
 
@@ -489,65 +491,74 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 - zh / en 键集合**零差集**（`doc-claims-check` 与 i18n 计数脚本守）
 - **取法（F4 补）**：本页文案一律 `t('publish', '<key>', vars?)`；**错误文案一律 `tErr(code, vars?)`**（`apps/web/src/i18n/I18nProvider.tsx:53-56`）—— `interpolate` 支持 `{name}` 单花括号占位（`:24-27`，实测已核）；未命中的 code 由 `tErr` 内部兜底模板处理（含 `{code}`）⇒ **实现期禁自造查表与中文兜底**
 
-### 6.2 `publish` 组键表（**55 键** · zh/en 成对 · v0.4 补 6 键 · v0.5 归一键 1 处）
+### 6.2 `publish` 组键表（**64 键**（T15 实测口径）· zh/en 成对 · 原设计 55 键 → 验收期增量：`field.file.notZip`〔T1〕· `field.file.remove`〔T7〕· `subtitle.empty`〔T11〕· `field.file.drop`〔T12〕· `field.file.dropActive` + `field.file.limit.*`×3〔T13〕· **`summary.title`**〔T14〕· **`field.asset.inflight` + `field.version.occupied`**〔T15 · F252/F253〕；**退役**：`field.file.hint`〔T13〕· **`flow.note`**〔T14 · F251〕；**改值**：`field.file.drop`〔T12/T13〕· **`action.publish`**〔T14〕 ⇒ 净 **64**）
 
 | # | 键 | zh | en |
 |--:|---|---|---|
 | 1 | `title` | 发布 | Publish |
 | 2 | `subtitle` | 填好资产与版本包，点一次「发布」：新建 → 上传 → 提交审核 一次完成 | Fill in the asset and package, then click Publish once — create, upload and submit in one go |
-| 3 | `flow.title` | 流程 | Flow |
-| 4 | `step.create` | 新建资产 | Create asset |
-| 5 | `step.upload` | 上传版本 | Upload version |
-| 6 | `step.submit` | 提交审核 | Submit for review |
-| 7 | `step.create.hint` | 登记资产的标识与类型 | Register the asset slug and type |
-| 8 | `step.upload.hint` | 单个 zip 包 + 版本号 | One zip package plus a version number |
-| 9 | `step.submit.hint` | 进入审核队列；可撤回 | Enters the review queue; can be withdrawn |
-| 10 | `state.pending` | 待办 | Pending |
-| 11 | `state.active` | 当前 | Current |
-| 12 | `state.done` | 完成 | Done |
-| 13 | `state.failed` | 未通过 | Failed |
-| 14 | `flow.note` | 一次点击依次执行三步；任一步失败即停在该步 | One click runs all three steps; a failure stops at that step |
-| 15 | `mode.new` | 新建 | Create new |
-| 16 | `mode.existing` | 选用已有资产 | Use an existing asset |
-| 17 | `field.slug` | 标识 slug | Slug |
-| 18 | `field.slug.placeholder` | my-awesome-skill | my-awesome-skill |
-| 19 | `field.slug.hint` | 小写字母 / 数字 / 单连字符 · 1–64 位 | Lowercase letters, digits and single hyphens · 1–64 chars |
-| 20 | `field.type` | 类型 | Type |
-| 21 | `field.asset` | 资产 | Asset |
-| 22 | `field.asset.placeholder` | 选择要发布新版本的资产 | Choose the asset to publish a new version for |
-| 23 | `field.asset.hint` | 从资产详情页「发布新版本」进入时会自动选中 | Arrives pre-selected from the asset's “Publish new version” action |
-| 24 | `field.asset.loading` | 读取「我的资产」… | Loading your assets… |
-| 25 | `field.asset.empty` | 暂无可发布新版本的资产 | No asset available to publish a new version for |
-| 26 | `field.asset.emptyAction` | 改用「新建」发布第一个资产 | Switch to Create and publish your first asset |
-| 27 | `field.file` | 包文件 | Package file |
-| 28 | `field.file.hint` | 单包 ≤ {package} MiB · 单文件 ≤ {file} MiB · 文件数 ≤ {count} | Package ≤ {package} MiB · file ≤ {file} MiB · files ≤ {count} |
-| 29 | `field.file.none` | 未选择 | none selected |
-| 30 | `field.file.choose` | 选择 zip 文件 | Choose zip file |
-| 31 | `field.version` | 版本号 | Version |
-| 32 | `field.version.hint` | 新建 = 1.0.0；已有资产 = 最新版补丁号 +1 | New asset: 1.0.0 · existing asset: latest patch + 1 |
-| 33 | `field.changelog` | 更新说明 | Changelog |
-| 34 | `field.changelog.placeholder` | （可选，≤4096） | (optional, ≤4096) |
-| 35 | `action.publish` | 发布（新建 → 上传 → 提交审核） | Publish (create → upload → submit) |
-| 36 | `action.publishing` | 执行中… | Running… |
-| 37 | `action.cancelUpload` | 取消上传 | Cancel upload |
-| 38 | `action.again` | 再发布一个 | Publish another |
-| 39 | `action.withdraw` | 撤回提交 | Withdraw submission |
-| 40 | `action.abandon` | 放弃该资产 | Discard this asset |
-| 41 | `upload.progress` | 上传 {percent}% | Uploading {percent}% |
-| 42 | `upload.cancelNote` | 取消是尽力而为：若字节已送达且服务端已开始写库，版本可能已建 | Cancel is best-effort: if the bytes were delivered and the server started writing, the version may already exist |
-| 43 | `error.issues.title` | 包校验未通过（共 {count} 处）· 资产已创建，未上传 | Package validation failed ({count} issues) · asset created, nothing uploaded |
-| 44 | `error.issues.expand` | 展开全部 {count} 条 | Show all {count} |
-| 45 | `error.issues.collapse` | 收起 | Collapse |
-| 46 | `done.title` | 已提交审核 | Submitted for review |
-| 47 | `done.hint` | 可在「我的提交」查看进度或撤回 | Check the progress or withdraw it in My submissions |
-| 48 | `loginRequired` | 请先登录后再发布 | Please sign in to publish |
-| 49 | `assetCreated.hint` | 资产已创建；未上传版本前公开面不可下载 | The asset was created; nothing is downloadable until a version is uploaded |
-| 50 | `assetNotFound` | 找不到该资产（可能已删除，或不在你名下） | Asset not found (it may be deleted, or not yours) |
-| 51 | `error.versionedAssetHint` | 该资产已有版本：请到「我的资产」删除，或继续上传新版本 | This asset already has versions — delete it in My assets, or keep uploading a new version |
-| 52 | `error.rateLimitedCountdown` | 操作过于频繁，请 {seconds} 秒后重试 | Too many requests — retry in {seconds}s |
-| 53 | `done.withdrawn` | 已撤回提交 | Submission withdrawn |
-| 54 | `field.asset.latest` | 当前最新版 {version} | Latest version {version} |
-| 55 | `field.asset.latestNone` | 暂无版本 | No versions yet |
+| 3 | `subtitle.empty` | 把打包好的 zip 包拖进来或点选上传 —— 系统会识别出资产与版本，确认后一次发布 | Drop your zip package in, or pick one — the asset and version are detected automatically, then publish in one go |
+| 4 | `flow.title` | 流程 | Flow |
+| 5 | `step.create` | 新建资产 | Create asset |
+| 6 | `step.upload` | 上传版本 | Upload version |
+| 7 | `step.submit` | 提交审核 | Submit for review |
+| 8 | `step.create.hint` | 登记资产的标识与类型 | Register the asset slug and type |
+| 9 | `step.upload.hint` | 单个 zip 包 + 版本号 | One zip package plus a version number |
+| 10 | `step.submit.hint` | 进入审核队列；可撤回 | Enters the review queue; can be withdrawn |
+| 11 | `state.pending` | 待办 | Pending |
+| 12 | `state.active` | 当前 | Current |
+| 13 | `state.done` | 完成 | Done |
+| 14 | `state.failed` | 未通过 | Failed |
+| 15 | `summary.title` | 识别摘要 | Detected summary |
+| 16 | `mode.new` | 新建 | Create new |
+| 17 | `mode.existing` | 选用已有资产 | Use an existing asset |
+| 18 | `field.slug` | 标识 slug | Slug |
+| 19 | `field.slug.placeholder` | my-awesome-skill | my-awesome-skill |
+| 20 | `field.slug.hint` | 小写字母 / 数字 / 单连字符 · 1–64 位 | Lowercase letters, digits and single hyphens · 1–64 chars |
+| 21 | `field.type` | 类型 | Type |
+| 22 | `field.asset` | 资产 | Asset |
+| 23 | `field.asset.placeholder` | 选择要发布新版本的资产 | Choose the asset to publish a new version for |
+| 24 | `field.asset.hint` | 从资产详情页「发布新版本」进入时会自动选中 | Arrives pre-selected from the asset's “Publish new version” action |
+| 25 | `field.asset.loading` | 读取「我的资产」… | Loading your assets… |
+| 26 | `field.asset.empty` | 暂无可发布新版本的资产 | No asset available to publish a new version for |
+| 27 | `field.asset.emptyAction` | 改用「新建」发布第一个资产 | Switch to Create and publish your first asset |
+| 28 | `field.file` | 包文件 | Package file |
+| 29 | `field.file.drop` | 把 zip 包拖到此处，或点下方按钮选择 | Drop a zip package here, or use the button below |
+| 30 | `field.file.dropActive` | 松手即上传 | Release to upload |
+| 31 | `field.file.limit.package` | 单包 ≤ {package} MiB | Package ≤ {package} MiB |
+| 32 | `field.file.limit.file` | 单文件 ≤ {file} MiB | File ≤ {file} MiB |
+| 33 | `field.file.limit.count` | 文件数 ≤ {count} | Files ≤ {count} |
+| 34 | `field.file.none` | 未选择 | none selected |
+| 35 | `field.file.choose` | 选择 zip 文件 | Choose zip file |
+| 36 | `field.file.notZip` | 请选择 .zip 包（不支持文件夹或其它格式） | Please choose a .zip package (folders and other formats are not supported) |
+| 37 | `field.file.remove` | 移除所选包（可重新选择或拖入） | Remove the selected package (choose or drop again) |
+| 38 | `field.version` | 版本号 | Version |
+| 39 | `field.version.hint` | 新建 = 1.0.0；已有资产 = 最新版补丁号 +1 | New asset: 1.0.0 · existing asset: latest patch + 1 |
+| 40 | `field.changelog` | 更新说明 | Changelog |
+| 41 | `field.changelog.placeholder` | （可选，≤4096） | (optional, ≤4096) |
+| 42 | `action.publish` | 发布（新建 → 上传 → 提交审核） | Publish (create → upload → submit) |
+| 43 | `action.publishing` | 执行中… | Running… |
+| 44 | `action.cancelUpload` | 取消上传 | Cancel upload |
+| 45 | `action.again` | 再发布一个 | Publish another |
+| 46 | `action.withdraw` | 撤回提交 | Withdraw submission |
+| 47 | `action.abandon` | 放弃该资产 | Discard this asset |
+| 48 | `upload.progress` | 上传 {percent}% | Uploading {percent}% |
+| 49 | `upload.cancelNote` | 取消是尽力而为：若字节已送达且服务端已开始写库，版本可能已建 | Cancel is best-effort: if the bytes were delivered and the server started writing, the version may already exist |
+| 50 | `error.issues.title` | 包校验未通过（共 {count} 处）· 资产已创建，未上传 | Package validation failed ({count} issues) · asset created, nothing uploaded |
+| 51 | `error.issues.expand` | 展开全部 {count} 条 | Show all {count} |
+| 52 | `error.issues.collapse` | 收起 | Collapse |
+| 53 | `done.title` | 已提交审核 | Submitted for review |
+| 54 | `done.hint` | 可在「我的提交」查看进度或撤回 | Check the progress or withdraw it in My submissions |
+| 55 | `loginRequired` | 请先登录后再发布 | Please sign in to publish |
+| 56 | `assetCreated.hint` | 资产已创建；未上传版本前公开面不可下载 | The asset was created; nothing is downloadable until a version is uploaded |
+| 57 | `assetNotFound` | 找不到该资产（可能已删除，或不在你名下） | Asset not found (it may be deleted, or not yours) |
+| 58 | `error.versionedAssetHint` | 该资产已有版本：请到「我的资产」删除，或继续上传新版本 | This asset already has versions — delete it in My assets, or keep uploading a new version |
+| 59 | `error.rateLimitedCountdown` | 操作过于频繁，请 {seconds} 秒后重试 | Too many requests — retry in {seconds}s |
+| 60 | `done.withdrawn` | 已撤回提交 | Submission withdrawn |
+| 61 | `field.asset.latest` | 当前最新版 {version} | Latest version {version} |
+| 62 | `field.asset.latestNone` | 暂无版本 | No versions yet |
+| 63 | `field.asset.inflight` | 在途 {version} | In flight {version} |
+| 64 | `field.version.occupied` | {version} 已被占用（{state}），建议改 {suggested} | {version} is taken ({state}) — try {suggested} |
 
 > 复用优先：`取消`/`新建` 等若 `common` 组已有等价键，实现期**以复用为准**（本表给全量以免实现期漏键）；键数实现后回填（§9.7 ②）。（**D31 / grilling 5A-1**：键表按本表落。）
 > **不新增键的两处文案（N6 处置）**：「重新选择」（② 段未选文件态）复用 `field.file.choose`；「发布（重试）」（失败停点主按钮）复用 `action.publish` —— **禁**临时字面量（前科：M4b-6 F205 曾留 28 处硬编码中文）。
@@ -725,6 +736,14 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 | **F244** | web / 版本号（实现缺陷） | **版本号在「已有 → 新建」切换时不回落**（实现缺陷 · 2026-09-29 由 T9 的 G4㉔ 断言暴露）：`Publish.tsx` 的版本号 `useEffect` 首行 `if (mode !== 'existing') return;` ⇒ 从「选用已有资产」切回「新建」后版本号**残留 `latest+1`**（实测 1.0.1，应为 `1.0.0`）；初始值靠 `useState` 初始化器兜住，故只在「切回」路径暴露 —— 本轮之前无任何断言覆盖该路径 | **改为两模式都派生**：`setVersion(deriveNextVersion(mode === 'existing' ? (picked?.latestVersion ?? null) : null))` ⇒ 新建 `1.0.0` / 已有 `latest+1`。回归守卫 = dogfood **G4㉔**（自动切「已有」后点 × ⇒ 模式回「新建」+ 版本回 `1.0.0`） |
 | **F245** | 文档面 / 提交前体检 | **拖拽增量批末提交前体检抓出 6 类文档结构缺陷（4 类已入库）**：① 头部**同号重复版本行** 2 处（`docs/00` **v1.101 ×2** · 主 design **v1.77 ×2** —— 「落地回填」轮把上一版号一并改成了新号）② §9.8 **F232 行粘连**（F228 的「问题/处置」两 cell 被重复粘在行尾 ⇒ **7 separators**，**已入库**）③ §9.8 **F241–F244 缺「面」列**（本轮自产：3 cells ↔ 表头 4 列）④ 主 design §2.3 **M4b-7 登记行两处残留**（`errors` **40 → 66** 未随 **F225** 订正 ⇒ 实测 **42 → 68**；末列仍「⬜ 实现待办」而状态列已写「已落地入库」）⑤ 表格**未转义 `\|`** 2 处（主 design v1.58 行描述「` \| ` 数」字面 · 批 design §9.6 `code \| 含义 \| 建议 i18n`）⑥ `docs/07` §3.1 行内 `grep -rn step.create\|step.submit` 未转义 | 逐条订正：① 恢复 **v1.100** / **v1.76**；② 截断重复段；③ 补「面」列 4 行；④ 改 **42 → 68**（基线实测于 `e638392`：`errors` 叶子键 **42** · 现状 **68**）+ 末列改实；⑤⑥ 转义为 `\|`。**扫类** = 7 份改动文档全表跑「数据行 cells == 表头」+ 修订表版本号唯一性 + 头部 Updated 行唯一性 ⇒ 复跑 **0 异常** |
 | **F246** | 文档面 / 历史档案 | **扫类时实测「截断表格行」27 处**（行首 `\|` 起但行尾**无 `\|`** ⇒ 行后半内容丢失）：`2026-09-16-m4b2-auth-shell-design.md` **14 行** · `M4b-2-auth-shell.md` **6 行** · `docs/00` §8 **7 行**（v1.47–v1.53 · 2026-09-16 · 均止于半句，如「…出口件 ④ 由」）。**实证非本轮引入**：12 个近期提交中该 7 行长度**零变化** ⇒ M4b-2 轮事故遗留；前两件属**已收口批档案** | **本轮处置**：本批 design **D49 行**（同族第 28 处）**已补收尾** `\|`（行内语义完整）；跨批 27 处 **登记不修** —— 回改已收口批档案违反仓规「历史 design/plan 不回改（唯一例外 = 后继变更指针）」⇒ 回填方案（引入前历史逐行恢复 vs 留指针不恢复）**待用户拍板**。**探针**：全 `docs/**/*.md` 扫「行首 `\|` ∧ 行尾无 `\|`」 ⇒ 现读数 **27**（docs/00 7 属活文档、可随拍板修） |
+| **F247** | web / 文案陈旧（T10 落地遗漏） | **页头副标题与 IA 改名脱节**：`apps/web/src/i18n/zh.ts:253` 仍写「填好资产与版本包，点一次「发布」：**新建 → 上传 → 提交审核** 一次完成」（`en.ts:254-255`（实测行号 · 原稿误写 257-258，本轮总检订正）同源同病：`create, upload and submit in one go`），而 T10 已把三段改为「上传 → 自识别 → 发布」—— 由 T11 设计期回读页头渲染点（`Publish.tsx:486` 取 `publish.subtitle`）时发现 | 随 **T11** 落地订正：`publish.subtitle` **改值**为「核对识别出的资产详情，确认后发布」（照搬 ClawHub `publish.tsx:812` 语义）+ 新增 `publish.subtitle.empty`（未给包时的上传引导）⇒ `publish` 组 **57 → 58**；`docs/07` §3.1 键数随 T11 同步 |
+| **F248** | 文档 / 跨件指代漂移（T10 落地遗漏） | **T10 把左栏三段重排为「① 上传 → ② 自识别 → ③ 发布」，全仓「② 段 = 上传」的旧指代未跟着扫**（T11 设计期 Step 0「读全文」发现；不修的后果 = T11 的「展开/隐藏」会把**拖拽区**写成会被藏起来的段）：增量 design **11 处**现状描述 · 增量 plan **4 处** · **批 design §4.1 线框 + §4.2 左栏三段 + §4.3/§4.6/§4.8 段号**（仍写 ① 新建资产 / ② 上传版本 / ③ 提交审核）· **批 plan §3/§7 两处**（「② 段进度」）。真码现值 = `Publish.tsx` 三段 legend `1/2/3` + `step.upload/detect/publish`，且 dogfood **G3⑦** 已断言 DOM 顺序 = 上传 → 自识别 → 发布 | **已订正**：增量 design **11 处** + 增量 plan **4 处**（现状描述全改「① 段（上传）」· `slug` 所在段改「② 段（自识别）」）；**史实行保留原貌**（v1.2 / §7⑥ / §8 旧行）⇒ 两份修订行各加一句「更早行中的『② 段』= 重排前的上传段」澄清。**批 design 全量回填 = T11 尾实测展开**：逐行枚举后**改动面 40+ 处**（§4.1 形态线框 · §4.2 左栏段表 · §4.3 · **§4.4 右栏映射**（链三跳 ↔ 面板段号）· §4.6 错误矩阵 · §4.8 状态表 · **§4.9 五态 ASCII 线框**（含 T11 新形态）· §6.2/§7/§9.3/§11 引用点）+ 批 plan §3/§7 ⇒ **超 T11 尾部预算** ⇒ **拆为独立一笔**（待用户拍板：整批回填 vs 仅段号/文案级）· 回填后该批 design **8 维需重评** |
+| **F249** | 文档 / 三向不一致（T12 抓出） | **批 design §4.2 的 `EmptyTitle` 文案与真码 / 键表三向不一致**：§4.2 写「还没有选择包」，而真码走 `field.file` 渲染「包文件」（`Publish.tsx:555`）、同文档 §6.2 键表第 27 行也写「包文件」—— 三处两说（由 T12「照搬 ClawHub 空态」回读渲染点时抓出；同族 = **F247/F248** 的「改名/改文案未回扫」） | **已修（T12）**：§4.2 改为「`EmptyTitle` = 动作号召（`field.file` ⇒「先上传资产包」）」+ `EmptyDescription` 换 `field.file.drop` + 上限下沉说明 ⇒ 三向一致（真码 = §4.2 = §6.2 键表） |
+| **F250** | web / 文案键孤儿（T13 事实核查） | **`error.rateLimitedCountdown` 是孤儿键 + 文档声明与实现两说**：批 design **D43 / C14** 声明「429 ⇒ 主按钮文案 = `error.rateLimitedCountdown`（`{seconds}`）」，而实现（`Publish.tsx:853`）取的是 `tErr('auth.rate_limited')`（**无秒数**），秒数另用一条 `FieldDescription` 承载 ⇒ 两说并存；该键全仓 **零消费**（grep 实证：仅 zh/en 定义 + 本文档引用）—— 由 T13「① 段视觉重做」回读 429 呈现点时抓出 | **已修（T13）**：① 段内 `Alert` 与主按钮标签**统一取 `error.rateLimitedCountdown`**（孤儿键转活）+ ③ 段重复的 `FieldDescription` 撤除（同屏去重）；主按钮倒计时禁用语义**不变**（D43 不撤销）|
+| **F251** | web / 文案陈旧（T10 遗留 · T14 抓出） | **`flow.note` 文案与页面三段 IA 语义相撞**：「一次点击依次执行三步；任一步失败即停在该步」中的「三步」指**后端链路**（创建资产 / 上传包 / 提交审核），而 T10 之后页面自身也有三段（上传 / 自识别 / 发布）—— 同屏两套「三步」，读者必然混淆（同族 = **F247** / **F249** 的「改名 / 改文案未回扫」）。由 T14 整页重做回读 ③ 段渲染点时抓出 | **处置（T14 · 设计已定 · 实现待办）**：随整页版式重做**撤除该句显示位** ⇒ 键**退役**（zh/en 各删 1）· `publish` 组 **62 → 62**（净 0：+`summary.title` / −`flow.note` / 改值 `action.publish`）· 唯一源 = 增量 design **v2.0** §3.3 |
+| **F252** | web / **数据源口径**（用户实测报缺陷 · T15 抓出） | **「自识别版本号」在存在未发布版本时算错**（用户原话：「『该版本号已被占用，请换一个』有个问题，前面有待审核的版本时，自识别的版本号是错误的」）：客户端数据源（`apps/server/src/http/asset-item.ts:45` 只下发 `latestVersion` = 最新**已发布**版本投影）↔ 服务端占号检查（`apps/server/src/assets/versions.ts:55-61` = 同资产 `(asset_id, version)` **跨全状态**唯一 · **唯一豁免** `SCAN_FAILED`）⇒ 预填的号**撞在在途版本上**。现场（真库 · 真页面**只读**实测）：**用户自有资产** `skill-ucts-report` 压着 `DRAFT 1.0.0` + `PENDING_REVIEW 1.0.1/1.0.2` 而 `latest_version_id = NULL` ⇒ 页面预填 `1.0.0`（必 409）；同类样本 `m4b7-dogfood-mumj6cnk`（在审 1.0.0 · 未发布）同病。反证面：`m4b7-fix-1`（`PENDING 0.0.1` + `PUBLISHED 1.0.0` ⇒ 1.0.1）与 `m4b7-fix-3`（`2.0.0-pre` ⇒ 2.0.0）**取值不变** ⇒ 新口径**向后兼容**（既有 G4③④⑤ 断言零改写） | **已修（T15 · D25）**：数据源改 `GET /api/assets/{slug}/versions?limit=100` ⇒ **真实占号集合**（`status !== 'SCAN_FAILED'`）⇒ 取最大号 +1（`-pre` 剥段保留）；**三入口同源**（深链 / 手动选中 / **拖包自动判定** —— 用户点名要求）· 拉取失败静默回落 · `versionTouched` 保护 · 序号竞态保护；**D37 仅「不拉版本列表」一条作废**（不自动重试 / 409 交用户手改 / `-pre` 剥段一律不变）· 唯一源 = 增量 design **v2.1** §3.4/D25 |
+| **F253** | web / **文案不实**（同根 · 用户同报 · T15 抓出） | **两张与 F252 同根的脸**：① 资产上下文行在「未发布但压着在途版本」时显示「**暂无版本**」（**不实** —— `skill-ucts-report` 实际压着 3 个版本；根因同 F252 = 取值只有 `latestVersion`）② 撞号后只给「该版本号已被占用，请换一个」，**不说原因、不给建议号**（用户只能盲猜；同族 = **F247/F249/F251** 的「文案未跟随能力演进」） | **已修（T15 · D26/D27）**：① 新增 `field.asset.inflight`「在途 {version}」（取值源 = 占号集合；无在途但有占号 ⇒ 沿用 `field.asset.latest`；集合为空 ⇒ `field.asset.latestNone` —— 此时**为真**）② 版本号字段**前置**行内提示 `field.version.occupied`（含 `{state}` 与建议号；状态词**复用既有 `version.status.*` 八键**，零新增状态文案）⇒ `publish` 组 **62 → 64**（+2 新增 · 零退役 · 零改值）；服务端 409 文案**保留为兜底**（并发 / 他页改动） |
+| **F254** | web / **死导出**（提交前体检轮抓出 · T15 自产） | **`compareVersions()` 导出但仓内零消费者**：`publish-chain.ts` 新增该导出，实测 `grep -rn compareVersions apps/web/src` 的非本文件命中 = **0** ⇒ 属「死导出 / 空壳件」（同族 = 仓规 D4①「第二处消费出现再抽」）。由**提交前体检**的换靶角度「**死导出 / 零消费者扫描**」抓出 | **已修（T15 体检轮）**：去 `export` 收敛为**模块内函数**（`maxVersion` / `nextAvailableVersion` 消费）· 附「不导出 + 将来第二处消费再提为公共件」说明；导出面复核 = `deriveNextVersion` / `occupiedVersionsOf` / `maxVersion` / `nextAvailableVersion` / `deriveSlugFromFileName` 五项，**逐项有仓内消费者** |
 
 **首稿已自查在案、随实现期一并处置的候选（不占 F 号，属本批规格内）**：
 
@@ -1024,6 +1043,11 @@ M4b（管理后台）拆八批中的第 7 批。前序 M4b-1…M4b-6 已交付�
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v0.13 | 2026-09-29 | sunxuewen-rush | **T15 提交前体检**：换靶抓出 **F254**（`compareVersions()` 死导出 ⇒ 去 `export` 收敛为模块内函数）+ 声明-实体回查三项（键表 64 / F252+F253 两行 / 键数 62 → 64）。**零服务端改动** |
+| v0.12 | 2026-09-29 | sunxuewen-rush | **T15 同步面回填**（版本号自识别缺陷修复 · 用户实测报缺陷）：**§6.2 键表 62 → 64**（+`field.asset.inflight` +`field.version.occupied` · 零退役零改值）· **§9.8 登记 F252**（数据源口径：客户端只有「已发布」版本 ↔ 服务端占号跨全状态）**/ F253**（同根文案不实：上下文行「暂无版本」+ 409 无因由）· **D37/C3/D47 数据源口径指针**（改为真实占号集合）· §4.2 ① 段行上下文小字指针。**零服务端改动**（实现随 T15） |
+| v0.11 | 2026-09-29 | sunxuewen-rush | **T14 同步面回填**：§4.3 右栏规格改写为**两卡**（识别摘要 + 流程 · 240 → 320px · **主按钮卡撤除** · 状态记号替代编号）· §4.2 ③ 段行（`action.publish` **改值** ⇒「发布」· 撤 `flow.note`）+ 三段容器改**官方 `Card`**（`FieldSet`/`FieldLegend` 本页退役）+ T14 触碰面指针 · **§6.2 键表换行**（退役 `flow.note` · 新增 `summary.title` ⇒ **62 键** 净 0）· **F251** 登记。**零服务端 / 零代码改动**（实现随 T14） |
+| v0.10 | 2026-09-29 | sunxuewen-rush | **T13 同步面回填**：§4.2 ① 段配方按**方向 A 聚焦式**改写 · **§6.2 `publish` 键表 59 → 62 键**（+4 / **退役 `field.file.hint`** / 改值 `field.file.drop`）· **F250** 已在 §9.8 登记。**零服务端 / 零代码改动** |
+| v0.9 | 2026-09-29 | sunxuewen-rush | **T12 同步面回填**：§4.2 上传段行（行名 ② 上传版本 → **① 上传** + `Empty` 配方改写为 T12 三层照搬 ClawHub）· **§6.2 键表 55 → 59 键**（补齐 `field.file.notZip`〔T1〕/`field.file.remove`〔T7〕/`subtitle.empty`〔T11〕/`field.file.drop`〔T12〕四行并重编号）· **F249 登记**（§4.2 `EmptyTitle` 文案与真码/键表**三向不一致** ⇒ 随 T12 修至一致）· §4.2 表后加 **F248 待回填指针**。**零服务端 / 零代码改动** |
 | v0.8 | 2026-09-28 | sunxuewen-rush | **第 6 轮换靶自检修复（F10–F12，F13 登记）** —— 换靶口径 = **决策→落点映射 / 断言覆盖矩阵 / 测试件口径实证**，实测 **9.19** 并撤回上轮 9.50。修复：**F10** 断言覆盖缺口 —— §4.8 全 15 行中 **读面载态 / 读面空（零资产空态切支）/ 读面错 / 取消上传** 无断言 ⇒ **G4 扩写为「逐行」**（含切支点击与 abort 断言；段数保持九段，无计数连带）· **F11** `N2`「（纯函数，可单测）」为空头承诺（`apps/web/src` 单测文件实测 **0**）⇒ **口径决策化：不新增 web 单测件**，预填**四支**（正常 +1 / 空壳 `1.0.0` / `-pre` 剥段 / 撞号 409）由 **G4/G6 点名覆盖** · **F12** 「再发布一个」复位语义（**C15**）补入 §4.4 完成态块与 §4.8「完成」行 · **F13** §2.1 中 16 条 D 无落点回指 ⇒ **登记不修**（风格项，留候选）· §9.4 增验收 14 ⇒ §11.11 复评 **9.50**（**再次建议立即定稿**）。**零实现改动** |
 | v0.7 | 2026-09-28 | sunxuewen-rush | **第 5 轮换靶自检修复（F7–F9 + 方案①）** —— 换靶口径 = **件面闭合性 / 施工可完成性 / 计数连带面**，实测 **9.13** 并撤回上轮 9.50。修复：**F7** 件面漏 5 件（F1 代码侧连带面：`validate/zip.ts` · `validate/frontmatter.ts` · `http/assets.ts` · `http/assets.test.ts` · `assets/versions.ts`）⇒ 补 **M17–M21**（改造件 16 → **21**；件面 25 → **31**；头部 Scope / §3.2 / §9.7③ / §11.1 四处计数连带订正）· **F8** dogfood 段数口径漏改 2 处（N8 行 · §9.4 第 9 项）⇒ 九段 · **F9** 件面**计数口径写明**（代码/规范件 ↔ §9.6 同步点文档 2 份单列）· **方案①** = 新增 **N10 `docs/smoke/scripts/file-ref-closure-check.ts`** + §9.2 **第五道文档门禁**（件面 ↔ 引用闭合双向核对；`M` 必须已存在、`N` 允许不存在、路径集合须 ⊆ 件面 ∪ 同步点 ∪ 历史豁免）+ §9.4 验收 13 ⇒ §11.10 复评 **9.50**（含收敛观察：本轮 3 条中 2 条为上轮修复的次生残留 ⇒ 建议就此冻结）。**零实现改动** |
 | v0.6 | 2026-09-28 | sunxuewen-rush | **第 4 轮换靶自检修复（F1–F6 全修）** —— 换靶实测 **9.06**（与 §11.8 同值但**靶不同、缺陷集零重叠**）并撤回上轮 9.50。修复：**F1** 上限变更的**代码侧 6 处**腐化面（`validate/zip.ts:6,7,194` · `frontmatter.ts:24` · `http/assets.ts:545` · `http/assets.test.ts:351` · `assets/versions.ts:27`）纳入 §5.2 + §9.7①，改法 = 「引用 env 单源 + 去写死字节数」· **F2** 零资产空态按钮语义三向归一（键 26「改用「新建」发布第一个资产」+ D35 + §4.2；**页内切支、零外链**）· **F3** 上传夹具**脚本内联生成**（≤10 KiB，不落二进制入仓）（§9.5）· **F4** 错误文案取法点名 `tErr(code, vars?)`（`I18nProvider.tsx:53-56`；插值 `{name}` 已实测核）（§4.6/§6.1）· **F5** 历史 plan 旧字节数**豁免口径**入 §9.7① · **F6** dogfood 加 **G9 硬编码守卫**（九段 + 反证）⇒ §11.9 复评 **9.50**（含 1 条偏离声明）。**零实现改动** |

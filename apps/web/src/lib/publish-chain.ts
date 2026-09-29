@@ -99,6 +99,93 @@ export function deriveNextVersion(latestVersion: string | null): string {
   return `${matched[1]}.${matched[2]}.${Number(matched[3]) + 1}`;
 }
 
+/** 版本项最小形状（**T15 · D25**：占号判定只关心这两个字段 ⇒ 不绑 API 类型，便于单测） */
+export interface VersionLike {
+  readonly version: string;
+  readonly status: string;
+}
+
+/**
+ * 占号集合（**T15 · D25**）：从版本列表项里筛出**真正占号**的项 —— 排除 `SCAN_FAILED`。
+ *
+ * 依据 = 服务端 `createVersion` 的冲突预检（`apps/server/src/assets/versions.ts:55-61`）：
+ * 同资产 `(asset_id, version)` **跨全状态**唯一，**唯一豁免**是旧行 `status = 'SCAN_FAILED'`
+ * （扫描失败、无审核历史 ⇒ 允许同号覆写重传）。⇒ 本函数与那条豁免**同源同义**。
+ */
+export function occupiedVersionsOf<T extends VersionLike>(items: readonly T[]): T[] {
+  return items.filter((item) => item.status !== 'SCAN_FAILED');
+}
+
+/** 版本核心段解析（`major.minor.patch` + 是否 `-pre`）—— 形状不认识 ⇒ `1.0.0` 兜底（与 `deriveNextVersion` 同口径） */
+function coreOf(version: string): { parts: readonly [number, number, number]; hasPre: boolean } {
+  const [core = ''] = version.split('+');
+  const hasPre = core.endsWith('-pre');
+  const stripped = hasPre ? core.slice(0, -'-pre'.length) : core;
+  const matched = /^(\d+)\.(\d+)\.(\d+)$/.exec(stripped);
+  if (matched === null) return { parts: [1, 0, 0], hasPre: false };
+  return {
+    parts: [Number(matched[1]), Number(matched[2]), Number(matched[3])],
+    hasPre,
+  };
+}
+
+/**
+ * 版本号比较（**T15 · D25**）：先比 `major.minor.patch` **数值**，再比 `-pre` 段
+ * —— **有 `-pre` 的小于同号正式版**（semver 2.0 §11；仓内版本形态见 `versionFieldSchema`，
+ * 预发布段只有字面量 `-pre` 一种）。返回 `-1` / `0` / `1`。
+ *
+ * **不导出**（**体检轮抓出**）：本模块内 `maxVersion` / `nextAvailableVersion` 消费，页面侧零消费者
+ * ⇒ 留在模块内，避免死导出；将来出现第二处消费再提为公共件。
+ */
+function compareVersions(a: string, b: string): number {
+  const left = coreOf(a);
+  const right = coreOf(b);
+  for (let i = 0; i < 3; i += 1) {
+    const x = left.parts[i] ?? 0;
+    const y = right.parts[i] ?? 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  if (left.hasPre === right.hasPre) return 0;
+  return left.hasPre ? -1 : 1;
+}
+
+/** 取最大号（空集合 ⇒ `null`） */
+export function maxVersion(versions: readonly string[]): string | null {
+  let max: string | null = null;
+  for (const version of versions) {
+    if (max === null || compareVersions(version, max) > 0) max = version;
+  }
+  return max;
+}
+
+/**
+ * 下一个可用版本号（**T15 · D25** —— 取代 `deriveNextVersion` 的**数据来源**，算法语义保留）。
+ *
+ * | 输入（占号集合） | 输出 | 依据 |
+ * |---|---|---|
+ * | 空集 | `1.0.0` | D49「空壳 / 无版本 ⇒ 1.0.0」 |
+ * | `{1.0.0, 1.0.1, 1.0.2}` | `1.0.3` | 最大号 + `patch + 1` |
+ * | `{2.0.0-pre}` | `2.0.0` | D37「含 `-pre` ⇒ 剥段补位」（该核心号尚未正式发布 ⇒ 不需 +1） |
+ * | `{2.0.0-pre, 2.0.0}` | `2.0.1` | 剥段位已被占 ⇒ 有界循环 `patch + 1` 至空缺（**仅剥段分支可达**） |
+ *
+ * 说明：最大号为**正式号**时 `patch + 1` 天然不在集合内（集合里没有比它更大的号）；
+ * 循环上限 100 次仅作死循环兜底（真实库不可能触及）。
+ */
+export function nextAvailableVersion(occupied: readonly string[]): string {
+  const set = new Set(occupied);
+  const max = maxVersion(occupied);
+  if (max === null) return '1.0.0';
+  const core = coreOf(max);
+  const [major, minor, patch] = core.parts;
+  let candidate = core.hasPre ? `${major}.${minor}.${patch}` : `${major}.${minor}.${patch + 1}`;
+  for (let guard = 0; guard < 100 && set.has(candidate); guard += 1) {
+    const matched = /^(\d+)\.(\d+)\.(\d+)$/.exec(candidate);
+    if (matched === null) break;
+    candidate = `${matched[1]}.${matched[2]}.${Number(matched[3]) + 1}`;
+  }
+  return candidate;
+}
+
 /**
  * 跑一键链（design §4.4）。**失败停点不回滚**；返回值携带停点与资产 slug 供页面出出口。
  *

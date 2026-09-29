@@ -17,7 +17,7 @@
  * ⚠️ **未覆盖（有意 · 见 §9.3 注）**：⑥ 的 **413 / 429** 需注入小上限 env / 打满 10 次每分钟限流
  *    ⇒ 属**手工探针**（本脚本不重启 API）；439/400 两条在此段直接断言。
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateRawSync } from 'node:zlib';
 import { navTruth } from './nav-truth.js';
 
@@ -35,7 +35,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /* ── 计数 + 分段 ── */
 let pass = 0;
 let fail = 0;
-const SECTION_IDS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9'] as const;
+const SECTION_IDS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10'] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 const only = (process.env.SMOKE_ONLY ?? '')
   .split(',')
@@ -347,15 +347,33 @@ if (want('G3')) {
         stepLefts: items.map(li => Math.round(li.getBoundingClientRect().left)),
         fieldSets: document.querySelectorAll('[data-slot="field-set"]').length,
         fieldLegends: document.querySelectorAll('[data-slot="field-legend"]').length,
+        // ── T14（整页版式重做）：图例**去数字** + 状态记号 + 右侧状态徽标 ──
+        legendTexts: Array.from(document.querySelectorAll('[data-slot="field-legend"]')).map((l) => (l.innerText || '').replace(/\\s+/g, ' ').trim()),
+        legendBadges: Array.from(document.querySelectorAll('[data-slot="field-legend"] [data-slot="badge"]')).map((b) => (b.innerText || '').trim()),
+        legendMarks: Array.from(document.querySelectorAll('[data-slot="field-legend"] svg')).length,
         emptyCount: document.querySelectorAll('[data-slot="empty"]').length,
         nativeSelect: document.querySelectorAll('select').length,
         comboboxSlot: document.querySelectorAll('[data-slot^="combobox"]').length,
+        desc: Array.from(document.querySelectorAll('[data-slot="card-description"]')).map((e) => e.textContent.trim()).find((x) => x.includes('拖进来或点选上传') || x.includes('核对识别出的资产详情')) || '',
+        // ── T12（照搬 ClawHub 空态观感）：读 ② 段空态三处文案（标题 / 描述 / 下沉的硬上限）──
+        emptyTitle: (document.querySelector('[data-slot="empty-title"]')?.textContent ?? '').trim(),
+        emptyDesc: (document.querySelector('[data-slot="empty-description"]')?.textContent ?? '').trim(),
+        emptyLimit: (document.querySelector('[data-slot="empty"] [data-slot="field-description"]')?.textContent ?? '').trim(),
+        // ── T13（① 段视觉重做 · 方向 A 聚焦式）：圆底图标 class / 上限 chips 文本 / 空态内容中轴 ──
+        emptyText: (document.querySelector('[data-slot="empty"]')?.innerText ?? '').trim(),
+        emptyIconClass: document.querySelector('[data-slot="empty-icon"]')?.className ?? '',
+        emptyContentCenterX: (() => {
+          const el = document.querySelector('[data-slot="empty-content"]');
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return Math.round(r.left + r.width / 2);
+        })(),
       });
     })()`)) as string,
   ) as Record<string, unknown>;
   ok(
-    'G3① 右栏存在（aside 1 个）且两栏栅格 = 1fr + 240px',
-    shape.asideCount === 1 && String(shape.rightLayout).includes('240px'),
+    'G3① 右栏存在（aside 1 个）且两栏栅格 = 1fr + **320px**（T14：右栏 240 → 320）',
+    shape.asideCount === 1 && String(shape.rightLayout).includes('320px'),
     String(shape.rightLayout),
   );
   const tops = shape.stepTops as number[];
@@ -365,15 +383,60 @@ if (want('G3')) {
     tops.length === 3 && tops[0]! < tops[1]! && tops[1]! < tops[2]! && new Set(lefts).size === 1,
     `tops=${tops.join(',')} lefts=${lefts.join(',')}`,
   );
+  // ── T11（design v1.7 · D21 渐进披露）：起步态**只渲染 ①** ──
   ok(
-    'G3③ 三段外层 = 官方 FieldSet ×3 + FieldLegend ×3（D32）',
-    shape.fieldSets === 3 && shape.fieldLegends === 3,
-    `set=${shape.fieldSets} legend=${shape.fieldLegends}`,
+    'G3③ T11 起步态：未给包 ⇒ 只渲染 ①（官方 FieldSet ×1 · ②③ 缺席）',
+    shape.fieldSets === 1 && shape.fieldLegends === 1,
+    `set=${shape.fieldSets} legend=${shape.fieldLegends}（**反证**：>1 即 FAIL）`,
+  );
+  ok(
+    'G3⑩ T11 页头副标题：起步（未展开）⇒ 上传引导版（D22）',
+    String(shape.desc).includes('拖进来或点选上传'),
+    String(shape.desc),
   );
   ok(
     'G3④ 未选文件态 = 官方 Empty 在位（D34）',
     (shape.emptyCount as number) >= 1,
     `empty=${shape.emptyCount}`,
+  );
+  // ── T12（照搬 ClawHub 空态观感）：标题 = 动作号召 · 描述 = 拖拽引导 · 硬上限下沉按钮下方 ──
+  ok(
+    'G3⑫ T12 空态标题 = 引导语（**非**字段名「包文件」· 反证）∧ 描述非空且**非**上限文案',
+    String(shape.emptyTitle).length > 0 &&
+      shape.emptyTitle !== '包文件' &&
+      String(shape.emptyDesc).length > 0 &&
+      !String(shape.emptyDesc).includes('MiB'),
+    `title=${shape.emptyTitle} desc=${shape.emptyDesc}`,
+  );
+  ok(
+    'G3⑬ T12/T13 硬上限**仍在册**（承「信息不丢」）：Empty 全文含 MiB ∧ 三项 `≤` ∧ `.zip` 标记在位（**读法随形态改写**：T13 上限由 `field-description` 位改为 chips 行）',
+    String(shape.emptyText).includes('MiB') &&
+      (String(shape.emptyText).match(/≤/g)?.length ?? 0) >= 3 &&
+      String(shape.emptyText).includes('.zip'),
+    `text=${String(shape.emptyText).replace(/\n/g, ' | ').slice(0, 90)}`,
+  );
+  // ── T13（A 聚焦式）：圆底品牌图标（静默 primary/10 + size-14 + rounded-full）──
+  ok(
+    'G3⑭ T13 空态图标 = **圆形品牌底**（class 含 rounded-full ∧ size-14 ∧ bg-primary/10）∧ 标题非空',
+    String(shape.emptyIconClass).includes('rounded-full') &&
+      String(shape.emptyIconClass).includes('size-14') &&
+      String(shape.emptyIconClass).includes('bg-primary/10') &&
+      String(shape.emptyTitle).length > 0,
+    `icon=${String(shape.emptyIconClass).slice(0, 80)}`,
+  );
+  // ── T14（整页版式重做 · 六处调整①）：**取消数字 1/2/3** + 段卡状态徽标 ──
+  const legendTexts = shape.legendTexts as string[];
+  const legendBadges = shape.legendBadges as string[];
+  ok(
+    'G3⑮ T14 段卡图例**不含数字**（反证：以数字开头即 FAIL）',
+    legendTexts.length >= 1 && legendTexts.every((t) => !/^\d/.test(t)),
+    JSON.stringify(legendTexts),
+  );
+  ok(
+    'G3⑯ T14 段卡状态徽标在位（文案 ∈ 完成 / 当前 / 待办 / 未通过 · 复用 `state.*`）',
+    legendBadges.length >= 1 &&
+      legendBadges.every((b) => ['完成', '当前', '待办', '未通过'].includes(b)),
+    JSON.stringify(legendBadges),
   );
   ok(
     'G3⑤ 类型选择器 = 官方 Select（无原生 select）；资产选择器未渲染时 combobox 允许为 0',
@@ -383,18 +446,9 @@ if (want('G3')) {
   // 读纯文本（不用正则/猜测选择器）：左栏 legend 文案顺序 + 右栏面板三项文案
   const iaSnap = JSON.parse(
     ((await evalJs(`JSON.stringify({
-        segs: Array.from(document.querySelectorAll('[data-slot="field-legend"]')).map((l) => l.textContent),
         panel: Array.from(document.querySelectorAll('aside ol li')).map((li) => li.textContent),
       })`)) as string) ?? '{}',
-  ) as { segs: string[]; panel: string[] };
-  ok(
-    'G3⑦ T10：左栏三段 DOM 顺序 = 上传 → 自识别 → 发布',
-    iaSnap.segs.length === 3 &&
-      iaSnap.segs[0].includes('上传') &&
-      iaSnap.segs[1].includes('自识别') &&
-      iaSnap.segs[2].includes('发布'),
-    JSON.stringify(iaSnap.segs),
-  );
+  ) as { panel: string[] };
   ok(
     'G3⑧ T10：右栏流程面板三段 = 上传 / 自识别 / 发布（键名换血后）',
     iaSnap.panel.length === 3 &&
@@ -403,6 +457,46 @@ if (want('G3')) {
       iaSnap.panel[2].includes('发布'),
     JSON.stringify(iaSnap.panel),
   );
+  // ── T11：给包 ⇒ ②③ 展开（D21 展开判据 = 有文件 ∨ 已选定资产）──
+  //    ⚠️ 收起态下 ② 段（含模式单选）**不在 DOM** ⇒ 必须先给包才能触达单选（实证踩到）
+  await evalJs(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const zone = Array.from(document.querySelectorAll('fieldset'))[0];
+        const dt = new DataTransfer();
+        dt.items.add(new File(['x'], ${JSON.stringify('g3-expand-probe.zip')}, { type: 'application/zip' }));
+        zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        await wait(400);
+        return 'ok';
+      })()`);
+  await sleep(600);
+  const expandedSnap = JSON.parse(
+    ((await evalJs(`JSON.stringify({
+        sets: document.querySelectorAll('[data-slot="field-set"]').length,
+        legends: Array.from(document.querySelectorAll('[data-slot="field-legend"]')).map((l) => l.textContent),
+        desc: Array.from(document.querySelectorAll('[data-slot="card-description"]')).map((e) => e.textContent.trim()).find((x) => x.includes('拖进来或点选上传') || x.includes('核对识别出的资产详情')) || '',
+      })`)) as string) ?? '{}',
+  ) as { sets: number; legends: string[]; desc: string };
+  ok(
+    'G3⑨ T11 展开：给包 ⇒ ②③ 出现（FieldSet ×3）',
+    expandedSnap.sets === 3 &&
+      (expandedSnap.legends[1] ?? '').includes('自识别') &&
+      (expandedSnap.legends[2] ?? '').includes('发布'),
+    JSON.stringify({ sets: expandedSnap.sets, legends: expandedSnap.legends }),
+  );
+  ok(
+    'G3⑦ T10：左栏三段 DOM 顺序 = 上传 → 自识别 → 发布（**展开态**读数）',
+    expandedSnap.legends.length === 3 &&
+      expandedSnap.legends[0].includes('上传') &&
+      expandedSnap.legends[1].includes('自识别') &&
+      expandedSnap.legends[2].includes('发布'),
+    JSON.stringify(expandedSnap.legends),
+  );
+  ok(
+    'G3⑪ T11 页头副标题：展开态 ⇒ 核对识别结果版（D22）',
+    expandedSnap.desc.includes('核对识别出的资产详情'),
+    expandedSnap.desc,
+  );
+  // ⚠️ 上一次替换**误删**了「点『已有』」这一行（实证：Combobox 因此未渲染 ⇒ G3⑥ FAIL）——已补回
   await realClick(`Array.from(document.querySelectorAll('[data-slot="radio-group-item"]'))[1]`);
   await sleep(1800);
   const combobox = JSON.parse(
@@ -426,9 +520,10 @@ if (want('G4')) {
   const start = JSON.parse(
     (await evalJs(`JSON.stringify({
       states: Array.from(document.querySelectorAll('aside ol li')).map(li=>li.textContent.trim().replace(/\\s+/g,' ').slice(0,24)),
-      publishDisabled: (document.querySelector('button[size]')||{}).disabled ?? Array.from(document.querySelectorAll('button')).find(b=>(b.textContent||'').includes('发布（新建'))?.disabled,
+      publishDisabled: (document.querySelector('button[size]')||{}).disabled ?? Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布')?.disabled,
+      sets: document.querySelectorAll('[data-slot="field-set"]').length,
     })`)) as string,
-  ) as { states: string[]; publishDisabled: boolean | undefined };
+  ) as { states: string[]; publishDisabled: boolean | undefined; sets: number };
   ok(
     'G4① 起步·空表单：① 当前 / ②③ 待办',
     start.states.length === 3 &&
@@ -437,19 +532,54 @@ if (want('G4')) {
     start.states.join(' | '),
   );
   ok(
-    'G4② 未选文件 ⇒ 主按钮 disabled（存在性门）',
-    start.publishDisabled === true,
-    `disabled=${start.publishDisabled}`,
+    'G4② T11：未给包 ⇒ ③ 段（含主按钮）**不渲染** ⇒ 主按钮不可达（原「disabled」语义由「不渲染」表达）',
+    start.sets === 1 && start.publishDisabled === undefined,
+    `sets=${start.sets} disabled=${start.publishDisabled}`,
   );
-  const prefill: Record<string, { ctx: string; version: string }> = {};
+  // ── T11（design v1.7 §5 断言 22）：给包 ⇒ ②③ 出现 + 平滑滚到 ② 段顶部 ──
+  const t11Expand = JSON.parse(
+    ((await evalJs(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const before = document.querySelectorAll('[data-slot="field-set"]').length;
+        const zone = Array.from(document.querySelectorAll('fieldset'))[0];
+        const dt = new DataTransfer();
+        dt.items.add(new File(['x'], 't11-expand-probe.zip', { type: 'application/zip' }));
+        zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        await wait(1000);
+        const sets = Array.from(document.querySelectorAll('[data-slot="field-set"]'));
+        return JSON.stringify({
+          before,
+          after: sets.length,
+          seg2Top: sets[1] ? Math.round(sets[1].getBoundingClientRect().top) : null,
+          scrollY: Math.round(window.scrollY),
+          viewportH: window.innerHeight,
+        });
+      })()`)) as string) ?? '{}',
+  ) as {
+    before: number;
+    after: number;
+    seg2Top: number | null;
+    scrollY: number;
+    viewportH: number;
+  };
+  ok(
+    'G4②c T11：起步只渲染 ①（set=1）⇒ 给包 ⇒ ②③ 出现（set=3）且 ② 段**进入视口**（T14 后页面变短 ⇒ ② 往往已在视口内，`scrollY` 可为 0：以「视口内」为准，不再要求必发生滚动）',
+    t11Expand.before === 1 &&
+      t11Expand.after === 3 &&
+      t11Expand.seg2Top !== null &&
+      t11Expand.seg2Top <= t11Expand.viewportH,
+    JSON.stringify(t11Expand),
+  );
+  const prefill: Record<string, { ctx: string; version: string; sets: number }> = {};
   for (const slug of ['m4b7-fix-1', 'm4b7-fix-2', 'm4b7-fix-3']) {
     await navTo(`${APP}/dashboard/publish?slug=${slug}`, 2600);
     const r = JSON.parse(
       (await evalJs(`JSON.stringify({
         ctx: (Array.from(document.querySelectorAll('fieldset p')).map(p=>p.textContent.trim()).find(x=>x.includes('当前最新版')||x.includes('暂无版本')))||'',
         version: (document.querySelector('input[id="publish-version"]')||{}).value||'',
+        sets: document.querySelectorAll('[data-slot="field-set"]').length,
       })`)) as string,
-    ) as { ctx: string; version: string };
+    ) as { ctx: string; version: string; sets: number };
     prefill[slug] = r;
   }
   ok(
@@ -467,16 +597,91 @@ if (want('G4')) {
     prefill['m4b7-fix-3']?.version === '2.0.0',
     JSON.stringify(prefill['m4b7-fix-3']),
   );
+  ok(
+    'G4③b T11：`?slug=` 深链（已选定资产 · **无文件**）⇒ ②③ 直接展开（D21 展开判据含「已选定资产」）',
+    prefill['m4b7-fix-1']?.sets === 3,
+    JSON.stringify({ sets: prefill['m4b7-fix-1']?.sets }),
+  );
+
+  // ── T14（整页版式重做 · 方向 B 双栏工作台）：六处调整 6 条 + 版式几何 1 条 ──
+  // 当前态 = `?slug=` 深链（②③ 展开 · 无文件）⇒ 三段全在 · 主按钮在位（disabled）
+  const t14 = JSON.parse(
+    (await evalJs(`(() => {
+      const m = document.querySelector('main');
+      const segs = Array.from(document.querySelectorAll('[data-slot="field-set"]'));
+      const txt = (el) => (el ? el.innerText.replace(/\\s+/g, ' ') : '');
+      const legendOf = (i) => txt(segs[i]?.querySelector('[data-slot="field-legend"]'));
+      const badgesOf = (i) => Array.from(segs[i]?.querySelectorAll('[data-slot="field-legend"] [data-slot="badge"]') ?? []).map((b) => b.innerText.trim());
+      const aside = document.querySelector('aside');
+      const leftCol = m.querySelector('.max-w-2xl');
+      return JSON.stringify({
+        segs: segs.length,
+        digits: segs.map((_, i) => /^\\d/.test(legendOf(i).trim())),
+        badges: segs.map((_, i) => badgesOf(i)),
+        seg1HasVersion: txt(segs[0]).includes('版本号'),
+        seg2HasVersion: txt(segs[1]).includes('版本号'),
+        seg3HasChangelog: txt(segs[2]).includes('更新说明'),
+        railCards: aside ? aside.querySelectorAll('[data-slot="card"]').length : -1,
+        railButtons: aside ? aside.querySelectorAll('button').length : -1,
+        bodyHasLegacyNote: /一次点击依次执行三步/.test(m.innerText),
+        publishBtns: Array.from(m.querySelectorAll('button')).map((b) => b.innerText.trim()).filter((x) => x.includes('发布')),
+        leftW: leftCol ? Math.round(leftCol.getBoundingClientRect().width) : -1,
+        railW: aside ? Math.round(aside.getBoundingClientRect().width) : -1,
+        railAfterLeft: !!(leftCol && aside && (leftCol.compareDocumentPosition(aside) & Node.DOCUMENT_POSITION_FOLLOWING)),
+      });
+    })()`)) as string,
+  ) as Record<string, unknown>;
+  ok(
+    'G4㉘ T14 调整②：② 段含「版本号」输入 ∧ ① 段**不含**（字段已迁移 · 反证）',
+    t14.seg2HasVersion === true && t14.seg1HasVersion === false,
+    JSON.stringify({ seg1: t14.seg1HasVersion, seg2: t14.seg2HasVersion }),
+  );
+  ok(
+    'G4㉙ T14 调整③：③ 段含「更新说明」文本域（与主按钮同段）',
+    t14.seg3HasChangelog === true,
+    String(t14.seg3HasChangelog),
+  );
+  ok(
+    'G4㉚ T14 调整④：右栏 = 恰 2 卡（识别摘要 / 流程）∧ 右栏内 `button` 计数 = 0（反证：主按钮卡已撤）',
+    t14.railCards === 2 && t14.railButtons === 0,
+    JSON.stringify({ cards: t14.railCards, buttons: t14.railButtons }),
+  );
+  ok(
+    'G4㉛ T14 调整⑤：主按钮文案 == 「发布」（反证：不含「提交审核」/「→」）',
+    (t14.publishBtns as string[]).length === 1 && (t14.publishBtns as string[])[0] === '发布',
+    JSON.stringify(t14.publishBtns),
+  );
+  ok(
+    'G4㉜ T14 调整⑥：全页**不出现** `flow.note` 文案（退役键零渲染 · F251）',
+    t14.bodyHasLegacyNote === false,
+    String(t14.bodyHasLegacyNote),
+  );
+  ok(
+    'G4㉝ T14 调整①：三段图例**均不含数字** ∧ 每段恰 1 枚状态徽标',
+    (t14.digits as boolean[]).length === 3 &&
+      (t14.digits as boolean[]).every((d) => d === false) &&
+      (t14.badges as string[][]).every((b) => b.length === 1),
+    JSON.stringify({ digits: t14.digits, badges: t14.badges }),
+  );
+  ok(
+    'G4㉞ T14 版式几何：左列 ≤ 696（`max-w-2xl` 672 + 容差）∧ 右栏 = 320 ∧ 右栏节点位于左列之后（DOM 顺序）',
+    (t14.leftW as number) > 600 &&
+      (t14.leftW as number) <= 696 &&
+      t14.railW === 320 &&
+      t14.railAfterLeft === true,
+    JSON.stringify({ leftW: t14.leftW, railW: t14.railW, after: t14.railAfterLeft }),
+  );
   await navTo(`${APP}/dashboard/publish?slug=no-such-asset-xyz`, 1500);
   const invalid = JSON.parse(
     (await evalJs(`JSON.stringify({
       hasSlugField: !!document.querySelector('input[id="publish-slug"]'),
+      sets: document.querySelectorAll('[data-slot="field-set"]').length,
       toasts: Array.from(document.querySelectorAll('[data-sonner-toast]')).map(t=>t.textContent.trim().slice(0,24)),
     })`)) as string,
-  ) as { hasSlugField: boolean; toasts: string[] };
+  ) as { hasSlugField: boolean; toasts: string[]; sets: number };
   ok(
-    'G4⑥ `?slug=` 无效 ⇒ 回落「新建」+ 轻提示（D45）',
-    invalid.hasSlugField && invalid.toasts.length > 0,
+    'G4⑥ `?slug=` 无效 ⇒ 回落「新建」（**T11 形态 = ②③ 不渲染**）+ 轻提示（D45）',
+    invalid.sets === 1 && invalid.hasSlugField === false && invalid.toasts.length > 0,
     JSON.stringify(invalid),
   );
   ok('G4⑦ 预填四支之「撞号 409」归 G6 ② 断言（同源夹具 0.0.1）', true);
@@ -495,9 +700,17 @@ if (want('G4')) {
         return ev.defaultPrevented;
       };
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const titleOf = () => (document.querySelector('[data-slot="empty-title"]')?.textContent ?? '').trim();
+      const iconClass = () => document.querySelector('[data-slot="empty-icon"]')?.className ?? '';
+      const centerX = (sel) => { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return Math.round(r.left + r.width / 2); };
+      const titleIdle = titleOf();
+      const emptyCenterX = centerX('[data-slot="empty-content"]');
+      const segCenterX = centerX('[data-slot="field-set"]');
       const enterPrevented = fire('dragenter', []);
       await wait(180);
       const hiEnter = box.className.includes('border-primary');
+      const titleDrag = titleOf();
+      const iconDrag = iconClass();
       fire('dragleave', []);
       await wait(180);
       const hiLeave = box.className.includes('border-primary');
@@ -511,12 +724,16 @@ if (want('G4')) {
       const zipPrevented = fire('drop', [new File(['x'], 'drag-probe.zip', { type: 'application/zip' })]);
       await wait(500);
       const bodyAfterZip = document.body.innerText;
-      const pickedName = (bodyAfterZip.match(/drag-probe\.zip/) ?? [null])[0];
-      const publishBtn = Array.from(document.querySelectorAll('button')).find((b) => (b.textContent || '').includes('发布（新建'));
+      const pickedName = (bodyAfterZip.match(/drag-probe.zip/) ?? [null])[0];
+      // T14：主按钮文案去括号（「发布（新建 → 上传 → 提交审核）」⇒「发布」）⇒ 按【精确等值】在 main 内定位
+      // （顶栏也有一个「发布」入口，故必须限定在 main 内取）
+      const publishBtn = Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布');
       return JSON.stringify({
         enterPrevented, hiEnter, hiLeave, overPrevented, mdPrevented, zipPrevented,
         pickedName, publishEnabled: publishBtn ? !publishBtn.disabled : null,
         hintShown, pickedAfterMd,
+        titleIdle, titleDrag, iconDrag, emptyCenterX, segCenterX,
+        pickedCenterX: centerX('[data-slot="upload-file-row"]'),
       });
     })()`)) as string as Record<string, unknown>,
   );
@@ -540,11 +757,40 @@ if (want('G4')) {
     dragSnap.overPrevented === true,
     JSON.stringify(dragSnap),
   );
+  // ── T13（① 段视觉重做 · 方向 A 聚焦式）：文案联动 + 两态同轴 ──
+  ok(
+    'G4㉕ T13 拖拽态**文案联动**（**反证**：标题不变即 FAIL）∧ 圆底反白（含 bg-primary 且不再 bg-primary/10）',
+    String(dragSnap.titleIdle).length > 0 &&
+      dragSnap.titleDrag !== dragSnap.titleIdle &&
+      String(dragSnap.iconDrag).includes('bg-primary') &&
+      !String(dragSnap.iconDrag).includes('bg-primary/10'),
+    `idle=${dragSnap.titleIdle} drag=${dragSnap.titleDrag} icon=${String(dragSnap.iconDrag).slice(0, 70)}`,
+  );
+  ok(
+    'G4㉗ T13 空态与已选态**同轴**（重心不跳变）：两态内容中心 x 与 ① 段中轴之差 ≤ 24',
+    dragSnap.emptyCenterX !== null &&
+      dragSnap.pickedCenterX !== null &&
+      dragSnap.segCenterX !== null &&
+      Math.abs((dragSnap.emptyCenterX as number) - (dragSnap.segCenterX as number)) <= 24 &&
+      Math.abs((dragSnap.pickedCenterX as number) - (dragSnap.segCenterX as number)) <= 24,
+    `empty=${dragSnap.emptyCenterX} picked=${dragSnap.pickedCenterX} seg=${dragSnap.segCenterX}`,
+  );
   // ── T6（design v1.3 §5 断言 6–10）：slug 自动预填 5 条（含 3 条反证）──
   // ⚠️ T9 起「模式自动判定」会把这些包名判成「已有」（账号下确有同名资产）⇒ slug 字段不渲染；
   //    故此处**先制造一次「已有 → 新建」的手动切换**（= modeTouched ⇒ 不再自动切），保证 T6 断言前置稳定。
   //    ⚠️ 必须点两次：Radix `onValueChange` **只在值变化时触发** —— 模式本就是「新建」时点它不会置 touched（实测踩过）。
   await navTo(`${APP}/dashboard/publish`, 2500);
+  // ⚠️ T11：收起态下模式单选不在 DOM ⇒ **必须先给包展开**，才点得到单选（实证踩到）
+  await evalJs(`(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const zone = Array.from(document.querySelectorAll('fieldset'))[0];
+        const dt = new DataTransfer();
+        dt.items.add(new File(['x'], 't6-guard.zip', { type: 'application/zip' }));
+        zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        await wait(400);
+        return 'ok';
+      })()`);
+  await sleep(400);
   await realClick(`document.querySelector('#publish-mode-existing')`);
   await sleep(700);
   await realClick(`document.querySelector('#publish-mode-new')`);
@@ -557,8 +803,14 @@ if (want('G4')) {
         const dt = new DataTransfer();
         dt.items.add(new File(['x'], ${JSON.stringify(fileName)}, { type: 'application/zip' }));
         zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
-        await wait(350);
-        const el = document.querySelector('#publish-slug');
+        // ⚠️ T11：给包后 ② 段才渲染 ⇒ slug 字段出现需一拍，**轮询**而不死等
+        let el = null;
+        for (let i = 0; i < 12 && !el; i += 1) {
+          await wait(150);
+          el = document.querySelector('#publish-slug');
+        }
+        await wait(250);
+        el = document.querySelector('#publish-slug');
         return JSON.stringify({ slug: el ? el.value : null, hasField: !!el });
       })()`)) as string) ?? '{}',
     ) as { slug: string | null; hasField: boolean };
@@ -627,13 +879,14 @@ if (want('G4')) {
         if (!btn) return JSON.stringify({ err: 'no-remove-btn' });
         btn.click();
         await wait(400);
-        const pub = Array.from(document.querySelectorAll('button')).find((b) => (b.textContent||'').includes('发布（新建'));
+        const pub = Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布');
         return JSON.stringify({
           err: null,
           emptyBack: !!document.querySelector('[data-slot="empty"]'),
           nameGone: !document.body.innerText.includes(${JSON.stringify(fileName)}),
           slug: (document.querySelector('#publish-slug')||{}).value ?? null,
           publishDisabled: pub ? pub.disabled : null,
+          sets: document.querySelectorAll('[data-slot="field-set"]').length,
         });
       })()`)) as string) ?? '{}',
     ) as {
@@ -642,6 +895,7 @@ if (want('G4')) {
       nameGone?: boolean;
       slug?: string | null;
       publishDisabled?: boolean | null;
+      sets?: number;
     };
   await dropZipOnZone('Remove_Probe.zip');
   const beforeRemove = await readRemoveState();
@@ -654,24 +908,35 @@ if (want('G4')) {
   );
   const afterRemove = await clickRemoveThenRead('Remove_Probe.zip');
   ok(
-    'G4⑱ T7：点 × ⇒ 回未选态（Empty 重现 + 主按钮 disabled + 文件名消失）',
+    'G4⑱ T7（+T11 扩写）：点 × ⇒ 回未选态（Empty 重现 + 主按钮**不可达** + 文件名消失 + **②③ 收起**）',
     afterRemove.emptyBack === true &&
-      afterRemove.publishDisabled === true &&
-      afterRemove.nameGone === true,
+      afterRemove.publishDisabled === null &&
+      afterRemove.nameGone === true &&
+      afterRemove.sets === 1,
     JSON.stringify(afterRemove),
   );
+  // ⚠️ T11：点 × 后 ②③ 收起 ⇒ slug 字段不在 DOM，**须再给一个包**才可读值。
+  //    判据用「派生为空的包名」（中文名 ⇒ 规则留空不猜）：若 × 真清了自动值 ⇒ 读回 ''；
+  //    若没清（残留 remove-probe）⇒ 中文名不覆盖 ⇒ 仍读出 remove-probe ⇒ **可判别**
+  await dropZipOnZone('我的技能.zip');
+  const afterRemoveReExpand = await readRemoveState();
   ok(
-    'G4⑲ T7（反证）：**自动填**的 slug 随 × 一并清空（移除前 = remove-probe）',
-    beforeRemove.slug === 'remove-probe' && afterRemove.slug === '',
-    JSON.stringify({ before: beforeRemove.slug, after: afterRemove.slug }),
+    'G4⑲ T7（反证）：**自动填**的 slug 随 × 一并清空（移除前 = remove-probe；再给「派生为空」的包 ⇒ 读回空）',
+    beforeRemove.slug === 'remove-probe' && afterRemoveReExpand.slug === '',
+    JSON.stringify({ before: beforeRemove.slug, afterReExpand: afterRemoveReExpand.slug }),
   );
   await dropZipOnZone('Keep_Probe.zip');
   await fillInput('#publish-slug', 'kept-slug');
   const afterRemoveKept = await clickRemoveThenRead('Keep_Probe.zip');
+  await dropZipOnZone('Keep_Probe2.zip');
+  const afterRemoveKeptReExpand = await readRemoveState();
   ok(
-    'G4⑳ T7（反证）：**手改过**的 slug 不随 × 清空',
-    afterRemoveKept.slug === 'kept-slug',
-    JSON.stringify(afterRemoveKept),
+    'G4⑳ T7（反证）：**手改过**的 slug 不随 × 清空（移除后再给新包 ⇒ 仍为 kept-slug）',
+    afterRemoveKept.slug === null && afterRemoveKeptReExpand.slug === 'kept-slug',
+    JSON.stringify({
+      afterRemove: afterRemoveKept.slug,
+      afterReExpand: afterRemoveKeptReExpand.slug,
+    }),
   );
   await shot('G4-slug-prefill');
   // ── T9（design v1.5 §5 断言 16–19）：模式与版本号自动判定 4 条 ──
@@ -683,6 +948,8 @@ if (want('G4')) {
         version: (document.querySelector('#publish-version')||{}).value ?? null,
         assetValue: (document.querySelector('#publish-asset')||{}).value ?? null,
         slugValue: (document.querySelector('#publish-slug')||{}).value ?? null,
+        sets: document.querySelectorAll('[data-slot="field-set"]').length,
+        panel: Array.from(document.querySelectorAll('aside ol li')).map((li) => li.textContent.trim().replace(/\\s+/g, ' ')),
       })`)) as string) ?? '{}',
     ) as {
       modeNew: boolean;
@@ -690,6 +957,8 @@ if (want('G4')) {
       version: string | null;
       assetValue: string | null;
       slugValue: string | null;
+      sets: number;
+      panel: string[];
     };
   await navTo(`${APP}/dashboard/publish`, 2500);
   await dropZipOnZone('m4b7-fix-1.zip');
@@ -712,6 +981,9 @@ if (want('G4')) {
     JSON.stringify(modeNewCase),
   );
   await navTo(`${APP}/dashboard/publish`, 2500);
+  // ⚠️ T11：收起态点不到单选 ⇒ 先给包展开，再「已有 → 新建」两次点击置 touched（Radix 同值不触发）
+  await dropZipOnZone('t9-guard.zip');
+  await sleep(500);
   await realClick(`document.querySelector('#publish-mode-existing')`);
   await sleep(600);
   await realClick(`document.querySelector('#publish-mode-new')`);
@@ -736,10 +1008,13 @@ if (want('G4')) {
   await sleep(700);
   const afterRemoveMode = await readModeState();
   ok(
-    'G4㉔ T9（反证）：自动切「已有」后点 × ⇒ 模式回「新建」+ 版本 1.0.0',
+    'G4㉔ T9（反证·T11 形态）：自动切「已有」后点 × ⇒ **②③ 收起**（回「新建」空表单态：面板 = ① 当前 / ②③ 待办）',
     beforeRemoveMode.modeExisting === true &&
-      afterRemoveMode.modeNew === true &&
-      afterRemoveMode.version === '1.0.0',
+      afterRemoveMode.sets === 1 &&
+      afterRemoveMode.modeNew === false &&
+      afterRemoveMode.panel.length === 3 &&
+      afterRemoveMode.panel[0]!.includes('当前') &&
+      afterRemoveMode.panel[1]!.includes('待办'),
     JSON.stringify({ before: beforeRemoveMode, after: afterRemoveMode }),
   );
   await shot('G4-drag');
@@ -782,7 +1057,7 @@ if (want('G5')) {
     (await evalJs(`(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const btn = () => Array.from(document.querySelectorAll('button')).find((b) => /执行中/.test(b.textContent||''));
-    const target = Array.from(document.querySelectorAll('button')).find((b) => (b.textContent||'').includes('发布（新建'));
+    const target = Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布');
     if (!target) return JSON.stringify({ err: 'no-button' });
     target.click();
     let seenRunning = false;
@@ -885,7 +1160,7 @@ if (want('G6')) {
   await fillInput('#publish-slug', 'm4b7-fix-1');
   await sleep(300);
   await realClick(
-    `Array.from(document.querySelectorAll('button')).find(b=>(b.textContent||'').includes('发布（新建'))`,
+    `Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布')`,
   );
   await sleep(3000);
   const slugErr = JSON.parse(
@@ -903,8 +1178,8 @@ if (want('G6')) {
   // ── F243（2026-09-29 用户实测报告）：失败停点后主按钮**必须可点**（= 重试 · design §4.8 N6）──
   const retryState = JSON.parse(
     ((await evalJs(`JSON.stringify({
-        disabled: (() => { const b = Array.from(document.querySelectorAll('button')).find(x=>(x.textContent||'').includes('发布（新建')); return b ? b.disabled : null; })(),
-        label: (() => { const b = Array.from(document.querySelectorAll('button')).find(x=>(x.textContent||'').includes('发布（新建')); return b ? b.textContent.trim().slice(0,12) : null; })(),
+        disabled: (() => { const b = Array.from(document.querySelectorAll('main button')).find((x) => (x.textContent || '').trim() === '发布'); return b ? b.disabled : null; })(),
+        label: (() => { const b = Array.from(document.querySelectorAll('main button')).find((x) => (x.textContent || '').trim() === '发布'); return b ? b.textContent.trim().slice(0,12) : null; })(),
       })`)) as string) ?? '{}',
   ) as { disabled: boolean | null; label: string | null };
   ok(
@@ -914,7 +1189,7 @@ if (want('G6')) {
   );
   const assetsBeforeRetry = (await apiGet('/api/me/assets?limit=100')).body?.items?.length ?? -1;
   await realClick(
-    `Array.from(document.querySelectorAll('button')).find(b=>(b.textContent||'').includes('发布（新建'))`,
+    `Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布')`,
   );
   await sleep(2800);
   const retryErr = JSON.parse(
@@ -1024,8 +1299,8 @@ if (want('G6')) {
   } else {
     const oSlug = `m4b7-orig-${Date.now().toString(36)}`;
     await navTo(`${APP}/dashboard/publish`, 3000);
-    await fillInput('#publish-slug', oSlug);
-    await sleep(200);
+    // ⚠️ T11：slug 字段只在**展开后**存在 ⇒ 不能再「先填 slug 再注入包」（旧序会静默失败：
+    //    字段不在 DOM ⇒ 链跳1 以空 slug 注册 ⇒ 400）。改为：注入包（展开）⇒ 切回「新建」⇒ 再填。
     await send('DOM.enable');
     const doc = await send('DOM.getDocument', { depth: -1 });
     const q = await send('DOM.querySelector', {
@@ -1035,13 +1310,21 @@ if (want('G6')) {
     // 真盘文件（大包不走 base64 塞进 Runtime.evaluate —— 用 CDP 原生注入）
     await send('DOM.setFileInputFiles', { nodeId: q.result?.nodeId, files: [originalZip] });
     await sleep(1200);
+    // T11：注入包 ⇒ ②③ 展开；若 T9 自动判定切了「已有」（原始包名撞上账号下同名资产）⇒ 点回「新建」。
+    // ⚠️ Radix `onValueChange` 只在值变化时触发 ⇒ 需「已有 → 新建」两次点击才稳（实测踩过）
+    await realClick(`Array.from(document.querySelectorAll('[data-slot="radio-group-item"]'))[1]`);
+    await sleep(500);
+    await realClick(`Array.from(document.querySelectorAll('[data-slot="radio-group-item"]'))[0]`);
+    await sleep(600);
+    await fillInput('#publish-slug', oSlug);
+    await sleep(250);
     // 判定读 **DOM 真值**（`input.files[0].name`）；页面文案回显只作旁证（展示层差异不误判 FAIL）
     // ⚠️ 转义纪律：模板字面量里写正则须**双反斜杠**（`\\w`）—— 单反斜杠会被 JS 吃成字面 `w`（本轮踩过）
     const pickedUi = JSON.parse(
       ((await evalJs(`JSON.stringify({
         inputName: (document.querySelector('input[type=file]')?.files?.[0]?.name) ?? null,
         shownZip: /[\\w.-]+\\.zip/.test(document.body.innerText),
-        enabled: (() => { const b = Array.from(document.querySelectorAll('button')).find(x=>(x.textContent||'').includes('发布（新建')); return b ? !b.disabled : null; })(),
+        enabled: (() => { const b = Array.from(document.querySelectorAll('main button')).find((x) => (x.textContent || '').trim() === '发布'); return b ? !b.disabled : null; })(),
       })`)) as string) ?? '{}',
     ) as { inputName: string | null; shownZip: boolean; enabled: boolean | null };
     const wantName = originalZip.split('/').pop() ?? '';
@@ -1056,7 +1339,7 @@ if (want('G6')) {
       `shownZip=${pickedUi.shownZip}`,
     );
     await realClick(
-      `Array.from(document.querySelectorAll('button')).find(b=>(b.textContent||'').includes('发布（新建'))`,
+      `Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布')`,
     );
     let oText = '';
     for (let i = 0; i < 24; i++) {
@@ -1131,7 +1414,7 @@ if (want('G7')) {
   await fillInput('#publish-slug', wSlug);
   await sleep(300);
   await realClick(
-    `Array.from(document.querySelectorAll('button')).find(b=>(b.textContent||'').includes('发布（新建'))`,
+    `Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布')`,
   );
   for (let i = 0; i < 24; i++) {
     const s = ((await evalJs(`document.body.innerText`)) as string) ?? '';
@@ -1227,6 +1510,318 @@ if (want('G9')) {
   // 反证：同一判定器对「代码位中文字面量」必须 FAIL（证明守卫有效，非空转）
   const negative = stripComments("const x = '这不是注释';\n");
   ok('G9② 反证：判定器对代码位中文字面量会 FAIL（非空转）', CJK.test(negative));
+}
+
+/* ═══════════ G10 T15：版本号自识别（真实占号集合 · 缺陷回归 · 三入口同源） ═══════════ */
+/**
+ * 段义（增量 design **v2.1** §3.4 / §5 · D25–D27）：证明「自识别版本号」的数据源 =
+ * **真实占号集合**（`GET /assets/{slug}/versions` · 排除 `SCAN_FAILED`），而不是列表项的
+ * `latestVersion`（= 最新**已发布**版本 ⇒ 看不到在途版本 ⇒ 预填撞号 · **F252**）。
+ *
+ * ⚠️ 本段必须排在 **G5 之后**：只有 G5 的一键链会自产「在审 · 从未发布」的资产（`runSlug`）——
+ * 那正是缺陷现场（旧实现预填 `1.0.0` 撞在审版本）。G4 段在 G5 之前 ⇒ 用不到该夹具，
+ * 故 T15 断言**独立成段 G10**（design §5 的「G4㉟–㊷」为设计期拟号 ⇒ 落地形 = G10①–⑨）。
+ *
+ * ⚠️ 段内**顺序有讲究**：网络类实验（⑦ 延迟 / ⑨ 阻断）排在交互类断言之后，且各自**当场复原 + 重载**，
+ * 避免污染后续断言的标签页网络（首跑实证：全局网络条件残留 ⇒ 之后所有取数停住 ⇒ 连锁 FAIL）。
+ */
+if (want('G10')) {
+  sec('G10', `T15 版本号自识别：真实占号集合 + 三入口同源 + 失败静默回落（slug=${runSlug}）`);
+  await loginAs(USER);
+
+  const zhSrc = readFileSync('apps/web/src/i18n/zh.ts', 'utf8');
+  /** 文案真值**取自字典**（不写死 —— 防键值漂移把断言变成化石） */
+  const zhValue = (key: string): string => {
+    const m = new RegExp(`'${key.replace(/[.]/g, '\\.')}':\\s*'([^']*)'`).exec(zhSrc);
+    return m?.[1] ?? '';
+  };
+  const NONE_TEXT = zhValue('field.asset.latestNone');
+  const INFLIGHT_TEXT = zhValue('field.asset.inflight');
+  const OCCUPIED_TEXT = zhValue('field.version.occupied');
+  const OCCUPIED_SEG = OCCUPIED_TEXT.split('{version}')[1]?.split('（')[0]?.trim() ?? '';
+  const inflightHead = INFLIGHT_TEXT.split('{version}')[0]?.trim() ?? '';
+
+  /** 读面板真值：版本号输入 + **资产字段**的上下文行（结构读）= 行内提示 / toast / 模式 */
+  const readPanel = async (attempts = 3) => {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const raw = (await evalJs(`(() => {
+        try {
+          const el = document.querySelector('#publish-version');
+          const combo = document.querySelector('[data-slot^="combobox"], [role="combobox"]');
+          const assetField = combo ? combo.closest('[data-slot="field"]') : null;
+          const desc = assetField ? assetField.querySelector('[data-slot="field-description"]') : null;
+          const radios = Array.from(document.querySelectorAll('[data-slot="radio-group-item"]'));
+          return JSON.stringify({
+            v: el ? el.value : null,
+            ctx: desc ? (desc.textContent || '').trim() : null,
+            errs: Array.from(document.querySelectorAll('main [data-slot="field-error"]')).map((e) => (e.textContent || '').trim()),
+            toasts: document.querySelectorAll('[data-sonner-toast]').length,
+            mode: radios.length > 1 ? radios[1].getAttribute('data-state') : null,
+          });
+        } catch (e) {
+          return JSON.stringify({ v: null, ctx: null, errs: [], toasts: 0, mode: null, pageErr: String(e) });
+        }
+      })()`)) as string | undefined;
+      if (typeof raw === 'string' && raw.startsWith('{')) {
+        try {
+          return JSON.parse(raw) as {
+            v: string | null;
+            ctx: string | null;
+            errs: string[];
+            toasts: number;
+            mode: string | null;
+            pageErr?: string;
+          };
+        } catch {
+          /* 落到重试 */
+        }
+      }
+      await sleep(500); // 页面可能正在导航（`evalJs` 返回 undefined）
+    }
+    return {
+      v: null,
+      ctx: null,
+      errs: [],
+      toasts: 0,
+      mode: null,
+      pageErr: 'readPanel: unreachable',
+    };
+  };
+
+  // ── 独立 oracle（**刻意不复用被测实现** —— 用被测代码自证等于空转）──
+  const partsOf = (version: string) => {
+    const [coreRaw = ''] = version.split('+');
+    const hasPre = coreRaw.endsWith('-pre');
+    const core = hasPre ? coreRaw.slice(0, -4) : coreRaw;
+    const [major = 1, minor = 0, patch = 0] = core.split('.').map((n) => Number(n) || 0);
+    return { major, minor, patch, hasPre };
+  };
+  const cmp = (x: string, y: string): number => {
+    const l = partsOf(x);
+    const r = partsOf(y);
+    if (l.major !== r.major) return l.major - r.major;
+    if (l.minor !== r.minor) return l.minor - r.minor;
+    if (l.patch !== r.patch) return l.patch - r.patch;
+    if (l.hasPre === r.hasPre) return 0;
+    return l.hasPre ? -1 : 1;
+  };
+  /** 服务端口径复算：占号集合（排除 SCAN_FAILED）⇒ 最大号 + 1（`-pre` 剥段补位） */
+  const nextFrom = (occupied: string[]): string => {
+    if (occupied.length === 0) return '1.0.0';
+    const max = occupied.reduce((acc, v) => (cmp(v, acc) > 0 ? v : acc));
+    const { major, minor, patch, hasPre } = partsOf(max);
+    let cand = hasPre ? `${major}.${minor}.${patch}` : `${major}.${minor}.${patch + 1}`;
+    for (let i = 0; i < 100 && occupied.includes(cand); i += 1) {
+      const p = partsOf(cand);
+      cand = `${p.major}.${p.minor}.${p.patch + 1}`;
+    }
+    return cand;
+  };
+  const occupiedOf = async (slug: string): Promise<string[]> =>
+    ((await apiGet(`/api/assets/${slug}/versions?limit=100`)).body?.items ?? [])
+      .filter((i: { status: string }) => i.status !== 'SCAN_FAILED')
+      .map((i: { version: string }) => i.version);
+
+  const deepLink = async (slug: string) => {
+    await navTo(`${APP}/dashboard/publish?slug=${slug}`, 3200);
+    return await readPanel();
+  };
+
+  // ── G10① 缺陷回归：G5 链自产资产（在审 1.0.0 · 从未发布）⇒ 预填 = 最大占号 + 1（旧实现 = 1.0.0 撞号）──
+  const regOccupied = await occupiedOf(runSlug);
+  const regExpect = nextFrom(regOccupied);
+  const reg = await deepLink(runSlug);
+  ok(
+    `G10① 缺陷回归：在审/未发布资产不再预填撞号值（占号 [${regOccupied.join(', ')}] ⇒ ${regExpect}）`,
+    reg.v === regExpect && reg.v !== '1.0.0',
+    `page=${reg.v} · 旧实现填 1.0.0 ⇒ 必 409`,
+  );
+
+  // ── G10② 口径一致性（数据自适应 · 逐资产导航）：页面预填 == 独立算出的「最大占号 + 1」──
+  const rows: Array<{ slug: string; page: string | null; want: string; occ: string[] }> = [];
+  for (const slug of ['m4b7-fix-1', 'm4b7-fix-2', 'm4b7-fix-3', runSlug]) {
+    const occ = await occupiedOf(slug);
+    const want = nextFrom(occ);
+    const panel = slug === runSlug ? reg : await deepLink(slug);
+    rows.push({ slug, page: panel.v, want, occ });
+  }
+  ok(
+    'G10② 口径一致性：页面预填 == 独立算出的「最大占号 + 1」（含空集 ⇒ 1.0.0 · `-pre` 剥段 · 待审占号）',
+    rows.every((r) => r.page === r.want),
+    rows
+      .map((r) => `${r.slug}[${r.occ.join('/')}]=${r.page}${r.page === r.want ? '' : `≠${r.want}`}`)
+      .join(' · '),
+  );
+
+  // ── G10③ 上下文行：压着在途版本 ⇒「在途 …」（**不再**谎报「暂无版本」）──
+  ok(
+    'G10③ 资产上下文行：有在途版本 ⇒「在途 {version}」而非「暂无版本」（F253）',
+    reg.ctx !== null &&
+      reg.ctx !== NONE_TEXT &&
+      inflightHead !== '' &&
+      reg.ctx.startsWith(inflightHead),
+    `ctx=${reg.ctx}`,
+  );
+
+  // ── G10④ 反证：真空壳资产仍「暂无版本」∧ 预填 1.0.0（D49 不变 · 防误伤）──
+  const shell = await deepLink('m4b7-fix-2');
+  ok(
+    'G10④ 反证：无版本资产 ⇒ 上下文仍「暂无版本」∧ 预填 1.0.0（D49 不变）',
+    shell.ctx === NONE_TEXT && shell.v === '1.0.0',
+    `ctx=${shell.ctx} v=${shell.v}`,
+  );
+
+  // ── G10⑤⑥ 占号**前置**提示（D27）：命中 ⇒ 说明原因 + 建议号；改空闲号 ⇒ 提示消失 ──
+  await deepLink(runSlug);
+  await fillInput('#publish-version', regOccupied[0] ?? '');
+  await sleep(420);
+  const hit = await readPanel();
+  ok(
+    `G10⑤ 占号前置提示：填被占号 ${regOccupied[0]} ⇒ 行内说明原因 ∧ 给出建议号 ${regExpect}`,
+    OCCUPIED_SEG !== '' &&
+      hit.errs.some((e) => e.includes(OCCUPIED_SEG)) &&
+      hit.errs.some((e) => e.includes(regExpect)),
+    `errs=${JSON.stringify(hit.errs)}`,
+  );
+  await fillInput('#publish-version', '9.9.9');
+  await sleep(420);
+  const free = await readPanel();
+  ok(
+    'G10⑥ 反证：改为空闲号 ⇒ 占号提示消失（提示非恒显）',
+    free.errs.length === 0,
+    `errs=${JSON.stringify(free.errs)}`,
+  );
+
+  // ── G10⑦ 三入口同源：① `?slug=` 深链 ② 手动选中 ③ **拖包自动判定** ──
+  // ① 深链
+  const viaLink = (await deepLink(runSlug)).v;
+  // ② 手动选中（切「已有」+ 选择器点选 —— D7/C11）
+  // ⚠️ Radix/Base UI 的单选与选项**不吃 `element.click()`**（实测：state 不变）⇒ 必须真实鼠标事件
+  await navTo(`${APP}/dashboard/publish`, 3000);
+  const probed = (await evalJs(`(() => {
+    const i = document.querySelector('input[type=file]');
+    if (!i) return 'no-file-input';
+    const dt = new DataTransfer();
+    dt.items.add(new File(['x'], 'probe-pack.zip', { type: 'application/zip' }));
+    i.files = dt.files;
+    i.dispatchEvent(new Event('change', { bubbles: true }));
+    return 'ok';
+  })()`)) as string;
+  await sleep(1000);
+  await realClick(`Array.from(document.querySelectorAll('[data-slot="radio-group-item"]'))[1]`);
+  await sleep(1400);
+  const manualSteps: Record<string, unknown> = { probed };
+  manualSteps.modeAfterRadio = (await evalJs(
+    `JSON.stringify(Array.from(document.querySelectorAll('[data-slot="radio-group-item"]')).map((e) => e.getAttribute('data-state')))`,
+  )) as string;
+  await realClick(`document.querySelector('[role="combobox"]')`); // 点开 popup（选项仅在开态渲染）
+  await sleep(900);
+  manualSteps.filled = await fillInput('[role="combobox"]', runSlug);
+  await sleep(2000);
+  const items = JSON.parse(
+    (await evalJs(
+      `JSON.stringify(Array.from(document.querySelectorAll('[role="option"]')).map((e) => (e.textContent || '').trim()))`,
+    )) as string,
+  ) as string[];
+  manualSteps.items = items.slice(0, 4);
+  manualSteps.loading = (await evalJs(
+    `!!document.querySelector('[data-slot="combobox-empty"]')`,
+  )) as boolean;
+  const pickedIdx = items.indexOf(runSlug);
+  if (pickedIdx >= 0) {
+    await realClick(
+      `Array.from(document.querySelectorAll('[role="option"]')).find((e) => (e.textContent || '').trim() === ${JSON.stringify(runSlug)})`,
+    );
+    await sleep(2600); // 等占号集合拉回
+  }
+  // ⚠️ 点选后占号集合还要一次取数 ⇒ **轮询到期望值**，不用固定 sleep（网络时序容差）
+  for (let i = 0; i < 30; i += 1) {
+    manualSteps.v = (await evalJs(
+      `(document.querySelector('#publish-version') || {}).value ?? null`,
+    )) as string | null;
+    if (manualSteps.v === regExpect) break;
+    await sleep(250);
+  }
+  if (pickedIdx < 0) manualSteps.err = 'no-item';
+  const manual = JSON.parse(JSON.stringify(manualSteps)) as {
+    v?: string | null;
+    err?: string;
+  };
+  // ③ 拖包自动判定（T9/D15 —— **用户 2026-09-29 点名要求**）：包名派生 slug == 该资产 ⇒ 自动切「已有」+ 预填
+  const zipB64 = buildFixtureZip().toString('base64');
+  await navTo(`${APP}/dashboard/publish`, 3000);
+  const dropped = (await evalJs(`(() => {
+    const bin = atob(${JSON.stringify(zipB64)});
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    const file = new File([bytes], ${JSON.stringify(`${runSlug}.zip`)}, { type: 'application/zip' });
+    const input = document.querySelector('input[type=file]');
+    if (!input) return 'no-input';
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return 'ok';
+  })()`)) as string;
+  await sleep(3200); // 防抖 300ms + 两次取数（我的资产 + 占号集合）
+  const dropPanel = await readPanel();
+  ok(
+    'G10⑦ 三入口同源：深链 / 手动选中 / **拖包自动判定** ⇒ 预填值两两相等（用户点名要求 ③ 同样生效）',
+    dropped === 'ok' &&
+      viaLink === regExpect &&
+      manual.v === regExpect &&
+      dropPanel.v === regExpect &&
+      dropPanel.mode === 'checked',
+    `深链=${viaLink} 手动=${manual.v ?? manual.err} 拖包=${dropPanel.v}（期望 ${regExpect} · 拖包=${dropped} · 拖包后模式=${dropPanel.mode} · 手选调试=${JSON.stringify(manual)}）`,
+  );
+
+  // ── G10⑧ 手改保护：占号集合**异步**返回不覆盖用户输入（`versionTouched`）──
+  // 手法：给 `*/api/assets/*/versions*` 加全局延迟 ⇒ 输入框一出现就手改 ⇒ 等响应落地后仍须保持手改值。
+  await send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 250,
+    downloadThroughput: 10_000_000,
+    uploadThroughput: 10_000_000,
+  });
+  await navTo(`${APP}/dashboard/publish?slug=${runSlug}`, 300);
+  const keepRaw = (await evalJs(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    let el = null;
+    for (let i = 0; i < 200 && el === null; i += 1) {
+      el = document.querySelector('#publish-version');
+      if (el === null) await wait(50);
+    }
+    if (el === null) return JSON.stringify({ err: 'no-input' });
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    setter.call(el, '7.7.7');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait(3200); // 等被延迟的占号集合响应落地
+    return JSON.stringify({ v: document.querySelector('#publish-version')?.value ?? null });
+  })()`)) as string;
+  await send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 0,
+    downloadThroughput: 10_000_000,
+    uploadThroughput: 10_000_000,
+  });
+  const kept = JSON.parse(keepRaw) as { v?: string | null; err?: string };
+  ok(
+    'G10⑧ 手改版本号后：占号集合异步返回**不覆盖**用户输入（versionTouched）',
+    kept.v === '7.7.7',
+    `v=${kept.v ?? kept.err}`,
+  );
+
+  // ── G10⑨ 拉取失败静默回落：**只**阻断版本列表端点（不碰模块 URL）⇒ 仍给号 ∧ 零报错零 toast ──
+  await navTo(`${APP}/dashboard/publish`, 2200); // 先复原页面（⑦ 的延迟已撤）
+  await send('Network.setBlockedURLs', { urls: ['*/api/assets/*/versions*'] });
+  const blocked = await deepLink(runSlug);
+  await send('Network.setBlockedURLs', { urls: [] });
+  ok(
+    'G10⑨ 拉取失败静默回落：阻断 `*/api/assets/*/versions*` ⇒ 仍给出版本号（回落旧口径）∧ 零行内错误 ∧ 零 toast',
+    blocked.v === '1.0.0' && blocked.errs.length === 0 && blocked.toasts === 0,
+    `v=${blocked.v} errs=${JSON.stringify(blocked.errs)} toasts=${blocked.toasts}`,
+  );
+  await navTo(`${APP}/dashboard/publish`, 1500); // 收尾复原
 }
 
 console.log(`\n=== 结果：${pass} PASS / ${fail} FAIL ===`);
