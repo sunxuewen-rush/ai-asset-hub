@@ -1,7 +1,8 @@
 # UI 语言与本地化约定
 
 > Date: 2026-09-04
-> Updated: 2026-09-09（v1.2：M4a 市场门户双语资源落地注记——zh 真源/en 完整兜底对齐四组字典 navigation/market/common/errors；lang 系统跟随 + localStorage 持久化——实现见 `M4a-marketplace.md` T8）
+> Updated: 2026-09-29（v1.5：`publish` 组**键名换血**（M4b-7 T10 IA 重组）—— `step.create/step.upload/step.submit`（+ 3 hint）→ `step.upload/step.detect/step.publish`（+ 3 hint）；**键数净 0（仍 57）**）
+> Updated: 2026-09-29（v1.4：`publish` 组键数 56 → **57** —— 验收期第 2 键 `field.file.remove`（已选态 × 的 `aria-label`/`title`）；机制无变更）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§8 修订记录**。
 > Status: 定稿（M0 评审通过；M4a 门户资源已落地，M4b 管理后台资源随其实现铺开）
 > Scope: 前端界面语言机制 —— 支持语言、默认跟随系统、手动切换、错误码本地化、API 语言契约
@@ -29,7 +30,7 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 ## 3. UI 资源组织
 
-- 资源按界面域分组：`navigation` / `market`（列表/搜索/详情）· `publish`（发布流 · **M4b-7 已落地：55 键** —— 见 §3.1 落地注记）·
+- 资源按界面域分组：`navigation` / `market`（列表/搜索/详情）· `publish`（发布流 · **M4b-7 已落地：57 键** —— 见 §3.1 落地注记）·
   `review`（审核）· `admin`（管理后台）· `common`（通用）· `errors`（错误码消息）
 - 客户端 i18n 框架加载当前语言资源包；语言切换即换资源包
 - 资产自身内容（作者写的 description/正文/README）**不翻译**——那是内容属性，
@@ -65,15 +66,19 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
-| v1.2 | 2026-09-09 | sunxuewen-rush | M4a 市场门户双语资源落地注记：zh 真源 + en 完整对齐四组字典；lang 系统跟随 + localStorage |
+| v1.5 | 2026-09-29 | sunxuewen-rush | `publish` 组 **键名换血**（M4b-7 T10 信息架构重组）：`step.create/step.upload/step.submit` → `step.upload/step.detect/step.publish`（键数净 0 · 仍 57） |
+| v1.4 | 2026-09-29 | sunxuewen-rush | `publish` 组键数 56 → **57**：验收期第 2 键 `field.file.remove`（已选态 × 移除 · M4b-7 T7） |
+| v1.3 | 2026-09-29 | sunxuewen-rush | `publish` 组键数订正 55 → 56：M4b-7 验收期拖拽上传新增 `field.file.notZip`（zh/en 各 56 · 零差集）· 复议结论「原 55 值正确，+1 来自增量」 |
+| v1.2 | 2026-09-09 | sunxuewen-rush | M4a 市场门户双语资源落地注记：zh 真源 + en 完整对齐四组字典；lang 系统跟随 + localStorage（实现见 `M4a-marketplace.md` T8） |
 | v1.1 | 2026-09-07 | sunxuewen-rush | 实现状态同步：文档定稿标注（M1 无前端，UI 资源随 M4 铺开） |
 | v1.0 | 2026-09-04 | sunxuewen-rush | 初稿：zh/en 双语、默认跟随系统、手动切换、错误码本地化、API 语言契约 |
 
-### 3.1 `publish` 组落地注记（M4b-7 T10 回填）
+### 3.1 `publish` 组落地注记（M4b-7 T10 回填 · 键数经 M4b-7 验收期复议）
 
-| 项 | 实测值（2026-09-28） |
+| 项 | 实测值（2026-09-28 · 键数行 2026-09-29 复议） |
 |---|---|
-| 键数 | **55**（设计值 55 —— 54 + 归一后 6 增；zh/en 零差集，由 `Dict = typeof zh` 类型 + 脚本双验） |
+| 键数 | **57**（设计值 55 + 验收期增量 **2 键**：`field.file.notZip`（非 zip 提示）· `field.file.remove`（已选态 × 的 aria-label/title）；zh 57 / en 57 逐键回读 · 零差集，由 `Dict = typeof zh` 类型 + 脚本双验） |
 | `errors` 组联动 | **42 → 68**（新增 26 = 20 族协议码 + 6 业务码） |
 | 占位符 | `{package}` `{file}` `{count}` `{version}` `{seconds}` —— **键内名与调用点参数名必须一致**（M4b-7 F230 实锤：曾因 `maxFiles` ≠ `{count}` 原样渲染） |
 | 本地化归属 | 码 = 契约（服务端/协议），文案 = **客户端本地化**（AIH 独家；CLI 只透码） |
+| 键名变更（v1.5） | `step.*` 三族键名随 IA 重组换血：`step.create`/`step.submit` **删除**、`step.upload` **改值**（「上传版本」→「上传」）、新增 `step.detect`/`step.publish`（+ 三 hint 改写）⇒ **总数不变（57）**；旧键名**代码面零残留**（`grep -rn 'step\.create\|step\.submit' apps/web/src` = 0 —— 本文档仅保留变更留痕） |

@@ -28,6 +28,7 @@
 ├── scripts/          # 本地实现脚本（可选，stdio 型引用）
 └── README.md         # 可选：用法、所需环境、凭据说明
 ```
+> **归一化（2026-09-28 拍板放宽 · 与 `docs/02` §2 同规则）**：全部文件同处唯一顶层目录 `X/` ⇒ 服务端剥一层后再校验与入库（只剥一层）；`__MACOSX/`/`.DS_Store`/`__pycache__/` 等自动产物忽略。
 
 - 远程型典型包 = `mcp.json` + `README.md`（无 scripts/）
 - 本地型典型包 = `mcp.json` + `scripts/server.js`（+ 依赖说明）

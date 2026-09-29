@@ -60,6 +60,50 @@ export function assertSafeZipPath(path: string): void {
   }
 }
 
+/** 包内**自动产物**忽略清单（M4b-7 验收期 F242 · 用户 2026-09-28 拍板「按推荐」）
+ *
+ * 口径：只收「工具 / OS 自动生成、非用户内容」的东西 —— 扫描期**直接跳过**（不校验、不计数、不入库）。
+ * 刻意**不收**用户可能真想发布的产物（`.log` / `node_modules` 等）—— 那些按 `02` §3.3 白名单拒绝。
+ */
+const IGNORED_SEGMENTS = new Set(['__MACOSX', '__pycache__', '.git']);
+const IGNORED_FILE_NAMES = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
+const IGNORED_EXTENSIONS = new Set(['.pyc', '.pyo']);
+
+function isIgnoredEntryPath(path: string): boolean {
+  const segments = path.split('/');
+  if (segments.some((s) => IGNORED_SEGMENTS.has(s))) return true;
+  const name = segments[segments.length - 1] ?? '';
+  if (IGNORED_FILE_NAMES.has(name)) return true;
+  const dot = name.lastIndexOf('.');
+  return dot > 0 && IGNORED_EXTENSIONS.has(name.slice(dot));
+}
+
+/**
+ * 「唯一顶层目录」剥层（F242 · 用户拍板 B）：zip 内**全部**文件条目同处一个顶层目录 `X/` ⇒ 剥掉该层。
+ *
+ * 语义 = 把 `X/SKILL.md` 视作 `SKILL.md`（族规则/白名单/内容契约全部作用于**剥后视图**），
+ * `asset_file.file_path` 也存剥后路径 ⇒ 下载/安装结构干净（不带那层壳）。
+ * 边界：**只剥 1 层**（`a/b/SKILL.md` ⇒ 剥成 `b/SKILL.md`，仍会被族规则拒）+ 无顶层目录（扁平包）⇒ 原样。
+ */
+export function stripWrapperDir(entries: ZipEntryMeta[]): {
+  rootPrefix: string;
+  entries: ZipEntryMeta[];
+} {
+  if (entries.length === 0) return { rootPrefix: '', entries };
+  const tops = new Set<string>();
+  for (const e of entries) {
+    const slash = e.path.indexOf('/');
+    if (slash <= 0) return { rootPrefix: '', entries }; // 根级有散文件 ⇒ 不是「唯一顶层目录」形态
+    tops.add(e.path.slice(0, slash));
+  }
+  if (tops.size !== 1) return { rootPrefix: '', entries };
+  const rootPrefix = `${[...tops][0]}/`;
+  return {
+    rootPrefix,
+    entries: entries.map((e) => ({ ...e, path: e.path.slice(rootPrefix.length) })),
+  };
+}
+
 /** unix 外部属性提取（mode 高 16 位）；无 unix 属性返回 0 */
 function unixMode(entry: { externalFileAttributes: number }): number {
   return entry.externalFileAttributes >>> 16;
@@ -73,7 +117,7 @@ function unixMode(entry: { externalFileAttributes: number }): number {
 export async function scanZip(
   zip: Buffer,
   limits: ZipLimits = defaultZipLimits(),
-): Promise<{ entries: ZipEntryMeta[] }> {
+): Promise<{ entries: ZipEntryMeta[]; rootPrefix: string }> {
   return new Promise((resolve, reject) => {
     fromBuffer(zip, { lazyEntries: true }, (openErr, zipfile) => {
       if (openErr || !zipfile) {
@@ -106,6 +150,11 @@ export async function scanZip(
               zipfile.readEntry();
               return;
             }
+            // 自动产物（`__MACOSX/` `.DS_Store` `__pycache__/` 等）⇒ 跳过：不校验、不计数、不入库（F242）
+            if (isIgnoredEntryPath(entry.fileName)) {
+              zipfile.readEntry();
+              return;
+            }
             // symlink 拒绝（服务端安全规则：解压语义不可追踪外部目标）
             if ((mode & 0o170000) === 0o120000) {
               throw new ZipValidationError(
@@ -133,7 +182,7 @@ export async function scanZip(
           }
         },
       );
-      zipfile.on('end', () => resolve({ entries }));
+      zipfile.on('end', () => resolve(stripWrapperDir(entries)));
       zipfile.readEntry();
     });
   });

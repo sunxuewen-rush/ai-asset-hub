@@ -30,8 +30,15 @@ describe('skill 族细则（02 §2/§3.3）', () => {
     }
   });
 
-  it('主文件非 root 级（子目录）→ package_layout_invalid', async () => {
+  // **契约翻转（F242 · 用户 2026-09-28 拍板 B）**：原「root 级主文件」契约放宽为
+  // 「唯一顶层目录 ⇒ 剥一层后再判定」（`docs/02` §2 已同步）——故此例从**拒绝**改为**接受**
+  it('主文件在子目录且为唯一顶层目录 ⇒ 剥层后接受（F242 契约翻转）', async () => {
     const r = await validator.validate(buildZip([{ name: 'sub/SKILL.md', content: base }]));
+    expect(r.ok).toBe(true);
+  });
+
+  it('主文件在**两层**子目录 ⇒ 仍拒（F242 边界：只剥一层）', async () => {
+    const r = await validator.validate(buildZip([{ name: 'a/b/SKILL.md', content: base }]));
     expect(r.ok).toBe(false);
     expect(r.errors[0]?.code).toBe(assetErrorCodes.packageLayoutInvalid);
   });

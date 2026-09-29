@@ -44,8 +44,9 @@ export async function runFamilyValidation(
   ) => ValidationResult | Promise<ValidationResult>,
 ): Promise<ValidationResult> {
   try {
-    const { entries } = await scanZip(zip);
-    return await familyCheck(entries, (path) => readZipEntry(zip, path));
+    // 剥层后条目 + 前缀：族内容校验读文件时**必须加回**前缀（否则 `entry not found`——F242 实测踩到）
+    const { entries, rootPrefix } = await scanZip(zip);
+    return await familyCheck(entries, (path) => readZipEntry(zip, rootPrefix + path));
   } catch (err) {
     if (err instanceof ZipValidationError) {
       return { ok: false, errors: [{ code: err.code, path: err.path, message: err.message }] };

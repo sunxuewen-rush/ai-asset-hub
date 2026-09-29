@@ -24,6 +24,9 @@
 ```text
 <slug>/
 ├── SKILL.md           # 主文件（必需，root 级）
+# 归一化（2026-09-28 拍板放宽）：若**全部文件**同处唯一顶层目录 `X/`，服务端**剥掉该层**后再校验与入库
+#   （例：`skill-x/SKILL.md` ⇒ 视作 `SKILL.md`）；**只剥一层**（`a/b/SKILL.md` 仍拒）；下载/安装结构 = **剥后**结构
+# 忽略清单（自动产物，扫描期跳过且不入库）：`__MACOSX/` `.DS_Store` `__pycache__/` `*.pyc` `*.pyo` `Thumbs.db` `desktop.ini` `.git/`
 ├── references/        # 参考资料（可选）
 ├── scripts/           # 脚本（可选）
 └── assets/            # 静态资源（可选）

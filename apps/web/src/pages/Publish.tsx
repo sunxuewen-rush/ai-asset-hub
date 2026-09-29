@@ -20,7 +20,8 @@
  * ④ 文案一律走 `t`/`tErr`（**禁中文字面量** —— dogfood G9 静态守卫）
  */
 
-import { Upload } from 'lucide-react';
+import { cn } from 'cn';
+import { Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -74,7 +75,7 @@ import { Textarea } from '@/components/ui/shadcn/textarea';
 import { useApi } from '@/hooks/useApi';
 import { useMarketQuery } from '@/hooks/useMarketQuery';
 import { useI18n } from '@/i18n/I18nProvider';
-import { deriveNextVersion, runChain } from '@/lib/publish-chain';
+import { deriveNextVersion, deriveSlugFromFileName, runChain } from '@/lib/publish-chain';
 
 /** 右栏三段状态（design §4.3 四态；「未通过」由 `stopAt` 一次性置位 —— 单一真源） */
 type StepState = 'pending' | 'active' | 'done' | 'failed';
@@ -98,6 +99,8 @@ const FIELD_OF_CODE: Record<string, 'slug' | 'version'> = {
 interface PackageIssue {
   path?: string;
   code?: string;
+  /** 服务端原文（`package_layout_invalid` 等只有它可读 —— F241） */
+  message?: string;
 }
 
 export function Publish() {
@@ -117,6 +120,99 @@ export function Publish() {
    * （300ms 防抖 ⇒ `?q=`）驱动，两者职责分离。
    */
   const [displayQuery, setDisplayQuery] = useState('');
+  // ── 拖拽上传（增补设计 `2026-09-28-publish-drag-upload-design.md` v1.0 · D1–D7）──
+  // `dragDepth` 计数法：子元素间移动也会触发 dragleave，靠计数避免高亮抖动（D1①）
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepth = useRef(0);
+  /** 非 zip 的**本地**提示（D3①③）：只提示这一种；多文件静默取第一个 */
+  const [fileHint, setFileHint] = useState<string | null>(null);
+  /**
+   * slug 自动预填（T6 · design §3.1）：选包（点击/拖入）⇒ 按**文件名**派生 slug。
+   * 触发条件（D10①，与 ClawHub 的 `!dirtyFields.slug && !trimmedSlug` 同义）：
+   *   仅「新建」支 ∧ 用户**没改过**（`slugTouchedRef`）∧ 当前值**为空或仍是上次自动值** ⇒ 填 / 刷新；
+   *   用户改过（含改后又清空）**一律不动** —— touched 优先于「空」，否则会与正在打字的用户抢输入框。
+   * 派生为空（纯中文包名等）⇒ **留空不猜**（D11①）。
+   */
+  const slugTouchedRef = useRef(false);
+  const autoSlugRef = useRef('');
+  /** T9：用户手动切过模式 ⇒ 此后不再自动判定；`autoExisting` = 当前「已有」模式是本功能自动切的 */
+  const modeTouchedRef = useRef(false);
+  const autoExistingRef = useRef(false);
+  const detectSeqRef = useRef(0);
+  const maybePrefillSlug = (next: File | null) => {
+    if (next === null || mode !== 'new') return;
+    if (slugTouchedRef.current) return;
+    if (slug !== '' && slug !== autoSlugRef.current) return;
+    const derived = deriveSlugFromFileName(next.name);
+    if (derived === '') return;
+    autoSlugRef.current = derived;
+    setSlug(derived);
+    setFieldError(null);
+    detectModeForSlug(derived);
+  };
+  /**
+   * 模式自动判定（T9 · design v1.5 D15–D17）：按**派生 slug** 一次性查「我的资产」——
+   * 命中 ⇒ 切「已有」+ 选中它（版本号由既有 useEffect 自动变 `latest+1`）；未命中/失败 ⇒ 保持「新建」。
+   * 保护：① 用户**手动切过**模式（`modeTouchedRef`）⇒ 永不自动切（同 `slugTouched` 语义）
+   *       ② **深链 `?slug=` 或用户手动选中的「已有」不动** —— 只有本功能自动切成的才允许再判定
+   *       ③ 序号（`detectSeqRef`）防过期响应覆盖后一次选择 ④ 失败**静默**（不阻断/不报错/不弹提示）
+   */
+  const detectModeForSlug = (candidate: string) => {
+    if (modeTouchedRef.current) return;
+    if (mode === 'existing' && !autoExistingRef.current) return;
+    const seq = ++detectSeqRef.current;
+    void fetchMyAssets({ q: candidate, limit: 100 }, {})
+      .then((data) => {
+        if (seq !== detectSeqRef.current || modeTouchedRef.current) return;
+        const hit = data.items.find((item) => item.slug === candidate) ?? null;
+        if (hit !== null) {
+          autoExistingRef.current = true;
+          setMode('existing');
+          setPicked(hit);
+          setDisplayQuery(hit.slug);
+        } else {
+          autoExistingRef.current = false;
+          setMode('new');
+          setPicked(null);
+        }
+      })
+      .catch(() => {
+        /* D17①：查询失败 ⇒ 静默保持「新建」 */
+      });
+  };
+  /** 拖拽落点归一（D5①）：与点击选择走**同一个** `file` 状态，键鼠路径不变 */
+  const acceptDroppedFile = (next: File | null) => {
+    if (next === null) return;
+    if (!next.name.toLowerCase().endsWith('.zip')) {
+      setFileHint(t('publish', 'field.file.notZip'));
+      return;
+    }
+    setFileHint(null);
+    setFile(next);
+    maybePrefillSlug(next);
+  };
+  /**
+   * 移除已选包（T7 · design D12–D14）：回「未选态」⇒ 可重新点击选择或重新拖入。
+   * 联动（D13①）：清本地提示 + 进度；**自动填的 slug 一并清空**（对称：随包来、随包去），
+   * 用户手改过（`slugTouchedRef`）不动；**仅「新建」支**适用 —— `?slug=` 深链的 slug 属于
+   * 用户选定的既有资产，不得被 × 抹掉。
+   */
+  const removeSelectedFile = () => {
+    setFile(null);
+    setFileHint(null);
+    setProgress(0);
+    if (mode === 'new' && !slugTouchedRef.current) {
+      setSlug('');
+      autoSlugRef.current = '';
+    }
+    // T9 对称语义：模式若是本功能自动切成的 ⇒ 随包回到「新建」（用户手动切过的不动）
+    if (!modeTouchedRef.current && autoExistingRef.current) {
+      autoExistingRef.current = false;
+      detectSeqRef.current += 1;
+      setMode('new');
+      setPicked(null);
+    }
+  };
   const [file, setFile] = useState<File | null>(null);
   const [version, setVersion] = useState(() => deriveNextVersion(null));
   const [changelog, setChangelog] = useState('');
@@ -204,8 +300,9 @@ export function Publish() {
 
   // 选中已有资产 ⇒ 版本号按 C3 预填（只读列表项 `latestVersion`，不拉版本列表 —— D37）
   useEffect(() => {
-    if (mode !== 'existing') return;
-    setVersion(deriveNextVersion(picked?.latestVersion ?? null));
+    // **F244（2026-09-29 实测）**：原首行 `if (mode !== 'existing') return;` ⇒ 「已有」切回「新建」时
+    // 版本号**不回落**（残留 latest+1）。改为两模式都派生：新建 ⇒ `1.0.0`；已有 ⇒ `latest+1`。
+    setVersion(deriveNextVersion(mode === 'existing' ? (picked?.latestVersion ?? null) : null));
   }, [mode, picked]);
 
   const packageTooLarge = file !== null && file.size > limitValues.packageMaxBytes;
@@ -215,7 +312,9 @@ export function Publish() {
     !running &&
     countdown === 0 &&
     file !== null &&
-    stopAt === null &&
+    // **F243（2026-09-29 用户实测）**：此处原含 `stopAt === null` ⇒ 失败停点后主按钮永久禁用，
+    // 而设计 §4.8/N6 明确「失败停点按钮复用 `action.publish`（= 重试）」⇒ 门已删（用户拍板 A）。
+    // 重试语义：`publish()` 内部 `setStopAt(null)` 刷新右栏；跳1 幂等由 `createdSlug` 兜住（D39）。
     submitted === null &&
     (mode === 'new' || picked !== null);
 
@@ -223,6 +322,11 @@ export function Publish() {
   function resetForm() {
     setMode('new');
     setSlug('');
+    slugTouchedRef.current = false;
+    autoSlugRef.current = '';
+    modeTouchedRef.current = false;
+    autoExistingRef.current = false;
+    detectSeqRef.current += 1;
     setAssetType('skill');
     setPicked(null);
     setFile(null);
@@ -350,10 +454,26 @@ export function Publish() {
   }
 
   const flowSteps: ReadonlyArray<{ n: 1 | 2 | 3; title: string; hint: string }> = [
-    { n: 1, title: t('publish', 'step.create'), hint: t('publish', 'step.create.hint') },
-    { n: 2, title: t('publish', 'step.upload'), hint: t('publish', 'step.upload.hint') },
-    { n: 3, title: t('publish', 'step.submit'), hint: t('publish', 'step.submit.hint') },
+    { n: 1, title: t('publish', 'step.upload'), hint: t('publish', 'step.upload.hint') },
+    { n: 2, title: t('publish', 'step.detect'), hint: t('publish', 'step.detect.hint') },
+    { n: 3, title: t('publish', 'step.publish'), hint: t('publish', 'step.publish.hint') },
   ];
+  /**
+   * 右栏面板三段状态（T10 · design v1.6 D19 · P2A「用户视角」）：
+   * ① 上传 = 未选文件 ⇒ 当前 / 已选 ⇒ 完成；② 自识别 = 未选 ⇒ 待办 / 已选 ⇒ 完成；
+   * ③ 发布 = 未选 ⇒ 待办 / 已选未点 ⇒ 待办 / 执行中 ⇒ 当前 / 成功 ⇒ 完成 / **链失败 ⇒ 未通过**（圆点统一落此处，
+   * 字段级行内错误仍按停点归属 —— 有意解绑，见 design §7⑪）。
+   */
+  const panelStates: readonly [StepState, StepState, StepState] =
+    submitted !== null
+      ? ['done', 'done', 'done']
+      : stopAt !== null
+        ? ['done', 'done', 'failed']
+        : running
+          ? ['done', 'done', 'active']
+          : file === null
+            ? ['active', 'pending', 'pending']
+            : ['done', 'done', 'pending'];
   const stateText: Record<StepState, string> = {
     pending: t('publish', 'state.pending'),
     active: t('publish', 'state.active'),
@@ -368,13 +488,172 @@ export function Publish() {
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
         {/* ── 左栏：三段同页平铺（§4.2）── */}
         <div className="flex flex-col gap-6">
-          {/* ① 新建资产 */}
-          <FieldSet>
+          {/* ① 上传（T10 置首：先给包 ⇒ 系统自识别）*/}
+          {/* 拖拽区 = 整个 ① 段（常驻 · §7.2 决策⑥ A 方案）：已选/上传中同样有落点，
+              否则「上传中拖入」不可达；事件在 FieldSet 上，视觉高亮仍复用官方 Empty（D2①） */}
+          <FieldSet
+            onDragEnter={(event) => {
+              event.preventDefault();
+              if (running) return;
+              dragDepth.current += 1;
+              setDragActive(true);
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              dragDepth.current = Math.max(0, dragDepth.current - 1);
+              if (dragDepth.current === 0) setDragActive(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              dragDepth.current = 0;
+              setDragActive(false);
+              if (running) return;
+              acceptDroppedFile(event.dataTransfer?.files?.[0] ?? null);
+            }}
+          >
             <FieldLegend>
               <span className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs">
                 1
               </span>
-              {t('publish', 'step.create')}
+              {t('publish', 'step.upload')}
+            </FieldLegend>
+            <FieldGroup>
+              {file === null ? (
+                <Empty
+                  className={cn(
+                    'border border-dashed transition-colors',
+                    // 拖拽高亮（D2①：复用官方 Empty，不新造样式体系）；上传中不高亮（D6①）
+                    // 事件已上移到 ② 段 <FieldSet>（拖拽区常驻）；此处只保留视觉高亮
+                    dragActive && 'border-primary bg-primary/5',
+                  )}
+                >
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Upload />
+                    </EmptyMedia>
+                    <EmptyTitle>{t('publish', 'field.file')}</EmptyTitle>
+                    <EmptyDescription>
+                      {t('publish', 'field.file.hint', {
+                        package: toMiB(limitValues.packageMaxBytes),
+                        file: toMiB(limitValues.fileMaxBytes),
+                        // ⚠️ 键内占位符名 = `{count}`（不是 maxFiles）—— 名字必须与字典一致，
+                        //    否则原样渲染 `{count}`（实测踩过：见 §7.1 T3 B2 登记的同类风险）
+                        count: limitValues.maxFiles,
+                      })}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {t('publish', 'field.file.choose')}
+                    </Button>
+                  </EmptyContent>
+                  {fileHint !== null && <FieldError>{fileHint}</FieldError>}
+                </Empty>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate">{file.name}</span>
+                    {running ? (
+                      steps[1] === 'active' ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => abortRef.current?.abort()}
+                        >
+                          {t('publish', 'action.cancelUpload')}
+                        </Button>
+                      ) : null
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t('publish', 'field.file.remove')}
+                        title={t('publish', 'field.file.remove')}
+                        onClick={removeSelectedFile}
+                      >
+                        <X aria-hidden="true" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    {t('publish', 'upload.cancelNote')}
+                  </p>
+                  {steps[1] === 'active' && (
+                    <Progress
+                      value={progress}
+                      aria-label={t('publish', 'upload.progress', { percent: progress })}
+                    />
+                  )}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip"
+                className="hidden"
+                onChange={(e) => {
+                  const nextFile = e.target.files?.[0] ?? null;
+                  setFile(nextFile);
+                  maybePrefillSlug(nextFile);
+                  setProgress(0);
+                  setFieldError(null);
+                  setStopAt(null);
+                  setError(null);
+                }}
+              />
+              {packageTooLarge && (
+                <p className="text-destructive text-sm">
+                  {tErr('asset.package_too_large', {
+                    package: toMiB(limitValues.packageMaxBytes),
+                  })}
+                </p>
+              )}
+              <Field data-invalid={fieldError?.field === 'version' || undefined}>
+                <FieldLabel htmlFor="publish-version">{t('publish', 'field.version')}</FieldLabel>
+                <Input
+                  id="publish-version"
+                  value={version}
+                  aria-invalid={fieldError?.field === 'version' || undefined}
+                  disabled={running || submitted !== null}
+                  onChange={(e) => {
+                    setVersion(e.target.value);
+                    setFieldError(null);
+                  }}
+                />
+                <FieldDescription>{t('publish', 'field.version.hint')}</FieldDescription>
+                {fieldError?.field === 'version' && (
+                  <FieldError>{tErr(fieldError.code)}</FieldError>
+                )}
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="publish-changelog">
+                  {t('publish', 'field.changelog')}
+                </FieldLabel>
+                <Textarea
+                  id="publish-changelog"
+                  value={changelog}
+                  disabled={running || submitted !== null}
+                  placeholder={t('publish', 'field.changelog.placeholder')}
+                  onChange={(e) => setChangelog(e.target.value)}
+                />
+              </Field>
+            </FieldGroup>
+          </FieldSet>
+
+          {/* ② 自识别（T10：系统识别的结果，全部可编辑）*/}
+          <FieldSet>
+            <FieldLegend>
+              <span className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs">
+                2
+              </span>
+              {t('publish', 'step.detect')}
             </FieldLegend>
             <FieldGroup>
               <Field
@@ -385,6 +664,9 @@ export function Publish() {
                   value={mode}
                   onValueChange={(next) => {
                     const value = String(next) as Mode;
+                    // T9：用户手动切过模式 ⇒ 此后不再被自动判定覆盖
+                    modeTouchedRef.current = true;
+                    autoExistingRef.current = false;
                     setMode(value);
                     setFieldError(null);
                     setStopAt(null);
@@ -419,6 +701,8 @@ export function Publish() {
                       aria-invalid={fieldError?.field === 'slug' || undefined}
                       placeholder={t('publish', 'field.slug.placeholder')}
                       onChange={(e) => {
+                        // 用户碰过即「脏」（ClawHub `dirtyFields.slug` 同义）⇒ 此后不再被自动值覆盖
+                        slugTouchedRef.current = true;
                         setSlug(e.target.value);
                         setFieldError(null);
                       }}
@@ -515,140 +799,13 @@ export function Publish() {
             </FieldGroup>
           </FieldSet>
 
-          {/* ② 上传版本 */}
-          <FieldSet>
-            <FieldLegend>
-              <span className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs">
-                2
-              </span>
-              {t('publish', 'step.upload')}
-            </FieldLegend>
-            <FieldGroup>
-              {file === null ? (
-                <Empty className="border border-dashed">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Upload />
-                    </EmptyMedia>
-                    <EmptyTitle>{t('publish', 'field.file')}</EmptyTitle>
-                    <EmptyDescription>
-                      {t('publish', 'field.file.hint', {
-                        package: toMiB(limitValues.packageMaxBytes),
-                        file: toMiB(limitValues.fileMaxBytes),
-                        // ⚠️ 键内占位符名 = `{count}`（不是 maxFiles）—— 名字必须与字典一致，
-                        //    否则原样渲染 `{count}`（实测踩过：见 §7.1 T3 B2 登记的同类风险）
-                        count: limitValues.maxFiles,
-                      })}
-                    </EmptyDescription>
-                  </EmptyHeader>
-                  <EmptyContent>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {t('publish', 'field.file.choose')}
-                    </Button>
-                  </EmptyContent>
-                </Empty>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate">{file.name}</span>
-                    {running && steps[1] === 'active' ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => abortRef.current?.abort()}
-                      >
-                        {t('publish', 'action.cancelUpload')}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={running}
-                        onClick={() => {
-                          setFile(null);
-                          setProgress(0);
-                        }}
-                      >
-                        {t('publish', 'field.file.choose')}
-                      </Button>
-                    )}
-                  </div>
-                  <p className="text-muted-foreground text-xs">
-                    {t('publish', 'upload.cancelNote')}
-                  </p>
-                  {steps[1] === 'active' && (
-                    <Progress
-                      value={progress}
-                      aria-label={t('publish', 'upload.progress', { percent: progress })}
-                    />
-                  )}
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".zip"
-                className="hidden"
-                onChange={(e) => {
-                  setFile(e.target.files?.[0] ?? null);
-                  setProgress(0);
-                  setFieldError(null);
-                  setStopAt(null);
-                  setError(null);
-                }}
-              />
-              {packageTooLarge && (
-                <p className="text-destructive text-sm">
-                  {tErr('asset.package_too_large', {
-                    package: toMiB(limitValues.packageMaxBytes),
-                  })}
-                </p>
-              )}
-              <Field data-invalid={fieldError?.field === 'version' || undefined}>
-                <FieldLabel htmlFor="publish-version">{t('publish', 'field.version')}</FieldLabel>
-                <Input
-                  id="publish-version"
-                  value={version}
-                  aria-invalid={fieldError?.field === 'version' || undefined}
-                  disabled={running || submitted !== null}
-                  onChange={(e) => {
-                    setVersion(e.target.value);
-                    setFieldError(null);
-                  }}
-                />
-                <FieldDescription>{t('publish', 'field.version.hint')}</FieldDescription>
-                {fieldError?.field === 'version' && (
-                  <FieldError>{tErr(fieldError.code)}</FieldError>
-                )}
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="publish-changelog">
-                  {t('publish', 'field.changelog')}
-                </FieldLabel>
-                <Textarea
-                  id="publish-changelog"
-                  value={changelog}
-                  disabled={running || submitted !== null}
-                  placeholder={t('publish', 'field.changelog.placeholder')}
-                  onChange={(e) => setChangelog(e.target.value)}
-                />
-              </Field>
-            </FieldGroup>
-          </FieldSet>
-
-          {/* ③ 提交审核（或结果块） */}
+          {/* ③ 发布（或结果块）（T10 改名：「提交审核」⇒「发布」）*/}
           <FieldSet>
             <FieldLegend>
               <span className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs">
                 3
               </span>
-              {t('publish', 'step.submit')}
+              {t('publish', 'step.publish')}
             </FieldLegend>
             <FieldGroup>
               {submitted === null ? (
@@ -715,9 +872,18 @@ export function Publish() {
                       <ul className="mb-2 flex flex-col gap-1">
                         {(issuesExpanded ? issues : issues.slice(0, 5)).map((issue) => (
                           <li key={`${issue.path ?? ''}-${issue.code ?? ''}`}>
-                            <span className="font-mono text-xs">{issue.path ?? ''}</span>
-                            {issue.path !== undefined && ' · '}
+                            {issue.path !== undefined && (
+                              <>
+                                <span className="font-mono text-xs">{issue.path}</span>
+                                {' · '}
+                              </>
+                            )}
                             {tErr(issue.code ?? 'network')}
+                            {/* 服务端原文（F241）：`package_layout_invalid` 这类**只有 message、没有 path**
+                                的 issue，本地化码文案与标题同文 ⇒ 不显示原文等于没信息 */}
+                            {issue.message !== undefined && (
+                              <span className="text-muted-foreground"> · {issue.message}</span>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -763,7 +929,7 @@ export function Publish() {
             <h2 className="mb-3 font-medium text-sm">{t('publish', 'flow.title')}</h2>
             <ol className="flex flex-col gap-3">
               {flowSteps.map((step, index) => {
-                const state: StepState = steps[step.n - 1] ?? 'pending';
+                const state: StepState = panelStates[index] ?? 'pending';
                 const connector = index < flowSteps.length - 1;
                 return (
                   <li key={step.n} className="relative pl-7">

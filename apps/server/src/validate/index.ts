@@ -19,7 +19,10 @@ import { readZipEntry, scanZip, type ZipEntryMeta } from './zip.js';
 
 export interface ValidatedPackage {
   type: AssetType;
+  /** **剥层后**的文件清单（`rootPrefix` 已从 `path` 移除 —— 入库/下载路径用这套） */
   entries: ZipEntryMeta[];
+  /** 被剥掉的唯一顶层目录前缀（`''` = 扁平包原样）；实际字节读取需加回该前缀（F242） */
+  rootPrefix: string;
   /** 族协议 manifest 对象（已过 zod——投影 manifest_json 源） */
   manifest: Record<string, unknown>;
   /** 文本族正文（skill/agent——searchText 摘要源；mcp 无） */
@@ -41,8 +44,9 @@ async function parseMainFile(
   type: AssetType,
   zip: Buffer,
   entries: ZipEntryMeta[],
+  rootPrefix: string,
 ): Promise<{ manifest: unknown; body?: string }> {
-  const read = (path: string) => readZipEntry(zip, path);
+  const read = (path: string) => readZipEntry(zip, rootPrefix + path);
   if (type === 'skill') {
     const main = findSkillMainEntry(entries);
     if (!main) throw new Error('unreachable: skill main file missing after validation');
@@ -87,11 +91,11 @@ export async function validatePackage(
   if (!result.ok) return { ok: false, errors: result.errors };
 
   try {
-    const { entries } = await scanZip(file);
-    const { manifest, body } = await parseMainFile(type, file, entries);
+    const { entries, rootPrefix } = await scanZip(file);
+    const { manifest, body } = await parseMainFile(type, file, entries, rootPrefix);
     return {
       ok: true,
-      validated: { type, entries, manifest: manifest as Record<string, unknown>, body },
+      validated: { type, entries, rootPrefix, manifest: manifest as Record<string, unknown>, body },
     };
   } catch {
     // 校验器通过后解析失败 = 服务端不一致 bug——透出 500（不吞）

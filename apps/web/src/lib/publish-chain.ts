@@ -166,3 +166,24 @@ export async function runChain(
     return { ok: false, stopAt: 3, error, assetSlug };
   }
 }
+
+/**
+ * zip 文件名 → slug（T6 · design §3.1）—— **照搬** `24-clawhub/src/routes/skills/publish.tsx:1394-1402`
+ * `slugFromFolderName`，仅在两处按 AIH 形态改动（差异清单见 design §3.1）：
+ * - 差异②：末尾加「截断 **64** → 再去尾部 `-`」（AIH `slugSchema` 硬上限 64；ClawHub 无此步）
+ * - 差异③：入参是**文件名**，先去掉 `.zip` 扩展名（大小写不敏感；ClawHub 入参本就是目录名）
+ *
+ * 规则：trim → camelCase 拆词 → 小写 → 非 `[a-z0-9]` 全变 `-` → 去首尾 `-` → 折叠 `--` → 截 64 → 去尾 `-`
+ * 派生结果为空（如纯中文名 `我的技能.zip`）⇒ 返回 `''`（调用方**留空不猜** —— 同 ClawHub 的 `if (nextSlug && …)`）
+ */
+export function deriveSlugFromFileName(fileName: string): string {
+  const base = fileName.trim().replace(/\.zip$/i, '');
+  return base
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 64)
+    .replace(/-+$/g, '');
+}

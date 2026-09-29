@@ -52,8 +52,59 @@ describe('scanZip 结构校验（design §4 / 02 §3.3）', () => {
   });
 
   it('反斜杠文件名 → yauzl 规范化为正斜杠（无穿越风险，条目接受）', async () => {
-    const { entries } = await scanZip(buildZip([{ name: 'a\\b.md', content: 'x' }]));
-    expect(entries.map((e) => e.path)).toEqual(['a/b.md']);
+    // 附一个根级文件：否则该单条目会被「唯一顶层目录」剥层（F242）⇒ 断言看不到规范化结果
+    const { entries } = await scanZip(
+      buildZip([
+        { name: 'root.md', content: 'x' },
+        { name: 'a\\b.md', content: 'x' },
+      ]),
+    );
+    expect(entries.map((e) => e.path)).toEqual(['root.md', 'a/b.md']);
+  });
+
+  it('唯一顶层目录 ⇒ 剥一层（F242）：条目报剥后路径 + rootPrefix 记录被剥层', async () => {
+    const { entries, rootPrefix } = await scanZip(
+      buildZip([
+        { name: 'skill-x/SKILL.md', content: 'x' },
+        { name: 'skill-x/scripts/a.py', content: 'x' },
+      ]),
+    );
+    expect(rootPrefix).toBe('skill-x/');
+    expect(entries.map((e) => e.path)).toEqual(['SKILL.md', 'scripts/a.py']);
+  });
+
+  it('扁平包 ⇒ 不剥（rootPrefix 为空）', async () => {
+    const { entries, rootPrefix } = await scanZip(
+      buildZip([
+        { name: 'SKILL.md', content: 'x' },
+        { name: 'scripts/a.py', content: 'x' },
+      ]),
+    );
+    expect(rootPrefix).toBe('');
+    expect(entries.map((e) => e.path)).toEqual(['SKILL.md', 'scripts/a.py']);
+  });
+
+  it('套两层 ⇒ 只剥一层（F242 边界：a/b/SKILL.md ⇒ b/SKILL.md）', async () => {
+    const { entries, rootPrefix } = await scanZip(
+      buildZip([{ name: 'outer/inner/SKILL.md', content: 'x' }]),
+    );
+    expect(rootPrefix).toBe('outer/');
+    expect(entries.map((e) => e.path)).toEqual(['inner/SKILL.md']);
+  });
+
+  it('自动产物忽略清单（F242）：`__MACOSX/` `.DS_Store` `__pycache__/` `*.pyc` 跳过且不计数', async () => {
+    const { entries, rootPrefix } = await scanZip(
+      buildZip([
+        { name: 'skill-x/SKILL.md', content: 'x' },
+        { name: '__MACOSX/skill-x/._SKILL.md', content: 'x' },
+        { name: 'skill-x/.DS_Store', content: 'x' },
+        { name: 'skill-x/scripts/__pycache__/a.cpython-314.pyc', content: 'x' },
+        { name: 'skill-x/scripts/a.py', content: 'x' },
+        { name: 'Thumbs.db', content: 'x' },
+      ]),
+    );
+    expect(rootPrefix).toBe('skill-x/');
+    expect(entries.map((e) => e.path)).toEqual(['SKILL.md', 'scripts/a.py']);
   });
 
   it('空段 // → package_path_invalid', async () => {
@@ -144,14 +195,16 @@ describe('族 validator 骨架（root 级主文件契约）', () => {
     expect(r.errors[0]?.code).toBe(assetErrorCodes.packageLayoutInvalid);
   });
 
-  it('带外层目录包（my-skill/SKILL.md）→ 拒绝（design §4 root 级契约）', async () => {
+  // **契约翻转（F242 · 用户 2026-09-28 拍板 B）**：带外层目录的包按「唯一顶层目录」**剥一层后再校验**。
+  // 本例的主文件内容无 frontmatter ⇒ 现在应当**卡在内容契约**（而非布局），故断言「不再是布局错」。
+  it('带外层目录包（my-skill/SKILL.md）⇒ 剥层后不再是布局错（F242 契约翻转）', async () => {
     const wrapped = buildZip([
       { name: 'my-skill/SKILL.md', content: '# hi\n' },
       { name: 'my-skill/refs/a.md', content: 'a\n' },
     ]);
     const r = await registry.skill.validate(wrapped);
     expect(r.ok).toBe(false);
-    expect(r.errors[0]?.code).toBe(assetErrorCodes.packageLayoutInvalid);
+    expect(r.errors[0]?.code).not.toBe(assetErrorCodes.packageLayoutInvalid);
   });
 
   it('结构违规透传为 issue（不 throw）', async () => {

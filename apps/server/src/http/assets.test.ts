@@ -368,6 +368,40 @@ describe('POST /api/assets/{slug}/versions（T13 multipart 上传）', () => {
     }
   });
 
+  it('唯一顶层目录 + 自动产物 ⇒ 剥层接受（F242 验收）：201 且忽略清单不计数', async () => {
+    const wrapped = buildZip([
+      {
+        name: 'ast-pub-skill/SKILL.md',
+        content: '---\nname: ast-pub-skill\ndescription: wrapped package upload test\n---\nbody\n',
+      },
+      { name: 'ast-pub-skill/scripts/a.py', content: 'print(1)\n' },
+      // 以下均为「工具/OS 自动产物」⇒ 应被忽略（不校验、不计数、不入库）
+      { name: '__MACOSX/ast-pub-skill/._SKILL.md', content: 'junk' },
+      { name: 'ast-pub-skill/.DS_Store', content: 'junk' },
+      { name: 'ast-pub-skill/scripts/__pycache__/a.cpython-314.pyc', content: 'junk' },
+    ]);
+    const res = await uploadZip(await cookieFor(member), 'ast-pub-skill', wrapped, '4.1.0');
+    const raw = await res.text();
+    expect(res.status, `剥层包应被接受；实际 body=${raw}`).toBe(201);
+    const body = JSON.parse(raw) as { version: string; fileCount: number };
+    expect(body.version).toBe('4.1.0');
+    // 5 条目中 3 条为自动产物 ⇒ 只应计入 2 条真实文件（剥层后 SKILL.md + scripts/a.py）
+    expect(body.fileCount).toBe(2);
+  });
+
+  it('套两层目录 ⇒ 仍拒（F242 边界：只剥一层）', async () => {
+    const deep = buildZip([
+      {
+        name: 'outer/inner/SKILL.md',
+        content: '---\nname: ast-pub-skill\ndescription: deep wrapper test\n---\nb\n',
+      },
+    ]);
+    const res = await uploadZip(await cookieFor(member), 'ast-pub-skill', deep, '4.2.0');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('asset.package_layout_invalid');
+  });
+
   it('限流 429（第 11 次上传——10 次/分钟窗口）', async () => {
     // 预热限流 key（member 已传 3 次——补 hit 到 10）
     for (let i = 0; i < 7; i++) uploadRateLimiter.hit(`asset-upload:${member}`);

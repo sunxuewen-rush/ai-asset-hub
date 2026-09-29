@@ -109,15 +109,21 @@ export async function createVersion(
       const vid = row?.id;
       if (vid === undefined) throw new Error('version insert returned no row');
 
-      const contents = await extractAllFor(files, file);
+      // 字节读取需加回被剥掉的顶层目录前缀；**入库路径用剥后路径**（下载/安装结构干净 —— F242）
+      const { rootPrefix } = validation.validated;
+      const contents = await extractAllFor(
+        files.map((p) => rootPrefix + p),
+        file,
+      );
       for (const f of contents) {
+        const relPath = rootPrefix === '' ? f.path : f.path.slice(rootPrefix.length);
         // key 规则（design §6 → M4-pre：去空间段）：{assetId}/{versionId}/{path}
-        const storageKey = `${target.id}/${vid}/${f.path}`;
+        const storageKey = `${target.id}/${vid}/${relPath}`;
         const sha256 = createHash('sha256').update(f.content).digest('hex');
-        await storage.put(storageKey, f.content, { contentType: contentTypeFor(f.path) });
+        await storage.put(storageKey, f.content, { contentType: contentTypeFor(relPath) });
         await tx.insert(assetFile).values({
           versionId: vid,
-          filePath: f.path,
+          filePath: relPath,
           fileSize: f.content.byteLength,
           sha256,
           storageKey,
