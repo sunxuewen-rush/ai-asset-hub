@@ -36,7 +36,7 @@ const MD_BODY = cn(
   '[&_ol]:my-1.5 [&_ol]:ml-0.5 [&_ol]:list-decimal [&_ol]:pl-[18px] [&_ol]:text-muted-foreground',
   '[&_li]:my-[3px]',
   // 内联 code（:not(pre)>code 与 pre 内 code 互斥）
-  '[&_:not(pre)>code]:rounded-[5px] [&_:not(pre)>code]:border [&_:not(pre)>code]:border-border',
+  '[&_:not(pre)>code]:rounded-[6px] [&_:not(pre)>code]:border [&_:not(pre)>code]:border-border',
   '[&_:not(pre)>code]:bg-muted [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-px',
   '[&_:not(pre)>code]:font-mono [&_:not(pre)>code]:text-xs',
   // 代码块

@@ -171,7 +171,7 @@ export function SideNav({ onOpenPalette }: { onOpenPalette: () => void }) {
                     {t('navigation', 'palettePlaceholder')}
                   </span>
                   {!collapsed && (
-                    <kbd className="ml-auto rounded-sm border border-border px-1.5 py-0.5 font-medium text-[10px] text-muted-foreground">
+                    <kbd className="ml-auto rounded-sm border border-border px-1.5 py-0.5 font-medium text-[11px] text-muted-foreground">
                       {paletteShortcutLabel()}
                     </kbd>
                   )}

@@ -49,6 +49,7 @@ import {
   type TrendPoint,
 } from '@/api/admin';
 import { PageHeader } from '@/components/console/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/shadcn/button';
 import {
   Card,
@@ -304,7 +305,7 @@ const HeroPanel = memo(function HeroPanel({
       {loading ? (
         <Skeleton className="h-[212px] w-full" />
       ) : rows.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">{emptyText}</p>
+        <EmptyState message={emptyText} />
       ) : (
         <ChartContainer
           config={{ value: { label: title, color } }}
@@ -639,9 +640,7 @@ export default function AdminBoard() {
             {loading ? (
               <Skeleton className="h-[250px] w-full" />
             ) : labels.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                {t('admin', 'empty')}
-              </p>
+              <EmptyState message={t('admin', 'empty')} />
             ) : (
               <ChartContainer config={ringConfig} className="mx-auto aspect-square max-h-[250px]">
                 {/* 官方 `Radial Chart - Grid` 配方：`PolarGrid gridType="circle"` + `RadialBar`（无 background/圆角）
@@ -689,9 +688,7 @@ export default function AdminBoard() {
             {loading ? (
               <Skeleton className="h-[250px] w-full" />
             ) : labels.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                {t('admin', 'empty')}
-              </p>
+              <EmptyState message={t('admin', 'empty')} />
             ) : (
               <ChartContainer
                 config={{
@@ -763,7 +760,7 @@ export default function AdminBoard() {
           {loading ? (
             <Skeleton className="h-[320px] w-full" />
           ) : rankRows.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">{t('admin', 'empty')}</p>
+            <EmptyState message={t('admin', 'empty')} />
           ) : (
             <ChartContainer
               config={{

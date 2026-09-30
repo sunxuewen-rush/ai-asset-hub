@@ -6,6 +6,7 @@ import { Drawer } from '@/components/console/Drawer';
 import { PAGE_SIZE } from '@/components/market/sortOptions';
 import { DataTable } from '@/components/ui/DataTable';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { Pagination } from '@/components/ui/Pagination';
 import { StatTile } from '@/components/ui/StatTile';
 import { Badge } from '@/components/ui/shadcn/badge';
@@ -143,6 +144,8 @@ export default function AdminAudit() {
   const [quick, setQuick] = useState<'24h' | 'versionYank' | null>(null);
   const [current, setCurrent] = useState<AuditItem | null>(null);
   const [page, setPage] = useState(0);
+  /** **G1（M4b-8 §2.5）**：错误态重试 —— useApi 无 refetch，以 tick 触发重发（同族 AdminAssets.tsx:502） */
+  const [retryTick, setRetryTick] = useState(0);
 
   /** 查询参数（服务端过滤 —— M4b-6 T9 起不再客户端过滤快照） */
   const params = useMemo(() => {
@@ -171,7 +174,7 @@ export default function AdminAudit() {
 
   const list = useApi(
     (signal) => fetchAudit({ ...params, limit: PAGE_SIZE, offset: page * PAGE_SIZE }, { signal }),
-    [params, page],
+    [params, page, retryTick],
   );
   const rows: readonly AuditItem[] = list.data?.items ?? [];
   const total = list.data?.total ?? 0;
@@ -446,7 +449,7 @@ export default function AdminAudit() {
                 <div key={f.key} className="flex flex-col gap-1.5">
                   <Label className="text-xs">
                     {fieldLabel(t, f.key)}
-                    <span className="ml-1 text-[10px] text-muted-foreground">≤{f.max}</span>
+                    <span className="ml-1 text-[11px] text-muted-foreground">≤{f.max}</span>
                   </Label>
                   <Input
                     maxLength={f.max}
@@ -460,13 +463,23 @@ export default function AdminAudit() {
           </CollapsibleContent>
         </Collapsible>
 
-        {rows.length === 0 ? (
+        {/* **G1（M4b-8 §2.5）**：错误态就地（同族 AdminAssets:502）—— 原实现无载/错态 */}
+        {list.error ? (
+          <ErrorState error={list.error} onRetry={() => setRetryTick((n) => n + 1)} />
+        ) : null}
+
+        {/* 空态：仅当**加载完成且真的零行**（原实现把「加载中」误显为「暂无数据」） */}
+        {!list.error && !list.loading && rows.length === 0 ? (
           <EmptyState message={t('admin', 'empty')} />
-        ) : (
+        ) : null}
+
+        {!list.error && (list.loading || rows.length > 0) ? (
           <DataTable
             columns={columns as never}
             data={rows as never}
             getRowId={(r) => String((r as unknown as AuditItem).id)}
+            loading={list.loading}
+            loadingVariant="keepHeader"
             emptyMessage={t('admin', 'empty')}
             density="default"
             tableClassName="table-fixed"
@@ -496,7 +509,7 @@ export default function AdminAudit() {
             rowActionsHeader={t('assets', 'col.actions')}
             rowActionsLabel={t('assets', 'col.actions')}
           />
-        )}
+        ) : null}
 
         {total > PAGE_SIZE ? (
           <Pagination

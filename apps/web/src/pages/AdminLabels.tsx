@@ -57,7 +57,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/shadcn/select';
-import { Skeleton } from '@/components/ui/shadcn/skeleton';
 import { Switch } from '@/components/ui/shadcn/switch';
 import { useApi } from '@/hooks/useApi';
 import { type Translate, useI18n } from '@/i18n/I18nProvider';
@@ -322,143 +321,141 @@ export default function AdminLabels() {
         </Card>
       )}
 
-      {loading ? (
-        <Skeleton className="h-[320px] w-full" />
-      ) : (
-        <div className="overflow-hidden rounded-lg border">
-          <DataTable
-            data={tree}
-            getRowId={(r: TreeRow) => String(r.id)}
-            density="default"
-            tableClassName="table-fixed"
-            emptyMessage={t('admin', 'labels.empty')}
-            columns={[
-              {
-                accessorKey: 'slug',
-                header: t('admin', 'labels.col.name'),
-                cell: ({ row }) => {
-                  const r = row.original;
-                  return (
-                    <div
-                      className="flex items-center gap-2"
-                      style={r.depth === 1 ? { paddingLeft: CHILD_INDENT_PX } : undefined}
-                    >
-                      {r.depth === 1 ? (
-                        <span
-                          className="absolute inset-y-0 border-border border-l-2"
-                          style={{ marginLeft: -14 }}
-                          aria-hidden
-                        />
-                      ) : null}
-                      {r.hasChildren ? (
-                        <button
-                          type="button"
-                          aria-label={r.depth === 0 ? 'toggle' : undefined}
-                          onClick={() => setExpanded((prev) => ({ ...prev, [r.id]: !prev[r.id] }))}
-                        >
-                          {expanded[r.id] ? (
-                            <ChevronDown className="size-4" aria-hidden />
-                          ) : (
-                            <ChevronRight className="size-4" aria-hidden />
-                          )}
-                        </button>
-                      ) : (
-                        <span className="inline-block w-4" aria-hidden />
-                      )}
-                      <span className="truncate font-medium" title={displayNameOf(r, locale)}>
-                        {displayNameOf(r, locale)}
-                      </span>
-                    </div>
-                  );
-                },
+      <div className="overflow-hidden rounded-lg border">
+        <DataTable
+          data={tree}
+          getRowId={(r: TreeRow) => String(r.id)}
+          loading={loading}
+          loadingVariant="keepHeader"
+          density="default"
+          tableClassName="table-fixed"
+          emptyMessage={t('admin', 'labels.empty')}
+          columns={[
+            {
+              accessorKey: 'slug',
+              header: t('admin', 'labels.col.name'),
+              cell: ({ row }) => {
+                const r = row.original;
+                return (
+                  <div
+                    className="flex items-center gap-2"
+                    style={r.depth === 1 ? { paddingLeft: CHILD_INDENT_PX } : undefined}
+                  >
+                    {r.depth === 1 ? (
+                      <span
+                        className="absolute inset-y-0 border-border border-l-2"
+                        style={{ marginLeft: -14 }}
+                        aria-hidden
+                      />
+                    ) : null}
+                    {r.hasChildren ? (
+                      <button
+                        type="button"
+                        aria-label={r.depth === 0 ? 'toggle' : undefined}
+                        onClick={() => setExpanded((prev) => ({ ...prev, [r.id]: !prev[r.id] }))}
+                      >
+                        {expanded[r.id] ? (
+                          <ChevronDown className="size-4" aria-hidden />
+                        ) : (
+                          <ChevronRight className="size-4" aria-hidden />
+                        )}
+                      </button>
+                    ) : (
+                      <span className="inline-block w-4" aria-hidden />
+                    )}
+                    <span className="truncate font-medium" title={displayNameOf(r, locale)}>
+                      {displayNameOf(r, locale)}
+                    </span>
+                  </div>
+                );
               },
-              {
-                accessorKey: 'type',
-                header: t('admin', 'labels.col.type'),
-                cell: ({ row }) => (
-                  <Badge variant="secondary">{typeText(t, row.original.type)}</Badge>
+            },
+            {
+              accessorKey: 'type',
+              header: t('admin', 'labels.col.type'),
+              cell: ({ row }) => (
+                <Badge variant="secondary">{typeText(t, row.original.type)}</Badge>
+              ),
+            },
+            {
+              accessorKey: 'visibleInFilter',
+              header: t('admin', 'labels.col.visible'),
+              cell: ({ row }) =>
+                row.original.visibleInFilter ? (
+                  <span className="text-muted-foreground">✓</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
                 ),
-              },
-              {
-                accessorKey: 'visibleInFilter',
-                header: t('admin', 'labels.col.visible'),
-                cell: ({ row }) =>
-                  row.original.visibleInFilter ? (
-                    <span className="text-muted-foreground">✓</span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  ),
-              },
-              {
-                accessorKey: 'assetCount',
-                header: t('admin', 'labels.col.count'),
-                cell: ({ row }) => (
-                  <Link
-                    to={`/admin/assets?label=${encodeURIComponent(row.original.slug)}`}
-                    className="text-primary underline-offset-4 hover:underline"
-                  >
-                    {row.original.assetCount}
-                  </Link>
-                ),
-              },
-              {
-                accessorKey: 'slug',
-                id: 'slugText',
-                header: t('admin', 'labels.col.slug'),
-                cell: ({ row }) => (
-                  <code className="text-xs text-muted-foreground" title={row.original.slug}>
-                    {row.original.slug}
-                  </code>
-                ),
-              },
-            ]}
-            rowActionsHeader={t('assets', 'col.actions')}
-            rowActionsLabel={t('assets', 'col.actions')}
-            rowActions={(r: TreeRow) => {
-              const siblings = rows.filter((x) => x.parentId === r.parentId);
-              const idx = siblings.findIndex((x) => x.id === r.id);
-              return (
-                <>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t('admin', 'labels.moveUp')}
-                    disabled={idx <= 0}
-                    onClick={() => move(r, -1)}
-                  >
-                    <MoveUp className="size-4" aria-hidden />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t('admin', 'labels.moveDown')}
-                    disabled={idx < 0 || idx >= siblings.length - 1}
-                    onClick={() => move(r, 1)}
-                  >
-                    <MoveDown className="size-4" aria-hidden />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t('admin', 'labels.edit')}
-                    onClick={() => openEdit(r)}
-                  >
-                    <Pencil className="size-4" aria-hidden />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t('admin', 'labels.delete')}
-                    onClick={() => setDelTarget(r)}
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                  </Button>
-                </>
-              );
-            }}
-          />
-        </div>
-      )}
+            },
+            {
+              accessorKey: 'assetCount',
+              header: t('admin', 'labels.col.count'),
+              cell: ({ row }) => (
+                <Link
+                  to={`/admin/assets?label=${encodeURIComponent(row.original.slug)}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  {row.original.assetCount}
+                </Link>
+              ),
+            },
+            {
+              accessorKey: 'slug',
+              id: 'slugText',
+              header: t('admin', 'labels.col.slug'),
+              cell: ({ row }) => (
+                <code className="text-xs text-muted-foreground" title={row.original.slug}>
+                  {row.original.slug}
+                </code>
+              ),
+            },
+          ]}
+          rowActionsHeader={t('assets', 'col.actions')}
+          rowActionsLabel={t('assets', 'col.actions')}
+          rowActions={(r: TreeRow) => {
+            const siblings = rows.filter((x) => x.parentId === r.parentId);
+            const idx = siblings.findIndex((x) => x.id === r.id);
+            return (
+              <>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t('admin', 'labels.moveUp')}
+                  disabled={idx <= 0}
+                  onClick={() => move(r, -1)}
+                >
+                  <MoveUp className="size-4" aria-hidden />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t('admin', 'labels.moveDown')}
+                  disabled={idx < 0 || idx >= siblings.length - 1}
+                  onClick={() => move(r, 1)}
+                >
+                  <MoveDown className="size-4" aria-hidden />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t('admin', 'labels.edit')}
+                  onClick={() => openEdit(r)}
+                >
+                  <Pencil className="size-4" aria-hidden />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={t('admin', 'labels.delete')}
+                  onClick={() => setDelTarget(r)}
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </Button>
+              </>
+            );
+          }}
+        />
+      </div>
 
       {dirty ? (
         <div className="flex items-center justify-end gap-3">

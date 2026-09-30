@@ -8,8 +8,9 @@ import {
 } from '@/components/ui/shadcn/card';
 
 /**
- * 控制台页头（design §5.1）：标题（`text-xl font-semibold`）+ 副述（`text-sm text-muted-foreground`）
- * + 右侧动作槽（`CardAction` 语义）。
+ * 控制台页头（design §5.1）：标题（`text-xl font-bold tracking-[-0.4px]` —— **控制台页头配方**，
+ * 见 M4a design §4.4 ⑤ v0.43 登记；与治理页自绘页头 `AdminAssets.tsx:369` / `AdminAudit.tsx:305` **同形**）
+ * + 副述（`text-sm text-muted-foreground`）+ 右侧动作槽（`CardAction` 语义）。
  *
  * 组合方式走官方 `Card` 的既定形态：**`CardAction` 置于 `CardHeader` 内**——官方 `CardHeader` 自带
  * `has-data-[slot=card-action]:grid-cols-[1fr_auto]`，标题/副述在左列、动作在右列自动成两栏；
@@ -33,7 +34,7 @@ export function PageHeader({
   return (
     <Card className={className ?? 'mb-4'}>
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">{title}</CardTitle>
+        <CardTitle className="text-xl font-bold tracking-[-0.4px]">{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
         {actions ? <CardAction>{actions}</CardAction> : null}
       </CardHeader>
