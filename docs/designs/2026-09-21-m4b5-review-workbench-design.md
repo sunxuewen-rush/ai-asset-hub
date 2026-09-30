@@ -1,8 +1,10 @@
 # M4b-5 审核批：审核工作台（队列 + 共享详情）—— 批设计
 
 > Date: 2026-09-21
+> Updated: 2026-09-30（**v0.18：补 `Status` 行（M4b-8 T10 converge 回查）** —— 本件此前**无 Status 行**（17 份 design 中唯二之一）⇒ 依 `docs/00` §5 与主 design §2.3 实测回填。**零内容改动**）
 > Updated: 2026-09-28（**v0.17：P5 处置（按推荐 14A）** —— 提交时间列**维持 `toLocaleString()`** 并登记为现行口径（全站同法）；固定格式另立批。**零实现改动**）
 > Updated: 2026-09-28（**v0.16：P1/P2/P4 收口（实现期已落地 · 实测）** —— 用户「1A」挂账复核：**P1** ✅ 类型名纯文本（`ReviewDetail` 页头无类型图标）· **P2** ✅ `ConfirmDialog` `reason?: 'none'|'optional'|'required'` + 详情页三处用法 · **P4** ✅ `FileTree` `onOpenFile?` 加性 prop + 纯结构态；**P5 仍开**（实测四处仍 `toLocaleString()`）⇒ 转 2026-09-28 挂账清单。**零实现改动**）
+> Status: **定稿** · **✅ 完成（2026-09-22）** —— 八步门禁 **8/8 exit 0**（`test` **562/0** · `doc-audit` **70/0**）· dogfood **62 PASS / 0 FAIL** · 零回归 `m4a` 34/0 / `m4b3` 43/0 / `m4b4` 89/0 · 服务端 **4 处**（2 加性字段 + R2 权限语义 + 对比引擎替换）· **整体审计 ✅（2026-09-25 补记）** · 证据 `docs/smoke/2026-09-22-m4b5-review-workbench.md`
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本（**v0.1–v0.15**）见 **§12 修订记录**。
 
 ---
@@ -1412,6 +1414,7 @@ bun docs/smoke/scripts/doc-audit.ts → build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.18** | 2026-09-30 | sunxuewen-rush | **补 `Status` 行（M4b-8 T10 converge 回查欠账）** —— 本件此前无 Status 行 ⇒ 依 `docs/00` §5（**✅ 完成 2026-09-22**）与主 design §2.3 实测回填（八步门禁 8/8 · dogfood **62/0** · 整体审计 ✅ 2026-09-25 补记）。**零实现改动** |
 | **v0.17** | 2026-09-28 | sunxuewen-rush | **P5 处置（用户「按推荐来」14A）** —— 提交时间列**维持 `toLocaleString()`** 并登记为**现行口径**（全站同法：`ReviewQueue` / `Submissions` / `Dashboard` / `Tokens`）；如需固定格式（同年省略年份会致列内不齐）**另立批处理**。**零实现改动** |
 | **v0.16** | 2026-09-28 | sunxuewen-rush | **P1/P2/P4 收口（用户「1A」挂账复核 · 实现期已落地）** —— ① **P1** ✅ 类型名**纯文本**（`ReviewDetail.tsx` 页头无类型图标）② **P2** ✅ `ConfirmDialog` `reason?: 'none' \| 'optional' \| 'required'`（删 `requireReason`）+ 详情页三处用法 ③ **P4** ✅ `FileTree` `onOpenFile?` 加性 prop + 纯结构态 ④ **P5 仍开**：实测 `ReviewQueue.tsx:171` / `Submissions.tsx:155` / `Dashboard.tsx:233` / `Tokens.tsx:246,260` 仍 `toLocaleString()` ⇒ 转 2026-09-28 挂账清单。**零实现改动** |
 | **v0.15** | 2026-09-28 | sunxuewen-rush | **头部口径统一**：头部版本行 3 → 2（v0.12 / v0.13 自头部移除 —— 两版在修订记录表内已有行 · 零内容丢失）；头部口径行收敛为唯一表述。零实现改动。 |
