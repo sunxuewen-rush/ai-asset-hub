@@ -15,6 +15,9 @@ import { execFileSync } from 'node:child_process';
  *   2. 版本号**不重复**（同 `主.次+后缀` 唯一）
  *   3. 同主版号内**无空洞**（`v0.30 → v0.32` 型）—— 允许豁免册逐条带理由
  *   4. 若存在「**历史版本段说明**」条：其「最早一行 = `vX`」须与表首一致
+ *   5. **表格行未闭合**（行首 `|` 起 ∧ 行尾无 `|`）⇒ FAIL —— F246 实证：这类行 = 内容落在行外
+ *      （续文**游离表外**或**已丢失**），此前**五道门禁全看不见**；围栏代码块（``` / ~~~）内豁免
+ *      （线框与示例里的半截表格行属正当用法）
  *
  * 用法：bun docs/smoke/scripts/table-structure-check.ts
  * 退出码：0 = 全绿（含 N/A 与豁免）；1 = 有 FAIL
@@ -161,6 +164,26 @@ for (const file of files) {
       fails.push(`${file} 说明条「最早一行 = v${m[1]}」与表首 v${actual} 不一致`);
   }
   pass += 1;
+}
+
+// 5) 表格行未闭合（F246 · 2026-09-30 新增）—— 行首 `|` 起 ∧ 行尾无 `|`
+//    实证（2026-09-16 M4b-2 轮事故）：这类行 = 内容落在行外（续文游离表外 / 已丢失），
+//    且 doc-audit / doc-claims / head-sink / file-ref-closure 与本脚本旧 4 项**全看不见** ⇒ 单立判据。
+for (const file of files) {
+  const lines = readFileSync(join(ROOT, file), 'utf8').split('\n');
+  let fence = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (/^\s*(```|~~~)/.test(lines[i])) {
+      fence = !fence;
+      continue;
+    }
+    if (fence) continue;
+    const t = lines[i].replace(/\s+$/, '');
+    if (/^\s*\|/.test(t) && !t.endsWith('|'))
+      fails.push(
+        `${file}:${i + 1} 表格行未闭合（行首 \`|\` 起 ∧ 行尾无 \`|\` ⇒ 内容落在行外：续文游离或已丢失）`,
+      );
+  }
 }
 
 for (const f of fails) console.log(`FAIL ${f}`);
