@@ -1309,14 +1309,6 @@ export function Publish() {
                     {state === 'active' && (
                       <p className="text-muted-foreground mt-1 text-xs">{step.hint}</p>
                     )}
-                    {step.n === 2 && state === 'active' && running && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Progress value={progress} className="h-1" />
-                        <span className="text-muted-foreground text-xs">
-                          {t('publish', 'upload.progress', { percent: progress })}
-                        </span>
-                      </div>
-                    )}
                   </li>
                 );
               })}

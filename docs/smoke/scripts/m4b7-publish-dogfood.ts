@@ -9,7 +9,7 @@
  *
  * 前置（三件在线）：`:3000` API · `:5173` web · `:9222` Edge CDP
  * 造数（**先跑**）：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b7-seed-assets.ts`
- * 运行：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b7-dogfood.ts`
+ * 运行：`bun --env-file=apps/server/.env docs/smoke/scripts/m4b7-publish-dogfood.ts`
  *   分段：`SMOKE_ONLY=G1,G9 …`（**分段绿 ≠ 收口绿** —— 收口必须全量跑一次）
  *   截图前缀：`SMOKE_SHOT_PREFIX=m4b7-`
  * ⚠️ 账号：`m4b2_user`（普通档 · 造数夹具的 owner）；口令只从 env 读（`SMOKE_M4B2_PASSWORD`）。
@@ -1060,6 +1060,24 @@ if (want('G5')) {
     const target = Array.from(document.querySelectorAll('main button')).find((b) => (b.textContent || '').trim() === '发布');
     if (!target) return JSON.stringify({ err: 'no-button' });
     target.click();
+    /* T13/**F257**（① 段进度条存在性）+ **F255**（右栏进度守卫）——**观察器**在点击前装：
+       ① 段进度条只在上传进行中出现（本地小包 ⇒ 窗口常 <100ms），细读 DOM 必然漏 ⇒ 用 MutationObserver
+       （childList + aria-label 属性变化）在事件里捕获，命中即记 —— 判定仍在本脚本 TS 侧做。 */
+    let progSeen = 0;
+    let progLabel = '';
+    let asideProgSeen = 0;
+    let asideCardsSeen = 0;
+    const asideOf = () => { const x = Array.from(document.querySelectorAll('aside')); return x.length ? x[x.length - 1] : null; };
+    const obs = new MutationObserver(() => {
+      const p = document.querySelector('fieldset [data-slot="progress"]');
+      if (p) { progSeen++; progLabel = p.getAttribute('aria-label') || ''; }
+      const a = asideOf();
+      if (a) {
+        asideProgSeen = Math.max(asideProgSeen, a.querySelectorAll('[data-slot="progress"]').length);
+        asideCardsSeen = Math.max(asideCardsSeen, a.querySelectorAll('[data-slot="card"]').length);
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-label'] });
     let seenRunning = false;
     for (let i = 0; i < 60; i++) { if (btn()) { seenRunning = true; break; } await wait(40); }
     const zone = Array.from(document.querySelectorAll('fieldset'))[0]; // ① 上传段（T10 置首）
@@ -1074,7 +1092,11 @@ if (want('G5')) {
     }
     const removeProbeBtn = document.querySelector('button[aria-label=' + JSON.stringify('移除所选包（可重新选择或拖入）') + ']');
     const cancelProbeBtn = Array.from(document.querySelectorAll('button')).find((b) => /取消上传/.test(b.textContent||''));
-    return JSON.stringify({ err: null, seenRunning, beforeName, prevented, zones: document.querySelectorAll('fieldset').length, removeBtnShown: !!removeProbeBtn, cancelBtnShown: !!cancelProbeBtn });
+    /* 观察器全程在位 ⇒ 上面那段（等「执行中」+ 投放反证 + 按钮读数）期间的变异已被计数；
+       这里再有界等一会儿（≤3s）兜住「跳1 注册 → 跳2 上传」切换，然后收工。 */
+    for (let w = 0; w < 120 && progSeen === 0; w++) await wait(25);
+    obs.disconnect();
+    return JSON.stringify({ err: null, seenRunning, beforeName, prevented, zones: document.querySelectorAll('fieldset').length, removeBtnShown: !!removeProbeBtn, cancelBtnShown: !!cancelProbeBtn, progSeen, progLabel, asideProgSeen, asideCardsSeen });
   })()`)) as string as {
       err: string | null;
       seenRunning: boolean;
@@ -1083,6 +1105,10 @@ if (want('G5')) {
       zones: number;
       removeBtnShown: boolean;
       cancelBtnShown: boolean;
+      progSeen: number;
+      progLabel: string;
+      asideProgSeen: number;
+      asideCardsSeen: number;
     },
   );
   await sleep(900);
@@ -1102,6 +1128,19 @@ if (want('G5')) {
     JSON.stringify({
       removeBtnShown: inFlight.removeBtnShown,
       cancelBtnShown: inFlight.cancelBtnShown,
+    }),
+  );
+  ok(
+    'G5⑩ T13/F257：① 段（上传）内含**进度条**（`[data-slot=progress]`）∧ 其进度文案（`aria-label`）= 「上传 N%」（此前仅声称、无断言 ⇒ 本轮补齐）',
+    inFlight.progSeen >= 1 && /^上传\s*\d+%$/.test(inFlight.progLabel),
+    JSON.stringify({ progSeen: inFlight.progSeen, progLabel: inFlight.progLabel }),
+  );
+  ok(
+    'G5⑪ F255 正向守卫（反证式）：上传中**右栏不含进度条**（计数 0）∧ 右栏两卡在位（⇒ 非空转/非未渲染）',
+    inFlight.asideProgSeen === 0 && inFlight.asideCardsSeen === 2,
+    JSON.stringify({
+      asideProgSeen: inFlight.asideProgSeen,
+      asideCardsSeen: inFlight.asideCardsSeen,
     }),
   );
   await shot('G5-running');
