@@ -18,15 +18,15 @@ import {
  * **两种用法（同件不同 props）**：① 占位路由只传 `title`/`description`（中性文案，无 `EmptyContent`）
  * ② `/dashboard` 传 `children` 内容槽（欢迎语 + 入口按钮组，M4b-4 换三卡）。
  *
- * **DEV 批次号**：调用点必须在 `import.meta.env.DEV` 门控下给出（`main.tsx` 的 `DEV_BATCH` 常量表）
- * ——Vite 静态替换 + 常量折叠 ⇒ **生产产物零 `M4b-` 字面量**；硬编码、**不进 i18n 字典**（公开仓纪律）。
+ * **DEV 批次号（2026-09-30 整体审计订正 · F259）**：`main.tsx` 的 `DEV_BATCH` 常量表**已随 M4b-6 清空**，
+ * 本件`batch` prop 因此**零调用点** ⇒ 已删（含渲染分支）。生产产物零 `M4b-` 字面量的纪律由 gating 常量承担，
+ * 与占位页文案无关（公开仓纪律）。
  *
  * **不发任何业务请求**（主 design P1-P5：不预埋空业务页）。
  */
 export function ComingSoon({
   title,
   description,
-  batch,
   children,
 }: {
   /** 页标题（调用点传 `t(...)` 结果，语言切换随上下文重渲染） */
@@ -34,7 +34,6 @@ export function ComingSoon({
   /** 中性描述（缺省不渲染该行） */
   description?: string;
   /** DEV-only 批次号（如 `M4b-3`）——调用点必须经 `import.meta.env.DEV` 门控 */
-  batch?: string;
   /** 内容槽（落官方 `EmptyContent`）——`/dashboard` 用 */
   children?: ReactNode;
 }) {
@@ -48,7 +47,6 @@ export function ComingSoon({
         {description ? <EmptyDescription>{description}</EmptyDescription> : null}
       </EmptyHeader>
       {children ? <EmptyContent>{children}</EmptyContent> : null}
-      {batch ? <span className="text-xs text-muted-foreground">{batch}</span> : null}
     </Empty>
   );
 }
