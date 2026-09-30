@@ -696,6 +696,10 @@ if (want('G10', 'G4', 'G5', 'G6', 'G7', 'G9')) {
 if (want('G13')) {
   {
     await nav(`${APP}/dashboard/assets?page=2`, 2600);
+    // ⚠️ 2026-09-30（M4b-8 T8 修断言 · 非放宽标准）：原断言写死 `rows === 1`（假设该账号只有 1 个
+    // HIDDEN 资产）—— 真库是活的，**跨批 seed 会给同一账号加 HIDDEN 资产**（实测 rows=4）⇒ 改为
+    // 证明「**筛选生效 ⇒ 行集合收窄到该状态**」：HIDDEN 子集非空、且**每一行都是「已隐藏」态**。
+    // （不写死条数、也不与「未筛选行数」比较 —— 本段上下文是 `?page=2`，末页本身可能 0 行。）
     await realClickExpr(`document.querySelector('#assets-status-filter')`);
     await sleep(700);
     await realClickExpr(
@@ -711,7 +715,14 @@ if (want('G13')) {
       afterStatus.includes('status=HIDDEN') && !afterStatus.includes('page='),
       afterStatus,
     );
-    ok('G13 筛选后行集合收窄（HIDDEN 仅 1 行）', rows === 1, `rows=${rows}`);
+    const allHidden = (await evalJs(
+      `(() => { const c = ${CONTENT}; return c ? [...c.querySelectorAll('tbody tr')].every((tr) => tr.innerText.includes('已隐藏')) : false; })()`,
+    )) as boolean;
+    ok(
+      'G13 筛选后行集合收窄（HIDDEN 子集 · 每行均为「已隐藏」态）',
+      rows > 0 && allHidden,
+      `hidden=${rows} allHidden=${allHidden}`,
+    );
     await nav(`${APP}/dashboard/assets?page=2`, 2600);
     // ⚠️ **搜索框是折叠式**（`Assets.tsx` 的 `Collapsible`，默认收起 ⇒ 输入框**不在 DOM**）——
     //    必须**先点「搜索」开关**（`market.searchBtn` · `aria-label="搜索"`）再取输入框；

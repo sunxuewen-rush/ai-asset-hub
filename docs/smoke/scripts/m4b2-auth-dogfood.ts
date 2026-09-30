@@ -219,7 +219,14 @@ ok(
 await login('m4b2_user');
 await nav(`${APP}/dashboard`, 2400);
 s = JSON.parse((await evalJs(SIDEBAR)) as string);
-ok('G2 个人组 4 条', s.groups['个人'] === 4, JSON.stringify(s.items['个人']));
+// F221 口径补齐（2026-09-30 · M4b-8 T8）：条数**取 navItems SSOT**，不写死
+// —— 原写死 `=== 4`，M4b-7 加「发布」条目后翻红（同文件 G3 段早已按 SSOT 写，本条当时遗漏）
+const G_user = navGroupCounts(1); // user 档 = role 数值 1（照 `m4b2-acceptance-checklist.ts:263` 先例）
+ok(
+  'G2 个人组条数 = SSOT',
+  s.groups['个人'] === G_user['个人'],
+  `${s.groups['个人']} vs ${G_user['个人']} :: ${JSON.stringify(s.items['个人'])}`,
+);
 const portalItems2 = (await evalJs(
   `['首页','技能中心','MCP 中心','专家中心'].filter((t) => document.body.innerText.includes(t)).length`,
 )) as number;

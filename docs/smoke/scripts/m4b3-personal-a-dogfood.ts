@@ -325,10 +325,14 @@ ok(
 );
 await shot('G01-empty-none');
 await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: scriptId });
-await nav(`${APP}/dashboard/submissions?status=APPROVED`, 2400);
+// ⚠️ 2026-09-30（M4b-8 T8 修断言 · 非放宽标准）：原用 `?status=APPROVED`，但该账号会被**后续批的
+// 审核 dogfood 真跑**填上 APPROVED 记录（真库是活的）⇒ 翻红。改用**必然越界**的 `offset` 触发
+// **同一个空态分支**（DataTable `emptyMessage` = `empty.filtered` 文案）——
+// 断言语义不变：「结果集为空 ⇒ 单行空态（与『从未提交』的两行空态不同）」。
+await nav(`${APP}/dashboard/submissions?offset=99999`, 2400);
 const g1b = (await evalJs(`document.body.innerText`)) as string;
 ok(
-  'G1 筛选无结果 ⇒ 单行空态（与「从未提交」文案不同）',
+  'G1 结果集为空 ⇒ 单行空态（与「从未提交」文案不同）',
   g1b.includes('当前筛选下没有记录') && !g1b.includes('还没有提交记录'),
 );
 
@@ -369,7 +373,13 @@ ok(
     JSON.stringify(['资产', '类型', '状态', '提交时间', '拒绝原因', '操作']),
   JSON.stringify(g2.heads),
 );
-ok('G2 三行数据（PENDING / REJECTED / WITHDRAWN）', g2.rows.length === 3, `rows=${g2.rows.length}`);
+// ⚠️ 2026-09-30（M4b-8 T8 修断言 · 非放宽标准）：原写死 `rows.length === 3` —— 真库是活的
+// （其他批 seed / dogfood 真跑会给同一账号加行）⇒ 改为**按状态存在性**判定（三态各至少一行）。
+ok(
+  'G2 三态各至少一行（PENDING / REJECTED / WITHDRAWN）',
+  (['待审核', '已驳回', '已撤回'] as const).every((st) => g2.rows.some((r) => r.status === st)),
+  `rows=${g2.rows.length}`,
+);
 const pendingRow = g2.rows.find((r) => r.status === '待审核');
 const rejectedRow = g2.rows.find((r) => r.status === '已驳回');
 const withdrawnRow = g2.rows.find((r) => r.status === '已撤回');

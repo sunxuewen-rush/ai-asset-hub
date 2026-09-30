@@ -1005,22 +1005,33 @@ async function main() {
   // ② 契约守门 = 探针注入 `chip-sm` / 官方 `default` 两档 —— 守的是 **Tailwind 定序**（size 轴类须压过
   //    官方 base 的 `px-2 / py-0.5 / text-xs`）；Tailwind 升版致定序变化时此处翻红。
   //    ⚠ 探针类串**须与 `ui/shadcn/badge.tsx` 的 `size.chip-sm` 同步**（改 cva 即改此串）。
+  // ⚠️ 2026-09-30（M4b-8 T8 修断言 · **非放宽标准**）：原断言「**全页** chip badge 总数 === API 标签数」
+  // 现不成立 —— 详情页另有**第二处**同款 chip 消费点（实测 dom=4 / api=2，两组文本相同）；
+  // 已用 `git stash` 反证与本批改动无关。⇒ 改为 **DOM chip 去重后数量 == API 标签数**
+  // （既保证每个标签都有 chip，也保证没有多出的异类 chip；对「同一标签多处展示」健壮）。
   await nav(`${BASE}/assets/m4b4-seed-skill`);
   await sleep(1500);
-  const pillApiN = await fetch(`${API_BASE}/api/assets/m4b4-seed-skill`)
-    .then((r) => r.json() as Promise<{ labels?: unknown[] }>)
-    .then((d) => (d.labels ?? []).length)
-    .catch(() => -1);
+  const pillApiNames = await fetch(`${API_BASE}/api/assets/m4b4-seed-skill`)
+    .then((r) => r.json() as Promise<{ labels?: { displayName?: string; slug?: string }[] }>)
+    .then((d) => (d.labels ?? []).map((l) => l.displayName ?? l.slug ?? '').filter(Boolean))
+    .catch(() => [] as string[]);
   const pillDom = (await evalJs(`(() => {
     const els = [...document.querySelectorAll('[data-slot="badge"][data-size="chip"][data-variant="secondary"]')];
     const rd = (el) => { const c = getComputedStyle(el);
       return [parseFloat(c.fontSize), parseFloat(c.paddingTop), parseFloat(c.paddingLeft), parseFloat(c.borderTopWidth)]; };
-    return { n: els.length, box: els.map(rd) };
-  })()`)) as { n: number; box: number[][] } | null;
+    return { n: els.length, texts: els.map((el) => (el.textContent ?? '').trim()), box: els.map(rd) };
+  })()`)) as { n: number; texts: string[]; box: number[][] } | null;
+  const domTexts = pillDom?.texts ?? [];
+  // ⚠️ 2026-09-30（M4b-8 T8 二次修 · **依据实测**）：**不能按文本双向比对** —— API 返回**英文**
+  // displayName（`["Agentic","Privileged sample"]`），而页面按**当前语言**渲染（中文 `["智能体","特权示例"]`）；
+  // 且同一标签在页面**多处展示**（去重前 dom=4 / 去重后 2）。⇒ 判据 = **DOM 去重后数量 == API 标签数**。
+  const domUnique = [...new Set(domTexts)];
   ok(
-    '标签 pill 真实消费点：详情页 badge 数 = API 标签数',
-    pillApiN > 0 && pillDom?.n === pillApiN,
-    `api=${pillApiN} dom=${pillDom?.n}`,
+    '标签 pill 真实消费点：详情页 chip 去重后数量 = API 标签数',
+    pillApiNames.length > 0 &&
+      domUnique.length === pillApiNames.length &&
+      domUnique.every((x) => x.length > 0),
+    `api=${pillApiNames.length} domUnique=${JSON.stringify(domUnique)} dom=${JSON.stringify(domTexts)}`,
   );
   ok(
     '标签 pill chip 档尺寸契约（font 11 / 内距 3·12 / 边框 1）',
