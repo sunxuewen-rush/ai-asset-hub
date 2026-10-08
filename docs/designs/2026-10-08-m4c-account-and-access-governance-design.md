@@ -1,8 +1,8 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-08（**v0.6：dev 库实测回填** —— `user.status` 分布已**坐实**（`ACTIVE` 562 / `DISABLED` 2 / `NULL` 0 · 共 564）⇒ R8 迁移**实测命中 2 行**；迁移条件由 `<> 'ACTIVE'` 订正为 **`IS DISTINCT FROM 'ACTIVE'`**（防 NULL 静默漏行）；§4.2「零写入路径」表述订正为「现役代码只写 `ACTIVE` · 非 `ACTIVE` 来自 `0009` 历史搬迁」）
 > Updated: 2026-10-08（**v0.5：转定稿** —— 8 维自检 **9.4**（标准 9.50 / 深度 9.38）· 决策登记闭环 D1–D14 + R1–R22 · 整体检查零未决项 ⇒ **用户批准，草案 → 定稿**；零内容改动）
-> Updated: 2026-10-08（**v0.4：完整性体检补章** —— **R21 本地账号自助改密**（官方 `change-password`，补掉「本地账号忘口令 = 死账」缺口）· **R22「最后登录」改薄端点聚合** · 新增 §2.7 跨批件清单与规模 / §4.8 自助改密 / §7.3 入口与显隐规则 / §8.1 用户面端点契约表 · §14 补 `00` §5 订正项 · §3.0 去重）
 > 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §16 修订记录。
 > SSOT：里程碑状态 → `00` §5 与本文档 §2.3 批件登记表 · 自检分 → 各批 design · 实测值与断言数 → `docs/smoke/` 证据文件。
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
@@ -113,12 +113,12 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 注册默认 | `env.ts:35` `REGISTRATION_ENABLED` 默认 **true** + `better-auth.ts:80` `disableSignUp: !env.REGISTRATION_ENABLED` ⇒ 官方 sign-up 端点默认开放 | M4c-1 |
 | 自助改密 | 官方 `/change-password`：POST body `{ currentPassword, newPassword, revokeOtherSessions? }` · 门槛 = `sensitiveSessionMiddleware`（**仅要求有效会话，无新鲜度要求** —— 实测 `dist/api/routes/session.mjs:304-311`）· 返回 `{ status: true }`（吊销其他会话时另返新 token） | M4c-2 |
 | 审计单源 | 审计动作名单源 = `apps/server/src/audit/actions.ts`（`AUDIT_ACTION_GROUPS`），由 `audit/actions.test.ts` 源码扫描兜底 ⇒ **新增 `user.*` 动作必须登记该表，否则测试红** | M4c-2 |
+| 数据分布 | **dev 库实测（2026-10-08 · 只读查询 · 脚本用完即删）**：`user.status` = `ACTIVE` **562** / `DISABLED` **2** / `NULL` **0**（共 **564** 行）；`banned=true` 现值 **0** ⇒ R8 迁移**实测命中 2 行**（官方封禁列**首次启用**）；非 `ACTIVE` 行来自 **`0009` 历史数据搬迁**（旧表 `user_account` 三态原样搬入，`0009_...sql:31,49`），**非现役代码写入** | M4c-1 / M4c-2 |
 
-**待坐实**：
+**待坐实**（原 2 项已于 2026-10-08 全部收口：① 运行库 `user.status` 分布 → **已坐实**，见上表「数据分布」行 ② `@better-auth/sso` 门槛 → **不适用**，§2.6 R4）：
 
 | 面 | 待坐实项 | 落到 |
 |----|---------|------|
-| 数据 | 运行库 `user.status` 值分布（本机无 `psql`；须授权以仓内 bun 跑只读查询） | M4c-1 迁移前 |
 | 依赖 | ~~`@better-auth/sso` 的账号链接门槛与可覆盖性~~ —— **不适用**（§2.6 R4 选定官方内置 Entra ID provider，不采 SSO 插件） | M4c-3 |
 
 ### 2.6 决策登记（R1–R22 · 2026-10-08，全部已确认）
@@ -135,7 +135,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | R5 | **用户 PENDING 的处置** | **彻底清除**：枚举值 / 错误码 / 分支 / 类型 / 注释 / i18n / 规范表述**全部删除**（不保留该概念、不写沿革注记） | §2.5 / §4 全域 / §14 |
 | R6 | 审核任务的 PENDING | **不动**（`review_task.status='PENDING'` + 资产 `PENDING_REVIEW` 属审核流，与用户准入无关；同名易误伤故显式确认） | — |
 | R7 | 准入结果 `PENDING_APPROVAL` | **删** ⇒ 准入结果收敛为二元 `ALLOW` / `DENY`；三个策略枚举（provider_allowlist / email_domain / subject_whitelist）**保留**（门槛 ≠ 待审批态） | §14 |
-| R8 | 存量非 ACTIVE 行的处置 | 迁移条件 `status <> 'ACTIVE'` ⇒ 命中置 `banned=true` + `banReason='历史状态迁移'`（**语句零 PENDING 字样**；无命中则空操作） | §3.5 / §4.2 |
+| R8 | 存量非 ACTIVE 行的处置 | 迁移条件 **`status IS DISTINCT FROM 'ACTIVE'`**（防 `NULL` 静默漏行 —— `user.status` 列**可空**，`0008_icy_argent.sql:82` 无 `NOT NULL`；本库 `NULL=0`，属健壮性）⇒ 命中置 `banned=true` + `banReason='历史状态迁移'`（**语句零 PENDING 字样**；**dev 库实测命中 2 行**） | §3.5 / §4.2 |
 | R9 | 建号时 `username` 落法 | 官方 `create-user` 建号后，由本仓薄端点**直写规范化后的 `username` + `displayUsername`**（规则照官方 `normalizer` 对齐） | §4.4 |
 | R10 | 社交 provider 首批名单 | **Google + GitHub + WeChat** | §5.1 |
 | R11 | WeChat 无邮箱怎么办 | **接受官方占位邮箱** + 共享模块识别 `.placeholder.invalid` 为"无邮箱身份"（跳过邮箱唯一性判定、保留 `emailVerified:false`、UI 显示「—」） | §3.4 / §5.1 |
@@ -268,7 +268,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 自绘端点退役 | 下线 `POST /api/auth/sign-in/aih`（本地 + 目录分支） | 前端调用点须**同批**切到官方 SDK；退役后 CLI/设备流不受影响（走官方） |
 | 邮箱规则 | 目录通道保留「邮箱必填、不合成」；社交通道按 §3.4 占位邮箱口径 | 两条通道规则不同，**共享模块内分流**，不互相污染 |
 | 回滚口径 | 三条迁移（`accountId` 归一 / 目录标记行补齐 / 非 `ACTIVE`→`banned`）**均为 forward-only 且幂等**；不做自动回滚（符合仓库迁移惯例），失败即停并保留现场供人工处置 | 迁移前对 `account` / `user` 两张表做一次快照备份；`status` 删列**最后执行**，便于回查 |
-| `status` 列 | **本批不动**（归 M4c-2，见 §4.2） | 本批只做认证层；避免同批混两次迁移 |
+| `status` 列 | **本批不动**（归 M4c-2，见 §4.2） | 本批只做认证层；避免同批混两次迁移。M4c-2 侧条件 = `IS DISTINCT FROM 'ACTIVE'`（防 NULL），**dev 库实测命中 2 行** |
 
 ## 4. 账号与权限治理（M4c-2）
 
@@ -293,7 +293,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 本仓 `status` 列 | **退休**（含删列迁移）；判定一律改读 `banned` |
 | 契约变更 | **推翻 M4b-pre R5**（该轮结论为"用本仓 status 单值列、不用官方 ban 列"）；`05` §4.1「三态单列」表述须同步 |
 | 改动面（起点实测 · **语义甄别归批 design**） | 原始 `grep -c status` 命中：`auth/rbac.ts` **5** · `http/auth-middleware.ts` **6** · `http/token-middleware.ts` **3** · `auth/plugins/ldap-credentials.ts` **16** · `admin/overview.ts` **10** · `assets/stats.ts` **5** · `auth/errors.ts` **1** —— 以上**含非账号语义命中**（资产状态 / HTTP 状态码 / 其他 `status`），逐处甄别见 §2.5 待坐实；`http/oidc-routes.ts` 实测**零命中**（早年清单误列，已更正）+ i18n zh/en **各 2 条**（实测）+ `grep -rl status apps/server/src --include='*.test.ts'` 命中 **32** 个测试文件（`status` **大小写敏感**匹配；含资产 / HTTP 等非账号语义命中，同需甄别）+ 1 次删列迁移 |
-| 数据 | 迁移口径（§2.6 R8）：`status <> 'ACTIVE'` 的行 ⇒ `banned=true` + `banReason='历史状态迁移'`（语句零 PENDING 字样；无命中则空操作），随后删列。代码内 `status` **零写入路径**（待坐实见 §2.5） |
+| 数据 | 迁移口径（§2.6 R8）：`status IS DISTINCT FROM 'ACTIVE'` 的行 ⇒ `banned=true` + `banReason='历史状态迁移'`（语句零 PENDING 字样），随后删列。**dev 库实测命中 2 行**（§2.5「数据分布」）⇒ **非空操作**。写入路径订正：现役代码对 `user.status` **只写 `'ACTIVE'`**（建号钩子 `auth/plugins/ldap-credentials.ts:206` · `db/seed.ts:50`），**无写 `PENDING`/`DISABLED` 的代码路径**；库中非 `ACTIVE` 行来自 **`0009` 历史数据搬迁** |
 
 ### 4.3 强制登出（按用户吊销 Session）
 
@@ -608,6 +608,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.6 | 2026-10-08 | **dev 库实测回填（只读查询 · 授权后执行）** —— `user.status` 分布坐实：`ACTIVE` **562** / `DISABLED` **2** / `NULL` **0**（共 564 行）· `banned=true` 现值为 **0**（官方封禁列首次启用）⇒ R8 迁移**实测命中 2 行**；迁移条件订正为 **`status IS DISTINCT FROM 'ACTIVE'`**（成因：`user.status` 列可空（`0008_icy_argent.sql:82` 无 `NOT NULL`），SQL 中 `NULL <> 'ACTIVE'` 判为 UNKNOWN ⇒ 会静默漏行）；§4.2「代码内 `status` 零写入路径」订正为「**现役代码只写 `'ACTIVE'`**（建号钩子 `ldap-credentials.ts:206` · `seed.ts:50`）· 非 `ACTIVE` 行来自 **`0009` 历史数据搬迁**」；§2.5 待坐实项清零。**零契约改动 · 查询脚本用完即删（未入仓）** |
 | v0.5 | 2026-10-08 | **转定稿（用户批准）** —— 三项定稿条件全闭合：① 文档 8 维自检 **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；唯一扣分点 = 边界覆盖 9.0，原因 = 交互边界三项按 §2.2 归批 design 就地定稿）② 决策登记闭环（§2.1 D1–D14 + §2.6 R1–R22）③ 整体检查零未决项（四靶扫描 · 5 缺陷已修 · 26 处补章）⇒ **Status 草案 → 定稿**；视觉口径复核维持「随批就地定稿」。**零内容改动** |
 | v0.4 | 2026-10-08 | **完整性体检补章**（骨架对同仓先例 M4b 主 design + 需求/契约闭环 + 三刀法）：新增 **R21 本地账号自助改密**（官方 `/change-password` · 用 `sensitiveSessionMiddleware`（无新鲜度要求，实测）· `revokeOtherSessions: true` · 零新权限码 · D2 不动）· **R22「最后登录」取数 = 薄端点聚合 `max(session.created_at)`** · 新增 **§2.7 跨批件清单与规模**（新增件 3 / 改造件 18 / 退役项 4 / 迁移 2 / 薄端点 5 / 审计动作 5）· **§4.8 自助改密** · **§7.3 入口与显隐规则**（三层门槛 + roles.ts 实测映射）· **§8.1 用户面端点契约表**（6 条 · 参数名与出参形状按本仓实测惯例）· §14 补 `00` §5 与 `05` §3.1 两项 · §3.0 声明分工去重。 |
 | v0.3 | 2026-10-08 | 整体检查（通读全篇 + 量化声明实测 + 引用件真实性 + 决策跨节一致性）缺陷修复：§8 与 R20 矛盾对齐 · M4c-3 接入件由「`genericOAuth` 的 Entra ID helper」订正为**官方内置 provider `microsoft`（Entra ID）**（实测 `microsoft-entra-id.mjs` 导出 `microsoft`、含 `tenantId`、不含 `genericOAuth`）并同步 §2.3/§3.0/§3.4/§5.2/§5.3/§8/§16 的「官方 SSO 插件」主题词 · provider 数 **37 → 36**（原数为文件数，含聚合出口 `index.mjs`）· §4.2 测试文件数由不可复现的 17 改为**实测口径 32（含查询式）** · §3.1 补 14 文件的查询式。 |
