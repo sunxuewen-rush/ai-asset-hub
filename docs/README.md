@@ -86,8 +86,9 @@ docs/
 | F108–F128 | T11-j 表格族统一 | `designs/2026-09-21-table-family-alignment-design.md` | |
 | F129–F196 | M4b-5 审核工作台 | `designs/2026-09-21-m4b5-review-workbench-design.md`（§11.2 + §11.3/§11.4/§11.8 回评） | |
 | **F222–F261** | **M4b-7 发布批** | `designs/2026-09-28-m4b7-publish-design.md` **§9.8 实施期发现与处置** | 随批递增（新号登记时同步本行） |
-| **F262–F266**（M4b-8 轮 · 递增中） | **M4b-8 控制台视觉打磨批（当前批）** | `designs/2026-09-30-m4b8-console-visual-polish-design.md` **§9.9 实施期发现与处置** | 随批递增（新号登记时同步本行上界） |
+| F262–F266 | M4b-8 控制台视觉打磨批 | `designs/2026-09-30-m4b8-console-visual-polish-design.md` **§9.9 实施期发现与处置** | 已收口（2026-09-30） |
 | F203–**F221** | M4b-6 治理批 | `designs/2026-09-23-m4b6-governance-console-design.md` **§9.8 实施期发现与处置** | 摘要另见该批证据 §5（含 §5.1–§5.6 单条小节） |
+| **F267–F276**（M4c-1 轮 · 递增中） | **M4c-1 认证层统一到官方（当前批）** | `designs/2026-10-08-m4c1-auth-layer-unification-design.md` **§13 实施期发现与处置** | 随批递增（新号登记时同步本行上界） |
 | **F39 / F40 / F144–F148 / F197–F202** | — | **未登记（全仓零命中）** | ⚠️ 空洞：原因未知；未来跳号/预留须在分配处注明原因 |
 
 > 规则（号 · 落点 · 形态）见 `docs/designs/README.md`；本表只做**导航**，明细一律在落点文档，不在此复制。
