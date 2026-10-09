@@ -70,6 +70,14 @@ jobs:
       - name: 文档断言回读
         run: bun docs/smoke/scripts/doc-claims-check.ts
 
+      # 已退休列名检查（schema-column-check · **M4c-2 T7 新增 · F295 处置**）：删列 / 改 schema 类改动的
+      # **文本级回归守卫** —— 扫 `apps/server/src`（含 `db.$client.query` 原生 SQL）· `docs/smoke/scripts` ·
+      # `apps/server/drizzle/*.sql` 里对**已退休列**的读写（F295 实证：4 处残留里 3 处是裸字符串 SQL ⇒
+      # 类型检查**原理上**抓不到；且脚本目录本就不在 `apps/server/tsconfig.json` 覆盖面内）。
+      # 新增退休列 ⇒ 在该脚本 `RETIRED` 表追加一行即可（含灵敏度自检，防「永远 PASS 的假门」）。
+      - name: 已退休列名检查
+        run: bun docs/smoke/scripts/schema-column-check.ts
+
       # 头部下沉覆盖（head-sink-coverage）：**被删的头部版本行**，其裸 token（路径 / 版号 / F 号 /
       # 反引号标识 / ≥2 位数）必须在 post-state 同文件内仍可找到 —— 拦「头部行删了但内容没留住」
       # （2026-09-28 实证：该缺陷既无状态可见性、doc-audit 也看不见 ⇒ 单立本维）。

@@ -28,7 +28,7 @@ import {
   setUserRole,
   signInCookie,
 } from '../test-utils/auth-fixture.js';
-import { createAdminUserRoutes } from './admin-users.js';
+import { createAdminUserRoutes, listLooksSwallowed } from './admin-users.js';
 import { officialSessionMiddleware, rbacContext } from './auth-middleware.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
@@ -307,5 +307,20 @@ describe('M4c-2 T2 · F294 筛选互斥（显式 400，不静默丢条件）', (
     );
     expect(status).toBe(400);
     expect((json as { code: string }).code).toBe('request.invalid');
+  });
+});
+
+describe('M4c-2 T7 · F270 哨兵判定（纯函数 · 补 T2 声明的覆盖缺口）', () => {
+  it('官方空 + 我方有 ⇒ 判吞错（真 500 user.list_failed）', () => {
+    expect(listLooksSwallowed(0, 0, 5)).toBe(true);
+  });
+
+  it('官方与我方同为空 ⇒ 放行（真无数据）', () => {
+    expect(listLooksSwallowed(0, 0, 0)).toBe(false);
+  });
+
+  it('官方有数据 ⇒ 放行（不触发哨兵）', () => {
+    expect(listLooksSwallowed(3, 3, 5)).toBe(false);
+    expect(listLooksSwallowed(3, 3, 0)).toBe(false);
   });
 });

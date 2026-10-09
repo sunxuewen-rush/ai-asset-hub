@@ -93,7 +93,7 @@ const outsiderExisting = outsiderRows.rows[0]?.id;
 if (outsiderExisting) {
   await db.$client.query(
     `update "user"
-        set name = $1, email = $2, email_verified = true, status = 'ACTIVE',
+        set name = $1, email = $2, email_verified = true,
             role = 'user', username = $1, display_username = $1, updated_at = now()
       where id = $3`,
     [OUTSIDER, `${OUTSIDER}@local.test`, outsiderExisting],

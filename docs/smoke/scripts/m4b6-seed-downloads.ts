@@ -55,7 +55,7 @@ if (clean) {
 await cleanup(); // 幂等：先清后插
 
 const { rows: owners } = await pg.query<{ id: string }>(
-  'SELECT id FROM "user" WHERE status = \'ACTIVE\' ORDER BY id LIMIT 1',
+  'SELECT id FROM "user" WHERE coalesce(banned, false) = false ORDER BY id LIMIT 1',
 );
 const ownerId = owners[0]?.id;
 if (!ownerId) {

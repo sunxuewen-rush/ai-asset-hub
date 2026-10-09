@@ -1,9 +1,9 @@
 # M4c-2 账号与权限治理 · 批设计（用户管理页 + 启停交官方 + 列退休 + 自助改密）
 
 > Date: 2026-10-09
+> Updated: 2026-10-09（**v0.8：F296/F297 登记** —— dogfood 标签清理 × 不自建标签 ⇒ 0 标签秒退（已兜底）· 无头调试 Edge 老化 ⇒ CDP 僵死（烧满 900s 超时 · 激活无效）⇒ 重启换 profile 处置中）
+> Updated: 2026-10-09（**v0.7：F295 登记** —— `docs/smoke/scripts` 的原生 SQL 不在静态检查面；T3 删列后 4 个种子仍读写 `status`（3/4 原生 SQL）⇒ dogfood 前置 exit 2；已修，处置待拍板）
 > Updated: 2026-10-09（**v0.6：T5 落地 + R21 处置定案（A 案）** —— `/api/auth/me` 出参 +1 只读字段 `hasLocalPassword`（前端据此隐藏改密入口）· 原「形状逐字不变」口径**局部放宽**）
-> Updated: 2026-10-09（**v0.5：T4 落地后的设计订正** —— 复用件清单订正（`FilterBar` 未采用：其契约仅容「状态 + 关键词」两控 ⇒ 改就地 `shadcn Select/Input`）· **列显隐本批不做**（非契约项，收口为「零新增交互」））
-> Updated: 2026-10-09（**v0.4：F294 订正 —— 搜索改「字段选择器 + 关键词」**（用户拍板「A」）—— 官方 `list-users` 单次仅一组 search（字段限 email|name）+ 一组 filter 且 AND ⇒ 跨字段 OR 不可直给；§3.2/§3.3/线框三处同步 + 新增 §13 实施期发现（F294））
 > Status: **定稿**（2026-10-09 · 8 维 **9.49**（标准 9.50 · 深度 9.48 · **声明核验轮后**）· grilling 轮 U1–U5 全定案 · 门 ≥9 ✓；实现细则落批 plan）· 上游 = 主 design `2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 拆批 · **§4 契约** · §7.1/§7.2/§7.3 · §8.1 · §10.2 · §11 · §12；版本以其版本头为准）
 > Scope: `/admin/users` 用户管理（列表 / 筛选 / 分页 · 改角色 · 封禁·解封 · 强制登出 · 管理员建号）· 权限码 `session:['revoke']` · `user.status` **列退休**（迁移 `0016`）· 本地账号**自助改密** · 侧栏「管理」组条目与 i18n
 
@@ -278,6 +278,8 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.8 | 2026-10-09 | **T7 实施期：F296/F297 登记（dogfood 工具链与环境两处缺陷）** —— ① 清理会清空 `5173` 标签而 `m4b2`/`m4b3` 不自建标签 ⇒ 0 标签秒退（已兜底绕过）② 长期运行的无头调试 Edge ⇒ CDP 僵死（卡 `about:blank` 不导航 · 烧满 900s 超时 · 激活无效）⇒ 重启 + 换新 profile 处置中 |
+| v0.7 | 2026-10-09 | **T7 实施期：F295 登记（脚本目录静态检查盲区）** —— T3 删 `user.status` 后 4 个种子脚本仍读写该列（3/4 为原生 SQL ⇒ tsc 原理上抓不到）⇒ 全量 dogfood 前置体检 `exit 2`，由新 dogfood 的 F293 自愈前置暴露；本轮已修全部 4 处，处置待拍板 |
 | v0.6 | 2026-10-09 | **T5 落地 + R21 处置定案（A 案 · 用户拍板）** —— ① 实测缺口：目录账号判定信息在 web 侧不可得（官方 `get-session` 无 account/provider 信息）⇒ 处置 = 给**既有薄层** `/api/auth/me` 出参 **+1 只读字段 `hasLocalPassword`**（判定 = 凭据行 `password` 不以 `ldap:` 开头）⇒ 前端据此隐藏改密入口（严格满足「入口层拒绝」）；原「`/api/auth/me` 形状逐字不变」口径随之**局部放宽**（其余字段与语义不变）② 落地件：`ChangePasswordDialog`（自绘 UI · 官方端点直调）+ `UserMenu` 条件入口 + `AuthProvider.hasLocalPassword` + i18n `account` 组 |
 | v0.5 | 2026-10-09 | **T4 落地后的设计订正（实测 vs 设计偏差 2 处）** —— ① 复用件清单：`FilterBar` **未采用**（其契约仅容「状态 + 关键词」两控；本页需 4 控 ⇒ 改就地 `shadcn Select/Input`，与 `AdminAudit` 同法）② **列显隐（`ColumnVisibilityMenu`）本批不做**（非主 design §7.1 契约项，属我自列的复用候选 ⇒ 收口为「零新增交互」）|
 | v0.4 | 2026-10-09 | **T2 实施期：F294 订正（用户拍板「A」）** —— 官方 `list-users` 单次仅容一组 search（字段限 `email`\|`name`）+ 一组 filter 且 AND 组合 ⇒ 跨字段 OR 不可直给；改为**「字段选择器 + 关键词」**（`field` ∈ username/name/email ⇒ 分派官方 filter/search 通道）· 定 `field=username` 与 `role` 冲突规则 · 新增 **§13 实施期发现与处置（F294）** · §3.2 / §3.3 / 线框三处同步 |
@@ -290,3 +292,6 @@
 | F | 类 | 发现（实测） | 处置 |
 |---|----|------------|------|
 | **F294** | 官方件能力边界 | 官方 `list-users`（`plugins/admin/routes.mjs:306-320`）单次只容**一组 search**（`searchField` 被 z.enum 限死 `email`\|`name`）+ **一组 filter**（任意字段/操作符），二者 **AND** 组合 ⇒ **跨字段 OR 搜索不可直给**（§3.2 原写「`q` 跨工号/姓名/邮箱」无法表达） | **T2 实施期已定案「A」**（用户拍板）：UI 改**「字段选择器 + 关键词」**，按 `field` 分派到官方 search/filter 两通道（§3.3 映射表）；并定 `field=username` 与 `role` 同用时的冲突规则（忽略 role + UI 禁用）。**零我方 SQL**；§3.2 / §3.3 / 线框已同步 |
+| **F295** | 工具链盲区 | **`docs/smoke/scripts` 的原生 SQL 字符串不在任何静态检查面** —— T3 删 `user.status` 列后，**4 个种子脚本**仍读写该列（`m4b2-seed-roles`（1 处 drizzle insert + 1 处 `db.$client.query` 原生 SQL）· `m4b4-seed-assets` · `m4b5-seed-reviews` · `m4b6-seed-downloads`（查询 `where status='ACTIVE'`））⇒ 全量 dogfood **前置体检 exit 2**（`42703: column "status" … does not exist`），由 T7 新脚本的 F293 自愈前置暴露。**为何 T3 漏**：① `apps/server/tsconfig.json` 的 `include: ["src"]` ⇒ 脚本目录**不在 tsc 覆盖面**；② 即便纳入 tsc，4 处里 **3 处是原生 SQL 字符串** ⇒ 类型检查**原理上**抓不到 | **T7 已修全部 4 处**（复查零残留；全量 dogfood 前置体检转绿）· **处置待拍板**：甲 = 批末强制「已删列名全仓 grep（含 `docs/smoke`）」+ CI 加一条轻量「已删列名不得出现在脚本 SQL」检查；乙 = 仅登记 + 批末人工 grep；丙 = 暂不处置 |
+| **F296** | 工具链盲区 | **`dogfood-all` 的标签清理会关掉所有含 `5173` 的标签**，而 `m4b2`/`m4b3` 只会「取现成 page 标签」（`targets.find(url.includes('5173')) ?? targets.find(type==='page')`）—— **自身不建标签** ⇒ 清完标签数 = 0 时**开场秒退**（`error: 无可用浏览器 tab（Edge CDP :9222）` · 实测 `0 PASS / 0 FAIL · EXIT=1 · 0.0s`；`m4a`/`m4b4` 有自建标签能力故不受影响）。临时兜底 = 预置一个**非 5173** 的干净标签供其兜底选用 | **T7 本轮已用兜底绕过并实证**（run5 不再秒退）；**根因处置待拍板**：建议 `m4b2`/`m4b3` 改为**一律自建标签**（与 `m4a`/`m4b4` 既有做法对齐），而非依赖环境里恰好有标签 |
+| **F297** | 环境/工具链 | **长期运行的无头调试 Edge 会让 CDP 僵死** —— 实测该实例（`--headless=new --remote-debugging-port=9222 --user-data-dir=/tmp/edge-m4b5-t8`）已连续运行 **1 天 4 小时**、profile 位于 `/tmp`；症状 = 浏览器脚本卡在 `about:blank` **不导航** · CPU 0.0% · 每次**烧满 runner 的 900s/脚本超时**（`EXIT=null（超时）`）；**激活标签无效**（实测 `/json/activate` 后 90s 仍不动）。旁证：API 级 `m4c2-users-dogfood` 在同环境下 **2.5s / 25 PASS 0 FAIL** ⇒ 与代码无关，**纯环境**。附带事实：runner **自带 900s/脚本超时** ⇒ 卡住会自走，**无需人工 kill**（本轮曾误判为「必须 kill」） | **T7 本轮执行**：停该实例 → 换新 profile（`/tmp/edge-m4c2-t7`）重启 → 单跑 `m4b2` 3 分钟验证 → 通过再跑全量 |

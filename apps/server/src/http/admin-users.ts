@@ -165,6 +165,21 @@ const banBodySchema = z.object({
     .optional(),
 });
 
+/**
+ * **F270 哨兵判定（纯函数 · 可单测）**。
+ *
+ * 官方 `list-users` 把查询异常吞成 `{ users: [], total: 0 }`（真码 `routes.mjs:378`）——
+ * 本仓在官方 `total === 0` 时用同一筛选条件做一次我方 `count(*)` 交叉核对；
+ * **仅当「官方空 + 我方有」** 才判为吞错（其余情况放行，避免与官方语义的细微差异造成误报）。
+ */
+export function listLooksSwallowed(
+  officialTotal: number,
+  officialCount: number,
+  ownCount: number,
+): boolean {
+  return officialTotal === 0 && officialCount === 0 && ownCount > 0;
+}
+
 export function createAdminUserRoutes({ db, auth, audit }: AdminUserRoutesDeps): Hono {
   const app = new Hono();
   const api = auth.api as unknown as OfficialAdminApi;
@@ -285,18 +300,16 @@ export function createAdminUserRoutes({ db, auth, audit }: AdminUserRoutesDeps):
       throw err;
     }
 
-    // F270 哨兵：官方静默空列表 ⇒ 我方交叉核对（仅在 total=0 时触发，避免语义差异误报）
-    if ((result.total ?? 0) === 0 && (result.users?.length ?? 0) === 0) {
-      const mine = await countMatching(d);
-      if (mine > 0) {
-        return c.json(
-          {
-            code: userGuardCodes.listFailed,
-            message: `列表查询结果不一致（官方 total=0 · 本仓 count=${mine}）`,
-          },
-          GUARD_STATUS['user.list_failed'],
-        );
-      }
+    // F270 哨兵：官方静默空列表 ⇒ 我方交叉核对（**仅**「官方空 + 我方有」触发，避免语义差异误报）
+    const ownCount = await countMatching(d);
+    if (listLooksSwallowed(result.total ?? 0, result.users?.length ?? 0, ownCount)) {
+      return c.json(
+        {
+          code: userGuardCodes.listFailed,
+          message: `列表查询结果不一致（官方 total=0 · 本仓 count=${ownCount}）`,
+        },
+        GUARD_STATUS['user.list_failed'],
+      );
     }
 
     // `lastLoginAt`：官方不返回 ⇒ 当页 userId 集合一次只读聚合（批 design §3.3）

@@ -43,6 +43,7 @@ const SCRIPT_NAMES = [
   'm4b5-review-dogfood.ts',
   'm4b6-governance-dogfood.ts',
   'm4b7-publish-dogfood.ts',
+  'm4c2-users-dogfood.ts', // M4c-2 T7：用户治理面（API 级）
 ];
 
 const LOG_DIR = process.env.SMOKE_LOG_DIR ?? `/tmp/dogfood-all-${Date.now()}`;

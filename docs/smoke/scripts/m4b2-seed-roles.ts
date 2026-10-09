@@ -77,10 +77,10 @@ for (const { username, role } of ACCOUNTS) {
   const currentId = idByUsername.get(username);
 
   if (currentId) {
-    // 有则改：role/status/资料回约定值 + 口令刷新（`updated_at` 须显式写——原生 SQL 不触发 `$onUpdate`）
+    // 有则改：role/资料回约定值 + 口令刷新（M4c-2 T3 起 `user.status` 列已退休 ⇒ 不再写）（`updated_at` 须显式写——原生 SQL 不触发 `$onUpdate`）
     await db.$client.query(
       `update "user"
-          set name = $1, email = $2, email_verified = true, status = 'ACTIVE',
+          set name = $1, email = $2, email_verified = true,
               role = $3, username = $1, display_username = $1, updated_at = now()
         where id = $4`,
       [username, email, role, currentId],
@@ -113,7 +113,6 @@ for (const { username, role } of ACCOUNTS) {
         name: username,
         email,
         emailVerified: true,
-        status: 'ACTIVE',
         role,
         username,
         displayUsername: username,
@@ -126,7 +125,7 @@ for (const { username, role } of ACCOUNTS) {
         password: passwordHash,
       });
     });
-    console.log(`[seed] ${username} created (role=${role}, status=ACTIVE)`);
+    console.log(`[seed] ${username} created (role=${role})`);
   }
 }
 

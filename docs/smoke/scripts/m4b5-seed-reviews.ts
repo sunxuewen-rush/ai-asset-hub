@@ -80,7 +80,7 @@ async function ensureUser(username: string): Promise<string> {
   if (existing) {
     await db.$client.query(
       `update "user"
-          set name = $1, email = $2, email_verified = true, status = 'ACTIVE',
+          set name = $1, email = $2, email_verified = true,
               role = 'user', username = $1, display_username = $1, updated_at = now()
         where id = $3`,
       [username, `${username}@local.test`, id],
