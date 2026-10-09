@@ -12,6 +12,7 @@ import {
 import { getEnv } from '../config/env.js';
 import { getDb } from '../db/client.js';
 import type { LdapChannel } from './ldap.js';
+import { verifyCredential } from './password-verify.js';
 import { directoryCredentials } from './plugins/ldap-credentials.js';
 import { InMemoryRateLimiter, type RateLimiter } from './rate-limit.js';
 import { ac, ROLES } from './roles.js';
@@ -68,6 +69,8 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
   const env = getEnv();
   const db = getDb();
   const audit = deps.audit ?? createAuditWriter(db);
+  /** 目录通道（装配期注入；生产由 `index.ts` 按 `LDAP_ENABLED` 构造）——T2 的 verify 分支与插件共用同一来源 */
+  const ldapChannel = deps.ldap ?? null;
   return {
     ...(deps.advanced ? { advanced: deps.advanced } : {}),
     baseURL: env.PUBLIC_BASE_URL,
@@ -80,9 +83,19 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
       disableSignUp: !env.REGISTRATION_ENABLED,
       /** R10：注入本项目既有 scrypt（`$scrypt$N$r$p$salt$hash` 自描述）⇒ 存量口令原样可验 */
       password: {
+        /**
+         * M4c-1 T2（批 design §5.2 · 主 design §3.2）：**前缀分派**
+         * - `ldap:<工号>`（凭据委派行标记，迁移 `0015` 写入）⇒ 本仓目录 `bind`
+         * - 其他（本仓 scrypt `$scrypt$…`）⇒ 本仓 `verifyPassword`（**存量零回归**）
+         *
+         * ⚠️ 两条硬约束（**F279 / F280**）：① 非 `ldap:` 分支**不得**改走官方
+         * `better-auth/crypto`（格式互不认 ⇒ 实测抛错 ⇒ 存量账号全 500）；
+         * ② `hash` **保持本仓 `hashPassword`** —— 禁用「拒绝目录账号改密」写在这一层
+         * （该函数拿不到账号身份），拒绝落入口层（M4c-2）。
+         */
         hash: hashPassword,
         verify: ({ hash, password }: { hash: string; password: string }) =>
-          verifyPassword(password, hash),
+          verifyCredential(hash, password, ldapChannel, verifyPassword),
       },
     },
 
@@ -181,7 +194,7 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
       /** 企业目录凭证（本批唯一自绘件；官方零支持槽位，官方扩展点内实现） */
       directoryCredentials({
         db,
-        ldap: deps.ldap ?? null,
+        ldap: ldapChannel,
         audit,
         rateLimiter:
           deps.rateLimiter ??

@@ -8,6 +8,7 @@ import { account, user } from '../../db/schema/index.js';
 import { type AuthErrorCode, httpStatusFor } from '../errors.js';
 import { type AccountRow, createIdentityRules } from '../identity.js';
 import type { LdapChannel } from '../ldap.js';
+import { DUMMY_PASSWORD_HASH } from '../password-verify.js';
 import type { RateLimiter } from '../rate-limit.js';
 import { accountRoleOf } from '../roles.js';
 
@@ -72,13 +73,6 @@ const oidcBody = z.object({
 interface LocalCredentialRow extends AccountRow {
   passwordHash: string | null;
 }
-
-/**
- * D9 防时序枚举：无凭据也执行一次 verify（内容任意、格式合法即可），
- * 抹平「用户不存在 vs 密码错」的耗时差（scrypt 参数自描述，不需要真实口令）。
- */
-const DUMMY_PASSWORD_HASH =
-  '$scrypt$131072$8$1$c2FsdC1kdW1teS1zYWx0LXNhbHQtc2FsdA==$aXMtbm90LWEtcmVhbC1oYXNoLWJ1dC12ZXJpZnktcnVucw==';
 
 const LOCAL_PROVIDER = 'credential';
 const LDAP_PROVIDER = 'ldap';

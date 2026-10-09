@@ -1,9 +1,9 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
-> Updated: 2026-10-09（**v0.14：M4c-1 T1 落地回填** —— ① §2.5 规则行上界 **F277 → F278**（**F278** 已登记：建号 `username = subject` 撞官方 `user_username_unique` ⇒ 跨通道同 subject 串 = 500，处置归 M4c-3）② §2.3 backlog 表 M4c-1 行批 plan → **v0.6 · 执行中（T1 ✅）** ③ 批 design **v0.9** · `docs/00` **v1.123**）
-> Updated: 2026-10-08（**v0.13：官方安装页对账回填** —— ① §3.1 / §3.2 两表行**入口订正**：调用层/会话层由 vanilla `better-auth/client` 改 **官方 React 入口 `better-auth/react`**（官文点名；`useSession` = React hook）② §2.3 backlog 表 M4c-1 行批 plan 记 **v0.5**（install 1–5 + D1–D3 口径补齐：依赖安装形态 / 客户端入口 / 建表 CLI / env 命名 / notices 复核）③ 批 design **v0.8** · `docs/00` **v1.122**）
-> Updated: 2026-10-08（**v0.12：批 plan R4 承接补齐回填** —— §2.3 backlog 表 M4c-1 行批 plan 记 **v0.4 · 自检 9.31（成立）**（复核轮命中 R4：**B10 零新页面 / 登录页视觉不动** 无承接 ⇒ T5 依据补 B10 + §10 + 断言 ⑤；v0.3 报 9.31 时该处空缺，实测 9.29）；批 design 同步 **v0.7**（§10 承接指针）· `docs/00` **v1.121**）
+> Updated: 2026-10-09（**v0.16：M4c-1 T2 落地回填 + F281 登记** —— ① §2.5 规则行上界 **F280 → F281**（官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/` 不收 `-` ⇒ 既有登录名不合规者被官方端点 422 拒；处置建议 = T4 探针）② §2.3 backlog 表 M4c-1 行批 plan → **v0.8 · 执行中（T1 ✅ · T2 ✅）** ③ 批 design **v0.11** · `docs/00` **v1.125**）
+> Updated: 2026-10-09（**v0.15：T2 契约口径订正回填**
+> Updated: 2026-10-09（**v0.15：T2 契约口径订正回填** —— ① §3.2「其他」行订正为**保留本仓 `verifyPassword`**（官方 crypto 与存量哈希互不认，实测抛错 ⇒ **F279**）② §3.2 边界行 + §2.6 **R12** + §4.8 触发行：`hash` **保持本仓 `hashPassword`**、「拒绝目录账号改密」落**入口层**（**F280**）③ §2.5 上界 → **F280** ④ 批 design **v0.10** · `docs/00` **v1.124**）
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
 > **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
 > 视觉归属：**随批就地定稿**（引 M4a §4.4 · 2026-09-28 拍板 · 2026-10-08 复核维持）。本文为**纯设计语言**（意图与契约）。
@@ -77,7 +77,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 批 | 预期 design | 预期 plan | 对齐要点（立项时逐条过） |
 |----|------------|----------|------------------------|
-| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.4** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL + 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.6** · T1–T8 · **执行中 T1 ✅**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
+| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.4** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL + 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.8** · T1–T8 · **执行中：T1 ✅ · T2 ✅ 2026-10-09**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
 | M4c-2 | `2026-MM-DD-m4c2-account-governance-design.md` | `M4c-2-account-governance.md` | 用户管理页交互（§10.2 状态-动作表）· 列表筛选/分页契约 · 建号 Dialog 字段与校验 · 权限门槛分档 · 启停列退休改动面 · 自我操作护栏（不能封自己 / 不能降自己）· **自助改密 Dialog 与目录账号拒绝口径（R21）** · **最后登录聚合取数（R22）** |
 | M4c-3 | `2026-MM-DD-m4c3-external-identity-design.md` | `M4c-3-external-identity.md` | 三个 provider（Google/GitHub/WeChat）开关范式 · 官方内置 Entra ID provider 接入（§2.6 R4）· 账号链接策略（§2.6 R1）· 占位邮箱口径（§2.6 R11）· 登录页 provider 入口交互 · provider 不可达降级 |
 
@@ -89,7 +89,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 ### 2.5 立项期已核实事实（明细随各批 design 登记 F 号）
 
 > 规则（`docs/designs/README.md`）：F 号全局连续 · 明细主家 = **批 design 的「实施期发现与处置（F…）」** 小节；
-> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F278**），登记时同步 `docs/README.md` §6.1 号段行。
+> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F281**），登记时同步 `docs/README.md` §6.1 号段行。
 
 | 面 | 已核实事实（真码/实测锚点） | 待落批次 |
 |----|--------------------------|---------|
@@ -138,7 +138,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | R9 | 建号时 `username` 落法 | 官方 `create-user` 建号后，由本仓薄端点**直写规范化后的 `username` + `displayUsername`**（规则照官方 `normalizer` 对齐） | §4.4 |
 | R10 | 社交 provider 首批名单 | **Google + GitHub + WeChat** | §5.1 |
 | R11 | WeChat 无邮箱怎么办 | **接受官方占位邮箱** + 共享模块识别 `.placeholder.invalid` 为"无邮箱身份"（跳过邮箱唯一性判定、保留 `emailVerified:false`、UI 显示「—」） | §3.4 / §5.1 |
-| R12 | `password.hash` 分支行为 | **显式拒绝**（管理员对目录账号改密 ⇒ 明确错误码） | §3.2 |
+| R12 | **改密拒绝机制** | **拒绝目录账号改密**（自助 / 管理均然）⇒ 明确错误码；**落点 = 入口层按目标账号判定**，`password.hash` 保持本仓 `hashPassword` 不变（原口径「`password.hash` 分支 = 显式拒绝」机制错：全局单参函数拿不到账号 ⇒ 会失效所有设密路径，含 R21；**F280** · 实现归 M4c-2） | §3.2 · §4.8 |
 | R13 | 登录页 provider 入口形态 | 现有右栏表单**下方加分隔线 + 按钮组**（不改页面结构） | §5.1 / §10.2 |
 | R14 | 本地账号登录名口径 | **也用工号**（`username` = 工号，与目录账号统一单入口） | §3.1 / §4.4 |
 | R15 | `accountId` 语义归一载体 | **正式 drizzle 迁移**（幂等）：`credential` 行 `account_id: 工号 → user.id` + 目录账号补标记行 | §3.5 |
@@ -216,11 +216,11 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 存值形态 | 处理 |
 |---------|------|
 | 以 `ldap:` 开头 | 解析出登录名（工号）⇒ 走本仓目录 `bind`（`apps/server/src/auth/ldap.ts`）⇒ 返回布尔 |
-| 其他（官方 scrypt 哈希） | **委托官方 `better-auth/crypto` 的 `verifyPassword`**（官方导出面已含 `./crypto`，签名即 `{ hash, password }`）⇒ **不出现第二套口令加密** |
+| 其他（**本仓 scrypt 哈希**） | **保留本仓 `verifyPassword`**（`$scrypt$N$r$p$saltB64$hashB64` 自描述）—— ⚠️ **不得**委托官方 `better-auth/crypto` 的 `verifyPassword`：官方（`saltHex:keyHex` · N=16384 · r=16 · dkLen=64 · NFKC）与本仓（`$scrypt$…` · N=131072 · r=8 · dkLen=32）格式参数**互不认**，实测官方 verify 在本仓哈希上**抛 `Invalid password hash`** ⇒ 存量本地账号全 500（**F279**） |
 
 **收益**：登录**热路径全程官方** —— 官方端点自带 Origin/CSRF 校验、会话签发、限流、错误码与钩子链，本仓只提供一个**官方文档化的配置函数**。
 
-**边界**：`password.hash` 分支行为 = **显式拒绝**（§2.6 R12）。
+**边界**：`password.hash` **保持本仓 `hashPassword` 不变**（库内单一格式）；「拒绝目录账号改密」**落入口层按目标账号判定** —— `password.hash(password)` 是**全局单参函数、拿不到目标账号** ⇒ 不能在此拒绝（原口径会失效所有设密路径，含本设计 §4.8 的自助改密；**F280**，实现归 M4c-2）。
 
 ### 3.3 首登建号：不短路的官方钩子
 
@@ -376,7 +376,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 项 | 契约 |
 |----|------|
-| 触发 | 已登录用户**自助**改密；**仅本地账号** —— 目录账号口令归企业目录 ⇒ **拒绝并明确提示**（与 §3.2 的 `password.hash` 拒绝同源） |
+| 触发 | 已登录用户**自助**改密；**仅本地账号** —— 目录账号口令归企业目录 ⇒ **拒绝并明确提示**（按**目标账号**在**入口层**判定；**不**用全局 `password.hash` 拒绝，见 **F280**） |
 | 官方件 | `/change-password`：POST `{ currentPassword, newPassword, revokeOtherSessions? }`（§2.5 实测）；本仓**零薄端点**，前端经官方 SDK 直调 |
 | 权限 | **零新权限码**（官方端点按**会话身份**校验，非 admin 权限码；`user:['set-password']` 仍不新增，§4.5） |
 | 界面 | 用户区入口 + Dialog（当前口令 / 新口令 / 确认）；视觉随 §2.2 铁律就地定稿（批 design） |
@@ -607,6 +607,8 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.16 | 2026-10-09 | **M4c-1 T2 落地回填 + F281 登记** —— ① §2.5 上界 **F280 → F281**（**F281**：官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/`（3–30 · 不收 `-`；真码 `dist/plugins/username/index.mjs:12-14,31-40`）⇒ 既有账号登录名含其他字符被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒；工号形态安全；处置建议 = T4 加合规探针）② §2.3 backlog 表 M4c-1 行批 plan → **v0.8**（**执行中：T1 ✅ · T2 ✅ 2026-10-09**；T2 = 存值前缀分派 `password-verify.ts`（71 行）+ 11 例直测 + 门禁全绿）③ 批 design **v0.11** · `docs/00` **v1.125** |
+| v0.15 | 2026-10-09 | **T2 契约口径订正回填（F279/F280）** —— ① §3.2 表「其他（官方 scrypt 哈希）⇒ 委托官方 `better-auth/crypto`」订正为**「其他（本仓 scrypt 哈希）⇒ 保留本仓 `verifyPassword`」**：官方 `saltHex:keyHex`（N=16384 r=16 dkLen=64 + NFKC）与本仓 `$scrypt$N$r$p$saltB64$hashB64`（N=131072 r=8 dkLen=32）**格式参数互不认**，实测**反控**：官方 verify 在本仓哈希上 **THREW `Invalid password hash`** ⇒ 原口径照做 = 存量本地账号（seed/夹具/生产）**一律 500** + 违反 R10 零重置（**F279**）② §3.2 边界行 + **§2.6 R12** + §4.8 触发行：`password.hash` **保持本仓 `hashPassword`**；「拒绝目录账号改密」**落入口层按目标账号判定**（原「`password.hash` 分支 = 显式拒绝」机制错：官真实码 `ctx.context.password.hash(newPassword)` 单参、拿不到账号 ⇒ 一刀拒 = 失效所有设密路径，含 R21 自助改密；**F280**）③ §2.5 规则行上界 **F278 → F280** ④ 批 design **v0.10** · `docs/00` **v1.124** · plan **v0.7** |
 | v0.14 | 2026-10-09 | **M4c-1 T1 落地回填** —— ① §2.5 规则行上界 **F277 → F278**（新号 **F278**：建号写 `username = subject`，官方 `user_username_unique` 全局唯一 ⇒ 跨通道同 subject 串撞车时既有兜底不覆盖 ⇒ 原始 23505 = **500**；由 T1 模块直测稳定照出；处置归 **M4c-3**）② §2.3 backlog 表 M4c-1 行批 plan → **v0.6**（执行中：T1 ✅ 新建 `auth/identity.ts` 194 行 · 调用方 430→295 · 逐字搬移两函数 0 差异 · 18 维 9.43 → C5 补齐后重评）③ 批 design **v0.9**（§5.4 隐含约束行 + §13 F278）· `docs/00` **v1.123**。**F278 非本批修复项**（T1 = 零行为变化） |
 | v0.13 | 2026-10-08 | **官方安装页对账回填** —— ① §3.1 / §3.2 表两行**入口订正为官方 React 入口 `better-auth/react`**（官文 `/docs/installation` 点名 React；实测 `exports["./react"]` → `dist/client/react/index.mjs`，`useSession` 为 React hook（`react-store.mjs` = `nanostores` + `useSyncExternalStore`）+ 导出 `useStore`；vanilla `better-auth/client` 的 `useSession` 实为 `Atom<{data,error,isPending}>`）② §2.3 backlog 表 M4c-1 行批 plan → **v0.5**（官方安装页对账轮：依赖安装形态（exact + `bun.lock` 同批）· 客户端入口 · 建表 CLI 口径（零 schema 变更 ⇒ 不跑 `auth generate`）· env 命名映射 · notices 复核）③ 批 design **v0.8** · `docs/00` **v1.122**。**零实现改动** |
 | v0.12 | 2026-10-08 | **批 plan R4 承接补齐回填** —— ① §2.3 backlog 表 M4c-1 行批 plan → **v0.4 · 自检 9.31（成立）**（复核轮命中 **R4**：**B10「零新页面 / 登录页视觉不动」无 Task 承接、无断言**；v0.3 的「B10 显式 ✅」系头部串「B1–B10」误命中的探针假阳性 ⇒ 实测 9.29）② 批 design **v0.7**（§10 补「承接（plan）」指针）③ `docs/00` **v1.121**。**零实现改动** |

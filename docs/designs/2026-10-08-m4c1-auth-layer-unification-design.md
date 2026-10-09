@@ -1,9 +1,9 @@
 # M4c-1 认证层统一到官方设计（批 design）
 
 > Date: 2026-10-08
-> Updated: 2026-10-09（**v0.9：T1 落地回填 + F278 登记** —— ① §5.4 规则表增**隐含约束行**（`username` 全局唯一 ⇒ 跨通道 subject 撞车 = 500，处置归 M4c-3）② §13 登记 **F278**（T1 测试照出：跨 provider 同 subject ⇒ 撞 `user_username_unique` ⇒ 未兜住）③ 本版由 T1 实现批带出（plan §7 回填））
-> Updated: 2026-10-08（**v0.8：官方安装页对账（跨文档）** —— ① §3 表**两行订正**：调用层/会话层入口由 vanilla `better-auth/client` 改 **官方 React 入口 `better-auth/react`**（官文点名；`useSession` = React hook + `useStore`；vanilla 的 `useSession` 实为 `Atom<{data,error,isPending}>`）② §3 表后补「**依赖声明**」与「**认证配置口径**」两块（exact + `bun.lock` 同批 + 无 `postinstall` / 不设 `BETTER_AUTH_SECRET`·`BETTER_AUTH_URL`，走 `secret: SESSION_SECRET`·`baseURL: PUBLIC_BASE_URL`；dev 同源经 vite proxy）③ §6.3 增「**schema 变更**」行（本批零 schema 变更 ⇒ 不跑官方 CLI `generate`/`migrate`））
-> Updated: 2026-10-08（**v0.7：§10 承接指针** —— 本轮复核（plan R4）指出「**零新页面 / 零视觉改动**」虽在本件 §10 写明却 plan 无断言 ⇒ §10 表后补「**承接（plan）**」行（零视觉声明→**plan T5 断言 ⑤**；前端改造面五件→plan T5）。与前两行同属「本件已写 → plan 承接」类，一并清完）
+> Updated: 2026-10-09（**v0.11：F281 登记（T2 测试附带发现）** —— 官方默认用户名校验器 `/^[a-zA-Z0-9_.]+$/`（3–30 · 不收 `-`）⇒ 建议 T4 加「credential 行登录名合规」探针）
+> Updated: 2026-10-09（**v0.10：T2 契约口径订正 + F279/F280 登记**
+> Updated: 2026-10-09（**v0.10：T2 契约口径订正 + F279/F280 登记** —— ① §5.2「其他」行订正为**保留本仓 `verifyPassword`**（官方 crypto 与存量哈希互不认，实测抛错 ⇒ **F279**）② §5.2 末行订正：`hash` **保持本仓 `hashPassword`**；「拒绝目录账号改密」落**入口层**（**F280**）③ §13 登记 F279/F280）
 > 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §18 修订记录。
 > Status: **定稿**（**批 design** —— 本批落点与契约；实现细则落批 plan）。**定稿条件**：① 8 维自检 **9.50**（标准 9.50 · 深度 9.50；首稿 8.94 → 处置 9.38 → §6 补全 9.44 → **换靶检查 9.19 → 修复后 9.50**）✅ ② 批内对齐 **B1–B10 全部确认**（2026-10-08）✅ ③ 未决项清零（迁移 SQL **与执行窗口口径**已补；dogfood 分段归 plan；CSRF 联调列入实现首批）✅ ⇒ **2026-10-08 用户批准**。本文为**纯设计语言**（意图与契约）。
 > Scope: M4c-1（主 design §2.3）—— **认证层统一到官方**：前端三层改官方 SDK + 后端目录凭据委派行 / `password.verify` 分支 / **不短路**首登建号钩子 / 身份源共享模块 / `accountId` 语义统一（含 1 次数据迁移）+ 退役自绘端点 `signInAih`。
@@ -91,9 +91,9 @@
 | 存值形态 | 处理 |
 |---------|------|
 | `ldap:` 前缀 | 解析出登录名（工号）⇒ 走本仓目录 `bind`（`apps/server/src/auth/ldap.ts`）⇒ 返回布尔；**含时序侧信道等价处理**（B6） |
-| 其他（官方 scrypt 哈希） | **委托官方** `better-auth/crypto` 的 `verifyPassword`（官方 exports 已含 `./crypto` → `dist/crypto/password.mjs`）⇒ **不出现第二套口令加密** |
+| 其他（**本仓 scrypt 哈希**） | **保留本仓 `verifyPassword`**（`$scrypt$N$r$p$saltB64$hashB64` 自描述格式；N=131072 · r=8 · dkLen=32）—— ⚠️ **不得**委托官方 `better-auth/crypto` 的 `verifyPassword`：两者格式与参数均不同、互不认（官方 `saltHex:keyHex` · N=16384 · r=16 · dkLen=64 · NFKC），实测官方 verify 在本仓哈希上**抛 `Invalid password hash`** ⇒ 会让存量本地账号全 500（**F279**） |
 
-`password.hash` 分支 = **显式拒绝**（主 design §2.6 R12）。
+`password.hash` **保持本仓 `hashPassword` 不变**（库内单一格式）。**「拒绝目录账号改密」不在 hash 分支实现**：`password.hash(password)` 是**全局单参函数、拿不到目标账号身份** ⇒ 一刀拒绝会让所有设密路径失效（官方 sign-up · `/change-password` · M4c-2 的 R21 自助改密）—— 该拒绝落**入口层**（改密端点按目标账号判定 + 明确错误码），见 **F280** 与主 design §2.6 R12 订正。
 
 ### 5.3 首登建号：不短路的官方钩子
 
@@ -258,6 +258,9 @@ WHERE NOT EXISTS (
 | F276 | 钩子限制 | 官方 after 钩子只能改写响应体 / 头，**改不了 HTTP 状态码** | 本批（据此确立：登录链必须走官方 `password.verify` 分支，而非响应层兜底） |
 | F277 | 迁移载体 | 手写迁移 `0015` 若**只落 `.sql` 不登记** `drizzle/meta/_journal.json`（及 `meta/0015_snapshot.json`）⇒ `db:migrate`（drizzle-orm `migrate()` 只读 journal）**静默跳过**该迁移 | 本批（plan T4 步骤 2 落载体 + 断言 ⑥；§6.3 载体登记行 + §6.4 P4 探针） |
 | F278 | 建号约束 | 建号写 `username = subject`，官方表 `user_username_unique` 全局唯一 ⇒ **跨通道同 subject 串撞车**时既有兜底不覆盖（只回查 `(provider, subject)` / `user.id`）⇒ 原始 23505 冒到统一出口 = **500**（非结构化码）。LDAP 工号（8 位数字）与社交/OIDC 的数字 sub 存在真实撞车面 | 归 **M4c-3**（候选：subject 加 provider 前缀 / 撞车回查并返结构化码 / 声明 subject 全域唯一）· 本批仅登记 + §5.4 记约束 |
+| F279 | 口令校验口径 | 「`password.verify` 其他分支 ⇒ 委托官方 `better-auth/crypto` 的 `verifyPassword`」**不可实施**：官方（`saltHex:keyHex` · N=16384 r=16 dkLen=64 · NFKC 归一）与本仓（`$scrypt$N$r$p$saltB64$hashB64` · N=131072 r=8 dkLen=32）格式与参数**均不同、互不认**；实测反控 = 官方 verify 在本仓哈希上 **抛 `Invalid password hash`** ⇒ 照做 = 存量本地账号（seed/夹具/生产）**一律 500** + 违反 R10 零重置 | 本批订正：非 `ldap:` 分支**保留本仓 `verifyPassword`**（净新增仅「`ldap:` 前缀」一条路径）；T2 断言含**存量零回归**反证 |
+| F280 | 改密拒绝机制 | 「`password.hash` 分支 = 显式拒绝」**机制错**：`password.hash(password)` 为**全局单参函数**（官真实码 `dist/api/routes/password.mjs:162`），**拿不到目标账号** ⇒ 一刀拒绝会失效**所有**设密路径（官方 sign-up · `/change-password` · M4c-2 的 R21 自助改密）。原意（R12：管理员对目录账号改密 ⇒ 明确错误码）正确，**落点错** | 本批订正：`hash` **保持本仓 `hashPassword` 不变**；「拒绝目录账号改密」落**入口层**（按目标账号判定），实现归 **M4c-2**（R21/R12 接线时） |
+| F281 | 用户名合规 | 官方 `username` 默认校验器 = `/^[a-zA-Z0-9_.]+$/`（长度 3–30，**不接受 `-`**；`dist/plugins/username/index.mjs:12-14,31-40`）⇒ 既有账号若登录名含其他字符（如连字符）会被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒（工号形态安全） | 本批登记 + 建议 **T4 探针加「全量 `credential` 行登录名合规」断言**（不合规者需数据订正）· T2 直测已按该规则造数 |
 
 ## 14. i18n 变更规格
 
@@ -368,6 +371,8 @@ WHERE NOT EXISTS (
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.11 | 2026-10-09 | **F281 登记（T2 测试附带发现）** —— 官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/`（长度 3–30 · **不收 `-`**；`dist/plugins/username/index.mjs:12-14,31-40` 真码）⇒ 既有账号登录名含其他字符时会被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒（**工号形态安全**）。本批**仅登记**；处置建议 = T4 探针加「全量 `credential` 行登录名合规」断言（不合规者数据订正）。来源：T2 直测首次以 `pwv-xxxx` 造数触发 422，实测坐实 |
+| v0.10 | 2026-10-09 | **T2 契约口径订正 + F279/F280 登记**（用户「全修」）—— 🔴 **F279**：§5.2「其他（官方 scrypt 哈希）⇒ 委托官方 `better-auth/crypto` 的 verifyPassword」**不可实施**（官 方/本仓格式参数互不认；实测反控 = 官方 verify 在本仓哈希上 **THREW `Invalid password hash`**）⇒ 订正为**保留本仓 `verifyPassword`**（N=131072 r=8 dkLen=32 · `$scrypt$…` 自描述）· 🔴 **F280**：§5.2 末行「`password.hash` 分支 = 显式拒绝」机制错（全局单参函数 ⇒ 失效所有设密路径，含 R21 自助改密）⇒ 订正为 `hash` 保持本仓 `hashPassword` + 拒绝落**入口层**（实现归 M4c-2）· 证据：`better-auth/dist/crypto/password.mjs`（委托 `@better-auth/utils/password`，格式 `salt:key`）· `@better-auth/utils/dist/password.node.mjs`（N=16384 r=16 dkLen=64）· 临时探针正反双证（已删） |
 | v0.9 | 2026-10-09 | **T1 落地回填 + F278 登记** —— ① §5.4 表增「`username` 全局唯一（隐含约束）」行（跨通道同 subject 撞车 ⇒ 500；处置归 M4c-3，含三个候选）② §13 登记 **F278** —— 由 T1 的模块直测（`identity.test.ts` 第 ⑧ 例「同 subject 不同 provider 不误复用」）稳定照出：单例重跑必失败，非 flaky ⇒ 该例按用户拍板**移除**（T1 承诺零行为变化，修它需先定规则）③ 实测依据：`0008_icy_argent.sql:84` `user_username_unique` · `app.ts:105-124` 统一出口（非 AuthError/AssetError/ReviewError/LabelError ⇒ 500 `internal_error`） |
 | v0.8 | 2026-10-08 | **官方安装页对账（跨文档）** —— 读完官文 `/docs/installation` 后：① §3 表订正入口名（vanilla `better-auth/client` → 官方 **React 入口 `better-auth/react`**，官文点名；实测 `exports["./react"]` 存在且 `useSession` 为 React hook + `useStore`；vanilla 的 `useSession` 是 `Atom<{data,error,isPending}>`）② §3 表后补「依赖声明」（exact · `bun.lock` 同批 · 无 `postinstall`）与「认证配置口径」（不设 `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`，走显式 `secret`/`baseURL`）③ §6.3 增「schema 变更」行（本批零 schema 变更 ⇒ 不跑官方 CLI）。**零实现改动 · 分数不变（9.50）** |
 | v0.7 | 2026-10-08 | **§10 承接指针** —— plan 复核轮 **R4** 指出本件 §10「零新页面 / 零视觉改动」在 plan 无承接 ⇒ §10 表后补「**承接（plan）**」行（零视觉声明→plan **T5 断言 ⑤** · 前端改造面五件→plan T5 · 行为约定不变→plan T5 断言 ③ + T8）。**零实现改动 · 分数不变（9.50）** |

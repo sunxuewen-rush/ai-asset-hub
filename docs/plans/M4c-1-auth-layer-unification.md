@@ -1,11 +1,11 @@
 # M4c-1 认证层统一到官方：官方 SDK 三层 + 目录口令官方 verify 分支 + 建号钩子 —— 批计划
 
 > Date: 2026-10-08
-> Updated: 2026-10-09（**v0.6：T1 落地（身份源共享模块）+ F278 登记** —— ① Status ⏳ 待开工 → 🔵 **执行中（T1 ✅ 2026-10-09）** ② §7 回填 T1 落地行（新建 `auth/identity.ts` 194 行纯规则 · 调用方 430→295 · 逐字搬移证据 · 新增直测 9 例 · 门禁全绿）+ §7.1 **18 维 9.43** ③ **F278 登记**（T1 测试照出：跨通道同 subject 撞 `user_username_unique` ⇒ 500；本批不修，归 M4c-3）+ §3 T8 F 号引用 → **F267–F278** ④ 连带：批 design **v0.9** · 主 design **v0.14** · `docs/00` **v1.123** · `docs/README` §6.1 号段）
-> Updated: 2026-10-08（**v0.5：官方安装页对账轮（install 1–5 + D1–D3）** —— 读完官文 `/docs/installation` 逐条对账后补齐 7 项：① **依赖安装形态**（命令 `cd apps/web && bun add better-auth@1.7.5`（exact）· **`bun.lock` 同批提交**（CI `--frozen-lockfile`）· 无 `postinstall` ⇒ 不动 `bunfig.toml`）② **客户端入口改官方 React 入口 `better-auth/react`**（官文点名；`useSession` 为 React hook + `useStore`；原写 vanilla `better-auth/client`）③ **依赖类断言 ⑥**（`apps/web` 可解析 + `bun.lock` 单一 1.7.5 条目）④ 风险 7 补「锁文件未同批 ⇒ CI FAIL」⑤ T8 增**依赖登记复核**（`THIRD-PARTY-NOTICES.md`）⑥ T4 依据补「**零 schema 变更 ⇒ 不跑官方 CLI** `generate`/`migrate`，沿用 `0007`/`0009` 手写先例」⑦ §1 补**认证配置口径**（本仓不设 `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`，走显式选项）⇒ 连带 批 design **v0.8** · 主 design **v0.13** · `docs/00` **v1.122**）
-> Updated: 2026-10-08（**v0.4：R4 承接补齐（复核轮命中）** —— ① **T5 依据行补 B10** · ② **T5 断言新增 ⑤**：零新页面 / 登录页视觉不动（`apps/web/src/pages/` **零新增文件** · `pages/Login.tsx` **本批零改动**（`git diff --name-only` 断言）· 视觉基线引 M4a §4.4 不动）③ §8 自报 **9.31** 由此**成立**（v0.3 报 9.31 时 B10 无承接 ⇒ 实测仅 9.29，本轮补齐）④ 连带：批 design **v0.7**（§10 补承接指针）· 主 design **v0.12** · `docs/00` **v1.121**）
+> Updated: 2026-10-09（**v0.9：T2 收口（commit/push）+ T4 探针 P4（F281）** —— ① T2 交付并提交（存值前缀分派 `password-verify.ts` 71 行 + 直测 11 例 + 存量零回归守卫；全量 **629 pass**）② **T4 增探针 P4**：全量 `credential` 账号登录名合规（官方默认校验器 `/^[a-zA-Z0-9_.]+$/` · 3–30 · 不收 `-`；**F281**）⇒ 不合规 = 0，否则只出订正清单待授权 ③ §7 回填 T2 18 维 **9.52**
+> Updated: 2026-10-09（**v0.8：T2 落地（存值前缀分派）** —— ① 新建 `auth/password-verify.ts`（71 行 · 前缀分派 + 假哈希随迁；scrypt 校验注入避免循环导入）② 装配点改 `verify`（`hash` **零改动** · `ldapChannel` 单源共用）③ 新增直测 **11 例**：⑦ 目录账号 ⇒ 200 + 官方 cookie · **⑨ 存量本地账号 ⇒ 200（F279 零回归守卫）** · ⑧⑩⑪ ⇒ 401 非 500 ④ §7 回填 T2 + §7.1 **18 维 9.52** ⑤ 附带发现（待拍 **F281**）：官方默认用户名校验器 `/^[a-zA-Z0-9_.]+$/` 不收 `-` ⇒ 建议 T4 加合规探针）
+> Updated: 2026-10-09（**v0.7：T2 契约口径订正（F279/F280）+ 登记** —— ① **F279**：原写「其他 ⇒ 官方 `better-auth/crypto` 的 `verifyPassword`」**不可实施** ⇒ 订正为「**保留本仓 `verifyPassword`**」（两算法格式/参数互不认，实测反控 = 官方 verify 在本仓哈希上**抛 `Invalid password hash`** ⇒ 全量本地账号 500）② **F280**：原写「`password.hash` 分支 = 显式拒绝」**机制错**（全局函数拿不到账号身份 ⇒ 会让所有设密路径失效，含 M4c-2 自助改密）⇒ 订正为「`hash` 保持本仓 scrypt 不变；**拒绝落入口层**」③ T2 断言重写（含存量零回归 + `hash` 零改动断言）④ 连带 批 design **v0.10** · 主 design **v0.15** · `docs/00` **v1.124** · `docs/README` §6.1 → **F267–F280**）
 > **头部口径（本件起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本见 §9 修订记录。
-> Status: 🔵 **执行中**（**T1 ✅ 2026-10-09** · T2–T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移，沿用 `docs/00` v1.26 先例）· **本批零提交** —— 实现期一事一提交、**逐文件 `git add`**、push 待用户口令
+> Status: 🔵 **执行中**（**T1 ✅ · T2 ✅ 2026-10-09** · T3–T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移）
 > 上游：批 design `docs/designs/2026-10-08-m4c1-auth-layer-unification-design.md`（**定稿 · 8 维 9.50** · B1–B10 —— 版本以其版本头为准）
 > · 主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 批件登记 · §15 等价判据 —— 版本以其版本头为准）
 > · 视觉真值 SSOT `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（**本批零视觉改动**，仅引用）
@@ -21,7 +21,7 @@
 | # | 交付 | 说明 |
 |---|------|------|
 | 1 | **身份源共享模块** `apps/server/src/auth/identity.ts` | 自 `plugins/ldap-credentials.ts:166` 的 `ensureDirectoryUser` 抽取/扩展；承载身份复用与漂移同步 / 邮箱归一（目录通道）/ 显示名与默认档 / 链接策略（本批只承载）/ 审计（沿用既有 `auth.login.*` 动作） |
-| 2 | **官方 `password.verify` 分支** | 替换 `emailAndPassword.password.verify`：`ldap:` 前缀 ⇒ 目录 bind；其他 ⇒ 委托官方 `better-auth/crypto` 的 `verifyPassword`（**不出现第二套口令加密**）；**时序侧信道等价处理随迁**（`plugins/ldap-credentials.ts:393`） |
+| 2 | **官方 `password.verify` 分支** | 替换 `emailAndPassword.password.verify`：`ldap:` 前缀 ⇒ 目录 bind；**其他 ⇒ 保留本仓 `verifyPassword`（自描述 scrypt 格式）** —— ⚠️ 官方 `better-auth/crypto` 的 `verifyPassword` **不适用于本仓存量哈希**（格式/参数均不同，实测 **F279**：照原口径实施会让全部本地账号 500）；**时序侧信道等价处理随迁**（`plugins/ldap-credentials.ts:258`） |
 | 3 | **不短路建号钩子** | `sign-in/username` 的 `hooks.before`：登录名无对应用户 ⇒ 目录 bind 成功 ⇒ 经共享模块建号 + 补凭据委派行；**不返回响应**（保住官方 Origin / CSRF 中间件） |
 | 4 | **迁移 `0015`**（两条幂等 SQL） | ① `credential` 行 `account_id` 工号 → `user.id` ② 既有目录账号补齐凭据委派行（只补缺）；**执行窗口 = 停服**；验收探针 P1–P3 |
 | 5 | **前端官方 SDK 三层** | 调用层（官方 **React 入口 `better-auth/react`**）· 会话层（SDK `useSession` 替换 `AuthProvider` 内部实现，**保留三态契约**）· 交互层（401 四分类经 SDK `fetchOptions` 注入）；**两处适配**：档位（官方文本 → 1/10/100 单点）· 字段（官方 `user.name` → `displayName`） |
@@ -76,10 +76,10 @@
 
 > 依据 = 批 design **§5.2** · **B6** · 主 design §3.2 / §6.1。前置 = T1。
 
-1. 以本仓函数替换官方 `emailAndPassword.password.verify`（装配点 `apps/server/src/auth/better-auth.ts`）：`ldap:` ⇒ 解析工号 ⇒ 本仓目录 `bind`（`apps/server/src/auth/ldap.ts`）⇒ 布尔；其他 ⇒ **官方** `better-auth/crypto` 的 `verifyPassword`。
+1. 在官方装配点（`apps/server/src/auth/better-auth.ts:82-86`）把 `emailAndPassword.password.verify` 换成**前缀分派**函数：`ldap:` ⇒ 解析工号 ⇒ 本仓目录 `bind`（`apps/server/src/auth/ldap.ts`）⇒ 布尔；**其他 ⇒ 本仓 `verifyPassword(password, hash)`（既有 scrypt · 自描述格式）**，**不**委托官方 `better-auth/crypto`（F279：官方格式 `saltHex:keyHex` / N=16384 / r=16 / dkLen=64 + NFKC，与本仓 `$scrypt$N$r$p$salt$hash` / N=131072 / r=8 / dkLen=32 **互不认**；官方 verify 在本仓哈希上**直接抛** `Invalid password hash`）。`password.hash` **保持本仓 `hashPassword` 不变**（库内单一格式；「拒绝目录账号改密」落入口层，见 F280）。
 2. **时序侧信道**：目录账号路径执行一次固定假哈希校验（现 `plugins/ldap-credentials.ts:393` 的 `DUMMY_PASSWORD_HASH`），抹平「账号不存在 / 密码错 / 目录账号」耗时差。
 
-**断言 / 门禁**：① `ldap:` ⇒ 走目录 bind（路径可断言）② 官方 scrypt 哈希 ⇒ 委托官方 verify（**无第二套口令加密**）③ 假哈希常量仍存在且被调用（`grep`）④ `typecheck` + `biome` 绿。
+**断言 / 门禁**：① `ldap:` ⇒ 走目录 bind（路径可断言）② **本仓 scrypt 哈希（`$scrypt$` 前缀）⇒ 走本仓 verify ⇒ 通过**（存量零回归：迁移后既有本地账号口令可验；**反证**：官方 crypto 在本仓哈希上抛错 —— 临时探针已证，故**不得**改走官方）③ 假哈希常量仍存在且被调用（`grep`）④ `password.hash` 未被改动（`hash` 仍 = 本仓 `hashPassword`；`git diff` 断言该行零变化）⑤ `typecheck` + `biome` 绿。
 
 ### T3 · server：不短路建号钩子
 
@@ -92,14 +92,14 @@
 
 ### T4 · server：迁移 `0015` + 探针
 
-> 依据 = 批 design **§6.1 / §6.2 / §6.3 / §6.4** · **B3** · 主 design §3.5 / R8。前置 = T3（后端能力就绪后再动数据）。**执行需用户授权**。
+> 依据 = 批 design **§6.1 / §6.2 / §6.3 / §6.4** · **B3** · 主 design §3.5 / R8 · 事实依据 **F281**。前置 = T3（后端能力就绪后再动数据）。**执行需用户授权**。
 > **建表口径（官方 CLI）**：本批 **零 schema 变更**（`0015` = **数据迁移**）⇒ **不跑**官方 CLI `auth generate` / `migrate`，沿用 `0007` / `0009` **手写 SQL** 先例；官方 CLI 姿势仅在**未来 schema 变更**时启用（M4b-pre 可复现记录：临时 `export const auth = betterAuth(authOptions())` + `bun x auth@latest generate --adapter drizzle --dialect pg --output <仓外>`，因本仓 auth 实例导出名 `authOptions/createAuth/getAuth` **不符官文约定**故须 `--config`）。
 
 1. 落 `apps/server/drizzle/0015_*.sql`：两条语句与批 design §6.1 / §6.2 **一字不差**（列名 `account_id` / `provider_id` / `password` / `user_id`；provider 常量 `credential` / `ldap` / `oidc`；登录名择优沿用 `0009` 同款 LATERAL 排序）。
 2. **登记迁移载体**：`apps/server/drizzle/meta/_journal.json` 追加条目（`idx` 顺延 = **15** · `tag` = 文件名去扩展名）+ 落 `meta/0015_snapshot.json` —— `apps/server/src/db/migrate.ts:12` 走 drizzle-orm `migrate()`，**只读 journal、不扫 `.sql` 目录** ⇒ 漏登记则迁移**静默不执行**（对齐先例 `0009_auth_user_domain_data_move` 的登记形态）。
-3. 执行窗口 = **停服** ⇒ `bun run --filter=@ai-asset-hub/server db:migrate` ⇒ 立即跑 P1–P3。
+3. 执行窗口 = **停服** ⇒ `bun run --filter=@ai-asset-hub/server db:migrate` ⇒ 立即跑 P1–P4。
 
-**断言 / 门禁**：**P1** `credential` 行 `account_id IS DISTINCT FROM user_id` 计数 = 0 · **P2** 每个「有 ldap/oidc 行」的用户恰有 1 行 `credential` 行 · **P3** 迁移连跑两次，第二次零插入 · ④ 迁移前后 `user` / `account` 既有行口令哈希**零改动**（除新增标记行）⑤ 迁移前快照已存在 ⑥ **载体已登记**：`meta/_journal.json` 条目数 = **16** 且含 `0015_*` tag · `meta/0015_snapshot.json` 存在。
+**断言 / 门禁**：**P1** `credential` 行 `account_id IS DISTINCT FROM user_id` 计数 = 0 · **P2** 每个「有 ldap/oidc 行」的用户恰有 1 行 `credential` 行 · **P3** 迁移连跑两次，第二次零插入 · **P4**（**F281**）**登录名合规**：全量 `credential` 账号的 `user.username` 匹配官方默认校验器 `/^[a-zA-Z0-9_.]+$/` 且长度 3–30（真码 `dist/plugins/username/index.mjs:12-14,31-40`）⇒ **不合规计数 = 0**；若 > 0 ⇒ 只出**订正清单**（改数据需另行授权，**不静默改**）· ④ 迁移前后 `user` / `account` 既有行口令哈希**零改动**（除新增标记行）⑤ 迁移前快照已存在 ⑥ **载体已登记**：`meta/_journal.json` 条目数 = **16** 且含 `0015_*` tag · `meta/0015_snapshot.json` 存在。
 
 ### T5 · web：官方 SDK 三层 + 两处适配
 
@@ -141,10 +141,16 @@
 2. **等价判据三层**：① `hasRole` / `useAuth` 签名不变（调用点 21 处 · 口径见 T5 断言 ①）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 7 dogfood 全绿 + `signInAih` 调用点 grep 归零。
 3. **门禁 12 步**（§4，CI 同序）逐项 exit 0。
 4. **规范回填**：`05` §3.1（目录通道命名 = 企业目录口令验证）· `08` §5（`accountId` 语义 + 标记行口径）· `07` §4（错误码映射）。
-5. **F 号同步**：本批 findings 明细登记于批 design §13（**F267–F278** 已登记）+ `docs/README.md` §6.1 号段行维护。
+5. **F 号同步**：本批 findings 明细登记于批 design §13（**F267–F280** 已登记）+ `docs/README.md` §6.1 号段行维护。
 6. **依赖登记复核**：实测核对 `THIRD-PARTY-NOTICES.md` 与依赖树一致（本次为**同一依赖的第二消费方**，预期内容不变；若变则按其生成口径重生成）。
 
 **断言 / 门禁**：① 7 脚本 0 FAIL ② 门禁 12 步 exit 0 ③ `doc-audit` / `doc-claims-check` 全绿 ④ 证据文件落 `docs/smoke/`。
+
+> **T2 收尾自检（标准档 18 维 · A×0.40 + B×0.30 + C×0.30）**：A 基础 **9.575** × 0.40 + B 深度 **9.475** × 0.30 + C 工程 **9.500** × 0.30 = **9.52**（门 ≥9 ✓）
+> - A 逐维：A1 9.6（11 例含端到端 + 存量零回归）· A2 9.6（scrypt 校验函数注入，避免循环导入）· A3 9.6（官方端点契约未动 · 存量账号可登录）· A4 9.5（目录未启用 / 空登录名 / 异格式 ⇒ false ⇒ 401 不 500）
+> - B 逐维：B1 9.5（三分支穷尽）· B2 9.5（空登录名 · `null` 通道 · 异格式 · 目录拒）· B3 9.5（装配点单点 + 假哈希随迁 + 代码注释带 F279/F280 依据）· B4 9.4（目录不可达 ⇒ false，不抛）
+> - C 逐维：C1 9.5（等价耗时三条路径 · 不泄露存在性）· **C2 9.3（目录分支多 1 次 scrypt ≈ +250ms —— 时序等价的既定代价）** · C3 9.3 · C4 9.6（新件 71 行 · 职责单一）· C5 9.6（11 例直测）· C6 9.7 · C7 9.6 · C8 9.6 · C9 9.4 · C10 9.4
+
 
 ---
 
@@ -196,6 +202,7 @@ build → db:migrate → test
 | Task | 日期 | 实测 | 门禁 | 发现 / 偏差 |
 |------|------|------|------|------------|
 | **T1** | 2026-10-09 | 新建 `apps/server/src/auth/identity.ts`（**194 行** · 纯规则：`createAuthEndpoint`/`APIError`/`setSessionCookie`/`ctx.`/`audit(`/`internalAdapter` **全 0 命中**）· 调用方 `plugins/ldap-credentials.ts` **430 → 295 行（−135）** · **搬移逐字比对**（`git show HEAD:` ↔ 新件，去注释/空白后逐行 diff）：`findExternalUser` **0 差异** · `statusError` **0 差异** · `ensureDirectoryUser` **14 行差异 = 13 行签名/类型区（编译期：匿名字面量 → `DirectoryIdentityInput` · 返回类型 → `EnsureDirectoryUserResult`；10 删 + 3 增）+ 2 行 = 1 条 `throw` 文案的删/增**（`directory credentials:` → `identity rules:`）⇒ **运行期唯一差异 = 1 条异常文案** | 本包 `typecheck` ✓ · `lint`（biome 129 文件 · No fixes applied）✓ · 测试 **609 pass / 1 skip / 0 fail**（610 例 / 54 文件 / 34.2s）· 上笔 CI run **37871796462 success** | ① **审计仍留在调用方**（`provisionLdap` / `login.*` 由端点携 `ctx` 元信息写；若搬进模块会让 OIDC 通道**新增** provision 审计 = 行为变化，违反 T1「零行为变化」）⇒ 记为 **待 M4c-3 拍板项** ② 唯一运行期差异 = 1 条异常文案（安全网分支，不可被程序依赖）③ **未新增测试**（`identity.ts` 直接单测缺位，现靠 `app.test.ts` / `session-lifecycle.test.ts` 间接覆盖）⇒ 18 维 C5 已如实扣分 ④ **F278（T1 测试照出的真缺口）**：建号 `username = subject` 撞官方 `user_username_unique` ⇒ 跨通道同 subject 串 ⇒ 既有兜底不覆盖 ⇒ **500**；**本批不修**（T1 零行为变化），处置归 **M4c-3**；原第 ⑧ 例按用户拍板移除，测试件余 **9 例** |
+| **T2** | 2026-10-09 | 新建 `apps/server/src/auth/password-verify.ts`（**71 行**：`DIRECTORY_CREDENTIAL_PREFIX` + `DUMMY_PASSWORD_HASH`（自 `plugins/ldap-credentials.ts` **随迁**）+ `verifyCredential` 前缀分派；scrypt 校验由调用方**注入**以免 `better-auth → 插件 → 新件` 循环导入）· 装配点 `better-auth.ts`：`verify` 换分派（`hash` **零改动** · `ldapChannel` 与插件**单源共用**）· ⚠️ 非 `ldap:` 分支**不**委托官方 `better-auth/crypto`（**F279**）· 新增直测 `password-verify.test.ts` **11 例**（纯函数 6 + 端到端 5）| 本包 `typecheck` ✓ · `lint`（biome 131 文件）✓ · 全量 **629 pass / 1 skip / 0 fail**（630 例 / 56 文件）· 文档门禁 **4/4** | ① **T2 净新增仅「`ldap:` 前缀」一条路径** —— 其余路径零变化（F279 订正的直接收益）② 端到端 ⑦ 目录账号 ⇒ **200 + 官方会话 cookie**（新能力）· ⑨ **存量本地账号 ⇒ 200**（零回归守卫）· ⑧⑩⑪ ⇒ **401（非 500）** ③ 时序侧信道：目录分支**额外跑一次假哈希 scrypt**（三条路径耗时拉齐；代价 ≈ +1 次 scrypt ≈250ms，已知既定代价）④ **附带发现（待拍 F281）**：官方默认用户名校验器 = `/^[a-zA-Z0-9_.]+$/`（3–30 字符，**不接受 `-`**）⇒ 既有账号登录名若含其他字符会被官方端点 **422** 拒（工号形态安全；建议 T4 探针加「全量 credential 行登录名合规」断言）|
 
 ### 7.1 逐 Task 自检打分位（标准档 **18 维** · A×0.40 + B×0.30 + C×0.30 · 门 ≥9）
 
@@ -225,6 +232,9 @@ build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.9** | 2026-10-09 | sunxuewen-rush | **T2 收口 + T4 探针 P4** —— ① T2 交付：新建 `apps/server/src/auth/password-verify.ts`（71 行 · 前缀分派 + 假哈希随迁）· 装配点 `verify` 换分派（`hash` 零改动）· 直测 **11 例**（目录 ⇒ 200；**存量本地账号 ⇒ 200 零回归（F279 守卫）**；异常一律 401 非 500）· 全量 **629 pass / 1 skip / 0 fail** · 文档 4/4 ② **T4 增断言 P4**（**F281**：全量 `credential` 账号登录名合规，不合规 = 0，否则出订正清单待授权）· T4 依据补 F281 ③ §7 回填 T2 落地 + §7.1 T2 **18 维 9.52** |
+| **v0.8** | 2026-10-09 | sunxuewen-rush | **T2 落地（存值前缀分派）** —— ① 新建 `apps/server/src/auth/password-verify.ts`（71 行）② 装配点 `better-auth.ts`：`verify` 换前缀分派 · `hash` **零改动** · `ldapChannel` 单源 ③ 新增 `password-verify.test.ts` **11 例**（纯函数 6 + 端到端 5）④ §7/§7.1 回填（**9.52**）⑤ 附带发现 **F281**：官方默认用户名校验器 `/^[a-zA-Z0-9_.]+$/`（3–30、不收 `-`）—— 待拍：登记 + T4 加「credential 行登录名合规」探针 |
+| **v0.7** | 2026-10-09 | sunxuewen-rush | **T2 契约口径订正（F279/F280 · 用户「全修」）** —— 🔴 **F279**：`password.verify` 的「其他」分支原口径「委托官方 `better-auth/crypto` 的 `verifyPassword`」**不可实施** —— 官方（`saltHex:keyHex` · N=16384 r=16 dkLen=64 · NFKC）与本仓（`$scrypt$N$r$p$saltB64$hashB64` · N=131072 r=8 dkLen=32）**格式与参数均不同、互不认**；实测反控：官方 verify 在本仓哈希上 **THREW `Invalid password hash`** ⇒ 照做 = 存量本地账号（含 seed/夹具）**全 500** + 踩穿 R10 零重置。订正 = **保留本仓 `verifyPassword`**（净新增仅「`ldap:` 前缀」一条路径）· 🔴 **F280**：「`password.hash` 分支 = 显式拒绝」**机制错**（官真实码 `ctx.context.password.hash(newPassword)` **单参**、拿不到账号身份 ⇒ 一刀拒 = 所有设密路径失效，含官方 sign-up 与 M4c-2 的 R21 自助改密）；原意（R12「管理员对目录账号改密 ⇒ 明确错误码」）正确 ⇒ 落点改为**入口层按目标账号判定**，`hash` 保持本仓 `hashPassword` · 连带：批 design **v0.10** · 主 design **v0.15** · `docs/00` **v1.124** · `docs/README` §6.1 **F267–F280** |
 | **v0.6** | 2026-10-09 | sunxuewen-rush | **T1 落地（身份源共享模块）+ F278 登记** —— ① Status → 🔵 **执行中（T1 ✅）** ② §7 回填 + §7.1 18 维 **9.43** ③ 新建 `apps/server/src/auth/identity.ts`（194 行纯规则）· 改造 `plugins/ldap-credentials.ts`（430→295）· **零行为变化证据**（两函数 0 差异 / `ensureDirectoryUser` 14 行差异 = 13 行类型区 + 1 条 throw 文案）④ 新增模块直测 `identity.test.ts` **9 例**（`CI=true` 真库 · 自造前缀 · `afterAll` 自证零残留）⑤ **F278**：跨通道同 subject 撞 `user_username_unique` ⇒ 500（**本批不修**，归 M4c-3）；原第 ⑧ 例按拍板移除 ⑥ 连带 批 design **v0.9**（§5.4 约束行 + §13 F278）· 主 design **v0.14**（上界 F278）· `docs/00` **v1.123** · `docs/README` §6.1 **F267–F278** |
 | **v0.5** | 2026-10-08 | sunxuewen-rush | **官方安装页对账轮（install 1–5 + D1–D3 · 用户「全修」）** —— 读完官文 `/docs/installation` 九步逐条对账后补 7 项：① **依赖安装形态**（`cd apps/web && bun add better-auth@1.7.5`（exact）· **`bun.lock` 同批提交**（CI `--frozen-lockfile`；漏则 FAIL）· 包无 `postinstall` ⇒ 不动 `bunfig.toml`）② **客户端入口订正为官方 React 入口 `better-auth/react`**（官文点名；`useSession` = React hook + `useStore`；原写 vanilla `better-auth/client`，其 `useSession` 实为 `Atom<{data,error,isPending}>`）③ T5 **断言 ⑥**（自 `apps/web` 可解析 + `bun.lock` 单一 1.7.5 条目）④ 风险 **7** 补锁文件口径 ⑤ T8 增**依赖登记复核**（`THIRD-PARTY-NOTICES.md`）⑥ T4 依据补**建表口径**（零 schema 变更 ⇒ 不跑官方 CLI `generate`/`migrate`；引 M4b-pre 可复现 CLI 姿势）⑦ §1 补**认证配置口径**（本批不设 `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`，走 `secret: SESSION_SECRET` / `baseURL: PUBLIC_BASE_URL`）。**实测依据**：官文安装页（真读）· `exports["./react"]` · `vanilla.d.mts:24` · `better-auth.ts:73-74` · `vite.config.ts:16-22` |
 | **v0.4** | 2026-10-08 | sunxuewen-rush | **R4 承接补齐（复核轮命中 · 用户「按推荐修」）** —— 🟡 **R4**：**B10「本批零新页面 / 登录页视觉不动」无 Task 承接、无断言**（v0.3 判它「显式 ✅」实为被头部串「B1–B10」**误命中**的探针假阳性）⇒ ① T5 依据行补 **B10** + **§10** ② T5 断言新增 **⑤**（`pages/` 零新增文件 · `pages/Login.tsx` 本批零改动（`git diff --name-only`）· 视觉基线 M4a §4.4 不动）③ §8 **9.31 成立**（v0.3 报 9.31 时 B10 空缺 ⇒ 实测 9.29）④ 连带 批 design **v0.7**（§10 承接指针）· 主 design **v0.12** · `docs/00` **v1.121** |
