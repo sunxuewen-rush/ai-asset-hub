@@ -1,8 +1,8 @@
 # M4c-1 认证层统一到官方：官方 SDK 三层 + 目录口令官方 verify 分支 + 建号钩子 —— 批计划
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.21：dogfood 加固收口** —— ① 新增统一 runner `docs/smoke/scripts/dogfood-all.ts`（前置体检 + 清陈旧标签 + 造数 + 依次跑 + 汇总）② `m4b4`/`m4b5` 启动即 seed（`SMOKE_SKIP_SEED=1` 可跳）⇒ 实证单跑 **89/0 · 62/0**（加固前 85/4 · 54/8）· runner 子集快测 24/0 ③ F290/F293 处置收口）
 > Updated: 2026-10-09（**v0.20：T8 收口 —— 本批完成（T1–T8 ✅）** —— ① 门禁 11 步本地 EXIT=0（含 `test` **644 pass / 1 skip / 0 fail**；第 7 道区间门禁归 CI）② dogfood 7 脚本 **494 PASS / 0 FAIL**（含 **F293** 种子前置：`m4b4`/`m4b5` 跑前重播种子）③ 等价判据三层实测全绿（`hasRole`/`useAuth` 签名逐字同 · 21 调用点 · `signInAih` grep **= 0**）④ 规范回填 `05` **v1.13** · `08` **v1.11**（`07` **v1.12** 已于 T7）⑤ 依赖登记复核一致（`better-auth` 1.7.5）⑥ 证据归档 `docs/smoke/2026-10-09-m4c1.md` ⑦ 审计清 3 处陈旧注释（引用已删件）⑧ **F291–F293 登记** · **批收口自检 9.52**）
-> Updated: 2026-10-09（**v0.19：T7 落地（错误码收敛 12→8 · 官方码直通 i18n · 自助注册默认关闭）+ F291 登记** —— ① `errors.ts` **删 4 留 8**（`invalid_credentials` / `ldap_denied` 零生产点 + `user_disabled` / `user_pending` 改官方码）② 状态门改抛**官方 `BANNED_USER`** + 中文 `bannedUserMessage` ③ 前端**删重映射表**：官方码直通 `errors` 组键（+5 键 / 删 4 条 `auth.*` 文案）④ `REGISTRATION_ENABLED` 默认 **`false`** ⑤ 实测：防枚举**四态同码 401** · 全量 **644 pass / 1 skip / 0 fail** · 码集合 **8**）
 > **头部口径（本件起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本见 §9 修订记录。
 > Status: ✅ **本批完成（T1–T8 ✅ · 2026-10-09）** —— dogfood **7/7 全绿（494 PASS / 0 FAIL）** · 门禁 11 步本地 EXIT=0（第 7 道区间门禁由 CI 实测）· 全量测试 **644 pass / 1 skip / 0 fail** · **批收口自检 9.52**（T1 9.46 / T2 9.52 / T3 9.52 / T4 9.57 / T5 9.51 / T6 9.52 / T7 9.54 / T8 9.54）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移）
 > 上游：批 design `docs/designs/2026-10-08-m4c1-auth-layer-unification-design.md`（**定稿 · 8 维 9.50** · B1–B10 —— 版本以其版本头为准）
@@ -153,7 +153,8 @@
 > 依据 = 批 design **§15 / §16** · 主 design **§15 等价判据（R16）**。前置 = T7。
 
 1. **7 个 `*-dogfood.ts`** 全绿（逐段 `SMOKE_ONLY=Gn`，收尾才全量；每段 `NO JS ERRORS` 硬门）。
-   **前置（F293）**：`m4b4` / `m4b5` 脚本会**真改数据** ⇒ 跑前须重播对应种子（`m4b4-seed-assets` / `m4b5-seed-reviews`）；连续全量跑不重播 ⇒ 假红（实测 85/4 · 54/8）。
+   **前置（F293 · 2026-10-09 已由脚本自愈收口）**：`m4b4` / `m4b5` 会**真改数据** ⇒ 二者已**启动即跑各自种子**（幂等复位 · `SMOKE_SKIP_SEED=1` 可跳）；实证不手工播种单跑 = **89/0 · 62/0**（加固前 85/4 · 54/8）。
+   **全量序一键跑（F290 家族收口）**：`bun --env-file=apps/server/.env docs/smoke/scripts/dogfood-all.ts`（前置体检 → 清陈旧 5173 标签 → 造数 → 依次跑 7 脚本 → 汇总）。
 2. **等价判据三层**：① `hasRole` / `useAuth` 签名不变（调用点 21 处 · 口径见 T5 断言 ①）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 7 dogfood 全绿 + `signInAih` 调用点 grep 归零。
 3. **门禁 12 步**（§4，CI 同序）逐项 exit 0。
 4. **规范回填**：`05` §3.1（目录通道 = 企业目录口令验证）⇒ **v1.13**（新增「实现口径」8 面表 + F292 订正）· `08` **§3**（`account_id = user.id` 语义 + 凭据委派行标记口径）⇒ **v1.11**（T8 实测订正：`accountId` 真值在 **§3 用户域**，原写「§5」为笔误）· `07` §4（错误码映射）**已在 T7 完成**（v1.12）。
@@ -165,7 +166,7 @@
 - 门禁：install / typecheck / lint / format:check / build / db:migrate / test **逐项 EXIT=0**（test = **644 pass / 1 skip / 0 fail**，Ran 645）；文档四道 **253/130/46/37 全 0 FAIL**；第 7 道 `head-sink-coverage` 为区间门禁 ⇒ 归 CI
 - dogfood：**7 脚本 494 PASS / 0 FAIL · 7×EXIT=0 · 全程 NO JS ERRORS**（`m4b4` 89 · `m4b5` 62 须**跑前重播种子**，见 **F293**）
 - 等价判据三层：① 签名逐字同（`hasRole` / `useAuth` · 批起点 `c065899` 对比）· 调用点 **21** ② 四分类 / 反向守卫 / `next` 白名单断言随全量测试全绿 ③ 7 dogfood 全绿 + `signInAih`（非 Oidc）grep **= 0**
-- 规范回填：`05` **v1.13**（§3.1 实现口径 8 面表 + **F292** 订正）· `08` **v1.11**（§3 `account_id` 语义 + 凭据委派行）· `07` **v1.12**（T7）
+- 规范回填：`05` **v1.13**（§3.1 实现口径 8 面表 —— 含官方 `bannedUserMessage` 中文提示 + **F292** 订正）· `08` **v1.11**（§3 `account_id` 语义 + 凭据委派行）· `07` **v1.12**（T7）
 - 依赖登记：`THIRD-PARTY-NOTICES.md` ↔ 依赖树**一致 · 零变更**（`better-auth` 1.7.5 / `@better-auth/api-key` 1.7.5）
 - 整体审计：已删码 4 个全仓 **0 引用** · `signInAih` 调用点 0 · 清 3 处引用已删件的陈旧注释（`m4b4` dogfood 限流注释 + `ldap-credentials.ts` 两处）· 遗留 `InMemoryRateLimiter` 为**下载/上传限流**（与本批无关）
 - 证据归档：`docs/smoke/2026-10-09-m4c1.md`
@@ -303,6 +304,7 @@ build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.21** | 2026-10-09 | sunxuewen-rush | **dogfood 加固收口（F290 家族 + F293 自愈）** —— ① 新增 `docs/smoke/scripts/dogfood-all.ts`：一条命令跑全量序（前置体检 api/web `[::1]`/CDP → 清陈旧 5173 标签 → 6 份造数幂等重播 → 依次跑 7 dogfood → 汇总表 + 非零退出；`SMOKE_SCRIPTS` / `SMOKE_SKIP_SEED` / `SMOKE_LOG_DIR` 可选）② `m4b4` / `m4b5` 启动即跑各自种子 ⇒ **实证**不手工播种单跑 **89/0 · 62/0**（加固前同条件 85/4 · 54/8）③ runner 子集快测 m4b2 = **24/0**（前置体检报出并清理 7 个陈旧 5173 标签） ④ T8 步 1 前置说明改「已自愈」 |
 | **v0.20** | 2026-10-09 | sunxuewen-rush | **T8 收口 —— 本批完成（T1–T8 ✅）** —— ① 门禁 11 步本地 EXIT=0（`test` **644 pass / 1 skip / 0 fail**；第 7 道区间门禁归 CI）② dogfood 7 脚本 **494 PASS / 0 FAIL**（**F293** 前置：`m4b4`/`m4b5` 跑前重播种子）③ 等价判据三层实测（签名逐字同 · 21 调用点 · `signInAih` grep=0）④ 规范回填 `05` **v1.13** · `08` **v1.11** ⑤ 依赖登记复核一致 ⑥ 证据 `docs/smoke/2026-10-09-m4c1.md` ⑦ 审计清 3 处陈旧注释 · **F291/F292/F293 登记** ⑧ 逐 Task 自检 + **批收口 9.52** |
 | **v0.19** | 2026-10-09 | sunxuewen-rush | **T7 落地（错误码收敛 12→8 · 官方码直通 i18n · 自助注册默认关闭）+ F291 登记** —— ① `errors.ts` 删 4 留 8（零生产点 2 + 状态门 2）· 另 3 码归 M4c-3（**F291**：§14.1「删 7」原为**终态**口径）② `identity.ts` `statusError` 改抛官方 `BANNED_USER` + `admin({ bannedUserMessage })` 中文（DISABLED/PENDING 行为不变）③ 前端删 `SIGN_IN_ERROR_KEY` 重映射表 ⇒ 官方码直通 `errors` 组（+5 键／删 4 条）④ `env.ts:35` 默认 `false` + `.env.example` + `env.test.ts` + 关闭态实测用例 ⑤ 实测：防枚举**四态同码 401** · 全量 **644/1/0** · 码集合 **8** · 顺手清 T6 引入的 `seed.ts` non-null 告警 |
 | **v0.18** | 2026-10-09 | sunxuewen-rush | **F290 加固（dogfood 脚本自愈）+ 反证验收** —— ① `m4b2-auth-dogfood` / `m4b3-personal-a-dogfood`：附着后**先落 `about:blank`** 归一页面态；`m4b2` 4 处 `/dashboard` 快照改**侧栏就绪轮询**（≤5s）② 反证：8 个陈旧 5173 标签在场 ⇒ `m4b2` **24/0** · `m4b3` **43/0**（加固前同条件 5 FAIL）③ 证据 PNG 提交前通配还原 |

@@ -20,6 +20,7 @@
  * ⚠️ **G6 会改库**（真点三动作）⇒ **收口跑之前重新执行 seed 复位**；正确顺序 **seed → dogfood**。
  * ⚠️ 账号：`m4b2_mgr`（管理档）· `m4b5_member`（提交人 · 非管理档）—— 与 seed 共用 `SMOKE_M4B2_PASSWORD`。
  */
+import { spawnSync } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
 
 const DBG = 'http://127.0.0.1:9222';
@@ -59,6 +60,24 @@ const ok = (name: string, cond: boolean, extra?: string) => {
   console.log(`  ${line}`);
   appendFileSync(PROGRESS, `${line}\n`);
 };
+
+/* ── F293 自愈：跑前自动重播本脚本的造数（幂等复位） ───────────────────────────
+ * 本脚本会**真改数据**（G6/G7 动作真改审核任务态 ⇒ 审核任务状态被真改）
+ * ⇒ 连续跑 / 重跑时前置数据缺失会**假红**（实测：不重播种子连续全量跑 = **85 PASS / 4 FAIL**）。
+ * 处置：**启动即跑** `m4b5-seed-reviews`（种子自身幂等，实测「重跑即复位」）。
+ * 逃生口：`SMOKE_SKIP_SEED=1`（手工造数 / 调试时跳过）。
+ */
+if (process.env.SMOKE_SKIP_SEED !== '1') {
+  const seedFile = new URL('./m4b5-seed-reviews.ts', import.meta.url).pathname;
+  const seeded = spawnSync('bun', [seedFile], { env: process.env, encoding: 'utf8' });
+  if (seeded.status !== 0) {
+    console.error(
+      `[seed] m4b5-seed-reviews 失败（exit=${seeded.status}）⇒ 中止（F293 自愈）\n${(seeded.stderr ?? '').slice(-1200)}`,
+    );
+    process.exit(1);
+  }
+  console.log('[seed] m4b5-seed-reviews ✓（F293 自愈 · 幂等复位）');
+}
 
 /* ── CDP 基础设施（沿用 M4b-2/3/4 脚本口径：**必须新建 tab**） ── */
 const target = (await (await fetch(`${DBG}/json/new?about:blank`, { method: 'PUT' })).json()) as {

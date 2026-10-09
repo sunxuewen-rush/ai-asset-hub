@@ -13,8 +13,9 @@
  *   可选：`SMOKE_SHOT_PREFIX=<前缀>`（截图前缀，缺省 `m4b4-`）
  *
  * ⚠️ **G12b 会改库**（T12 覆盖补测 · 2026-09-18）：管理档**真点一次**「撤回分发」会把
- *    `m4b4-seed-skill` 的 `1.0.0` 置为 `YANKED` ⇒ **重跑本脚本前必须先重跑 seed 脚本复位**
- *    （`bun --env-file=apps/server/.env docs/smoke/scripts/m4b4-seed-assets.ts`，幂等）。
+ *    `m4b4-seed-skill` 的 `1.0.0` 置为 `YANKED` ⇒ **重跑本脚本前必须先重跑 seed 脚本复位**。
+ *    **2026-10-09 起本脚本已自愈**（F293）：启动即跑 `m4b4-seed-assets`（幂等复位），
+ *    无需手工前置；`SMOKE_SKIP_SEED=1` 可跳过（手工造数调试）。
  *    正确顺序：**seed → dogfood**（脚本尾部的 `07-detail-yank-done.png` 即撤回后状态）。
  *
  * ⚠️ 执行期踩坑（两处，均为脚本自身，已在实现期修掉 —— 留痕防复现）：
@@ -42,6 +43,7 @@
  *    **攒批口径**（2026-09-20 起）：纯文案 / 文档改动不跑本脚本；交互 / 样式改动只跑相关段；
  *    多层改动攒到收口一次性全跑（实测全跑 3.5~5 分 / 轮 ⇒ 迭代期分段能省掉大头）。
  */
+import { spawnSync } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
 
 const DBG = 'http://127.0.0.1:9222';
@@ -130,6 +132,24 @@ const SECTION_IDS = [
 if (!PW) {
   console.error('SMOKE_M4B2_PASSWORD is required（口令不入仓）');
   process.exit(1);
+}
+
+/* ── F293 自愈：跑前自动重播本脚本的造数（幂等复位） ───────────────────────────
+ * 本脚本会**真改数据**（G12 删行 / G12b 真的撤回版本 ⇒ `m4b4-seed-skill` 的 1.0.0 落 YANKED）
+ * ⇒ 连续跑 / 重跑时前置数据缺失会**假红**（实测：不重播种子连续全量跑 = **85 PASS / 4 FAIL**）。
+ * 处置：**启动即跑** `m4b4-seed-assets`（种子自身幂等，实测「重跑即复位」）。
+ * 逃生口：`SMOKE_SKIP_SEED=1`（手工造数 / 调试时跳过）。
+ */
+if (process.env.SMOKE_SKIP_SEED !== '1') {
+  const seedFile = new URL('./m4b4-seed-assets.ts', import.meta.url).pathname;
+  const seeded = spawnSync('bun', [seedFile], { env: process.env, encoding: 'utf8' });
+  if (seeded.status !== 0) {
+    console.error(
+      `[seed] m4b4-seed-assets 失败（exit=${seeded.status}）⇒ 中止（F293 自愈）\n${(seeded.stderr ?? '').slice(-1200)}`,
+    );
+    process.exit(1);
+  }
+  console.log('[seed] m4b4-seed-assets ✓（F293 自愈 · 幂等复位）');
 }
 
 /* ── CDP 基础设施（沿用 M4b-2/M4b-3 脚本口径 + 本批两条踩坑修正） ── */
