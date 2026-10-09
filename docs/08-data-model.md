@@ -1,6 +1,7 @@
 # 数据模型设计
 
 > Date: 2026-09-04
+> Updated: 2026-10-09（**v1.12：M4c-2 账号与权限治理同步** —— `user` 表 `status` 三态列退休（迁移 `0016`）· 启停真值 = 官方 `banned` / `ban_reason` / `ban_expires`）
 > Updated: 2026-10-09（**v1.11：M4c-1 认证层统一到官方同步（§3 用户域原地补写）** —— §3 补「M4c-1 变更」段：`account.account_id` 语义统一为 **`user.id`**（官方 `findCredentialAccount` 三条件）· 登录名只存 `user.username`（迁移 `0015` 语句 ⓪ 保号回填）· 目录账号**凭据委派行**口径（`provider_id='credential'` · `account_id=user.id` · `password='ldap:<工号>'` **标记前缀**非密文 · 按 `user_id` 只补缺的幂等规则））
 > Updated: 2026-09-23（**v1.10：M4b-6 治理批同步** —— §6 治理域补 **`download_event`**（下载事件：`asset_id`/`version_id`/`created_at` + 2 索引；与 `download_count` 自增**同事务**写入）+ **表数口径 15 → 16**（官方认证 6 + 业务 10 · 迁移 **0014**））
 > v1.7（M4b-4 T15 收藏最小集落地）——§5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`**（迁移 0012）· 新增 **§5.35 `asset_star`**（收藏关系：`UNIQUE(asset_id,user_id)` + 双向 `ON DELETE CASCADE`）· 运行库终态 **15 表** = 官方认证 6 + **业务 9**）
@@ -19,7 +20,7 @@
 | 01 §3.3 坐标（slug 全局跨类型唯一） | `asset.UNIQUE(slug)` |
 | 01 §3.2 元数据投影 | `asset_version.parsed_metadata_json` |
 | 02/03/04 族协议 manifest | `asset_version.manifest_json` |
-| 05 身份/角色/RBAC | 官方 6 表：`user`（含 `role` 档名 / `status` 三态）· `session` · `account` · `verification` · `device_code` · `apikey` |
+| 05 身份/角色/RBAC | 官方 6 表：`user`（含 `role` 档名 / **封禁三件套 `banned` · `ban_reason` · `ban_expires`**）· `session` · `account` · `verification` · `device_code` · `apikey` |
 | 06 label 三表 | label_definition / label_translation / asset_label |
 | 00 §2.2 治理与生命周期 | asset / asset_version / review_task |
 
@@ -40,7 +41,8 @@
 -- ── 官方认证内核表（better-auth 1.7.5；列名/类型照官方生成物，本仓不改形 · M4b-pre）────────
 user           id TEXT PK · name · email TEXT NOT NULL UNIQUE · email_verified · image
                · role TEXT（档名 user/admin/superadmin；数值档位由 ROLE_LEVEL 映射，05 §6.1）
-               · status TEXT DEFAULT 'ACTIVE'（PENDING/ACTIVE/DISABLED，05 §4.1）
+               · banned BOOLEAN DEFAULT false · ban_reason TEXT · ban_expires TIMESTAMP（启停真值 · 05 §4.1）
+               · ~~status TEXT~~（本仓三态列**已退休** · 迁移 0016 DROP COLUMN · M4c-2 T3）
                · username UNIQUE · display_username · created_at/updated_at
 session        id TEXT PK · token TEXT UNIQUE · user_id → user.id · expires_at（绝对过期，不滑动）
                · ip_address · user_agent · created_at/updated_at
@@ -249,6 +251,7 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 ## 10. 修订记录
 
 | 版本 | 日期 | 作者 | 变更 |
+| v1.12 | 2026-10-09 | sunxuewen-rush | **M4c-2 账号与权限治理同步** —— §2 映射表「05 身份/角色/RBAC」行 + §3 官方 `user` 表列义：本仓 `status` 三态列**退休**（迁移 `0016` DROP COLUMN · 语句①回填历史非 `ACTIVE` 行 ⇒ `banned = true`），启停真值改 **`banned` BOOLEAN · `ban_reason` TEXT · `ban_expires`**（05 §4.1） |
 | v1.11 | 2026-10-09 | sunxuewen-rush | **M4c-1 认证层统一到官方同步（§3 用户域原地补写）** —— ① `account.account_id` = **`user.id`**（官方 `findCredentialAccount` 三条件真码行号）② 登录名唯一载体 = `user.username`（迁移 `0015` 语句 ⓪ 存量保号回填）③ 目录账号**凭据委派行**（`provider_id='credential'` · `account_id=user.id` · `user_id=user.id` · `password='ldap:<工号>'` 标记前缀非密文）④ 幂等口径（按 `user_id` 匹配 · 只补缺 · 不回改既有行）||------|------|------|------|
 | v1.10 | 2026-09-23 | sunxuewen-rush | **M4b-6 治理批同步**：§6 治理域新增 `download_event`（迁移 **0014** · 2 索引 · 同事务写入语义）+ 表数口径 **16 表**（官方 6 + 业务 10） |
 | **v1.9** | 2026-09-22 | sunxuewen-rush | **M4b-5 规范同步（补登记）**：① §5.2 `review_task` 注记「防自审（05 §6.4）」→「审核人 = 提交人：**M4b-5 R2 起放开**」② §7 状态机 `PENDING_REVIEW → PUBLISHED` 行同步 ③ §6 授权集行「审核人 = 提交人」→「**已放开**」（依据 = `05` §6.4 偏离登记 · 批 design `2026-09-21-m4b5-review-workbench-design` §4.6.1）。**补登记说明**：三处内容随 `ad05b4e` 已改，版本登记漏记，本行补齐 |

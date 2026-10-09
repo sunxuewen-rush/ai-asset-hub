@@ -304,10 +304,10 @@ WHERE NOT EXISTS (
 
 | 号 | 面 | 问题（真） | 处置 |
 |----|----|-----------|------|
-| F267 | 权限码 | 权限码表缺 `session` 资源与 `set-password` ⇒ 官方 `list-user-sessions` / `revoke-user-sessions` 开箱 403 | 归 M4c-2（`session:['revoke']`） |
-| F268 | 认证门 | 官方认证面不读本仓 `status` 列（`apps/server/src/app.ts:148` 无状态门） | 本批（启停判定改读官方 `banned` 后自然消除，落 M4c-2 收口） |
-| F269 | 建号 | 官方 `create-user` body **无 `username` 字段**（`email` 必填且强制小写）；`password` 可选；官方 username 插件**无 `set-username` 端点** | 本批（建号钩子内写规范化 `username`）· 管理面落 M4c-2 |
-| F270 | 列表 | 官方 `list-users` 异常吞错返空列表；`searchField` 需白名单 | 归 M4c-2 |
+| F267 | 权限码 | 权限码表缺 `session` 资源与 `set-password` ⇒ 官方 `list-user-sessions` / `revoke-user-sessions` 开箱 403 | 归 M4c-2（`session:['revoke']`） | —— ✅ **已关（M4c-2 T1）**：`auth/roles.ts` 加 `session:['revoke']`（仅 `superadmin`）；`user:['set-password']` 不新增（自助改密走官方 `/change-password` · M4c-2 T5） |
+| F268 | 认证门 | 官方认证面不读本仓 `status` 列（`apps/server/src/app.ts:148` 无状态门） | 本批（启停判定改读官方 `banned` 后自然消除，落 M4c-2 收口） | —— ✅ **已关（M4c-2 T3）**：启停判定统一读官方 `banned`（`auth-middleware` / `token-middleware` / `rbac.roleOf` + 活跃数口径）；本仓 `status` 列随迁移 `0016` 退休 |
+| F269 | 建号 | 官方 `create-user` body **无 `username` 字段**（`email` 必填且强制小写）；`password` 可选；官方 username 插件**无 `set-username` 端点** | 本批（建号钩子内写规范化 `username`）· 管理面落 M4c-2 | —— ✅ **已关（M4c-2 T2/T4）**：建号薄端点**同事务**直写 `user.username`（= 工号）+ `display_username`；UI 四项必填（工号/姓名/邮箱/初始口令） |
+| F270 | 列表 | 官方 `list-users` 异常吞错返空列表；`searchField` 需白名单 | 归 M4c-2 | —— ✅ **已关（M4c-2 T2 + T7）**：薄层加「一致性哨兵」（官方 `total=0` 时我方 `count(*)` 交叉核对 ⇒ 不一致即 500 `user.list_failed`）；判定逻辑抽纯函数 `listLooksSwallowed` 并单测（T7） |
 | F271 | 规范 | `docs/05-identity-access.md` §4 缺「策略 → 准入结果」映射表 | 归 M4c-2 |
 | F272 | 文档 | `docs/plans/M4b-4-me-assets-and-console.md:395` 措辞不实 | 本批收尾订正 |
 | F273 | 账号行 | 本仓凭据行 `accountId = 工号` 与官方口径 `accountId = user.id` 不一致 ⇒ 官方端点对既有账号 401 | 本批（迁移 `0015` §6） |
