@@ -625,6 +625,13 @@ export const en: Dict = {
     loadMore: 'Load more',
   },
   errors: {
+    // Official auth codes (M4c-1 T7: sign-in surface passes official codes through to i18n).
+    // The four username-plugin failures share one message = anti-enumeration.
+    BANNED_USER: 'This account is not activated or has been disabled, contact an admin',
+    INVALID_USERNAME: 'Incorrect username or password',
+    INVALID_USERNAME_OR_PASSWORD: 'Incorrect username or password',
+    USERNAME_TOO_LONG: 'Incorrect username or password',
+    USERNAME_TOO_SHORT: 'Incorrect username or password',
     'asset.not_found': 'Asset or version not found',
     'asset.version_not_published': 'This version is not published yet',
     'asset.version_yanked': 'This version was yanked and is no longer available',
@@ -639,14 +646,10 @@ export const en: Dict = {
     'auth.email_conflict': 'This email is already used by another account, contact an admin',
     'auth.email_missing': 'Directory identity has no email; cannot provision an account',
     'auth.forbidden': 'You do not have permission to perform this action',
-    'auth.invalid_credentials': 'Incorrect username or password',
-    'auth.ldap_denied': 'Directory authentication failed, please check your account status',
     'auth.oidc_denied': 'The identity provider denied the request',
     'auth.oidc_state_mismatch': 'The sign-in session has expired, please start over',
     'auth.rate_limited': 'Too many requests, please try again later',
     'auth.session_expired': 'Session expired, please sign in again',
-    'auth.user_disabled': 'This account is disabled, contact an admin',
-    'auth.user_pending': 'This account is not activated yet, contact an admin',
     'oidc.not_configured': 'OAuth sign-in is not enabled in this environment',
     'request.invalid': 'Invalid request',
     'review.not_found': 'Review task not found',

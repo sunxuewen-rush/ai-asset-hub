@@ -1,8 +1,8 @@
 # UI 语言与本地化约定
 
 > Date: 2026-09-04
+> Updated: 2026-10-09（v1.12：**§4 补「官方认证码直通」口径 + 本批增删（M4c-1 T7）** —— 登录面全交官方后，`errors` 资源表**按官方码建键**（与族协议码键同范式），前端**不**维护「官方码 → 我方码」重映射表；**防枚举**由「同一官方码 ⇒ 同一文案」保证。本批：删 `auth` 4 条（`invalid_credentials` / `ldap_denied` / `user_disabled` / `user_pending`）· 增官方码 5 条（`BANNED_USER` / `INVALID_USERNAME` / `INVALID_USERNAME_OR_PASSWORD` / `USERNAME_TOO_LONG` / `USERNAME_TOO_SHORT`）· 限流仍归一保留码 `auth.rate_limited`）
 > Updated: 2026-09-30（v1.11：**§3 资源组清单补 `dashboard` 组 + 新增 §3.2 落地注记** —— M4b-8 T10 回填 · 主 design §14「M4b 收尾」欠账收口：§3 正文补 `dashboard`（个人工作台 · **M4b-4 已落地：14 键**）；新 §3.2 表列 **14 键**实测 + zh/en 零差集 + 归属（M4b-1 骨架 / M4b-4 落地）+ 消费点 `pages/Dashboard.tsx`；**顺带订正** §3 正文 `publish` 键数 **57 → 64**（与 §3.1 表对齐，正文落后）。**零实现改动**）
-> Updated: 2026-09-29（v1.10：`publish` 组 **62 → 64**（+2 新增）—— T15 版本号自识别缺陷修复：+`field.asset.inflight`（上下文行「在途 {version}」）· +`field.version.occupied`（版本号占号前置提示，含 `{state}` 与建议号）· **零退役 / 零改值**；状态词**复用**既有 `version.status.*` 八键 · **F252 / F253**）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§8 修订记录**。
 > Status: 定稿（M0 评审通过；M4a 门户资源已落地，M4b 管理后台资源随其实现铺开）
 > Scope: 前端界面语言机制 —— 支持语言、默认跟随系统、手动切换、错误码本地化、API 语言契约
@@ -51,6 +51,12 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
   **不返回面向用户的成品文案**（或返回英文开发性 message 兜底）
 - 前端维护 `errors` 资源表：`code → 当前语言消息`（02 §4 错误码表直接映射）
 - 未命中资源表的 code → 显示兜底消息（「操作失败，code」），保证永不空白
+- **官方认证码直通**（M4c-1 T7）：登录面全交官方件后，`errors` 资源表**按官方码直接建键**
+  （如 `INVALID_USERNAME_OR_PASSWORD` · `BANNED_USER`，与 02/03/04 族协议码键同范式）——
+  前端**不**维护「官方码 → 我方码」重映射表；**防枚举**由「同一官方码 ⇒ 同一文案」保证
+  （用户不存在 / 口令错 / 目录 bind 失败一律 `INVALID_USERNAME_OR_PASSWORD` ⇒ 同一条消息）
+- **例外**：官方限流（生产 10s/3）的 429 响应体不带我方码 ⇒ 前端按**状态码**归一为保留码
+  `auth.rate_limited`（`apps/web/src/api/auth.ts`）
 
 ## 5. API 语言契约
 
@@ -75,6 +81,7 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.12 | 2026-10-09 | sunxuewen-rush | **§4 补「官方认证码直通」口径 + 本批增删（M4c-1 T7）** —— ⓐ 新增两条规则：官方码**直通**建键（不设重映射表）· 官方 429 归一保留码 `auth.rate_limited`；ⓑ 键面变更：删 4 条 `auth.*`（`invalid_credentials` / `ldap_denied` / `user_disabled` / `user_pending`）· 增 5 条官方码键（`BANNED_USER` / `INVALID_USERNAME` / `INVALID_USERNAME_OR_PASSWORD` / `USERNAME_TOO_LONG` / `USERNAME_TOO_SHORT`，后四条**同文案 = 防枚举**）；ⓒ zh/en 双向差集 **0**（`doc-claims-check` 实测） |
 | v1.11 | 2026-09-30 | sunxuewen-rush | **§3 资源组清单补 `dashboard` 组 + 新增 §3.2 落地注记**（M4b-8 T10 回填）—— §3 正文补 `dashboard`（个人工作台 · **M4b-4 已落地：14 键**）；**§3.2 新表**逐条列 14 键 + zh/en 零差集 + 归属（M4b-1 骨架 / M4b-4 落地）+ 消费点（`pages/Dashboard.tsx`）；**顺带订正** §3 正文 `publish` **57 → 64**（与 §3.1 表对齐）。**零实现改动** |
 | v1.10 | 2026-09-29 | sunxuewen-rush | `publish` 组 **62 → 64**（+2 新增 · 零退役 · 零改值）—— **T15 版本号自识别缺陷修复**（用户实测报缺陷）：`field.asset.inflight`「在途 {version}」（资产上下文行；原「暂无版本」在压着在途版本时**不实** ⇒ **F253**）· `field.version.occupied`「{version} 已被占用（{state}），建议改 {suggested}」（占号**前置**提示 · 状态词**复用** `version.status.*`）|
 | v1.9 | 2026-09-29 | sunxuewen-rush | `publish` 组 **62 → 62（净 0）**（T14 整页版式重做 · 方向 B 双栏工作台）：**+1 键**（`summary.title`「识别摘要」—— 右栏识别摘要卡标题）· **退役** `flow.note`（③ 段按钮下方小字撤除：句中「三步」= 后端链路，与页面三段相撞 ⇒ **F251**）· **改值** `action.publish`（「发布（新建 → 上传 → 提交审核）」→「发布」）· 摘要三行标签与段卡状态徽标**复用**既有键（`field.slug` / `field.type` / `field.version` / `state.*`）|

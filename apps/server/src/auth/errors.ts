@@ -4,10 +4,6 @@
  */
 
 export const authErrorCodes = {
-  invalidCredentials: 'auth.invalid_credentials',
-  userDisabled: 'auth.user_disabled',
-  userPending: 'auth.user_pending',
-  ldapDenied: 'auth.ldap_denied',
   /** 目录身份缺邮箱（05 §3.1：邮箱只能取自目录，**绝不合成**） */
   emailMissing: 'auth.email_missing',
   /** 目录邮箱与既有账号冲突（同邮箱两身份 → 拒绝，人工处置） */
@@ -33,22 +29,30 @@ export const authErrorCodes = {
 
 export type AuthErrorCode = (typeof authErrorCodes)[keyof typeof authErrorCodes];
 
+/**
+ * 官方 admin 插件的封禁码（真码 `better-auth/dist/plugins/admin/error-codes.mjs`）。
+ *
+ * 本仓账号状态门（`identity.ts` 的 `statusError`）**沿用官方码**而非自绘码 ——
+ * 官方 `banned` 检查挂在 `session.create` 上（真码 `dist/plugins/admin/admin.mjs`），
+ * 与本仓状态门**同一语义**（停用即拒）⇒ 码面统一，避免两套。
+ */
+export const OFFICIAL_BANNED_CODE = 'BANNED_USER' as const;
+
+/** 认证面**可见码** = 我方保留码 ∪ 官方码（本批仅封禁一枚） */
+export type AuthSurfaceCode = AuthErrorCode | typeof OFFICIAL_BANNED_CODE;
+
 /** 认证域用到的最小状态码集合（窄并集：调用方无需断言即可直接传给官方 `ctx.error`） */
 export type AuthErrorStatus = 400 | 401 | 403 | 404 | 409 | 429;
 
 /** HTTP 状态映射（07 §4：code 结构化，状态码语义精确；登录类统一 401 防枚举泄露） */
-export function httpStatusFor(code: AuthErrorCode): AuthErrorStatus {
+export function httpStatusFor(code: AuthSurfaceCode): AuthErrorStatus {
   switch (code) {
-    case 'auth.invalid_credentials':
-    case 'auth.user_disabled':
-    case 'auth.user_pending':
     case 'auth.session_expired':
       return 401;
     case 'auth.email_missing':
       return 400;
     case 'auth.email_conflict':
       return 409;
-    case 'auth.ldap_denied':
     case 'auth.csrf_failed':
     case 'auth.forbidden':
     case 'auth.oidc_state_mismatch':
@@ -56,13 +60,16 @@ export function httpStatusFor(code: AuthErrorCode): AuthErrorStatus {
       return 403;
     case 'auth.rate_limited':
       return 429;
+    /** 官方封禁（`FORBIDDEN` 同档 —— 真码 `dist/plugins/admin/admin.mjs` 用 `FORBIDDEN`） */
+    case OFFICIAL_BANNED_CODE:
+      return 403;
   }
 }
 
 /** 业务异常：route 层统一转 { code, message } 响应 */
 export class AuthError extends Error {
   constructor(
-    readonly code: AuthErrorCode,
+    readonly code: AuthSurfaceCode,
     message?: string,
   ) {
     super(message ?? code);

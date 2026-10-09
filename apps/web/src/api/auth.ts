@@ -61,23 +61,18 @@ function pathOfRequest(request: { url?: URL | string } | undefined): string {
   }
 }
 
-/** 官方登录错误码 → 本仓既有文案键（未命中则保留原码；T7 统一收敛时再对齐） */
-const SIGN_IN_ERROR_KEY: Record<string, string> = {
-  INVALID_USERNAME_OR_PASSWORD: 'auth.invalid_credentials',
-  INVALID_USERNAME: 'auth.invalid_credentials',
-  USERNAME_TOO_SHORT: 'auth.invalid_credentials',
-  USERNAME_TOO_LONG: 'auth.invalid_credentials',
-  BANNED_USER: 'auth.user_disabled',
-};
-
-/** 登录失败归一为 `ApiError`（保持 `Login.tsx` 的 `err.code` 消费契约 · B10） */
+/**
+ * 登录失败归一为 `ApiError`（保持 `Login.tsx` 的 `err.code` 消费契约 · B10）。
+ *
+ * **M4c-1 T7：官方码直通** —— 登录面已全交官方（`/sign-in/username`），官方码即 i18n 文案键
+ * （`errors` 组按**官方码**建键，与既有族协议码键同范式）⇒ 不再维护我方重映射表。
+ * **防枚举**由「同一官方码 ⇒ 同一文案」天然保证（用户不存在与口令错同码）。
+ * 唯一例外 = 限流：官方 429 响应体不带我方码 ⇒ 前端归一为保留码 `auth.rate_limited`。
+ */
 function signInError(error: { status?: number; code?: string; message?: string }): ApiError {
   const status = typeof error.status === 'number' && error.status > 0 ? error.status : 401;
   if (status === 429) return new ApiError('auth.rate_limited', status, error.message ?? '', error);
-  const code =
-    (error.code ? SIGN_IN_ERROR_KEY[error.code] : undefined) ??
-    error.code ??
-    'auth.invalid_credentials';
+  const code = error.code ?? 'unknown';
   return new ApiError(code, status, error.message ?? code, error);
 }
 
@@ -121,7 +116,7 @@ export async function login(
   const { data, error } = await authClient.signIn.username({ username, password });
   if (error) throw signInError(error as { status?: number; code?: string; message?: string });
   const user = (data as { user?: { id?: string; name?: string | null } } | null)?.user;
-  if (!user?.id) throw new ApiError('auth.invalid_credentials', 200, 'unexpected sign-in response');
+  if (!user?.id) throw new ApiError('unknown', 200, 'unexpected sign-in response');
   return { user: { id: user.id, displayName: user.name ?? user.id }, session: data };
 }
 

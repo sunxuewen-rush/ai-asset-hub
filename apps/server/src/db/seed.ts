@@ -34,7 +34,9 @@ async function seedAdmin(): Promise<void> {
   // 存在性判据 = `user.username`（官方唯一约束位），与凭据行 `account_id` 解耦
   const existing = await db.select({ id: user.id }).from(user).where(eq(user.username, username));
   if (existing.length > 0) {
-    const rowId = existing[0]!.id;
+    const rowId = existing[0]?.id;
+    if (!rowId) return;
+
     // 幂等收敛：刷新口令 + 把凭据行 `account_id` 归一为 `user.id`（官方 `findCredentialAccount` 三条件）
     await db
       .update(account)

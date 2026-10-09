@@ -146,7 +146,16 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
       /** 登录名（工号/本地登录名）唯一列 + 展示名（05 §2 身份标识） */
       username(),
       /** 4 档角色与权限码（R4） */
-      admin({ ac, roles: ROLES, defaultRole: 'user' }),
+      admin({
+        ac,
+        roles: ROLES,
+        defaultRole: 'user',
+        /**
+         * R19 / §6.2：已封禁**明确告知**（企业内网取向：告知同事优于隐瞒）。
+         * 文案走官方错误体；前端展示仍按码映射 i18n（`errors.BANNED_USER`）——双通道不冲突。
+         */
+        bannedUserMessage: '该账号尚未启用或已被停用，请联系管理员',
+      }),
       /**
        * 设备流（R8：官方两段式契约）。参数显式钉定（与官方默认同值，避免上游默认值漂移改变对外契约）：
        * - `expiresIn: '30m'` 设备码有效期（旧自研实现 10min → 官方默认 30m，design §8 登记）

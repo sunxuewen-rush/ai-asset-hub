@@ -32,7 +32,11 @@ const envSchema = z.object({
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(8),
 
   // 注册与准入
-  REGISTRATION_ENABLED: boolFromString.default('true'),
+  /**
+   * 自助注册开关（05 §3 / 主 design R3）：**默认关闭**（M4c-1 T7 起）——
+   * 企业内网账号由管理员/企业目录建立；显式 `REGISTRATION_ENABLED=true` 才开官方 `sign-up/*`。
+   */
+  REGISTRATION_ENABLED: boolFromString.default('false'),
   ACCESS_POLICY: accessPolicySchema.default('open'),
 
   // 对象存储（08 §5.3；M1 Local 实现，S3 后置 M3）

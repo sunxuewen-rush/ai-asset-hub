@@ -8,11 +8,14 @@ import ldap from 'ldapjs';
 // 集成测试：真实 PG + 真实 HTTP 全链路（app.request）
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
+// M4c-1 T7：自助注册**默认关闭**（R3）——本文件的正向注册用例显式开启；关闭态单列用例断言
+process.env.REGISTRATION_ENABLED ??= 'true';
 
 import { type AppDeps, createApp } from './app.js';
 import { createAuditWriter } from './audit/audit.js';
 import { type AihAuth, createAuth } from './auth/better-auth.js';
 import { LdapChannel } from './auth/ldap.js';
+import { resetEnvCache } from './config/env.js';
 import { createClient, type Db } from './db/client.js';
 import { account, auditLog, user } from './db/schema/index.js';
 import { createLocalStorage } from './storage/local.js';
@@ -85,6 +88,31 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     const res = await makeApp().request('/healthz');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: 'ok' });
+  });
+
+  it('自助注册默认关闭（R3）：REGISTRATION_ENABLED=false ⇒ 官方 sign-up/email 拒且零建号', async () => {
+    const email = `${PREFIX}regdisabled-${randomUUID()}@test.local`;
+    const before = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
+    expect(before.length).toBe(0);
+    const prev = process.env.REGISTRATION_ENABLED;
+    process.env.REGISTRATION_ENABLED = 'false';
+    resetEnvCache();
+    try {
+      const res = await makeApp().request('/api/auth/sign-up/email', {
+        method: 'POST',
+        headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password: TEST_PASSWORD, name: `${PREFIX}regdisabled` }),
+      });
+      expect(res.status).toBe(400);
+      expect((await res.json()) as { code?: string }).toMatchObject({
+        code: 'EMAIL_PASSWORD_SIGN_UP_DISABLED',
+      });
+    } finally {
+      process.env.REGISTRATION_ENABLED = prev;
+      resetEnvCache();
+    }
+    const after = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
+    expect(after.length).toBe(0); // 零建号
   });
 
   it('自助注册 → me → sign-out → me 401（官方端点 + 官方 cookie）', async () => {
@@ -176,7 +204,7 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     expect(crossOrigin.status).toBe(403);
     expect(await crossOrigin.json()).toMatchObject({ code: 'INVALID_ORIGIN' });
 
-    // 白名单命中（同源）→ 放行进入业务逻辑（此处账号不存在 ⇒ 401 invalid_credentials）
+    // 白名单命中（同源）→ 放行进入业务逻辑（账号不存在 ⇒ 401 **官方码**；与口令错同码 = 防枚举）
     const sameOrigin = await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: {
@@ -553,7 +581,7 @@ describe('LDAP channel via HTTP (fake server, real network)', () => {
   it('目录拒绝（错口令）⇒ 官方统一 401（不泄露通道 · 不回退本地）', async () => {
     const app = makeApp({ ldap: channel() });
     const res = await signIn(app, 'alice', 'wrong-directory-password');
-    // T6 后不再有自绘端的语义化码（原 403 `auth.ldap_denied`）：官方端点给统一失败响应（防枚举）
+    // 登录面已全交官方：失败一律官方统一码 + 统一 401（防枚举）——本仓不产出语义化登录码
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({ code: 'INVALID_USERNAME_OR_PASSWORD' });
   });

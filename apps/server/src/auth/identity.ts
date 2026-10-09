@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { account, user } from '../db/schema/index.js';
-import type { AuthErrorCode } from './errors.js';
+import { OFFICIAL_BANNED_CODE, type AuthSurfaceCode } from './errors.js';
 
 /**
  * 身份源共享模块（M4c-1 批 design §5.4 · 主 design §3.4）——**两条以上身份通道共用的产品规则**。
@@ -65,7 +65,7 @@ export interface DirectoryIdentityInput {
 /** 建号/复用结果（`created` 供调用方决定是否写 provision 审计） */
 export type EnsureDirectoryUserResult =
   | { ok: true; account: AccountRow; created: boolean }
-  | { ok: false; code: AuthErrorCode };
+  | { ok: false; code: AuthSurfaceCode };
 
 export interface IdentityRulesDeps {
   db: Db;
@@ -92,10 +92,14 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
     return rows[0] ?? null;
   }
 
-  /** 账号状态门（05 §4.1：DISABLED/PENDING 拒全部；与既有登录同码同出口） */
-  function statusError(status: string | null): AuthErrorCode | null {
-    if (status === 'DISABLED') return 'auth.user_disabled';
-    if (status === 'PENDING') return 'auth.user_pending';
+  /**
+   * 账号状态门（05 §4.1：非启用态拒全部）——**码面 = 官方 `BANNED_USER`**（主 design R19 / §6.2）。
+   *
+   * `DISABLED` 与遗留 `PENDING` **行为不变（仍拒）**，仅对外码面收敛为官方码；
+   * `PENDING` 概念与枚举随列退休归 M4c-2（主 design §4.7）。
+   */
+  function statusError(status: string | null): AuthSurfaceCode | null {
+    if (status === 'DISABLED' || status === 'PENDING') return OFFICIAL_BANNED_CODE;
     return null;
   }
 

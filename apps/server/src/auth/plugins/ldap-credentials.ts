@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { AUDIT_ACTIONS, type AuditWriter, auditMetaFromHeaders } from '../../audit/audit.js';
 import type { Db } from '../../db/client.js';
 import { user } from '../../db/schema/index.js';
-import { type AuthErrorCode, httpStatusFor } from '../errors.js';
+import { type AuthSurfaceCode, httpStatusFor } from '../errors.js';
 import { createIdentityRules } from '../identity.js';
 import type { LdapChannel } from '../ldap.js';
 import { DIRECTORY_CREDENTIAL_PREFIX } from '../password-verify.js';
@@ -91,7 +91,7 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
   const identity = createIdentityRules({ db });
 
   /** 我们的结构化错误（07 §4：`{code, message}`；状态码语义见 `httpStatusFor`） */
-  function fail(ctx: AuthEndpointCtx, code: AuthErrorCode): never {
+  function fail(ctx: AuthEndpointCtx, code: AuthSurfaceCode): never {
     throw ctx.error(httpStatusFor(code), { message: code, code });
   }
 

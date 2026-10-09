@@ -273,8 +273,9 @@ describe('identity rules §5.4 · 建号/复用', () => {
 
 describe('identity rules §5.4 · 状态门（纯函数）', () => {
   it('⑨ DISABLED / PENDING 拒；ACTIVE / null 放行', () => {
-    expect(rules.statusError('DISABLED')).toBe('auth.user_disabled');
-    expect(rules.statusError('PENDING')).toBe('auth.user_pending');
+    // M4c-1 T7：状态门对外码收敛为**官方封禁码**（R19）——DISABLED 与遗留 PENDING 行为不变（仍拒）
+    expect(rules.statusError('DISABLED')).toBe('BANNED_USER');
+    expect(rules.statusError('PENDING')).toBe('BANNED_USER');
     expect(rules.statusError('ACTIVE')).toBeNull();
     expect(rules.statusError(null)).toBeNull();
   });

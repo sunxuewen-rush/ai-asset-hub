@@ -10,7 +10,7 @@ import {
 } from 'openid-client';
 import { AUDIT_ACTIONS, type AuditWriter } from '../audit/audit.js';
 import type { AihAuth } from '../auth/better-auth.js';
-import { AuthError, type AuthErrorCode } from '../auth/errors.js';
+import { AuthError, OFFICIAL_BANNED_CODE, type AuthSurfaceCode } from '../auth/errors.js';
 import type { OidcClient } from '../auth/oidc.js';
 import { getOidcClient } from '../auth/oidc.js';
 import { getEnv } from '../config/env.js';
@@ -171,11 +171,11 @@ export function createOidcRoutes(deps: OidcRoutesDeps): Hono {
     });
     if (!signIn.ok) {
       const failure = (await signIn.json().catch(() => null)) as { code?: string } | null;
-      const known: AuthErrorCode[] = [
+      const known: AuthSurfaceCode[] = [
         'auth.email_missing',
         'auth.email_conflict',
-        'auth.user_disabled',
-        'auth.user_pending',
+        // M4c-1 T7：状态门对外码收敛为官方封禁码（`identity.ts` statusError）
+        OFFICIAL_BANNED_CODE,
       ];
       const code = known.find((candidate) => candidate === failure?.code);
       throw new AuthError(code ?? 'auth.oidc_denied');

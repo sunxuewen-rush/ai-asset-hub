@@ -619,6 +619,13 @@ export const zh = {
     loadMore: '加载更多',
   },
   errors: {
+    // —— 官方认证码（M4c-1 T7：登录面官方码**直通** i18n —— 不再经我方重映射表）——
+    // 4 个 username 插件失败码**同文案** = 防枚举（不存在 / 口令错 / 目录 bind 失败不可区分）
+    BANNED_USER: '该账号尚未启用或已被停用，请联系管理员',
+    INVALID_USERNAME: '用户名或密码错误',
+    INVALID_USERNAME_OR_PASSWORD: '用户名或密码错误',
+    USERNAME_TOO_LONG: '用户名或密码错误',
+    USERNAME_TOO_SHORT: '用户名或密码错误',
     'asset.not_found': '未找到该资源或版本',
     'asset.version_not_published': '该版本尚未发布',
     'asset.version_yanked': '该版本已撤回，不可访问',
@@ -633,14 +640,10 @@ export const zh = {
     'auth.email_conflict': '该邮箱已被其他账号占用，请联系管理员处理',
     'auth.email_missing': '目录身份缺少邮箱，无法建立账号，请联系管理员',
     'auth.forbidden': '没有权限执行此操作',
-    'auth.invalid_credentials': '用户名或密码错误',
-    'auth.ldap_denied': '目录认证未通过，请确认账号状态',
     'auth.oidc_denied': '统一身份认证被拒绝，请联系管理员',
     'auth.oidc_state_mismatch': '认证会话已失效，请重新发起登录',
     'auth.rate_limited': '请求过于频繁，请稍后再试',
     'auth.session_expired': '会话已过期，请重新登录',
-    'auth.user_disabled': '该账号已被禁用，请联系管理员',
-    'auth.user_pending': '该账号尚未启用，请联系管理员',
     'oidc.not_configured': '当前环境未启用 OAuth 登录',
     'request.invalid': '请求参数有误',
     'review.not_found': '未找到该审核任务',

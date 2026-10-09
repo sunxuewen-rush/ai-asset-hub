@@ -12,7 +12,7 @@ describe('parseEnv', () => {
     expect(env.NODE_ENV).toBe('development');
     expect(env.PORT).toBe(3000);
     expect(env.SESSION_TTL_HOURS).toBe(8);
-    expect(env.REGISTRATION_ENABLED).toBe(true);
+    expect(env.REGISTRATION_ENABLED).toBe(false); // M4c-1 T7：自助注册默认关闭（R3）
     expect(env.ACCESS_POLICY).toBe('open');
     expect(env.STORAGE_DRIVER).toBe('local');
     expect(env.STORAGE_DIR).toBe('./storage');

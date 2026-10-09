@@ -1,9 +1,8 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.23：M4c-1 T7 落地回填 + §4.6 归属口径订正（F291）** —— ① §4.6 错误码收敛表补**归属注**：本表为**终态**，M4c-1 落 4 枚、另 3 枚归 M4c-3（`email_conflict` / `oidc_state_mismatch` / `oidc_denied`；生产点在保留件 `oidc-routes.ts` / `identity.ts`）② 已封禁 = 官方 `BANNED_USER` + 中文 `bannedUserMessage`（状态门 `statusError` 落地）③ 自助注册默认 `false`（R3 落地））
 > Updated: 2026-10-09（**v0.22：M4c-1 T6 收口（dogfood 7/7 全绿）+ F289/F290 登记** —— ① dogfood **494 PASS / 0 FAIL**（7 脚本 · 含真 200 登录 + 设备流）② **F289** smoke/seed 脚本凭据行 `account_id` 未对齐官方三条件 ⇒ 401（已修 4 文件 + 重跑 seed）③ **F290** dogfood 复用陈旧标签 ⇒ 假红（加固归 T8）④ §2.5 上界 **F288 → F290**）
-> Updated: 2026-10-09（**v0.21：M4c-1 T6 落地回填 + F286–F288 登记** —— ① **F286** 登录面语义化码收窄（`auth.ldap_denied` 零生产点 ⇒ T7 清；`email_missing`/`email_conflict` 仍由 OIDC 通道消费）② **F287** 登录限流承接变更（自绘 20 次/15 分钟 → 官方 `rateLimit` 默认 `enabled = isProduction` + 内置 `/sign-in*` 10 秒/3 次；**dev/test 默认无登录限流** ⇒ T7 复核）③ **F288** `audit_log.actor_id` FK = NO ACTION ⇒ 存在审计行的用户无法删除（归 M4c-2）④ §2.5 上界 **F285 → F288**）
-> Updated: 2026-10-09（**v0.20：M4c-1 T5 落地回填 + F285 登记** —— 前端三层改官方 SDK（调用层 `createAuthClient` + **客户端插件 `usernameClient()`** · 会话层 `useSession` · 交互层 401 四分类经 `fetchOptions.onError` 回注单点）；§2.5 上界 **F284 → F285**（**F285**：设计 §3 未列客户端插件清单）· 批 design **v0.15** · plan **v0.15** · `docs/00` **v1.130**）|
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
 > **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
 > 视觉归属：**随批就地定稿**（引 M4a §4.4 · 2026-09-28 拍板 · 2026-10-08 复核维持）。本文为**纯设计语言**（意图与契约）。
@@ -357,6 +356,10 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 （建号邮箱重复 ⇒ 复用官方 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`；封禁自我 ⇒ 复用官方 `YOU_CANNOT_BAN_YOURSELF`）
 
+> **归属口径（M4c-1 T7 实测订正 · F291）**：上表是**终态**。M4c-1 落 4 枚（`user_pending` / `user_disabled` / `invalid_credentials` / `ldap_denied` —— 已删）；
+> `email_conflict` / `oidc_state_mismatch` / `oidc_denied` 三枚的**客户端可见生产点**全在**保留至 M4c-3** 的 `http/oidc-routes.ts`（+ `auth/identity.ts` 的建号规则）
+> ⇒ 随 R1 自动链接与自绘 OIDC 退役一并删（**终态 5 = 12 − 4 − 3**）。已封禁提示 = 官方 `BANNED_USER` + 中文 `bannedUserMessage`（本批已落）。
+
 ### 4.7 用户 PENDING 清除清单（§2.6 R5 · 立项期普查产物）
 
 > 口径：**彻底删除**（概念、枚举、码、分支、注释、文案、规范表述全清；**不写沿革注记**，沿革交 commit message）。
@@ -609,6 +612,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.23 | 2026-10-09 | **M4c-1 T7 落地回填 + §4.6 归属口径订正（F291）** —— ① §4.6 补**归属注**（终态 vs 本批：4 枚本批 / 3 枚归 M4c-3）② 状态门 `identity.ts` 统一改抛官方 `BANNED_USER` + `admin({ bannedUserMessage })` 中文 ③ 前端删重映射表 ⇒ 官方码直通 `errors` 组（+5 键 / 删 4 条）④ `REGISTRATION_ENABLED` 默认 `false`（R3）⑤ 实测：防枚举**四态同码 401** · 全量 **644/1/0** · 码集合 **8**（12→8）|
 | v0.22 | 2026-10-09 | **M4c-1 T6 收口（dogfood 7/7 全绿）+ F289/F290 登记** —— ① dogfood 7 脚本 **494 PASS / 0 FAIL**（24/64/43/89/62/108/104 · 全 EXIT=0 · 含真 200 登录与设备流）② **F289** 4 个 smoke/seed 脚本凭据行 `account_id` 写登录名 ⇒ 官方 `findCredentialAccount` 查不到 ⇒ 401（已修 + 重跑 seed）③ **F290** dogfood 按 `url.includes('5173')` 复用陈旧标签 ⇒ 侧栏断言假红（加固归 T8）④ §2.5 上界 **F288 → F290** |
 | v0.21 | 2026-10-09 | **M4c-1 T6 落地回填 + F286–F288 登记** —— ① **F286** 登录面语义化码收窄（`auth.ldap_denied` 零生产点 ⇒ T7 清理；`email_missing` / `email_conflict` 保留至 M4c-3 退役 OIDC）② **F287** 登录限流承接变更（自绘 20 次/15 分钟（键 = 登录名\|IP）→ 官方 `rateLimit`（默认 `enabled = isProduction` · 内置 `/sign-in*` 10 秒/3 次 · 键 = IP\|path）；**dev/test 默认无登录限流** ⇒ T7 复核 + 规范回填）③ **F288** `audit_log.actor_id` FK = NO ACTION ⇒ 存在审计行的用户无法删除（实测 23503）⇒ 归 M4c-2 ④ §2.5 上界 **F285 → F288** |
 | v0.20 | 2026-10-09 | sunxuewen-rush | **M4c-1 T5 落地回填 + F285 登记** —— ① 前端三层：调用层 `createAuthClient`（`better-auth/react`）+ **客户端插件 `usernameClient()`** · 会话层 SDK `useSession`（三态契约不变）· 交互层 401 四分类经 SDK `fetchOptions.onError` **回注单点**（`client.ts` 的 `notifyUnauthorized`）② 依赖：`apps/web` 显式声明 `better-auth@1.7.5`（exact；lock 单一 1.7.5 条目；`THIRD-PARTY-NOTICES.md` 预期不变）③ 实测：真页面 e2e（`get-session` + `sign-in/username` + `me` 三请求 · 错口令 inline「用户名或密码错误」· 路由不跳）④ §2.5 上界 → **F285**（设计 §3 未列客户端插件清单）⑤ **F282**（登录审计面）：T6 退役 `signInAih` 后 `auth.login.success` / `auth.login.failed` 零消费点 ⇒ 归 **T6** ⑥ 连带：批 design **v0.15** · plan **v0.15** · `docs/00` **v1.130** |

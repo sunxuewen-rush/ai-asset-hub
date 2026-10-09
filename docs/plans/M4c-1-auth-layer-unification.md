@@ -1,11 +1,10 @@
 # M4c-1 认证层统一到官方：官方 SDK 三层 + 目录口令官方 verify 分支 + 建号钩子 —— 批计划
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.19：T7 落地（错误码收敛 12→8 · 官方码直通 i18n · 自助注册默认关闭）+ F291 登记** —— ① `errors.ts` **删 4 留 8**（`invalid_credentials` / `ldap_denied` 零生产点 + `user_disabled` / `user_pending` 改官方码）② 状态门改抛**官方 `BANNED_USER`** + 中文 `bannedUserMessage` ③ 前端**删重映射表**：官方码直通 `errors` 组键（+5 键 / 删 4 条 `auth.*` 文案）④ `REGISTRATION_ENABLED` 默认 **`false`** ⑤ 实测：防枚举**四态同码 401** · 全量 **644 pass / 1 skip / 0 fail** · 码集合 **8**）
 > Updated: 2026-10-09（**v0.18：F290 加固（dogfood 脚本自愈）** —— ① `m4b2`/`m4b3` 附着后先归一页面态（落 `about:blank`）· `m4b2` 的 4 处 `/dashboard` 快照改**侧栏就绪轮询**（≤5s）替代固定 `sleep` ② **反证验收**：8 个陈旧 5173 标签在场下 `m4b2` **24 PASS / 0 FAIL** · `m4b3` **43 PASS / 0 FAIL**（加固前同条件 = 5 FAIL））
-> Updated: 2026-10-09（**v0.17：T6 收口（dogfood 7/7 全绿 · 494 PASS / 0 FAIL）+ F289/F290 登记** —— ① dogfood 全跑：`m4a` 64 · `m4b2` 24 · `m4b3` 43 · `m4b4` 89 · `m4b5` 62 · `m4b6` 108 · `m4b7` 104 ⇒ **494 PASS / 0 FAIL · 7×EXIT=0**（含 **真 200 登录** + G6 设备流 · NO JS ERRORS）② 过程中修 **F289**：4 个 seed 脚本凭据行 `account_id = 登录名` ⇒ 官方端点 401（改 `user.id` + 重跑 seed 复位）③ **F290**：dogfood 脚本按 `url.includes('5173')` 复用陈旧标签 ⇒ 假红（清标签重跑即绿）④ T6 18 维 **9.50 → 9.52**（C5 9.2 → 9.6：dogfood 已覆盖浏览器成功登录路径））
-> Updated: 2026-10-09（**v0.16：T6 落地（退役 `signInAih` + 审计承接 + 限流交官方）+ 18 维 9.50** —— ① 删自绘端点 `signInAih`（`plugins/ldap-credentials.ts` **376 → 266 行**：端点 132 行 + 死码全清）② **审计承接（F282）**：`hooks.after` 挂官方 `/sign-in/username`（真码 `api/dispatch.mjs:234-245` ⇒ 抛 `APIError` 后仍执行）+ 直测 **2 例**③ **限流交官方（甲）**：自绘链全删（`index.ts`/`app.ts`/`better-auth.ts`/7 处测试）+ `rateLimit` 透传钩子④ fixture 切官方通道：`loginNameOf(id)` 单点派生（53 调用点零改）+ 凭据行 `accountId = user.id`（**F273** 测试侧收口）⑤ 实测：端点 **404**（dev 真探）· 官方端点空体 400 · 全量 **643 pass / 0 fail** ⑥ **F286–F288** 登记）
 > **头部口径（本件起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本见 §9 修订记录。
-> Status: 🔵 **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ · T6 ✅ 2026-10-09** —— T6 dogfood **7/7 全绿** · T7–T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移）
+> Status: 🔵 **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ · T6 ✅ · T7 ✅ 2026-10-09** —— T6 dogfood **7/7 全绿** · T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移）
 > 上游：批 design `docs/designs/2026-10-08-m4c1-auth-layer-unification-design.md`（**定稿 · 8 维 9.50** · B1–B10 —— 版本以其版本头为准）
 > · 主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 批件登记 · §15 等价判据 —— 版本以其版本头为准）
 > · 视觉真值 SSOT `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（**本批零视觉改动**，仅引用）
@@ -26,7 +25,7 @@
 | 4 | **迁移 `0015`**（两条幂等 SQL） | ① `credential` 行 `account_id` 工号 → `user.id` ② 既有目录账号补齐凭据委派行（只补缺）；**执行窗口 = 停服**；验收探针 P1–P3 |
 | 5 | **前端官方 SDK 三层** | 调用层（官方 **React 入口 `better-auth/react`**）· 会话层（SDK `useSession` 替换 `AuthProvider` 内部实现，**保留三态契约**）· 交互层（401 四分类经 SDK `fetchOptions` 注入）；**两处适配**：档位（官方文本 → 1/10/100 单点）· 字段（官方 `user.name` → `displayName`） |
 | 6 | **退役 `signInAih`** | 前端调用点（`apps/web/src/api/auth.ts:47`）切官方 SDK ⇒ **归零**；后端下线 `POST /api/auth/sign-in/aih`（本地 + 目录两分支） |
-| 7 | **错误码收敛 + 自助注册默认关闭 + i18n + 规范回填** | 删 7 自绘码（`user_pending` / `user_disabled` / `invalid_credentials` / `ldap_denied` / `email_conflict` / `oidc_state_mismatch` / `oidc_denied`）· 留 5（`email_missing` / `rate_limited` / `csrf_failed` / `session_expired` / `forbidden`）· 登录失败统一码 + 已封禁明确提示 · **`REGISTRATION_ENABLED` 默认 `true`→`false`**（`env.ts:35` · `better-auth.ts:80`）· **防枚举 / 口令流转断言** · 规范回填 `05` §3.1 / `08` §5 / `07` §4 |
+| 7 | **错误码收敛 + 自助注册默认关闭 + i18n + 规范回填** ✅ | 删 7 自绘码（`user_pending` / `user_disabled` / `invalid_credentials` / `ldap_denied` / `email_conflict` / `oidc_state_mismatch` / `oidc_denied`）· 留 5（`email_missing` / `rate_limited` / `csrf_failed` / `session_expired` / `forbidden`）· 登录失败统一码 + 已封禁明确提示 · **`REGISTRATION_ENABLED` 默认 `true`→`false`**（`env.ts:35` · `better-auth.ts:80`）· **防枚举 / 口令流转断言** · 规范回填 `05` §3.1 / `08` §5 / `07` §4 |
 | 8 | **验证与收尾** | 7 个 `*-dogfood.ts` 全绿 · 等价判据三层 · 门禁 12 步 · F 号登记同步 · 证据归档 |
 
 **非目标**（不属本批，归属已定）：
@@ -126,16 +125,28 @@
 
 **断言 / 门禁**：① `grep -rn 'sign-in/aih' apps/web/src` = **0**（含注释）② 端点下线后请求 404 ③ **设备授权流 `/device` 与 CLI 令牌面零回归**（走官方端点）。
 
+**T6 收口实测（2026-10-09 · F289 / F290）**：
+
+- **F289**：4 个 seed 脚本凭据行原写 `account_id = 登录名` ⇒ 官方 `findCredentialAccount` 查不到 ⇒ 三账号 401；改 `user.id` + 重跑 seed ⇒ 真 200（dogfood 全绿前置）
+- **F290**：dogfood 脚本按 `url.includes('5173')` 复用**陈旧标签** ⇒ 假红；加固覆盖 `m4a`（本走新建标签）/ `m4b2` / `m4b3`（复用标签）/ `m4b4` / `m4b5` / `m4b6` / `m4b7`
+
 ### T7 · server + web：错误码收敛 + i18n
 
 > 依据 = 批 design **§14.1** · **§8（安全：防枚举 / 口令流转）** · **§9（`REGISTRATION_ENABLED` 默认值）** · 主 design §4.6 / R18 / R3 / §6.2。前置 = T6。
 
-1. `apps/server/src/auth/errors.ts`：删 7 自绘码、留 5（批 design §14.1 键表为**一字不差真值**）。
-2. 登录失败统一官方码（不泄露存在性）；**已封禁**明确提示（官方 `BANNED_USER` + 中文 `bannedUserMessage`）。
-3. `apps/web/src/i18n/{zh,en}.ts`：删对应 7 条文案（各 1 条）；`auth` / `errors` 组映射调整。
+1. `apps/server/src/auth/errors.ts`：**本批删 4 留 8**（键表按主 design **§4.6 逐行归属**订正 —— **F291**）：`auth.invalid_credentials` · `auth.ldap_denied`（零生产点）· `auth.user_disabled` · `auth.user_pending`（状态门改官方码）；另 3 码（`auth.email_conflict` · `auth.oidc_state_mismatch` · `auth.oidc_denied`）**归 M4c-3**（客户端可见生产点全在保留件）⇒ 终态 5 = 12 − 4 − 3。
+2. 登录失败统一官方码（不泄露存在性）；**已封禁**明确提示：状态门 `identity.ts` `statusError` 改抛**官方 `BANNED_USER`** + 官方 `admin({ bannedUserMessage })` 中文；`DISABLED` / 遗留 `PENDING` **行为不变（仍拒）**；前端删重映射表。
+3. `apps/web/src/i18n/{zh,en}.ts`：删本批 4 条 `auth.*` 文案（各 1 条）；`errors` 组**增 5 个官方码键**（`BANNED_USER` · `INVALID_USERNAME` · `INVALID_USERNAME_OR_PASSWORD` · `USERNAME_TOO_LONG` · `USERNAME_TOO_SHORT` —— 后四条**同文案 = 防枚举**）。
 4. **自助注册默认关闭**（批 design §9 · 主 design R3）：`apps/server/src/config/env.ts:35` 的 `REGISTRATION_ENABLED` 默认 `true` → `false`；`apps/server/src/auth/better-auth.ts:80` 的 `disableSignUp: !env.REGISTRATION_ENABLED` 随之生效。
 
-**断言 / 门禁**：① 服务端错误码集合实测 = **5** ② **防枚举**：用户不存在 / 口令错 ⇒ **同一错误码**（**正反对照**实测 —— 不得只看集合大小）③ **口令流转**：响应体与日志**零口令**（`grep` 断言 + 负例）④ **`REGISTRATION_ENABLED` 默认值实测 = `false`** 且自助注册端点不可用（`disableSignUp` 生效；`env.ts:35` / `better-auth.ts:80`）⑤ 双语双向差集 **0** ⑥ 涉及登录失败的 dogfood 断言同步更新且全绿。
+**T7 落地实测（2026-10-09 · 真库真端点）**：
+- 码集合 = **8**（`errors.ts` 实测）；4 个已删码在 `apps/**`（除 `dist`）**零代码引用**
+- **防枚举四态同码**（`POST /api/auth/sign-in/username`）：存在+错口令 / 不存在（合规格式）/ 目录账号错口令 / 空口令 ⇒ **一律 401 `INVALID_USERNAME_OR_PASSWORD`**（非合规格式如含 `-` ⇒ 422 `INVALID_USERNAME`，属官方**校验器层**、先于查库 ⇒ 只泄露格式、不泄露存在性）
+- **自助注册默认关闭**：`.env.example` + `env.test.ts` 断言 + `app.test.ts` 新增用例（`REGISTRATION_ENABLED=false` ⇒ 400 `EMAIL_PASSWORD_SIGN_UP_DISABLED` · 零建号）
+- **口令流转**：登录成功响应体不含明文口令（实测）；登录路径零「口令进日志」代码；审计用例 ⑫ 覆盖零明文
+- 全量测试 **644 pass / 1 skip / 0 fail（Ran 645）**；server/web typecheck + lint ✓；仓根 format ✓
+
+**断言 / 门禁**：① 服务端错误码集合实测 = **8**（本批删 4；终态 5 待 M4c-3 删 3） ② **防枚举**：用户不存在 / 口令错 ⇒ **同一错误码**（**正反对照**实测 —— 不得只看集合大小）③ **口令流转**：响应体与日志**零口令**（`grep` 断言 + 负例）④ **`REGISTRATION_ENABLED` 默认值实测 = `false`** 且自助注册端点不可用（`disableSignUp` 生效；`env.ts:35` / `better-auth.ts:80`）⑤ 双语双向差集 **0** ⑥ 涉及登录失败的 dogfood 断言同步更新且全绿。
 
 ### T8 · script / 验证 / 文档
 
@@ -242,6 +253,11 @@ build → db:migrate → test
 
 ---
 
+**T7 收尾自检（标准档 18 维 · A×0.40 + B×0.30 + C×0.30）**：A 基础 **9.550** × 0.40 + B 深度 **9.500** × 0.30 + C 工程 **9.560** × 0.30 = **9.54**（门 ≥9 ✓）
+> - A 逐维：A1 9.6（4 步骤全落 + 六份文档回填 + F291 登记）· A2 9.6（**删**重映射表而非新增；官方 `BANNED_USER` 复用不新造码；零新文件；顺手清 T6 引入的 `seed.ts` non-null 告警）· A3 9.5（`DISABLED` / 遗留 `PENDING` 行为不变 = 零回归；码词汇单源 `AuthSurfaceCode`；`oidc-routes.ts` 透传名单同步）· A4 9.5（防枚举四态实测同码；非合规名 422 = 校验器层先于查库；注册关闭 400 + 零建号直测）
+> - B 逐维：B1 9.5（存在+错口令 / 不存在 / 目录失败 / 空口令 / 非合规格式 **五态** + 关闭态 + 全量 645）· B2 9.6（真库真端点实测 + 新增用例 + 登录响应体零口令实测）· B3 9.6（§14.1 逐行归属订正 · 主 design §4.6 归属注 · `07` §4 · F291；token 预演全过）· B4 9.3（单批可回退；**但 `REGISTRATION_ENABLED` 默认翻转属部署期行为变更** —— 自助注册默认不可用，`.env.example` 已同步）
+> - C 逐维：C1 9.6（防枚举闭环 + 零口令 + 封禁明确提示 + 零回归）· C2 9.6（热路径零新增，仅少一次映射查表）· C3 9.6（码词汇单源 + 官方码常量集中）· C4 9.6（净删多于增 · 注释带真码出处）· C5 9.3（服务端模块/集成层有直测 + 新增注册关闭用例；**`apps/web` 映射改造无自动化测试**（该 App 无测试基建，同 T5 口径扣））· C6 9.6（F291 记录跨批归属矛盾并订正口径）· C7 9.6（六件文档同步 + 双门禁）· C8 9.7（零新依赖）· C9 9.5（登录成败审计沿用 T6 口径，失败审计 `detail.code` = 官方码原件）· C10 9.5（env 默认值变更须部署注意；`.env.example` 已同步）
+
 ## 8. 自检打分（v0.3 · 两轮抽查修复后）
 
 
@@ -267,6 +283,7 @@ build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.19** | 2026-10-09 | sunxuewen-rush | **T7 落地（错误码收敛 12→8 · 官方码直通 i18n · 自助注册默认关闭）+ F291 登记** —— ① `errors.ts` 删 4 留 8（零生产点 2 + 状态门 2）· 另 3 码归 M4c-3（**F291**：§14.1「删 7」原为**终态**口径）② `identity.ts` `statusError` 改抛官方 `BANNED_USER` + `admin({ bannedUserMessage })` 中文（DISABLED/PENDING 行为不变）③ 前端删 `SIGN_IN_ERROR_KEY` 重映射表 ⇒ 官方码直通 `errors` 组（+5 键／删 4 条）④ `env.ts:35` 默认 `false` + `.env.example` + `env.test.ts` + 关闭态实测用例 ⑤ 实测：防枚举**四态同码 401** · 全量 **644/1/0** · 码集合 **8** · 顺手清 T6 引入的 `seed.ts` non-null 告警 |
 | **v0.18** | 2026-10-09 | sunxuewen-rush | **F290 加固（dogfood 脚本自愈）+ 反证验收** —— ① `m4b2-auth-dogfood` / `m4b3-personal-a-dogfood`：附着后**先落 `about:blank`** 归一页面态；`m4b2` 4 处 `/dashboard` 快照改**侧栏就绪轮询**（≤5s）② 反证：8 个陈旧 5173 标签在场 ⇒ `m4b2` **24/0** · `m4b3` **43/0**（加固前同条件 5 FAIL）③ 证据 PNG 提交前通配还原 |
 | **v0.17** | 2026-10-09 | sunxuewen-rush | **T6 收口（dogfood 7/7 全绿 · 494 PASS / 0 FAIL）+ F289/F290 登记 · 18 维 9.52** —— ① 7 脚本全绿（24/64/43/89/62/108/104 · 全 EXIT=0）② **F289** 4 个 seed 脚本 `account_id` 未对齐官方三条件 ⇒ 官方端点 401（已修 + 重跑 seed）③ **F290** dogfood 复用陈旧 5173 标签 ⇒ 假红（清标签重跑即绿；脚本加固归 T8）④ C5 9.2 → 9.6 |
 | **v0.16** | 2026-10-09 | sunxuewen-rush | **T6 落地（退役 `signInAih` + 审计承接 + 限流交官方）+ F286–F288 登记 · 18 维 9.50** —— ① 删自绘端点（`plugins/ldap-credentials.ts` 376 → 266 行）+ 死码全清 ② `hooks.after` 审计承接（F282 收口）+ 2 例直测 ③ 限流交官方（自绘链全删 + `rateLimit` 透传钩子）④ fixture 切官方通道（`loginNameOf` 单点派生 · `accountId = user.id`）⑤ 4 个 LDAP 用例改官方契约 ⑥ 实测：端点 **404** · 全量 **643/0** ⑦ **F286**/**F287**/**F288** 登记 |
