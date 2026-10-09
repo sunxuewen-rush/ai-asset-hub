@@ -98,15 +98,15 @@ async function ensureUser(username: string): Promise<string> {
     });
   }
   const acc = await db.$client.query(
-    `update account set password = $1, updated_at = now()
-      where provider_id = 'credential' and account_id = $2 and user_id = $3`,
-    [passwordHash, username, id],
+    `update account set password = $1, account_id = $2, updated_at = now()
+      where provider_id = 'credential' and user_id = $2`,
+    [passwordHash, id],
   );
   if (!acc.rowCount) {
     await db.insert(account).values({
       id: `acc_${crypto.randomUUID()}`,
       providerId: 'credential',
-      accountId: username,
+      accountId: id, // 官方 findCredentialAccount 三条件：account_id = user.id（M4c-1 T6 对齐）
       userId: id,
       password: passwordHash,
     });

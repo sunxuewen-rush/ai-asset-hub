@@ -77,20 +77,18 @@ async function sessionOwnerOfResponse(db: Db, res: Response): Promise<string | n
 export interface AppDeps {
   db: Db;
   audit: AuditWriter;
-  rateLimiter: RateLimiter;
   /** 上传限流（T13——独立实例：UPLOAD_RATE_LIMIT 常量装配） */
   uploadRateLimiter?: RateLimiter;
   ldap: LdapChannel | null;
   storage: ObjectStorage;
   cookieSecure: boolean;
-  /** 官方实例（可选注入；缺省按本 deps 构造——含 LDAP 通道/审计/登录限流） */
+  /** 官方实例（可选注入；缺省按本 deps 构造——含 LDAP 通道 / 审计） */
   auth?: AihAuth;
 }
 
 export function createApp(deps: AppDeps): Hono {
   const rbac = new RbacService(deps.db);
-  const auth =
-    deps.auth ?? createAuth({ ldap: deps.ldap, audit: deps.audit, rateLimiter: deps.rateLimiter });
+  const auth = deps.auth ?? createAuth({ ldap: deps.ldap, audit: deps.audit });
 
   const app = new Hono();
   app.use('*', requestContextMiddleware());

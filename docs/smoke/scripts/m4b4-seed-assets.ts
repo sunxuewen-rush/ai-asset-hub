@@ -99,15 +99,15 @@ if (outsiderExisting) {
     [OUTSIDER, `${OUTSIDER}@local.test`, outsiderExisting],
   );
   const updated = await db.$client.query(
-    `update account set password = $1, updated_at = now()
-      where provider_id = 'credential' and account_id = $2 and user_id = $3`,
-    [passwordHash, OUTSIDER, outsiderExisting],
+    `update account set password = $1, account_id = $2, updated_at = now()
+      where provider_id = 'credential' and user_id = $2`,
+    [passwordHash, outsiderExisting],
   );
   if (!updated.rowCount) {
     await db.insert(account).values({
       id: `acc_${crypto.randomUUID()}`,
       providerId: 'credential',
-      accountId: OUTSIDER,
+      accountId: outsiderExisting, // 官方 findCredentialAccount 三条件：account_id = user.id（M4c-1 T6 对齐）
       userId: outsiderExisting,
       password: passwordHash,
     });
@@ -129,7 +129,7 @@ if (outsiderExisting) {
     await tx.insert(account).values({
       id: `acc_${crypto.randomUUID()}`,
       providerId: 'credential',
-      accountId: OUTSIDER,
+      accountId: outsiderId, // 官方 findCredentialAccount 三条件：account_id = user.id（M4c-1 T6 对齐）
       userId: outsiderId,
       password: passwordHash,
     });

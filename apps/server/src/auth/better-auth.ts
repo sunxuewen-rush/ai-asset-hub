@@ -14,7 +14,6 @@ import { getDb } from '../db/client.js';
 import type { LdapChannel } from './ldap.js';
 import { verifyCredential } from './password-verify.js';
 import { directoryCredentials } from './plugins/ldap-credentials.js';
-import { InMemoryRateLimiter, type RateLimiter } from './rate-limit.js';
 import { ac, ROLES } from './roles.js';
 import { generateTokenSecret } from './tokens.js';
 
@@ -55,14 +54,15 @@ export interface AuthRuntimeDeps {
    * 生产/开发环境默认即开启（无需设置）。
    */
   advanced?: BetterAuthOptions['advanced'];
+  /**
+   * 官方 `rateLimit` 选项透传（**测试专用钩子**，与 `advanced` 同款先例）。主要用途：官方限流
+   * 默认 `enabled = isProduction`（源码 `context/create-context.mjs`）⇒ 测试内断言 429 须显式开启。
+   */
+  rateLimit?: BetterAuthOptions['rateLimit'];
   /** LDAP 通道（缺省 = null ⇒ 纯本地模式；生产由 `index.ts` 按 `LDAP_ENABLED` 构造后传入） */
   ldap?: LdapChannel | null;
   audit?: AuditWriter;
-  rateLimiter?: RateLimiter;
 }
-
-/** 登录限流缺省档（与旧 `index.ts` 装配同参：15 分钟窗口 / 20 次） */
-const LOGIN_RATE_LIMIT = { windowMs: 15 * 60 * 1000, max: 20 } as const;
 
 /** 实例选项（仅在构建实例时求值；env 惰性读取，导入期不解析） */
 export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
@@ -73,6 +73,7 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
   const ldapChannel = deps.ldap ?? null;
   return {
     ...(deps.advanced ? { advanced: deps.advanced } : {}),
+    ...(deps.rateLimit ? { rateLimit: deps.rateLimit } : {}),
     baseURL: env.PUBLIC_BASE_URL,
     secret: env.SESSION_SECRET,
     database: drizzleAdapter(db, { provider: 'pg' }),
@@ -192,14 +193,7 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
         maximumNameLength: 32,
       }),
       /** 企业目录凭证（本批唯一自绘件；官方零支持槽位，官方扩展点内实现） */
-      directoryCredentials({
-        db,
-        ldap: ldapChannel,
-        audit,
-        rateLimiter:
-          deps.rateLimiter ??
-          new InMemoryRateLimiter(LOGIN_RATE_LIMIT.windowMs, LOGIN_RATE_LIMIT.max),
-      }),
+      directoryCredentials({ db, ldap: ldapChannel, audit }),
     ],
   };
 }

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { eq, like, or } from 'drizzle-orm';
+import { eq, gte, like, or } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import type { Hono } from 'hono';
 
@@ -15,7 +15,6 @@ import { createLocalStorage } from '../../storage/local.js';
 import { createAuth, hashPassword } from '../better-auth.js';
 import type { LdapAuthResult, LdapChannel } from '../ldap.js';
 import { DIRECTORY_CREDENTIAL_PREFIX } from '../password-verify.js';
-import { InMemoryRateLimiter } from '../rate-limit.js';
 
 /**
  * T3 官方 `sign-in/username` before 钩子（首登建号 · 不短路）测试（M4c-1 plan T3 · 批 design §5.3）。
@@ -60,7 +59,6 @@ function makeApp(depsOverrides?: Partial<AppDeps>): Hono {
   return createApp({
     db,
     audit: createAuditWriter(db),
-    rateLimiter: new InMemoryRateLimiter(60_000, 50),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
     cookieSecure: false,
@@ -79,7 +77,6 @@ function makeAppWithOriginCheck(ldap: LdapChannel | null): Hono {
   return createApp({
     db,
     audit: createAuditWriter(db),
-    rateLimiter: new InMemoryRateLimiter(60_000, 50),
     storage: createLocalStorage('./storage-test'),
     cookieSecure: false,
     ldap: null,
@@ -350,5 +347,53 @@ describe('T3 · 官方 `sign-in/username` before 钩子（首登建号）', () =
     const resp = await signIn(app, login, 'dir-pw');
     expect(resp.status).toBe(200);
     expect(calls).toEqual([`${login}|dir-pw`]); // 只有分派那一次（钩子零介入）
+  });
+});
+
+/**
+ * T6 · 登录审计面（**F282 收口**）：自绘 `signInAih` 退役后，官方 `/sign-in/username` 是唯一口令登录入口，
+ * 官方端点自身不写审计 ⇒ 由插件 `hooks.after` 承接（真码 `api/dispatch.mjs:234-245`：handler 抛 APIError
+ * 后**仍执行** after 钩子）。两例分别钉定**成功**（actorId 归因）与**失败**（匿名 + 官方码 + 无明文）。
+ */
+describe('T6 · 官方端点登录审计（F282 收口）', () => {
+  const detailOf = (row: { detail: unknown }): Record<string, unknown> =>
+    (row.detail ?? {}) as Record<string, unknown>;
+
+  it('⑪ 成功登录（首登建号路径）⇒ `auth.login.success`（actorId = user.id · detail.via）', async () => {
+    const login = newLogin();
+    const { channel } = fakeLdap((l) => okResult(l));
+    const app = makeApp({ ldap: channel });
+    const since = new Date(Date.now() - 1000);
+
+    const resp = await signIn(app, login, 'good-pw');
+    expect(resp.status).toBe(200);
+
+    const rows = await db.select().from(auditLog).where(gte(auditLog.createdAt, since));
+    const success = rows.filter(
+      (r) => r.action === AUDIT_ACTIONS.loginSuccess && r.actorId === login,
+    );
+    expect(success.length).toBe(1); // 一次登录恰一行（无重复写）
+    expect(success[0]?.targetType).toBe('user');
+    expect(detailOf(success[0] ?? { detail: {} })).toEqual({ via: 'sign-in/username' });
+  });
+
+  it('⑫ 登录失败 ⇒ `auth.login.failed`（匿名 actorId · 官方码 · 零明文口令）', async () => {
+    const login = newLogin();
+    // 目录拒 + 无本仓用户 ⇒ 钩子不建号、不返回 ⇒ 官方端点给统一失败响应（不泄露存在性）
+    const { channel } = fakeLdap(() => ({ status: 'denied' }));
+    const app = makeApp({ ldap: channel });
+    const since = new Date(Date.now() - 1000);
+
+    const resp = await signIn(app, login, 'wrong-pw-xyz');
+    expect(resp.status).toBe(401);
+
+    const rows = await db.select().from(auditLog).where(gte(auditLog.createdAt, since));
+    const failed = rows.filter(
+      (r) => r.action === AUDIT_ACTIONS.loginFailed && detailOf(r).username === login,
+    );
+    expect(failed.length).toBe(1);
+    expect(failed[0]?.actorId).toBeNull(); // 未认证 ⇒ 不归因
+    expect(detailOf(failed[0] ?? { detail: {} }).code).toBe('INVALID_USERNAME_OR_PASSWORD'); // 官方码原件
+    expect(JSON.stringify(failed[0])).not.toContain('wrong-pw-xyz'); // 口令绝不入审计
   });
 });

@@ -24,7 +24,8 @@
 // - 口令**只从 env 读**（单一变量 `SMOKE_M4B2_PASSWORD`，三账号共用）——**仓库内不落任何口令**
 // - **禁全表 `delete`**：会话清理按 `username` 前缀 `m4b2_` 筛**子集**（可重放）
 // - 写入形态与官方登录路径一致（同 `apps/server/src/db/seed.ts`）：口令用官方同一 scrypt 实现
-//   (`hashPassword`)；凭据行 `provider_id='credential'` + `account_id=` 登录名；合成邮箱
+//   (`hashPassword`)；凭据行 `provider_id='credential'` + **`account_id = user.id`**（官方 `findCredentialAccount`
+//   三条件之一 —— M4c-1 T6 对齐，写登录名会导致官方端点 401）；合成邮箱
 //   `<username>@local.test` 与 `SEED_ADMIN_EMAIL` 默认值同源（R13 合成点约定）
 // - **不直接 import `drizzle-orm`**：本文件位于 `docs/`（非 workspace 包），依赖只能从
 //   `apps/server/node_modules` 解析 ⇒ 读/改/清走 `$client` 原生 SQL，`insert` 走 schema 表对象
@@ -86,9 +87,9 @@ for (const { username, role } of ACCOUNTS) {
     );
     const updated = await db.$client.query(
       `update account
-          set password = $1, updated_at = now()
-        where provider_id = 'credential' and account_id = $2 and user_id = $3`,
-      [passwordHash, username, currentId],
+          set password = $1, account_id = $2, updated_at = now()
+        where provider_id = 'credential' and user_id = $2`,
+      [passwordHash, currentId],
     );
     if (updated.rowCount && updated.rowCount > 0) {
       console.log(`[seed] ${username} updated (role=${role}, password reset)`);
@@ -97,7 +98,7 @@ for (const { username, role } of ACCOUNTS) {
       await db.insert(account).values({
         id: `acc_${crypto.randomUUID()}`,
         providerId: 'credential',
-        accountId: username,
+        accountId: currentId, // 官方 findCredentialAccount 三条件：account_id = user.id（M4c-1 T6 对齐）
         userId: currentId,
         password: passwordHash,
       });
@@ -120,7 +121,7 @@ for (const { username, role } of ACCOUNTS) {
       await tx.insert(account).values({
         id: `acc_${crypto.randomUUID()}`,
         providerId: 'credential',
-        accountId: username,
+        accountId: userId, // 官方 findCredentialAccount 三条件：account_id = user.id（M4c-1 T6 对齐）
         userId,
         password: passwordHash,
       });

@@ -1,9 +1,9 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.22：M4c-1 T6 收口（dogfood 7/7 全绿）+ F289/F290 登记** —— ① dogfood **494 PASS / 0 FAIL**（7 脚本 · 含真 200 登录 + 设备流）② **F289** smoke/seed 脚本凭据行 `account_id` 未对齐官方三条件 ⇒ 401（已修 4 文件 + 重跑 seed）③ **F290** dogfood 复用陈旧标签 ⇒ 假红（加固归 T8）④ §2.5 上界 **F288 → F290**）
+> Updated: 2026-10-09（**v0.21：M4c-1 T6 落地回填 + F286–F288 登记** —— ① **F286** 登录面语义化码收窄（`auth.ldap_denied` 零生产点 ⇒ T7 清；`email_missing`/`email_conflict` 仍由 OIDC 通道消费）② **F287** 登录限流承接变更（自绘 20 次/15 分钟 → 官方 `rateLimit` 默认 `enabled = isProduction` + 内置 `/sign-in*` 10 秒/3 次；**dev/test 默认无登录限流** ⇒ T7 复核）③ **F288** `audit_log.actor_id` FK = NO ACTION ⇒ 存在审计行的用户无法删除（归 M4c-2）④ §2.5 上界 **F285 → F288**）
 > Updated: 2026-10-09（**v0.20：M4c-1 T5 落地回填 + F285 登记** —— 前端三层改官方 SDK（调用层 `createAuthClient` + **客户端插件 `usernameClient()`** · 会话层 `useSession` · 交互层 401 四分类经 `fetchOptions.onError` 回注单点）；§2.5 上界 **F284 → F285**（**F285**：设计 §3 未列客户端插件清单）· 批 design **v0.15** · plan **v0.15** · `docs/00` **v1.130**）|
-> Updated: 2026-10-09（**v0.19：M4c-1 T4 执行期发现 F284 + 迁移增语句 ⓪** —— `0015` §6.1 归一 `account_id` 会**丢掉**「登录名只存在 `account_id`」的存量本地账号登录名（官方 `/sign-in/username` 只按 `username` 查 ⇒ 永久 401 且不可逆）；批内已修 = 批 design **§6.0 语句 ⓪**（早于 ①，`username = lower(account_id)`）+ 探针 **P5**；§2.5 上界 **F283 → F284** · 批 design **v0.14** · plan **v0.13** · `docs/00` **v1.128**）|
-> Updated: 2026-10-09（**v0.18：M4c-1 T3 CSRF 平价落地（F283 定案「甲」）** —— **F283 精确化 + 闭环**：官方 `username` 插件端点未挂 `formCsrfMiddleware`（核心 `api/routes/sign-in.mjs` / `sign-up.mjs` 自带）⇒ 批内以插件 `hooks.before` **首条**复用官方件、`matcher` `/sign-in/*`、**先于建号钩子**（CSRF 不通过零副作用）；**实测口径订正**：官方测试环境默认跳过 Origin 校验（`isTest()`）⇒ 原「跨源 200」实测不成立，须显式 `advanced.disableOriginCheck: false`（仓内先例 `app.test.ts:165`）后实测 **403**（`INVALID_ORIGIN` / `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`）· 批 design **v0.13** · plan **v0.12** · `docs/00` **v1.127**）|
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
 > **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
 > 视觉归属：**随批就地定稿**（引 M4a §4.4 · 2026-09-28 拍板 · 2026-10-08 复核维持）。本文为**纯设计语言**（意图与契约）。
@@ -77,7 +77,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 批 | 预期 design | 预期 plan | 对齐要点（立项时逐条过） |
 |----|------------|----------|------------------------|
-| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.12** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL + 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.11** · T1–T8 · **执行中：T1 ✅ · T2 ✅ · T3 ✅ 2026-10-09**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
+| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.12** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL（语句 ⓪ 回填 `username = lower(account_id)` 以保全存量登录名 · F284）+ 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.11** · T1–T8 · **执行中：T1 ✅ · T2 ✅ · T3 ✅ 2026-10-09**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
 | M4c-2 | `2026-MM-DD-m4c2-account-governance-design.md` | `M4c-2-account-governance.md` | 用户管理页交互（§10.2 状态-动作表）· 列表筛选/分页契约 · 建号 Dialog 字段与校验 · 权限门槛分档 · 启停列退休改动面 · 自我操作护栏（不能封自己 / 不能降自己）· **自助改密 Dialog 与目录账号拒绝口径（R21）** · **最后登录聚合取数（R22）** |
 | M4c-3 | `2026-MM-DD-m4c3-external-identity-design.md` | `M4c-3-external-identity.md` | 三个 provider（Google/GitHub/WeChat）开关范式 · 官方内置 Entra ID provider 接入（§2.6 R4）· 账号链接策略（§2.6 R1）· 占位邮箱口径（§2.6 R11）· 登录页 provider 入口交互 · provider 不可达降级 |
 
@@ -89,7 +89,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 ### 2.5 立项期已核实事实（明细随各批 design 登记 F 号）
 
 > 规则（`docs/designs/README.md`）：F 号全局连续 · 明细主家 = **批 design 的「实施期发现与处置（F…）」** 小节；
-> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F285**），登记时同步 `docs/README.md` §6.1 号段行。
+> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F290**），登记时同步 `docs/README.md` §6.1 号段行。
 
 | 面 | 已核实事实（真码/实测锚点） | 待落批次 |
 |----|--------------------------|---------|
@@ -233,6 +233,8 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 返回 | **不返回响应**（不短路）⇒ 官方端点中间件（含 Origin/CSRF）照常执行，随后官方端点按常规流程完成登录 |
 
 **关键约束（决定本设计形态）**：官方 **before 钩子运行在端点自身中间件之前** ⇒ 若在钩子内短路返回响应，将**绕过**官方 Origin/CSRF 校验。本设计**明确要求钩子不短路**，以保住官方安全链。
+
+**Origin / CSRF 实测口径**：官方在本仓自绘端点退役后，登录面只剩官方端点 —— 官方**核心** `sign-in` / `sign-up` 端点自带 `formCsrfMiddleware`，而 `username` 插件端点（本批采纳）**未挂** ⇒ 由插件 `hooks.before` 首条复用官方件补齐（**F283** · 批 design §5.3）。断言三态须显式 `advanced.disableOriginCheck: false`：官方测试环境默认跳过校验（`context/create-context.mjs`：`skipOriginCheck = isTest() ? true : false` —— 即 `isTest()` 为真时跳过）；跨源 ⇒ 403 `INVALID_ORIGIN`，跨站导航（`Sec-Fetch-Site: cross-site` + `Mode: navigate`）⇒ 403 `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`。
 
 **失败语义**：目录 `bind` 失败 ⇒ 不建号、不返回响应 ⇒ 由官方端点给出统一的登录失败响应（不泄露账号存在性，见 §6.2）。
 
@@ -607,6 +609,8 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.22 | 2026-10-09 | **M4c-1 T6 收口（dogfood 7/7 全绿）+ F289/F290 登记** —— ① dogfood 7 脚本 **494 PASS / 0 FAIL**（24/64/43/89/62/108/104 · 全 EXIT=0 · 含真 200 登录与设备流）② **F289** 4 个 smoke/seed 脚本凭据行 `account_id` 写登录名 ⇒ 官方 `findCredentialAccount` 查不到 ⇒ 401（已修 + 重跑 seed）③ **F290** dogfood 按 `url.includes('5173')` 复用陈旧标签 ⇒ 侧栏断言假红（加固归 T8）④ §2.5 上界 **F288 → F290** |
+| v0.21 | 2026-10-09 | **M4c-1 T6 落地回填 + F286–F288 登记** —— ① **F286** 登录面语义化码收窄（`auth.ldap_denied` 零生产点 ⇒ T7 清理；`email_missing` / `email_conflict` 保留至 M4c-3 退役 OIDC）② **F287** 登录限流承接变更（自绘 20 次/15 分钟（键 = 登录名\|IP）→ 官方 `rateLimit`（默认 `enabled = isProduction` · 内置 `/sign-in*` 10 秒/3 次 · 键 = IP\|path）；**dev/test 默认无登录限流** ⇒ T7 复核 + 规范回填）③ **F288** `audit_log.actor_id` FK = NO ACTION ⇒ 存在审计行的用户无法删除（实测 23503）⇒ 归 M4c-2 ④ §2.5 上界 **F285 → F288** |
 | v0.20 | 2026-10-09 | sunxuewen-rush | **M4c-1 T5 落地回填 + F285 登记** —— ① 前端三层：调用层 `createAuthClient`（`better-auth/react`）+ **客户端插件 `usernameClient()`** · 会话层 SDK `useSession`（三态契约不变）· 交互层 401 四分类经 SDK `fetchOptions.onError` **回注单点**（`client.ts` 的 `notifyUnauthorized`）② 依赖：`apps/web` 显式声明 `better-auth@1.7.5`（exact；lock 单一 1.7.5 条目；`THIRD-PARTY-NOTICES.md` 预期不变）③ 实测：真页面 e2e（`get-session` + `sign-in/username` + `me` 三请求 · 错口令 inline「用户名或密码错误」· 路由不跳）④ §2.5 上界 → **F285**（设计 §3 未列客户端插件清单）⑤ **F282**（登录审计面）：T6 退役 `signInAih` 后 `auth.login.success` / `auth.login.failed` 零消费点 ⇒ 归 **T6** ⑥ 连带：批 design **v0.15** · plan **v0.15** · `docs/00` **v1.130** |
 | v0.19 | 2026-10-09 | sunxuewen-rush | **M4c-1 T4 执行期发现 F284 + 迁移增语句 ⓪** —— ① **F284**：`0015` §6.1 把 `credential.account_id` 归一为 `user.id` 时，`user.username IS NULL` 的存量本地账号会**失去登录名**（其登录名只存在 `account_id`；官方 `/sign-in/username` 只按 `username` 查）⇒ 归一后不可逆地 401；dev 库取证：368 个 NULL username 中 365 已是随机 token 夹具（`account_id` = `user.id`，无影响）、真正受影响 3 个（`admin`/`smoke-uploader`/`smoke-admin`）、本机无真员工账号 ② **本批已修**：批 design **§6.0 语句 ⓪**（**早于 ①** 回填 `username = lower(a.account_id)` · `display_username` 原样 · `IS DISTINCT FROM u.id` 排除夹具行）+ 探针 **P5** ③ 连带：批 design **v0.14** · plan **v0.13** · `docs/00` **v1.128** |
 | v0.18 | 2026-10-09 | sunxuewen-rush | **M4c-1 T3 CSRF 平价落地 + F283 定案「甲」** —— ① F283 精确化：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **自带** `formCsrfMiddleware`，缺口仅在 `username` 插件端点（本批采纳端点）② 闭环：插件 `hooks.before` **首条**复用官方件 `formCsrfMiddleware`（`matcher` `/sign-in/*`，**先于建号钩子** ⇒ 不通过零副作用）③ **实测口径订正**：官方测试环境 `skipOriginCheck = isTest() ? true : false` ⇒ 原「跨源实测 200」**不成立**；显式 `advanced.disableOriginCheck: false`（仓内先例 `app.test.ts:165`）后实测 403 两种官方码 + 零建号 ④ 连带：批 design **v0.13** · plan **v0.12** · `docs/00` **v1.127** |

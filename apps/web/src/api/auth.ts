@@ -101,7 +101,7 @@ export interface MeResponse {
   role: number;
 }
 
-/** `POST /api/auth/sign-in/aih` 成功响应（`session` 形状本批不消费，保持未知类型） */
+/** 登录成功响应（官方 `POST /api/auth/sign-in/username`；`session` 位为官方返回体，本批不消费） */
 export interface LoginResponse {
   user: AuthUser;
   session: unknown;

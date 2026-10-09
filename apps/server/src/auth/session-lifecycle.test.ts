@@ -6,6 +6,7 @@ import {
   cleanupCreatedUsers,
   countSessions,
   createTestUser,
+  loginNameOf,
   TEST_PASSWORD,
 } from '../test-utils/auth-fixture.js';
 
@@ -15,7 +16,6 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 import { createApp } from '../app.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { type AihAuth, createAuth } from '../auth/better-auth.js';
-import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { createClient, type Db } from '../db/client.js';
 import { session } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -38,7 +38,6 @@ function makeApp(): Hono {
   return createApp({
     db,
     audit: createAuditWriter(db),
-    rateLimiter: new InMemoryRateLimiter(60_000, 100),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
     cookieSecure: false,
@@ -52,12 +51,12 @@ async function makeUser(tag: string): Promise<string> {
   return createTestUser(db, { id: `${PREFIX}${tag}`, displayName: `${PREFIX}${tag}` });
 }
 
-/** 登录（自绘端点）并返回原始 Set-Cookie 串（含属性，供属性断言） */
+/** 登录（官方 `/sign-in/username`）并返回原始 Set-Cookie 串（含属性，供属性断言） */
 async function signInRaw(userId: string): Promise<string> {
-  const res = await makeApp().request('/api/auth/sign-in/aih', {
+  const res = await makeApp().request('/api/auth/sign-in/username', {
     method: 'POST',
     headers: { ...ORIGIN, 'content-type': 'application/json', 'user-agent': 'sess-test-agent' },
-    body: JSON.stringify({ username: userId, password: TEST_PASSWORD }),
+    body: JSON.stringify({ username: loginNameOf(userId), password: TEST_PASSWORD }),
   });
   expect(res.status).toBe(200);
   const entry = res.headers.getSetCookie().find((v) => v.startsWith('better-auth.session_token='));

@@ -10,7 +10,8 @@ import { account, user } from './schema/index.js';
  *
  * 写入形态 = 官方模型表（`user` + `account`），列/哈希格式与官方写入路径一致：
  * - 口令哈希用注入官方的同一 scrypt 实现（`hashPassword`，R10）⇒ 官方登录端点可直接验
- * - 凭据行 `provider_id='credential'` · `account_id` = 登录名（与目录凭证插件查法一致）
+ * - 凭据行 `provider_id='credential'` · **`account_id = user.id`**（官方 `findCredentialAccount` 三条件之一 ——
+ *   M4c-1 T6 对齐；写登录名会让官方 `/sign-in/username` 永久 401）
  *
  * 为什么不用官方 `create-admin` CLI：实测**非幂等**（同 email 二次执行报 `User already exists`，
  * 连 `--force` 也不覆盖，X8）⇒ 会破坏「种子可重复执行」契约。
@@ -30,12 +31,16 @@ async function seedAdmin(): Promise<void> {
   const email = (process.env.SEED_ADMIN_EMAIL ?? 'admin@local.test').trim().toLowerCase();
   if (!username || !password) return;
 
-  const existing = await db
-    .select({ id: account.id })
-    .from(account)
-    .where(and(eq(account.providerId, 'credential'), eq(account.accountId, username)));
+  // 存在性判据 = `user.username`（官方唯一约束位），与凭据行 `account_id` 解耦
+  const existing = await db.select({ id: user.id }).from(user).where(eq(user.username, username));
   if (existing.length > 0) {
-    console.log(`[seed] admin ${username} already exists, skip`);
+    const rowId = existing[0]!.id;
+    // 幂等收敛：刷新口令 + 把凭据行 `account_id` 归一为 `user.id`（官方 `findCredentialAccount` 三条件）
+    await db
+      .update(account)
+      .set({ password: await hashPassword(password), accountId: rowId })
+      .where(and(eq(account.providerId, 'credential'), eq(account.userId, rowId)));
+    console.log(`[seed] admin ${username} exists — password refreshed + account_id normalized`);
     return;
   }
 
@@ -56,7 +61,7 @@ async function seedAdmin(): Promise<void> {
         // 官方 account.id 由 adapter 生成随机串；直写路径自行生成（前缀区分来源）
         id: `acc_${crypto.randomUUID()}`,
         providerId: 'credential',
-        accountId: username,
+        accountId: adminId, // 官方 findCredentialAccount 三条件：account_id = user.id（M4c-1 T6 对齐）
         userId: adminId,
         password: await hashPassword(password),
       });

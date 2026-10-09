@@ -13,16 +13,20 @@ import { type AppDeps, createApp } from './app.js';
 import { createAuditWriter } from './audit/audit.js';
 import { type AihAuth, createAuth } from './auth/better-auth.js';
 import { LdapChannel } from './auth/ldap.js';
-import { InMemoryRateLimiter } from './auth/rate-limit.js';
 import { createClient, type Db } from './db/client.js';
 import { account, auditLog, user } from './db/schema/index.js';
 import { createLocalStorage } from './storage/local.js';
-import { cleanupCreatedUsers, createTestUser, TEST_PASSWORD } from './test-utils/auth-fixture.js';
+import {
+  cleanupCreatedUsers,
+  createTestUser,
+  loginNameOf,
+  TEST_PASSWORD,
+} from './test-utils/auth-fixture.js';
 
 /**
  * 认证全链路集成测试（M4b-pre T3 · design §8 契约表）：
  * - 自助注册 = 官方 `POST /api/auth/sign-up/email`（响应体按官方契约；前端属 M4b-2 未动工）
- * - 登录 = 自绘 `POST /api/auth/sign-in/aih`（三路分派；`{code}` 结构化错误沿用 07 §4）
+ * - 登录 = 官方 `POST /api/auth/sign-in/username`（用户名插件端点；错误码 = 官方码原样透传）
  * - 登出 = 官方 `POST /api/auth/sign-out`；会话读取 = `GET /api/auth/me`（形状不变）
  * - Origin 校验 = 官方（`INVALID_ORIGIN` 等官方错误码）
  * - 会话落库：**换一个 app 实例（= 进程重启等价）同一 cookie 仍 200**（缺陷修复实证，断言⑪）
@@ -37,7 +41,6 @@ function makeApp(depsOverrides?: Partial<AppDeps>): Hono {
     db,
     // 不传 `auth`：由 createApp 按本 deps 构造实例（LDAP 通道随 `ldap` 注入进入插件）
     audit: createAuditWriter(db),
-    rateLimiter: new InMemoryRateLimiter(60_000, 5),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
     cookieSecure: false,
@@ -109,33 +112,30 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     expect(await meAfter.json()).toMatchObject({ code: 'auth.session_expired' });
   });
 
-  it('登录（自绘端点）：正确口令放行 + 大写登录名归一', async () => {
+  it('登录（官方端点）：正确口令放行 + 大写登录名经官方 normalizer 归一', async () => {
     const app = makeApp();
     const id = await createTestUser(db, { id: `${PREFIX}login`, displayName: `${PREFIX}login` });
-    const res = await app.request('/api/auth/sign-in/aih', {
+    const res = await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-      body: JSON.stringify({ username: id.toUpperCase(), password: TEST_PASSWORD }),
+      body: JSON.stringify({ username: loginNameOf(id).toUpperCase(), password: TEST_PASSWORD }),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      user: { id: string; displayName: string };
-      session: unknown;
-    };
+    const body = (await res.json()) as { user: { id: string } };
     expect(body.user.id).toBe(id);
     expect(sessionCookieOf(res)).toContain('better-auth.session_token=');
   });
 
-  it('登录：错误口令 → 401 auth.invalid_credentials', async () => {
+  it('登录：错误口令 → 401（官方码 `INVALID_USERNAME_OR_PASSWORD` 原样透传）', async () => {
     const app = makeApp();
     const id = await createTestUser(db, { id: `${PREFIX}wrong`, displayName: `${PREFIX}wrong` });
-    const res = await app.request('/api/auth/sign-in/aih', {
+    const res = await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-      body: JSON.stringify({ username: id, password: 'not-the-password' }),
+      body: JSON.stringify({ username: loginNameOf(id), password: 'not-the-password' }),
     });
     expect(res.status).toBe(401);
-    expect(await res.json()).toMatchObject({ code: 'auth.invalid_credentials' });
+    expect(await res.json()).toMatchObject({ code: 'INVALID_USERNAME_OR_PASSWORD' });
   });
 
   it('会话落库：换进程（新 app 实例）后同一 cookie 仍可用', async () => {
@@ -144,10 +144,10 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
       id: `${PREFIX}persist`,
       displayName: `${PREFIX}persist`,
     });
-    const signIn = await first.request('/api/auth/sign-in/aih', {
+    const signIn = await first.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+      body: JSON.stringify({ username: loginNameOf(id), password: TEST_PASSWORD }),
     });
     const cookie = sessionCookieOf(signIn);
 
@@ -164,44 +164,44 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     const app = makeApp({
       auth: createAuth({ ldap: null, advanced: { disableOriginCheck: false } }),
     });
-    const crossOrigin = await app.request('/api/auth/sign-in/aih', {
+    const crossOrigin = await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: {
         origin: 'http://evil.test',
         host: 'localhost:3000',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ username: `${PREFIX}nobody`, password: TEST_PASSWORD }),
+      body: JSON.stringify({ username: loginNameOf(`${PREFIX}nobody`), password: TEST_PASSWORD }),
     });
     expect(crossOrigin.status).toBe(403);
     expect(await crossOrigin.json()).toMatchObject({ code: 'INVALID_ORIGIN' });
 
     // 白名单命中（同源）→ 放行进入业务逻辑（此处账号不存在 ⇒ 401 invalid_credentials）
-    const sameOrigin = await app.request('/api/auth/sign-in/aih', {
+    const sameOrigin = await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: {
         origin: 'http://localhost:3000',
         host: 'localhost:3000',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ username: `${PREFIX}nobody`, password: TEST_PASSWORD }),
+      body: JSON.stringify({ username: loginNameOf(`${PREFIX}nobody`), password: TEST_PASSWORD }),
     });
     expect(sameOrigin.status).toBe(401);
-    expect(await sameOrigin.json()).toMatchObject({ code: 'auth.invalid_credentials' });
+    expect(await sameOrigin.json()).toMatchObject({ code: 'INVALID_USERNAME_OR_PASSWORD' });
 
     // 第三态（**dev 侧 A1 阻塞的同款机制**）：带会话 cookie 但无 Origin/Referer 的写请求 → 403
     const id = await createTestUser(db, {
       id: `${PREFIX}origin`,
       displayName: `${PREFIX}origin`,
     });
-    const signIn = await app.request('/api/auth/sign-in/aih', {
+    const signIn = await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: {
         origin: 'http://localhost:3000',
         host: 'localhost:3000',
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+      body: JSON.stringify({ username: loginNameOf(id), password: TEST_PASSWORD }),
     });
     const cookie = sessionCookieOf(signIn);
     const noOrigin = await app.request('/api/auth/sign-out', {
@@ -219,10 +219,10 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
       id: `${PREFIX}guarded`,
       displayName: `${PREFIX}guarded`,
     });
-    const signIn = await app.request('/api/auth/sign-in/aih', {
+    const signIn = await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+      body: JSON.stringify({ username: loginNameOf(id), password: TEST_PASSWORD }),
     });
     const cookie = sessionCookieOf(signIn);
 
@@ -341,18 +341,26 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     expect(nullOriginCrossSite.status).toBe(403);
   });
 
-  it('rate limits repeated failed logins (429)', async () => {
-    const app = makeApp({ rateLimiter: new InMemoryRateLimiter(60_000, 3) });
+  it('rate limits repeated failed logins (429)（官方 `rateLimit` 承接 · M4c-1 T6）', async () => {
+    // 官方限流默认 `enabled = isProduction`（源码 `context/create-context.mjs`：
+    // `enabled: options.rateLimit?.enabled ?? isProduction`）⇒ 测试须显式开启；
+    // 路径规则用 `customRules` 钉定（解析优先级最高：`api/rate-limiter/index.mjs` resolveRateLimitConfig）
+    const app = makeApp({
+      auth: createAuth({
+        ldap: null,
+        rateLimit: { enabled: true, customRules: { '/sign-in/username': { window: 60, max: 3 } } },
+      }),
+    });
     const id = await createTestUser(db, {
       id: `${PREFIX}ratelimit`,
       displayName: `${PREFIX}ratelimit`,
     });
     let last = 200;
     for (let i = 0; i < 6; i += 1) {
-      const res = await app.request('/api/auth/sign-in/aih', {
+      const res = await app.request('/api/auth/sign-in/username', {
         method: 'POST',
         headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-        body: JSON.stringify({ username: id, password: 'wrong-pass' }),
+        body: JSON.stringify({ username: loginNameOf(id), password: 'wrong-pass' }),
       });
       last = res.status;
       if (last === 429) break;
@@ -376,15 +384,15 @@ describe('auth full flow (official endpoints + directory plugin, real PG)', () =
     await app.request('/api/auth/sign-out', { method: 'POST', headers: { cookie } });
 
     const id = await createTestUser(db, { id: `${PREFIX}audit2`, displayName: `${PREFIX}audit2` });
-    await app.request('/api/auth/sign-in/aih', {
+    await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-      body: JSON.stringify({ username: id, password: 'wrong' }),
+      body: JSON.stringify({ username: loginNameOf(id), password: 'wrong' }),
     });
-    await app.request('/api/auth/sign-in/aih', {
+    await app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
-      body: JSON.stringify({ username: id, password: TEST_PASSWORD }),
+      body: JSON.stringify({ username: loginNameOf(id), password: TEST_PASSWORD }),
     });
 
     // 只取本用例时间窗内产生的行（并发文件也会写 audit_log——AGENTS.md「只依赖自己造的数据」）
@@ -490,7 +498,7 @@ describe('LDAP channel via HTTP (fake server, real network)', () => {
   }
 
   const signIn = (app: Hono, username: string, password: string) =>
-    app.request('/api/auth/sign-in/aih', {
+    app.request('/api/auth/sign-in/username', {
       method: 'POST',
       headers: { ...ORIGIN_HEADERS, 'content-type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -504,15 +512,17 @@ describe('LDAP channel via HTTP (fake server, real network)', () => {
     ldapFake?.server.close(() => undefined);
   });
 
-  it('目录首登建号：user（工号主键 + 目录邮箱/显示名）+ account(provider_id=ldap)', async () => {
+  it('目录首登建号：user（工号主键 + 目录邮箱/显示名）+ 两行身份', async () => {
     const app = makeApp({ ldap: channel() });
     const res = await signIn(app, 'alice', 'ldap-pass-1');
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { user: { id: string; displayName: string } };
+    // 响应体 = **官方** `sign-in/username` 契约（`{ redirect, token, url, user }`；显示名走官方 `name` 字段，
+    // 前端按 B9 映射为 `displayName` —— 自绘端点的 `{ user, session }` 形状随 T6 退役）
+    const body = (await res.json()) as { user: { id: string; name: string } };
     expect(body.user.id).toBe('alice'); // userIdAttr 映射值（D3 语义保留）
     // ldapjs v3 fake server 的 `displayName` 属性**未回传**（仓内既有记录：属性序列化不稳定）⇒
     // 走 CN 兜底；属性增强路径（displayName/mail 真值）由真实 DC 覆盖（T26 人工项）。
-    expect(body.user.displayName).toBe('CN=alice,ou=people,dc=example,dc=com');
+    expect(body.user.name).toBe('CN=alice,ou=people,dc=example,dc=com');
 
     const [row] = await db
       .select({
@@ -532,39 +542,49 @@ describe('LDAP channel via HTTP (fake server, real network)', () => {
       .select({ providerId: account.providerId, accountId: account.accountId })
       .from(account)
       .where(eq(account.userId, 'alice'));
-    expect(accounts).toHaveLength(1);
-    expect(accounts[0]).toEqual({ providerId: 'ldap', accountId: 'alice' });
+    // 两行身份：目录行 + M4c-1 T3 的**凭据委派行**（同事务写入 ⇒ 二次登录才被官方 verify 命中）
+    expect(accounts).toHaveLength(2);
+    expect(accounts.map((a) => `${a.providerId}:${a.accountId}`).sort()).toEqual([
+      'credential:alice',
+      'ldap:alice',
+    ]);
   });
 
-  it('目录拒绝（错口令）→ 403 ldap_denied，不回退本地', async () => {
+  it('目录拒绝（错口令）⇒ 官方统一 401（不泄露通道 · 不回退本地）', async () => {
     const app = makeApp({ ldap: channel() });
     const res = await signIn(app, 'alice', 'wrong-directory-password');
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ code: 'auth.ldap_denied' });
+    // T6 后不再有自绘端的语义化码（原 403 `auth.ldap_denied`）：官方端点给统一失败响应（防枚举）
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: 'INVALID_USERNAME_OR_PASSWORD' });
   });
 
-  it('目录邮箱缺失 → 400 auth.email_missing（绝不合成）', async () => {
+  it('目录邮箱缺失 ⇒ 官方统一 401 + 零建号（绝不合成邮箱）', async () => {
     const app = makeApp({ ldap: channel() });
     const res = await signIn(app, 'carol', 'ldap-pass-3');
-    expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ code: 'auth.email_missing' });
+    // 原始因（目录有此人但无邮箱）不可区分 ⇒ 官方统一失败响应（防枚举）
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: 'INVALID_USERNAME_OR_PASSWORD' });
+    expect((await db.select({ id: user.id }).from(user).where(eq(user.id, 'carol'))).length).toBe(
+      0,
+    );
   });
 
-  it('目录邮箱与既有账号冲突 → 409 auth.email_conflict', async () => {
+  it('目录邮箱与既有账号冲突 ⇒ 官方统一 401 + 零建号（不合并账号，人工处置）', async () => {
     const app = makeApp({ ldap: channel() });
     // 占位：同邮箱的既有账号（非目录身份）
     await createTestUser(db, {
       id: `${PREFIX}collide`,
       displayName: `${PREFIX}collide`,
-      username: `${PREFIX}collide`,
+      username: loginNameOf(`${PREFIX}collide`),
     });
     await db
       .update(user)
       .set({ email: 'bob.collide@corp-test.local' })
       .where(eq(user.id, `${PREFIX}collide`));
     const res = await signIn(app, 'bob', 'ldap-pass-2');
-    expect(res.status).toBe(409);
-    expect(await res.json()).toMatchObject({ code: 'auth.email_conflict' });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: 'INVALID_USERNAME_OR_PASSWORD' });
+    expect((await db.select({ id: user.id }).from(user).where(eq(user.id, 'bob'))).length).toBe(0);
   });
 
   it('本地凭据优先（逃生通道）：目录在场也不去 bind', async () => {
@@ -572,9 +592,9 @@ describe('LDAP channel via HTTP (fake server, real network)', () => {
     const id = await createTestUser(db, {
       id: `${PREFIX}escape`,
       displayName: `${PREFIX}escape`,
-      username: `${PREFIX}escape`,
+      username: loginNameOf(`${PREFIX}escape`),
     });
-    const res = await signIn(app, id, TEST_PASSWORD);
+    const res = await signIn(app, loginNameOf(id), TEST_PASSWORD);
     expect(res.status).toBe(200);
   });
 });

@@ -10,7 +10,7 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 import { type AppDeps, createApp } from '../app.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { createClient, type Db } from '../db/client.js';
-import { account, user } from '../db/schema/index.js';
+import { account, auditLog, user } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { createTestUser, TEST_PASSWORD } from '../test-utils/auth-fixture.js';
 import type { LdapAuthResult, LdapChannel } from './ldap.js';
@@ -19,7 +19,6 @@ import {
   DUMMY_PASSWORD_HASH,
   verifyCredential,
 } from './password-verify.js';
-import { InMemoryRateLimiter } from './rate-limit.js';
 
 /**
  * T2 存值前缀分派测试（M4c-1 plan T2 · 批 design §5.2 / 主 design §3.2）。
@@ -42,10 +41,10 @@ const newEmployeeId = (): string =>
   `9${Math.floor(Math.random() * 9_000_000 + 1_000_000)}`.slice(0, 8);
 const emailOf = (id: string): string => `${id}@example.test`;
 /**
- * 短 id 且**全字母数字**：官方 `sign-in/username` 有 ①长度上限（默认 3–30）②默认用户名校验器
- * **不接受连字符/下划线**（实测 422 `INVALID_USERNAME`；见 `dist/plugins/username/index.mjs`）。
- * 夹具把 `accountId` 写成 username ⇒ 必须 = `user.id` 才被官方 `findCredentialAccount` 命中，
- * 故 id 本身就得是合法用户名。
+ * 短 id 且**全字母数字**：官方 `sign-in/username` 有 ① 长度上限（默认 3–30）② 默认用户名校验器
+ * `/^[a-zA-Z0-9_.]+$/`（**收字母/数字/`_`/`.`，不收 `-`**；实测 422 `INVALID_USERNAME`，
+ * `dist/plugins/username/index.mjs`）③ 凭据行须 `account_id = user.id` 才被官方 `findCredentialAccount`
+ * 命中 —— 本文件自建行，故 id 直接取合法用户名形态（夹具侧由 `loginNameOf` 统一归一）。
  */
 const shortId = (): string =>
   `${PREFIX}${randomUUID().replace(/\D/g, '').slice(0, 8)}${randomUUID().slice(0, 4)}`;
@@ -67,7 +66,6 @@ function makeApp(depsOverrides?: Partial<AppDeps>): Hono {
   return createApp({
     db,
     audit: createAuditWriter(db),
-    rateLimiter: new InMemoryRateLimiter(60_000, 50),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
     cookieSecure: false,
@@ -114,6 +112,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // `audit_log.actor_id` → user（NO ACTION）⇒ **先摘审计行**（T6 起官方 `sign-in/username` 的
+  // 登录审计由插件 after 钩子写入 —— F282 收口；本文件 ⑨⑩⑪ 走官方端点 ⇒ 会产生 `auth.login.*` 行）
+  await db.delete(auditLog).where(like(auditLog.actorId, `${PREFIX}%`));
   await db
     .delete(account)
     .where(or(like(account.userId, `${PREFIX}%`), like(account.accountId, `${PREFIX}%`)));
@@ -127,8 +128,13 @@ afterAll(async () => {
     .select({ id: account.id })
     .from(account)
     .where(or(like(account.userId, `${PREFIX}%`), like(account.accountId, `${PREFIX}%`)));
+  const leftAudit = await db
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(like(auditLog.actorId, `${PREFIX}%`));
   expect(leftUsers.length, '本文件残留 user 行').toBe(0);
   expect(leftAccounts.length, '本文件残留 account 行').toBe(0);
+  expect(leftAudit.length, '本文件残留 audit 行').toBe(0);
   await db.$client.end();
 });
 

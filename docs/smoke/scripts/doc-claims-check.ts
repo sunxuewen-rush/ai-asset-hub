@@ -111,8 +111,9 @@ const ANCHORS: { file: string; line: number; keyword: string; why: string }[] = 
   {
     file: 'apps/server/src/app.ts',
     // 行号随代码迁移更新（M4b-7 T1 在 stats 区插入 `/api/meta` 注册 + 注释 + import ⇒ 214 → 217；
+    // M4c-1 T6 删登录限流链（`AppDeps.rateLimiter` 与 `createAuth` 传参）⇒ 217 → 215；
     // 断言意图不变 = 「改动 1–3 的 admin 路由已挂载」）
-    line: 217,
+    line: 215,
     keyword: 'createAdminRoutes',
     why: '改动 1–3 挂载点',
   },

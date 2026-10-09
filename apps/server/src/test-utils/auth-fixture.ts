@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { issueApiKey } from '../auth/api-keys.js';
 import { type AihAuth, hashPassword } from '../auth/better-auth.js';
@@ -11,8 +11,10 @@ import { account, apikey, auditLog, session, user } from '../db/schema/index.js'
  *
  * 全程走**真实端点与真实表**（不 mock 官方件、不碰官方内部实现）：
  * 1. `createTestUser`：直写官方用户域表（`user` + `account(provider_id='credential')`）——
- *    与 `db/seed.ts` 同形态，口令哈希走注入官方的同一 scrypt
- * 2. `signInCookie`：调**官方插件端点** `sign-in/aih`（服务端直呼 + `asResponse: true`），
+ *    与 `db/seed.ts` 同形态，口令哈希走注入官方的同一 scrypt；**凭据行 `account_id = user.id`**
+ *    （官方 `internalAdapter.findCredentialAccount` 三条件之一）+ 登录名经 `loginNameOf` 归一
+ *    （官方校验器 `/^[a-zA-Z0-9_.]+$/` · 3–30 —— M4c-1 T6 对齐；原 `account_id = username` 官方查不到）
+ * 2. `signInCookie`：调**官方端点** `POST /sign-in/username`（服务端直呼 + `asResponse: true`），
  *    从响应 `Set-Cookie` 取官方会话 cookie（cookie 名/签名/TTL 全由官方生成）
  * 3. `createSignedInUser`：1+2 一步到位
  *
@@ -33,6 +35,22 @@ export const TEST_PASSWORD = 'test-password-1';
  */
 const createdUserIds = new Set<string>();
 
+/**
+ * 测试 id → **官方口径登录名**（M4c-1 T6）。
+ *
+ * 官方 `/sign-in/username` 硬约束：长度 3–30 · 校验器 `/^[a-zA-Z0-9_.]+$/`（**不收 `-`/`+` 等**）。
+ * 测试 id 形态远超该口径（`usr_<uuid>` 含 `-` 且 36 字符 · 23 个测试文件的 `PREFIX` 亦带 `-`），
+ * 若把 id 直接当登录名 ⇒ 官方 422，且 53 处 `createTestUser` 调用点全要改。故在此**单点派生**（幂等）：
+ * 已合规者原样返回；否则非法字符折为 `_`、主体截 23 字符并缀 6 位 id 指纹（`sha256` 前 6）
+ * ⇒ 总长恒 ≤30、确定性、无碰撞。
+ */
+export function loginNameOf(id: string): string {
+  if (id.length >= 3 && id.length <= 30 && /^[a-zA-Z0-9_.]+$/.test(id)) return id;
+  const cleaned = id.replace(/[^a-zA-Z0-9_.]/g, '_');
+  const digest = createHash('sha256').update(id).digest('hex').slice(0, 6);
+  return `${cleaned.slice(0, 23)}_${digest}`.slice(0, 30);
+}
+
 /** 数值档位 → 库中档名（与 `roles.ts` 的映射同源；测试侧改档用） */
 export function roleNameOf(level: number): string {
   if (level >= ACCOUNT_ROLE.SUPER_ADMIN) return 'superadmin';
@@ -47,7 +65,7 @@ export interface TestUserOptions {
   role?: number;
   status?: 'ACTIVE' | 'PENDING' | 'DISABLED';
   displayName?: string;
-  /** 登录名（缺省 = id） */
+  /** 登录名（缺省 = `loginNameOf(id)` —— 归一为官方校验器口径） */
   username?: string;
   password?: string;
   /** 身份通道（'credential' 缺省；'ldap'/'oidc' 用于目录建号断言——不建口令行） */
@@ -57,7 +75,7 @@ export interface TestUserOptions {
 /** 直写官方用户域表建测试账号；返回用户 id */
 export async function createTestUser(db: Db, options: TestUserOptions = {}): Promise<string> {
   const id = options.id ?? `usr_${randomUUID()}`;
-  const username = options.username ?? id;
+  const username = options.username ?? loginNameOf(id);
   const password = options.password ?? TEST_PASSWORD;
   const providerId = options.providerId ?? 'credential';
 
@@ -75,7 +93,7 @@ export async function createTestUser(db: Db, options: TestUserOptions = {}): Pro
   await db.insert(account).values({
     id: `acc_${randomUUID()}`,
     providerId,
-    accountId: username,
+    accountId: id,
     userId: id,
     ...(providerId === 'credential' ? { password: await hashPassword(password) } : {}),
   });
@@ -109,7 +127,7 @@ function extractSessionCookie(response: Response): string {
  */
 const cookieCache = new Map<string, string>();
 
-/** 登录取官方会话 cookie（官方插件端点，服务端直呼；进程内按实例+登录名缓存） */
+/** 登录取官方会话 cookie（官方 `/sign-in/username`，服务端直呼；进程内按实例+登录名缓存） */
 export async function signInCookie(
   auth: AihAuth,
   username: string,
@@ -119,12 +137,15 @@ export async function signInCookie(
   const cached = cookieCache.get(cacheKey);
   if (cached) return cached;
   const api = auth.api as unknown as {
-    signInAih: (input: {
+    signInUsername: (input: {
       body: { username: string; password: string };
       asResponse: true;
     }) => Promise<Response>;
   };
-  const response = await api.signInAih({ body: { username, password }, asResponse: true });
+  const response = await api.signInUsername({
+    body: { username: loginNameOf(username), password },
+    asResponse: true,
+  });
   if (!response.ok) {
     throw new Error(`auth fixture: sign-in failed with ${response.status}`);
   }

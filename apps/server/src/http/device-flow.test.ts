@@ -10,7 +10,6 @@ process.env.SESSION_SECRET ??= 'x'.repeat(40);
 import { type AppDeps, createApp } from '../app.js';
 import { createAuditWriter } from '../audit/audit.js';
 import { type AihAuth, createAuth } from '../auth/better-auth.js';
-import { InMemoryRateLimiter } from '../auth/rate-limit.js';
 import { createClient, type Db } from '../db/client.js';
 import { auditLog, deviceCode } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
@@ -41,7 +40,6 @@ function makeApp(overrides?: Partial<AppDeps>): Hono {
   return createApp({
     db,
     audit: createAuditWriter(db),
-    rateLimiter: new InMemoryRateLimiter(60_000, 100),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
     cookieSecure: false,
