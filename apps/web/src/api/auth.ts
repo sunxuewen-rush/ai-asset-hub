@@ -1,18 +1,93 @@
 /**
  * 认证端点封装（批 design §3.1 件 3 · §7「消费的既有端点」）。
  *
- * 契约（真码实证）：
- * - **登录** `POST /api/auth/sign-in/aih` —— **JSON** body `{username, password}`
- *   （`content-type: application/json` 必填；`apps/server/src/app.test.ts:115-119` 实证）；
- *   成功 200 `{user, session}` + `Set-Cookie: better-auth.session_token=…`。
- *   用户名走**自绘目录凭证插件**（本地账号短路 → 目录 bind → 回退本地，05 §3.1）——前端**无需分支**。
- * - **登出** `POST /api/auth/sign-out`（官方端点，M4b-pre 起为**唯一**登出端点，无旧别名）。
+ * 契约（M4c-1 T5 起：**调用层交官方 SDK**，批 design §3）：
+ * - **登录** 官方 `POST /api/auth/sign-in/username`（经 SDK `signIn.username`，客户端插件 `usernameClient()`）；
+ *   成功 200 `{redirect, token, url, user}` + `Set-Cookie: better-auth.session_token=…`。
+ *   后端在官方端点上的 before 钩子按需**首登建号**（目录通道），前端**无需分支**。
+ *   ⚠️ 失败**不是抛错**而是 `{ data: null, error }` ⇒ 本文件归一为 `ApiError`（保持 `Login.tsx` 的
+ *   `err.code → tErr()` 契约**零改动**，B10）。
+ * - **登出** 官方 `POST /api/auth/sign-out`（经 SDK `signOut`；官方端点为**唯一**登出端点，无旧别名）。
  * - **会话** `GET /api/auth/me` → `{ user: { id, displayName }, role }`
  *   （`apps/server/src/http/auth-routes.ts:17-28` 薄层）；未登录 401 `auth.session_expired`。
  *
  * 页面**不直读** `code`：错误统一由 `ApiError.code` 承载，本地化经 `useI18n().tErr`（07 §4）。
  */
-import { ApiError, type ApiGetOptions, apiGet, apiPost } from './client.js';
+
+import { usernameClient } from 'better-auth/client/plugins';
+import { createAuthClient } from 'better-auth/react';
+import { ApiError, type ApiGetOptions, apiGet, apiPost, notifyUnauthorized } from './client.js';
+
+/**
+ * 官方 SDK 客户端（批 design §3 调用层 · M4c-1 T5）。
+ *
+ * - 基址：**省略** `baseURL` ⇒ 官方默认同源 `/api/auth`（dev 经 vite proxy `/api` → `3000`，
+ *   与官文「同域可省 baseURL」一致；`auth/next.ts` 的既有口径不变）。
+ * - 插件：`usernameClient()` —— 服务端 `username` 插件的**客户端配对件**，`signIn.username` 的唯一正路
+ *   （**F285 登记**：批 design §3 原未列客户端插件清单，本批补）。
+ * - `fetchOptions.credentials: 'include'`：跨端口 dev（5173 → proxy）仍带会话 cookie。
+ * - `onError`：401 回注**交互层单点**（`client.ts` 的四分类 `notifyUnauthorized`），不另起一套判定。
+ *   ⚠️ 官方 SDK 的会话端点 `get-session` 的 401 = 「未登录」正常态（与 `/api/auth/me` 同类，
+ *   交 `AuthProvider` 消费）⇒ 该路径**不回注**，避免与 ① 类语义冲突。
+ */
+const authClient = createAuthClient({
+  plugins: [usernameClient()],
+  fetchOptions: {
+    credentials: 'include',
+    onError: (ctx) => {
+      if (ctx.response?.status !== 401) return;
+      const path = pathOfRequest(ctx.request);
+      if (path === SDK_SESSION_PATH) return;
+      notifyUnauthorized(path);
+    },
+  },
+});
+
+/** 官方 SDK 会话端点（`${baseURL}/get-session`）——401 属「未登录正常态」，见上 */
+const SDK_SESSION_PATH = '/api/auth/get-session';
+
+/**
+ * 请求 URL → 路径（四分类只认 path）。
+ * `better-fetch` 的 `onError.request` 是 `RequestContext`（`{url: URL | string, …}`，**非** DOM `Request`），
+ * 且 URL 可能是相对形态 ⇒ 用占位基准解析，只取 `pathname`。
+ */
+function pathOfRequest(request: { url?: URL | string } | undefined): string {
+  const url = request?.url;
+  if (!url) return '';
+  try {
+    return new URL(String(url), 'http://placeholder.invalid').pathname;
+  } catch {
+    return '';
+  }
+}
+
+/** 官方登录错误码 → 本仓既有文案键（未命中则保留原码；T7 统一收敛时再对齐） */
+const SIGN_IN_ERROR_KEY: Record<string, string> = {
+  INVALID_USERNAME_OR_PASSWORD: 'auth.invalid_credentials',
+  INVALID_USERNAME: 'auth.invalid_credentials',
+  USERNAME_TOO_SHORT: 'auth.invalid_credentials',
+  USERNAME_TOO_LONG: 'auth.invalid_credentials',
+  BANNED_USER: 'auth.user_disabled',
+};
+
+/** 登录失败归一为 `ApiError`（保持 `Login.tsx` 的 `err.code` 消费契约 · B10） */
+function signInError(error: { status?: number; code?: string; message?: string }): ApiError {
+  const status = typeof error.status === 'number' && error.status > 0 ? error.status : 401;
+  if (status === 429) return new ApiError('auth.rate_limited', status, error.message ?? '', error);
+  const code =
+    (error.code ? SIGN_IN_ERROR_KEY[error.code] : undefined) ??
+    error.code ??
+    'auth.invalid_credentials';
+  return new ApiError(code, status, error.message ?? code, error);
+}
+
+/**
+ * SDK 会话 hook（会话层单点）：官方 React `useSession` 的绑定包装 ——
+ * `AuthProvider` 消费它拿「登录态 + 用户」，`role` 档位仍以 `/api/auth/me` 为准（M4c-1 T5 拍板）。
+ */
+export function useAuthSession() {
+  return authClient.useSession();
+}
 
 /** 会话用户（`/me` 契约的 `user` 子集；M4a 门户已消费同形状） */
 export interface AuthUser {
@@ -41,13 +116,13 @@ export interface LoginResponse {
 export async function login(
   username: string,
   password: string,
-  opts?: { signal?: AbortSignal },
+  _opts?: { signal?: AbortSignal },
 ): Promise<LoginResponse> {
-  return apiPost<LoginResponse>(
-    '/api/auth/sign-in/aih',
-    { username, password },
-    { signal: opts?.signal, skipAuthRedirect: true },
-  );
+  const { data, error } = await authClient.signIn.username({ username, password });
+  if (error) throw signInError(error as { status?: number; code?: string; message?: string });
+  const user = (data as { user?: { id?: string; name?: string | null } } | null)?.user;
+  if (!user?.id) throw new ApiError('auth.invalid_credentials', 200, 'unexpected sign-in response');
+  return { user: { id: user.id, displayName: user.name ?? user.id }, session: data };
 }
 
 /**
@@ -60,8 +135,16 @@ export async function login(
  *   （`content-type` 由 `apiPost` 对所有写请求统一声明；body 必须由调用方给出）
  * 调用方负责清缓存与跳转（design §4.4：清上下文 + 回首页）。
  */
-export async function logout(opts?: { signal?: AbortSignal }): Promise<void> {
-  await apiPost<unknown>('/api/auth/sign-out', {}, { signal: opts?.signal });
+export async function logout(_opts?: { signal?: AbortSignal }): Promise<void> {
+  const res = await authClient.signOut();
+  if (res?.error) {
+    throw new ApiError(
+      res.error.code ?? 'auth.session_expired',
+      res.error.status ?? 0,
+      res.error.message ?? '',
+      res.error,
+    );
+  }
 }
 
 /**

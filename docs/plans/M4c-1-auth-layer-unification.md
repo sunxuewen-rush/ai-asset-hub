@@ -1,11 +1,11 @@
 # M4c-1 认证层统一到官方：官方 SDK 三层 + 目录口令官方 verify 分支 + 建号钩子 —— 批计划
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.15：T5 落地（官方 SDK 三层 + 两处适配）+ 18 维 9.51** —— ① 依赖 `better-auth@1.7.5`（exact）② 三层：调用层 `createAuthClient` + `usernameClient()`（**F285**）· 会话层 SDK `useSession` · 交互层 401 四分类经 `fetchOptions.onError` 回注单点 ③ 实测：真页面 e2e（三请求 · inline 文案 · 路由不跳）+ web lint/build ✓ ④ Status → **T5 ✅** ⑤ 全量 642/0）|
 > Updated: 2026-10-09（**v0.14：T4 落地（迁移 0015 已在 dev 库执行）+ 18 维 9.57** —— ① 载体三件 + 备份 + 测试库/开发库执行 + 探针 **P1–P6 全过**（P1 9→0 · P5 3→0 · P3 幂等）② 服务起回（3000/5173）+ 匿名/错口令 401 ③ 全量 **642 / 0 fail** ④ **真 200 登录冒烟未做**（仓内不落口令，待 env）⑤ Status → **T4 ✅**）|
 > Updated: 2026-10-09（**v0.13：T4 迁移增语句 ⓪（F284 登录名保全）+ 探针 P1–P6** —— ① T4 步骤 1 改「**三条**语句与批 design §6.0/§6.1/§6.2 一字不差」，**顺序不可交换**（⓪ 早于 ①）② 步骤 3 跑 **P1–P6** + 单事务原子依据（`pg-core/dialect.cjs:62-73`）③ 断言区 P1–P6（**P4 判据改形态拆解** · 新增 **P5 登录名保全**）④ 依据补 **F284** ⑤ F 号段 → **F267–F284**）|
-> Updated: 2026-10-09（**v0.12：T3 收尾（F283 定案「甲」· CSRF 平价落地）** —— ① 插件 `hooks.before` 增**首条** CSRF 钩子（复用官方 `formCsrfMiddleware` · `matcher` `/sign-in/*` · **先于建号钩子** ⇒ 不通过零副作用）② 直测 **9 → 10 例**（⑧ 跨源 ⇒ 403 `INVALID_ORIGIN` + 零建号 · ⑨ Fetch-Metadata 跨站导航 ⇒ 403 `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED` + 零建号 · ⑩ 覆盖含 `/sign-in/email`），全部在**显式 `advanced.disableOriginCheck: false`** 口径下（官方测试环境默认 `skipOriginCheck = isTest() ? true : false`）③ **F283 精确化**：核心 `sign-in` / `sign-up` 端点自带该中间件，仅 `username` 插件端点缺口 ④ T3 18 维 **9.48 → 9.52** ⑤ 全库 **642 例 / 0 fail**）|
 > **头部口径（本件起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本见 §9 修订记录。
-> Status: 🔵 **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ 2026-10-09** · T5–T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移）
+> Status: 🔵 **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ · T4 ✅ · T5 ✅ 2026-10-09** · T6–T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移）
 > 上游：批 design `docs/designs/2026-10-08-m4c1-auth-layer-unification-design.md`（**定稿 · 8 维 9.50** · B1–B10 —— 版本以其版本头为准）
 > · 主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 批件登记 · §15 等价判据 —— 版本以其版本头为准）
 > · 视觉真值 SSOT `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（**本批零视觉改动**，仅引用）
@@ -90,7 +90,7 @@
    - **审计**：`created=true` 时写 `AUDIT_ACTIONS.provisionLdap`（沿用既有动作名 · `detail.via = 'sign-in/username'`）。
    - **链路**：建号后官方端点查 user ⇒ `findCredentialAccount`（凭据委派行）⇒ `password.verify` 落到 T2 件 `auth/password-verify.ts` 的分派（`ldap:` 前缀 ⇒ 再 bind 一次）。
 2. **不返回响应**（不短路）⇒ 官方端点**自有中间件**照常执行；bind 失败 / 邮箱缺失或冲突 ⇒ 不建号、不返回 ⇒ 由官方端点给统一失败响应（不泄露存在性）。
-   - ⚠️ **口径订正（F283 · 待拍板）**：官方 `originCheckMiddleware` 对**无 cookie 的请求直接放行**（真码 `api/middlewares/origin-check.mjs`：`validateOrigin` 内 `if (!(forceValidate || useCookies)) return;`），而补这一层的官方 `formCsrfMiddleware` **只挂在我方自绘 `signInAih` 上**（官方登录端点未挂）⇒ 「不短路」**保不住**登录请求的 Origin/CSRF 强校验（跨源登录 POST 实测 **200**）。修法候选（甲：本钩子首条复用官方 `formCsrfMiddleware`（同源非自绘，推荐）· 乙：`app.ts` 包装层自绘 · 丙：留档接受）**待拍板**；平价探针已挂 `it.skip`（`ldap-credentials.test.ts` ⑧）。
+   - ⚠️ **口径订正（F283 · 已定案「甲」）**：官方 `originCheckMiddleware` 对**无 cookie 的请求直接放行**（真码 `api/middlewares/origin-check.mjs`：`validateOrigin` 内 `if (!(forceValidate || useCookies)) return;`），且官方 **`username` 插件端点自身未挂** `formCsrfMiddleware`（核心 `sign-in` / `sign-up` 端点**都挂了**）⇒ 本钩子**首条**复用官方 `formCsrfMiddleware`（`matcher` `/sign-in/*`，**先于建号钩子** ⇒ 不通过零副作用）补上这一层。**实测口径**：官方测试环境默认 `skipOriginCheck = isTest() ? true : false` ⇒ 断言须按仓内先例显式 `advanced.disableOriginCheck: false`（`app.test.ts:165`，否则实测不可用）。
 
 **断言 / 门禁**：① 无用户 + bind 成功 ⇒ 建号 + 续走官方流程（**不是**钩子直接返回）② 已有用户 ⇒ 钩子零介入 ③ bind 失败 ⇒ DB 零副作用（`user` / `account` / `audit_log` 行数不变）④ 钩子内**不构造响应对象**（源码级硬证：钩子段不得出现 `ctx.json` / `new Response` / `ctx.error`）⑤ **官方语义硬证**：错口令 ⇒ 官方码 `INVALID_USERNAME_OR_PASSWORD`（我方钩子从不出响应）⑥ 无效登录名（含 `-`）⇒ 钩子不介入、不建号 + 官方 422 `INVALID_USERNAME`（F281 护栏）。
 
@@ -145,7 +145,7 @@
 2. **等价判据三层**：① `hasRole` / `useAuth` 签名不变（调用点 21 处 · 口径见 T5 断言 ①）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 7 dogfood 全绿 + `signInAih` 调用点 grep 归零。
 3. **门禁 12 步**（§4，CI 同序）逐项 exit 0。
 4. **规范回填**：`05` §3.1（目录通道命名 = 企业目录口令验证）· `08` §5（`accountId` 语义 + 标记行口径）· `07` §4（错误码映射）。
-5. **F 号同步**：本批 findings 明细登记于批 design §13（**F267–F284** 已登记；**F282 → 归 T6** · **F283 已定案「甲」并落地** · **F284 本批已修**（`0015` 增语句 ⓪））+ `docs/README.md` §6.1 号段行维护。
+5. **F 号同步**：本批 findings 明细登记于批 design §13（**F267–F285** 已登记；**F282 → 归 T6** · **F283 已定案「甲」并落地** · **F284 本批已修**（`0015` 增语句 ⓪））+ `docs/README.md` §6.1 号段行维护。
 6. **依赖登记复核**：实测核对 `THIRD-PARTY-NOTICES.md` 与依赖树一致（本次为**同一依赖的第二消费方**，预期内容不变；若变则按其生成口径重生成）。
 
 **断言 / 门禁**：① 7 脚本 0 FAIL ② 门禁 12 步 exit 0 ③ `doc-audit` / `doc-claims-check` 全绿 ④ 证据文件落 `docs/smoke/`。
@@ -212,6 +212,8 @@ build → db:migrate → test
 
 | **T4** | 2026-10-09 | ① 载体三件：`0015_auth_credential_delegation.sql`（**70 行** · 三语句 ⓪/①/② 与批 design §6.0–§6.2 **逐字一致**）· `meta/_journal.json` 条目 **15 → 16** · `meta/0015_snapshot.json`（prevId = 0014 · tables 深比相等 = **零 schema 变更**）② 备份：`~/aih-m4c1-t4-backup-20261009_112452.sql`（**237,872 B** · user+account 两段 COPY）③ 测试库试跑：`migrate` **双跑**（第二次零插入）④ **dev 库执行（停服窗口）**：`__drizzle_migrations` **15 → 16** · `account` **439 → 440**（② 补 1 行）· `user` **612 不变** ⑤ 探针：**P1 = 0**（前 **9**）· **P2 = 0** · **P3** 幂等（双跑 `account` 440→440 · migrations 16→16）· **P4** 形态拆解（真员工形态不合规 = **0** · 夹具 365 `NULL` + 63 `usr_` 超长）· **P5 = 0**（前 **3**：`admin` / `smoke-admin` / `smoke-uploader` 由 **⓪** 救回登录名）· **P6** 载体（`__drizzle_migrations` 16 条 · 最新 `created_at` = journal `when`）⑥ 服务起回（3000 bun · 5173 vite **200**）+ 匿名 **401** + 错口令 **401**（官方形状，**不 500**）⑦ 全量 **642 例 / 57 文件 / 0 fail** | typecheck ✓ · lint 0 warning · format ✓ · 文档 4 道 ✓ · 区间门禁 ✓ · CI **#138 / #139 绿** | **F284**（执行期发现：归一丢登录名 ⇒ 本批 **⓪** 修 + 探针 P5）· **真 200 登录冒烟未做**：仓内不落口令（冒烟口令从 `SMOKE_M4B2_PASSWORD` env 读）⇒ 待用户口令或用户本地跑 |
 
+| **T5** | 2026-10-09 | ① 依赖：`apps/web` 显式声明 `better-auth@1.7.5`（**exact**）+ `bun.lock` 同批（单一 1.7.5 条目）② 调用层 `api/auth.ts`：`createAuthClient`（`better-auth/react`）+ **客户端插件 `usernameClient()`**（**F285**）· `login()` → `signIn.username`（官方端点；error → `ApiError` 归一）· `logout()` → `signOut` · `useAuthSession()` 绑定 SDK `useSession` ③ 会话层 `AuthProvider.tsx`：登录态交 SDK `useSession`，`user` 取会话（`name` → `displayName` · B9）、`role` 仍取 `/me`（**甲**）+ `roleLevelOf`（B8）兜底；三态契约不变 ④ 交互层 `client.ts`：+`notifyUnauthorized()` 导出，经 SDK `fetchOptions.onError` 回注四分类（**单点不复制**）⑤ 实测冒烟（真页面 · 错口令路径，无需口令）：三请求 `get-session` + `sign-in/username` + `me` 全中 · inline 文案「用户名或密码错误」 · **路由不跳**（四分类 ④ ✓）；`Login.tsx` **sha 未变** · pages **17 文件零新增** ⑥ 门禁：web typecheck ✓ · lint 141 文件 0 问题 ✓ · **build ✓** · 全量 642 例 0 fail | typecheck ✓ · lint ✓ · build ✓ · 文档 4 道 ✓ | **F285**（设计 §3 未列客户端插件清单 ⇒ T5 补 `usernameClient()` 并登记）· **真 200 登录未做**（冒烟口令从 `SMOKE_M4B2_PASSWORD` env 读，仓内不落）· 首帧仍 session + `/me` **两请求**（既定代价）|
+
 ### 7.1 逐 Task 自检打分位（标准档 **18 维** · A×0.40 + B×0.30 + C×0.30 · 门 ≥9）
 
 > 每 Task 收尾就地打分并留痕（**每个 Task 单独报一次 + 18 维自检分，未验部分如实扣**）。
@@ -227,9 +229,15 @@ build → db:migrate → test
 > - B 逐维：B1 9.5（空库冷跑（CI）· 有数据 dev · 幂等双跑 · `NULL` username 形态 · 随机 token 夹具）· B2 9.6（**前后对照**：P1 9→0 · P5 3→0 · P3 双跑零插入 · 错口令 401）· B3 9.6（design §6.0–§6.2 逐字 · journal/快照链 · 事务依据带行号 · F284）· B4 9.5（备份留存 + forward-only 声明）
 > - C 逐维：C1 9.5（零口令泄露 · 不改哈希 · 不泄露账号存在性）· C2 9.6（两条 UPDATE + 一条 INSERT…SELECT；dev 439 行瞬时）· C3 9.5（载体登记 + 快照链 + 手写先例一致）· C4 9.6（70 行含注释）· **C5 9.4（迁移本身无自动化测试 —— 仅探针 + 静态自检 ⇒ 扣）** · C6 9.6 · C7 9.7（design §6.0–§6.4 + F284 + 四文件版本 + 探针 P1–P6）· C8 9.7（零新依赖）· C9 9.5（探针 + `__drizzle_migrations` 真值核对）· C10 9.7（纯 SQL · 容器/CI 同构）
 
+**T5 收尾自检（标准档 18 维 · A×0.40 + B×0.30 + C×0.30）**：A 基础 **9.550** × 0.40 + B 深度 **9.475** × 0.30 + C 工程 **9.480** × 0.30 = **9.51**（门 ≥9 ✓）
+> - A 逐维：A1 9.6（真页面 e2e：SDK 走官方端点 + inline 文案 + 路由不跳）· A2 9.5（SDK 客户端集中一处 · 四分类单点复用不复制 · 注释带依据）· A3 9.6（21 处调用零改 · `Login.tsx` sha 未变 · `/me` 保留 · `hasRole` 签名不变）· A4 9.5（error → `ApiError` 归一含 429/`BANNED_USER`；未知码保留原码）
+> - B 逐维：B1 9.4（`isPending` / 会话空 / `/me` 失败兜底 role / SDK 会话端点 401 不回注）· B2 9.5（错口令 401 + inline + 网络路径实证）· B3 9.6（§3/§4 + B1/B2/B8/B9/B10 + F285）· B4 9.4（单文件可回退 · 依赖 additive）
+> - C 逐维：C1 9.5（`credentials:'include'` · 不落口令 · CSRF/Origin 由服务端侧承担）· C2 9.4（首帧两请求 = 既定代价）· C3 9.5 · C4 9.5（`api/auth.ts` +~90 行；`AuthProvider` 重写行数相当）· **C5 9.0（`apps/web` 无自动化测试（仅 typecheck/lint/build）⇒ 本批仅 e2e 冒烟手工验，如实扣）** · C6 9.6 · C7 9.6 · C8 9.6（新依赖 1 个 · exact · 同实例复用 · notices 不变）· C9 9.4（错误码映射可诊断；无新增日志）· C10 9.7
+
 ---
 
 ## 8. 自检打分（v0.3 · 两轮抽查修复后）
+
 
 
 
@@ -253,6 +261,7 @@ build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.15** | 2026-10-09 | sunxuewen-rush | **T5 落地（官方 SDK 三层 + 两处适配）+ 18 维 9.51** —— ① `apps/web` 声明 `better-auth@1.7.5`（exact；lock 单一 1.7.5；notices 预期不变）② `api/auth.ts`：`createAuthClient` + **`usernameClient()`**（**F285**）· `login` → `signIn.username`（error → `ApiError`）· `logout` → `signOut` · `useAuthSession()` ③ `AuthProvider.tsx`：登录态交 SDK `useSession`；`user` 取会话（`name`→`displayName` · B9）；`role` 仍取 `/me`（甲）+ `roleLevelOf`（B8）兜底；三态契约不变 ④ `client.ts`：+`notifyUnauthorized()`（四分类单点不复制）⑤ 实测（真页面 · 错口令）：三请求全中 + inline「用户名或密码错误」+ 路由不跳；`Login.tsx` sha 未变 · pages 17 零新增 ⑥ 门禁：web typecheck/lint/build ✓ · 全量 642/0 ⑦ 未做：真 200 登录（env 口令）⑧ 18 维 **9.51**（C5 9.0：web 无自动化测试）|
 | **v0.14** | 2026-10-09 | sunxuewen-rush | **T4 落地（`0015` 已在 dev 库执行）+ 18 维 9.57** —— ① 载体三件（SQL 70 行 · journal 15→16 · 快照 prevId=0014）② 备份 `~/aih-m4c1-t4-backup-20261009_112452.sql`（237,872 B）③ 执行：测试库试跑 + **dev 库停服执行**（migrations 15→16 · account 439→440 · user 612 不变）④ 探针 **P1–P6 全过**（P1 9→0 · P2 0 · P3 幂等双跑 · P4 形态拆解真员工 0 · P5 3→0（`admin`/`smoke-admin`/`smoke-uploader` 由 ⓪ 救回）· P6 载体真值）⑤ 服务起回（3000 bun / 5173 vite 200）+ 匿名 401 + 错口令 401 ⑥ 全量 **642 例 / 0 fail** ⑦ 未做：真 200 登录冒烟（口令从 env 读，仓内不落）⑧ CI **#138 / #139 绿** |
 | **v0.13** | 2026-10-09 | sunxuewen-rush | **T4 迁移增语句 ⓪（F284 登录名保全）+ 探针 P1–P6** —— ① `0015` 由两条改**三条**（⓪ 回填 `user.username = lower(credential.account_id)`（`username IS NULL` 且 `account_id IS DISTINCT FROM user.id` 且非空）· ① 归一 `account_id` · ② 补委派行），**顺序不可交换**（① 会覆盖 `account_id`）② 步骤 3 跑 **P1–P6**（P4 合规判据 = **形态拆解**（干净环境才期望 0）· 新增 **P5 登录名保全**（`username IS NULL` 且 `account_id ≠ user.id` 计数 = 0））③ 依据补 **F284**；单事务原子（`drizzle-orm/pg-core/dialect.cjs:62-73`）④ F 号段 → **F267–F284** |
 | **v0.12** | 2026-10-09 | sunxuewen-rush | **T3 收尾（F283 定案「甲」· CSRF 平价落地）** —— ① `plugins/ldap-credentials.ts` 的 `hooks.before` **首条** = 官方 `formCsrfMiddleware`（`matcher` = `ctx.path.startsWith('/sign-in/')`；数组顺序 ⇒ **先于建号钩子** ⇒ CSRF 不通过则**零建号副作用**）② `plugins/ldap-credentials.test.ts` **9 → 10 例**（⑧ 跨源 ⇒ 403 `INVALID_ORIGIN` + 零建号 · ⑨ `Sec-Fetch-Site: cross-site` + `Mode: navigate` ⇒ 403 `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED` + 零建号 · ⑩ 覆盖面含 `/sign-in/email`），**全部在显式 `advanced.disableOriginCheck: false` 口径下**（官方测试环境默认跳过 Origin 校验 `isTest()`；仓内先例 `app.test.ts:165`）③ **F283 精确化**：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **自带** `formCsrfMiddleware`，缺的只有 `username` 插件端点 ④ T3 18 维 **9.48 → 9.52**（B2 9.3→9.5 · C1 9.2→9.5 · C5 9.5→9.6）⑤ 全库 **642 例 / 57 文件 / 0 fail** ⑥ 链路：钩子建号成功后官方端点经 T2 件 `password-verify.ts` 分派复核口令（`ldap:` 前缀 ⇒ 目录再 bind 一次）；本笔待 **commit/push**（需用户口令） |

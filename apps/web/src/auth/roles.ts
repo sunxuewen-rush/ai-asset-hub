@@ -31,3 +31,23 @@ export function hasRole(role: number | null | undefined, min: number): boolean {
   if (role === null || role === undefined) return false;
   return role >= min;
 }
+
+/**
+ * 官方 role **文本** → 本仓数值档（M4c-1 T5 · 批 design §4 档位适配 · **B8 单点**）。
+ *
+ * 官方（`admin` 插件）在 user/session 上给的是**文本档名**（`user` / `admin` / `superadmin`），
+ * 本仓消费面一律数值档 ⇒ 转换只在本文件做（禁页面散写映射）。
+ * 未知档名 / `null` ⇒ `GUEST`（与服务端「无角色与未登录同权」同向从严）。
+ * 数值入参原样返回（`/api/auth/me` 出参即数值档，双侧兼容）。
+ */
+const OFFICIAL_ROLE_LEVEL: Record<string, number> = {
+  user: ROLE.USER,
+  admin: ROLE.ADMIN,
+  superadmin: ROLE.SUPER_ADMIN,
+};
+
+export function roleLevelOf(role: string | number | null | undefined): number {
+  if (typeof role === 'number') return role;
+  if (typeof role !== 'string') return ROLE.GUEST;
+  return OFFICIAL_ROLE_LEVEL[role] ?? ROLE.GUEST;
+}

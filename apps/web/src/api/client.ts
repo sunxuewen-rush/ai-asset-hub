@@ -360,3 +360,14 @@ function handleUnauthorized(path: string, skip: boolean): void {
   if (!isProtectedRoute(pathname)) return; // ③ 公开段静默
   unauthorizedHandler?.(pathname, search); // ② 受保护路由
 }
+
+/**
+ * SDK 侧 401 入口（M4c-1 T5 · 批 design §3 交互层 / B2）。
+ *
+ * 官方 SDK 客户端（`api/auth.ts` 的 `createAuthClient`）在 `fetchOptions.onError` 里调用本函数，
+ * 使 401 四分类**仍是单点实现**（逻辑不复制）。语义与 `doFetch` 的 401 分支一致：
+ * `skip=false`（SDK 请求不属「登录表单 inline 展示」那类例外）；`/api/auth/me` 仍走 ① 早退。
+ */
+export function notifyUnauthorized(path: string, skipAuthRedirect = false): void {
+  handleUnauthorized(path, skipAuthRedirect);
+}
