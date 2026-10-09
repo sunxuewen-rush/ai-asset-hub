@@ -245,6 +245,12 @@ const waitFor = async (expr: string, timeout = 6000, step = 200) => {
 await send('Page.enable');
 await send('Runtime.enable');
 await send('Network.enable');
+// F290（2026-10-09）：本脚本**沿用已有标签**（上方 `targets.find(… '5173' …)` 口径）——
+// 陈旧页的残留态（旧会话 / HMR 模块图 / 被改过的视口）会污染后续断言（实测：命中上一轮遗留的
+// `/admin/reviews` 标签 ⇒ 侧栏断言**假红**；同流程在干净标签上复刻 ⇒ 全绿）。
+// 处置：附着后**先归一页面态**（落 `about:blank`），再设视口、再进业务页。
+await send('Page.navigate', { url: 'about:blank' });
+await sleep(400);
 // 视口：桌面 1440×1000（**必须** —— 对话框内的按钮要落在视口内，真指针才点得到；同 `m4a-dogfood.ts` 口径）
 await send('Emulation.setDeviceMetricsOverride', {
   width: 1440,

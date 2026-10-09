@@ -1,9 +1,9 @@
 # M4c-1 认证层统一到官方设计（批 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.18：F290 加固落地（dogfood 脚本自愈）** —— ① `m4b2-auth-dogfood` / `m4b3-personal-a-dogfood` 附着后**先归一页面态**（落 `about:blank`，杜绝陈旧页残留态污染）+ `m4b2` 的 4 处 `/dashboard` 快照改**侧栏就绪轮询**（≤5s）替代固定 `sleep`② **反证验收**：8 个陈旧 5173 标签在场下 —— `m4b2` **24/0** · `m4b3` **43/0**（加固前同条件 = 5 FAIL））
 > Updated: 2026-10-09（**v0.17：T6 收口（dogfood 7/7 全绿）+ F289/F290 登记** —— ① §5.5「未做」改为**已跑全绿**（494 PASS / 0 FAIL · 含真 200 登录 + 设备流）② 新增 **F289**（smoke/seed 脚本凭据行 `account_id` 未对齐官方 `findCredentialAccount`⇒ 官方端点 401 · 已修 4 文件 + 重跑 seed）· **F290**（dogfood 脚本按 `url.includes('5173')` 复用陈旧标签 ⇒ 假红）③ §5.5 表增「种子脚本（F289）」行）
 > Updated: 2026-10-09（**v0.16：T6 落地（退役 `signInAih` + 审计承接 + 限流交官方）+ F286–F288 登记** —— ① 新增 **§5.5 登录面收口**（端点 / 审计 / 限流 / 失败语义 / 响应体五面 + 审计覆盖面口径）② §7 补 T6 落地段（实际连带面 4 项：审计 · 限流 · 测试夹具 · LDAP 用例契约）③ 新号 **F286**（`auth.ldap_denied` 零生产点 ⇒ T7）· **F287**（登录限流承接变更 ⇒ T7 复核）· **F288**（`audit_log.actor_id` FK NO ACTION ⇒ M4c-2）④ 实测：端点 **404** · 官方端点空体 400 `VALIDATION_ERROR` · 全量 **643 pass / 0 fail**）
-> Updated: 2026-10-09（**v0.15：T5 落地（官方 SDK 三层）+ F285 登记** —— ① §3 调用层行补**客户端插件 `usernameClient()`**（`signIn.username` 的唯一正路）+ **F285** 登记（原未列客户端插件清单）② §13 增 F285 行 ③ 实测：真页面 e2e 冒烟（`/api/auth/get-session` + `/api/auth/sign-in/username` + `/api/auth/me` 三请求 · 错口令 inline 文案 · 路由不跳）|
 > 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §18 修订记录。
 > Status: **定稿**（**批 design** —— 本批落点与契约；实现细则落批 plan）。**定稿条件**：① 8 维自检 **9.50**（标准 9.50 · 深度 9.50；首稿 8.94 → 处置 9.38 → §6 补全 9.44 → **换靶检查 9.19 → 修复后 9.50**）✅ ② 批内对齐 **B1–B10 全部确认**（2026-10-08）✅ ③ 未决项清零（迁移 SQL **与执行窗口口径**已补；dogfood 分段归 plan；CSRF 联调列入实现首批）✅ ⇒ **2026-10-08 用户批准**。本文为**纯设计语言**（意图与契约）。
 > Scope: M4c-1（主 design §2.3）—— **认证层统一到官方**：前端三层改官方 SDK + 后端目录凭据委派行 / `password.verify` 分支 / **不短路**首登建号钩子 / 身份源共享模块 / `accountId` 语义统一（含 1 次数据迁移）+ 退役自绘端点 `signInAih`。
@@ -143,6 +143,8 @@
 | 测试夹具 | `signInCookie` 走 `api.signInAih`；建号凭据行 `account_id = username` | `signInCookie` → 官方 `auth.signInUsername`；`loginNameOf(id)` 归一登录名（官方校验器 3–30 · `/^[a-zA-Z0-9_.]+$/`）；凭据行 `account_id = user.id` | 官方 `internalAdapter.findCredentialAccount` 三条件；**F273**（`accountId` 语义）的测试侧收口 —— 53 处调用点 / 23 个 `PREFIX` 零改 |
 
 **审计覆盖面口径**：官方限流（`onRequestRateLimit`，先于钩子）与 before 阶段的 CSRF / Origin 拦截都**提前返回、不进 after** ⇒ 被拦请求不产生 `auth.login.*` 行（与退役前「限流门之前不写审计」同口径）。
+
+**T5 期真页面冒烟（网络路径实测）**：SDK 会话 `/api/auth/get-session` + SDK 登录 `/api/auth/sign-in/username`（官方端点）+ role 真值 `/api/auth/me`。
 
 **dogfood（2026-10-09 已跑全绿）**：7 脚本 **494 PASS / 0 FAIL**（`m4a` 64 · `m4b2` 24 · `m4b3` 43 · `m4b4` 89 · `m4b5` 62 · `m4b6` 108 · `m4b7` 104 · 全 EXIT=0）—— 覆盖**浏览器侧真 200 登录**与设备流认领→批准，全程 NO JS ERRORS。
 **执行期发现**：① **F289** —— smoke/seed 脚本凭据行 `account_id` 写登录名（非 `user.id`）⇒ 官方端点 401、全链 dogfood 不可用（本批已修 4 文件 + 重跑 seed 复位）② **F290** —— dogfood 脚本按 `url.includes('5173')` 复用**陈旧标签** ⇒ 假红（清标签重跑即绿；加固归 T8）。
@@ -325,7 +327,7 @@ WHERE NOT EXISTS (
 | F286 | 错误码收窄 | T6 后登录面不再产出 `auth.ldap_denied`（原自绘端点的 403；官方端点给统一 401）⇒ **零生产点**（仅存于 `errors.ts` 定义 + `httpStatusFor` + i18n 两处）；`email_missing` / `email_conflict` 仍由 OIDC 通道（`http/oidc-routes.ts:175-176`）消费 | **归 T7**（错误码收敛「删 7 留 5」的同批对象）|
 | F287 | 限流承接 | 登录限流由自绘 `InMemoryRateLimiter`（20 次/15 分钟 · 键 = 登录名\|IP · **dev 也生效**）改交官方 `rateLimit`（`enabled = isProduction` · 内置 `/sign-in*` **10 秒/3 次** · 键 = IP\|path）⇒ **口径变更**：生产长期窗口更松（10s/3）、**dev/test 默认无登录限流** | **本批已承接（甲）**；**T7 复核**（与防枚举 / 口令流转同批）并在规范 `05 §3.1` 回填口径 |
 | F289 | 种子脚本凭据行口径 | `docs/smoke/scripts/m4b2-seed-roles.ts` / `m4b4-seed-assets.ts` / `m4b5-seed-reviews.ts` 与 `apps/server/src/db/seed.ts` 的凭据行写 `account_id = 登录名`，而官方 `findCredentialAccount` 三条件要求 **`account_id = user.id`**（`dist/db/internal-adapter.mjs:652-666`）⇒ 官方 `/sign-in/username` 一律 401（迁移 `0015` 只归一**既有**行，脚本再跑又写回旧语义）| **本批已修**：4 文件改 `user.id` + update WHERE 改按 `user_id`；重跑 seed 复位（三账号真 200）|
-| F290 | dogfood 标签复用 | dogfood 脚本按 `url.includes('5173')` 复用**任意** 5173 标签（实测命中上一轮遗留的陈旧页）⇒ 视口/页面态异常 ⇒ G2/G3 侧栏断言**假红**（复刻同流程于干净标签 + 1440×1000 视口 ⇒ 全绿；清标签重跑 ⇒ 24/0）| **本批已定位并绕过**（清标签）；**脚本加固归 T8**（启动时强制干净标签 / 等导航就绪替代固定 `sleep`）|
+| F290 | dogfood 标签复用 | dogfood 脚本按 `url.includes('5173')` 复用**任意** 5173 标签（实测命中上一轮遗留的陈旧页）⇒ 视口/页面态异常 ⇒ G2/G3 侧栏断言**假红**（复刻同流程于干净标签 + 1440×1000 视口 ⇒ 全绿；清标签重跑 ⇒ 24/0）| **本批已加固**：附着后**先归一页面态**（落 `about:blank`）+ `m4b2` 的 `/dashboard` 快照改**侧栏就绪轮询**（≤5s）替代固定 `sleep`；**反证验收** = 8 个陈旧 5173 标签在场下 `m4b2` **24/0** · `m4b3` **43/0**（加固前同条件 5 FAIL）· T8 复核|
 | F288 | 删号与审计 FK | `audit_log.actor_id → user.id` 为 **NO ACTION**（无级联）⇒ 存在审计行的用户**无法删除**（实测 23503 `audit_log_actor_id_user_id_fk`；测试清理须**先摘审计行**） | **归 M4c-2**（治理面若做删号，须先定策略：`SET NULL` vs 保留 actor 快照）|
 
 ## 14. i18n 变更规格
@@ -437,6 +439,7 @@ WHERE NOT EXISTS (
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.18 | 2026-10-09 | **F290 加固落地（dogfood 脚本自愈）** —— ① `m4b2`/`m4b3` 附着后先归一页面态（落 `about:blank`）+ `m4b2` 4 处 `/dashboard` 快照改侧栏就绪轮询（≤5s）② 反证验收：8 陈旧 5173 标签在场下 24/0 · 43/0（加固前 5 FAIL）③ §13 F290 行改「本批已加固」|
 | v0.17 | 2026-10-09 | **T6 收口（dogfood 7/7 全绿）+ F289/F290 登记** —— ① §5.5「未做」→ **已跑全绿**（494 PASS / 0 FAIL）+ §5.5 表增「种子脚本（F289）」行 ② **F289**（seed 凭据行 `account_id` 须 = `user.id`；已修 4 文件 + 重跑）③ **F290**（dogfood 复用陈旧标签 ⇒ 假红；加固归 T8）|
 | v0.16 | 2026-10-09 | **T6 落地（退役 `signInAih` + 审计承接 + 限流交官方）+ F286–F288 登记** —— ① 新增 **§5.5**（登录面收口五面 + 审计覆盖面口径 + 未做项）② §7 补 T6 落地段（连带面 4 项）③ **F286**（`auth.ldap_denied` 零生产点 ⇒ T7）· **F287**（限流承接变更 ⇒ T7 复核）· **F288**（审计 FK 阻塞删号 ⇒ M4c-2）④ 实测：端点 404 · 官方端点空体 400 · 全量 643/0 |
 | v0.15 | 2026-10-09 | **T5 落地（官方 SDK 三层）+ F285 登记** —— ① §3 调用层行补客户端插件 `usernameClient()`（`better-auth/client/plugins`；服务端 username 插件的客户端配对件 ⇒ `signIn.username` 唯一正路）② **F285**：§3 原未列客户端插件清单（照设计直做会退化为手打 fetch = 自绘）⇒ §13 登记、本批已补 ③ 实测证据：真页面 e2e —— 三请求（`get-session` / `sign-in/username` / `me`）+ 错口令 inline 文案（`auth.invalid_credentials`）+ 路由不跳（四分类 ④）|

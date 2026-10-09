@@ -94,6 +94,19 @@ const nav = async (url: string, wait = 2200) => {
   await send('Page.navigate', { url });
   await sleep(wait);
 };
+/**
+ * F290：**等侧栏就绪**（替代固定 `sleep` —— Vite dev 冷启动 / 会话探测未落定时 2.4s 可能不足）。
+ * 判据 = 侧栏分组标签 ≥1 出现在 DOM（登录后才有分组）；≤5s 轮询，超时返回 false（真缺陷照旧翻红）。
+ */
+const waitForSidebar = async (maxMs = 5000): Promise<boolean> => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    const n = await evalJs(`document.querySelectorAll('[data-slot="sidebar-group-label"]').length`);
+    if (typeof n === 'number' && n >= 1) return true;
+    await sleep(200);
+  }
+  return false;
+};
 async function realClick(selector: string, index = 0) {
   const box = (await evalJs(`(() => {
     const el = document.querySelectorAll(${JSON.stringify(selector)})[${index}];
@@ -158,6 +171,12 @@ const newDeviceCode = async (): Promise<string> => {
 await send('Page.enable');
 await send('Runtime.enable');
 await send('Network.enable');
+// F290（2026-10-09）：本脚本**沿用已有标签**（上方 `targets.find(… '5173' …)` 口径）——
+// 陈旧页的残留态（旧会话 / HMR 模块图 / 被改过的视口）会污染后续断言（实测：命中上一轮遗留的
+// `/admin/reviews` 标签 ⇒ 侧栏断言**假红**；同流程在干净标签上复刻 ⇒ 全绿）。
+// 处置：附着后**先归一页面态**（落 `about:blank`），再设视口、再进业务页。
+await send('Page.navigate', { url: 'about:blank' });
+await sleep(400);
 // F221：**自带桌面视口** —— 此前本脚本不设视口，靠**复用标签页里残留的覆盖**才拿到 1440；
 // 一旦标签页是新的（默认 ≈748×472）侧栏即退化为移动 Sheet ⇒ 断言全红（实测）。
 await send('Emulation.setDeviceMetricsOverride', {
@@ -218,6 +237,7 @@ ok(
 /* ─────────────── G2 role=USER ─────────────── */
 await login('m4b2_user');
 await nav(`${APP}/dashboard`, 2400);
+await waitForSidebar();
 s = JSON.parse((await evalJs(SIDEBAR)) as string);
 // F221 口径补齐（2026-09-30 · M4b-8 T8）：条数**取 navItems SSOT**，不写死
 // —— 原写死 `=== 4`，M4b-7 加「发布」条目后翻红（同文件 G3 段早已按 SSOT 写，本条当时遗漏）
@@ -245,6 +265,7 @@ ok('G2 弹回带轻提示', (g2toast ?? '').includes('无权访问'), `toast=${g
 await logoutByCookie();
 await login('m4b2_mgr');
 await nav(`${APP}/dashboard`, 2400);
+await waitForSidebar();
 s = JSON.parse((await evalJs(SIDEBAR)) as string);
 // F221：条数**取 navItems SSOT**（不写死 —— 后续批加条目不再红）
 const G_admin = navGroupCounts(NAV_ROLE.ADMIN);
@@ -270,6 +291,7 @@ ok('G3 /admin/reviews 可达', g3path === '/admin/reviews', `path=${g3path} titl
 await logoutByCookie();
 await login('m4b2_super');
 await nav(`${APP}/dashboard`, 2400);
+await waitForSidebar();
 s = JSON.parse((await evalJs(SIDEBAR)) as string);
 // F221：条数与占位数均取 SSOT
 const G_super = navGroupCounts(NAV_ROLE.SUPER_ADMIN);
@@ -321,6 +343,7 @@ if (placeholder >= 1) {
 
 /* ─────────────── G5 登录 → 用户菜单 → 登出闭环 ─────────────── */
 await nav(`${APP}/dashboard`, 2400);
+await waitForSidebar();
 await realClick('[data-slot="sidebar-footer"] button', 0).catch(async () => {
   await realClick('[data-slot="sidebar-menu-button"]', 0);
 });
