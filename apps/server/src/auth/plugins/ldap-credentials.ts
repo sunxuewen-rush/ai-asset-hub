@@ -6,6 +6,7 @@ import { AUDIT_ACTIONS, type AuditWriter, auditMetaFromHeaders } from '../../aud
 import type { Db } from '../../db/client.js';
 import { account, user } from '../../db/schema/index.js';
 import { type AuthErrorCode, httpStatusFor } from '../errors.js';
+import { type AccountRow, createIdentityRules } from '../identity.js';
 import type { LdapChannel } from '../ldap.js';
 import type { RateLimiter } from '../rate-limit.js';
 import { accountRoleOf } from '../roles.js';
@@ -67,15 +68,6 @@ const oidcBody = z.object({
   email: z.string().email().max(256).nullable(),
 });
 
-/** 平台账号行（`user` 表的判定所需列） */
-interface AccountRow {
-  id: string;
-  displayName: string;
-  email: string | null;
-  status: string | null;
-  role: string | null;
-}
-
 /** 本地口令行（`credential` provider ∪ `AccountRow`） */
 interface LocalCredentialRow extends AccountRow {
   passwordHash: string | null;
@@ -94,6 +86,8 @@ const OIDC_PROVIDER = 'oidc';
 
 export function directoryCredentials(deps: DirectoryCredentialsDeps) {
   const { db, ldap, audit, rateLimiter } = deps;
+  /** 共享身份规则（M4c-1 §3.4/批 design §5.4：本文件不再自持建号/复用规则） */
+  const identity = createIdentityRules({ db });
 
   /** 我们的结构化错误（07 §4：`{code, message}`；状态码语义见 `httpStatusFor`） */
   function fail(ctx: AuthEndpointCtx, code: AuthErrorCode): never {
@@ -118,30 +112,6 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
     return rows[0] ?? null;
   }
 
-  /** 外部身份 → 平台账号（`(provider, account_id)` 唯一定位） */
-  async function findExternalUser(provider: string, subject: string): Promise<AccountRow | null> {
-    const rows = await db
-      .select({
-        id: user.id,
-        displayName: user.name,
-        email: user.email,
-        status: user.status,
-        role: user.role,
-      })
-      .from(account)
-      .innerJoin(user, eq(account.userId, user.id))
-      .where(and(eq(account.providerId, provider), eq(account.accountId, subject)))
-      .limit(1);
-    return rows[0] ?? null;
-  }
-
-  /** 账号状态门（05 §4.1：DISABLED/PENDING 拒全部；与既有登录同码同出口） */
-  function statusError(status: string | null): AuthErrorCode | null {
-    if (status === 'DISABLED') return 'auth.user_disabled';
-    if (status === 'PENDING') return 'auth.user_pending';
-    return null;
-  }
-
   /** 官方会话签发（官方内部件）——返回会话摘要供响应体使用 */
   async function issueSession(
     ctx: AuthEndpointCtx,
@@ -154,111 +124,6 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
     }
     await setSessionCookie(ctx, { session, user: officialUser });
     return { id: session.id, expiresAt: session.expiresAt };
-  }
-
-  /**
-   * 目录建号/复用（design R15 第 5 步）——替代原 `auth/provision.ts`：
-   * 1. `(provider, subject)` 命中 → 复用（防同一外部身份双账号）+ 显示名漂移同步
-   * 2. 未命中 → **邮箱必填**（缺失即拒，绝不合成）· **邮箱冲突即拒**（同邮箱两身份需人工处置）
-   * 3. 建 `user`（`status='ACTIVE'` · `role='user'` 默认档 · `username`=subject）
-   *    + `account`（`account_id` = subject）——一个事务内
-   */
-  async function ensureDirectoryUser(input: {
-    provider: string;
-    subject: string;
-    displayName: string;
-    email: string | null;
-    /** 建号主键：LDAP = 工号（沿用旧实现 D3）；OIDC = `usr_oidc_<uuid>` */
-    userId: string;
-  }): Promise<
-    { ok: true; account: AccountRow; created: boolean } | { ok: false; code: AuthErrorCode }
-  > {
-    const { provider, subject, displayName, email, userId } = input;
-
-    const bound = await findExternalUser(provider, subject);
-    if (bound) {
-      if (bound.displayName !== displayName) {
-        await db.update(user).set({ name: displayName }).where(eq(user.id, bound.id));
-        bound.displayName = displayName;
-      }
-      const gate = statusError(bound.status);
-      return gate ? { ok: false, code: gate } : { ok: true, account: bound, created: false };
-    }
-
-    if (!email) return { ok: false, code: 'auth.email_missing' };
-    // 官方写入路径把邮箱小写化（X1 实证）⇒ 比对前统一 lower
-    const normalizedEmail = email.trim().toLowerCase();
-    const sameEmail = await db
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.email, normalizedEmail))
-      .limit(1);
-    if (sameEmail.length > 0) return { ok: false, code: 'auth.email_conflict' };
-
-    const insert = async (): Promise<void> => {
-      await db.transaction(async (tx) => {
-        await tx.insert(user).values({
-          id: userId,
-          name: displayName,
-          email: normalizedEmail,
-          emailVerified: true,
-          // 目录身份可信（05 §3.1）：直接 ACTIVE + 默认档
-          status: 'ACTIVE',
-          role: 'user',
-          username: subject,
-          displayUsername: subject,
-        });
-        await tx.insert(account).values({
-          // 官方 account.id 由 adapter 生成随机串；直写路径自行生成（前缀区分来源，便于排查）
-          id: `acc_${crypto.randomUUID()}`,
-          providerId: provider,
-          accountId: subject,
-          userId,
-        });
-      });
-    };
-
-    try {
-      await insert();
-    } catch (err) {
-      // 并发双飞（同邮箱/同工号唯一冲突）→ 回查复用，不重复建号
-      const constraint = (err as { cause?: { code?: string } }).cause?.code;
-      const raced =
-        constraint === '23505'
-          ? ((await findExternalUser(provider, subject)) ??
-            (
-              await db
-                .select({
-                  id: user.id,
-                  displayName: user.name,
-                  email: user.email,
-                  status: user.status,
-                  role: user.role,
-                })
-                .from(user)
-                .where(eq(user.id, userId))
-                .limit(1)
-            )[0])
-          : undefined;
-      if (!raced) throw err;
-      const gate = statusError(raced.status);
-      return gate ? { ok: false, code: gate } : { ok: true, account: raced, created: false };
-    }
-
-    const created = await db
-      .select({
-        id: user.id,
-        displayName: user.name,
-        email: user.email,
-        status: user.status,
-        role: user.role,
-      })
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
-    const row = created[0];
-    if (!row) throw new Error('directory credentials: account row missing after insert');
-    return { ok: true, account: row, created: true };
   }
 
   return {
@@ -313,7 +178,7 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
             row: LocalCredentialRow,
             via: 'local' | 'fallback',
           ): Promise<unknown> => {
-            const gate = statusError(row.status);
+            const gate = identity.statusError(row.status);
             if (gate) {
               await auditLogin({ ok: false, code: gate });
               fail(ctx, gate);
@@ -351,7 +216,7 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
               fail(ctx, 'auth.ldap_denied');
             }
             if (result.status === 'ok') {
-              const ensured = await ensureDirectoryUser({
+              const ensured = await identity.ensureDirectoryUser({
                 provider: LDAP_PROVIDER,
                 subject: result.identity.userId,
                 displayName: result.identity.displayName,
@@ -403,7 +268,7 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
         async (ctx) => {
           if (ctx.request || ctx.headers) return fail(ctx, 'auth.forbidden');
 
-          const ensured = await ensureDirectoryUser({
+          const ensured = await identity.ensureDirectoryUser({
             provider: OIDC_PROVIDER,
             subject: ctx.body.subject,
             displayName: ctx.body.displayName,

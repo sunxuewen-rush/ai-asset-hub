@@ -1,9 +1,9 @@
 # M4c-1 认证层统一到官方设计（批 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.9：T1 落地回填 + F278 登记** —— ① §5.4 规则表增**隐含约束行**（`username` 全局唯一 ⇒ 跨通道 subject 撞车 = 500，处置归 M4c-3）② §13 登记 **F278**（T1 测试照出：跨 provider 同 subject ⇒ 撞 `user_username_unique` ⇒ 未兜住）③ 本版由 T1 实现批带出（plan §7 回填））
 > Updated: 2026-10-08（**v0.8：官方安装页对账（跨文档）** —— ① §3 表**两行订正**：调用层/会话层入口由 vanilla `better-auth/client` 改 **官方 React 入口 `better-auth/react`**（官文点名；`useSession` = React hook + `useStore`；vanilla 的 `useSession` 实为 `Atom<{data,error,isPending}>`）② §3 表后补「**依赖声明**」与「**认证配置口径**」两块（exact + `bun.lock` 同批 + 无 `postinstall` / 不设 `BETTER_AUTH_SECRET`·`BETTER_AUTH_URL`，走 `secret: SESSION_SECRET`·`baseURL: PUBLIC_BASE_URL`；dev 同源经 vite proxy）③ §6.3 增「**schema 变更**」行（本批零 schema 变更 ⇒ 不跑官方 CLI `generate`/`migrate`））
 > Updated: 2026-10-08（**v0.7：§10 承接指针** —— 本轮复核（plan R4）指出「**零新页面 / 零视觉改动**」虽在本件 §10 写明却 plan 无断言 ⇒ §10 表后补「**承接（plan）**」行（零视觉声明→**plan T5 断言 ⑤**；前端改造面五件→plan T5）。与前两行同属「本件已写 → plan 承接」类，一并清完）
-> Updated: 2026-10-08（**v0.6：承接指针补齐** —— §8 表后加「**承接（plan）**」行（时序侧信道→T2 · CSRF/Origin→T3+T5 · **防枚举 / 口令流转→T7 断言 ②③**）· §9 表后加「**承接（plan）**」行（`sign-in/aih` 退役→T6 · `account` 行迁移→T4 · **`REGISTRATION_ENABLED` 默认值→T7 步骤 4 + 断言 ④** · 错误码收敛→T7 · `/api/auth/me` 不变→T5）。**零实现改动 · 无分数变动**）
 > 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §18 修订记录。
 > Status: **定稿**（**批 design** —— 本批落点与契约；实现细则落批 plan）。**定稿条件**：① 8 维自检 **9.50**（标准 9.50 · 深度 9.50；首稿 8.94 → 处置 9.38 → §6 补全 9.44 → **换靶检查 9.19 → 修复后 9.50**）✅ ② 批内对齐 **B1–B10 全部确认**（2026-10-08）✅ ③ 未决项清零（迁移 SQL **与执行窗口口径**已补；dogfood 分段归 plan；CSRF 联调列入实现首批）✅ ⇒ **2026-10-08 用户批准**。本文为**纯设计语言**（意图与契约）。
 > Scope: M4c-1（主 design §2.3）—— **认证层统一到官方**：前端三层改官方 SDK + 后端目录凭据委派行 / `password.verify` 分支 / **不短路**首登建号钩子 / 身份源共享模块 / `accountId` 语义统一（含 1 次数据迁移）+ 退役自绘端点 `signInAih`。
@@ -118,6 +118,7 @@
 | 显示名与默认档 | 显示名取自目录属性；默认档 = 用户档 |
 | 账号链接策略 | 撞邮箱处置 = **自动链接**（唯一实现处；本批只承载，M4c-3 全量接线） |
 | 审计 | 登录来源与结果事件（沿用既有 `auth.login.success` / `auth.login.failed` 动作，**无需新增动作名**） |
+| **`username` 全局唯一（隐含约束）** | 建号写 `username = subject`，而官方表约束为 `user_username_unique`（`drizzle/0008_icy_argent.sql:84`）⇒ **Cross-provider 同一 subject 串会撞车**：撞车时既有兜底只回查 `(provider, subject)` / `user.id`，**不覆盖 username 撞车** ⇒ 原始 23505 冒到统一出口 = **500 `{internal_error}`**。本批**不改行为**（T1 = 零行为变化）；候选处置（① subject 加 provider 前缀 ② 撞车回查并返结构化码 ③ 明确声明 subject 需全域唯一）**归 M4c-3 拍板**（**F278**） |
 
 **定位声明**：本模块**不是**与官方并行的第二套建号机制，而是**挂在官方钩子下游**的规则实现 —— 两个入口都是官方的（官方端点上的 `hooks.before` · 官方 provider 的建号流程）。
 
@@ -256,6 +257,7 @@ WHERE NOT EXISTS (
 | F275 | 钩子时序 | 官方 before 钩子运行在端点自身中间件**之前** ⇒ 钩子内短路会绕过官方 Origin / CSRF 校验 | 本批（§5.3 明确不短路） |
 | F276 | 钩子限制 | 官方 after 钩子只能改写响应体 / 头，**改不了 HTTP 状态码** | 本批（据此确立：登录链必须走官方 `password.verify` 分支，而非响应层兜底） |
 | F277 | 迁移载体 | 手写迁移 `0015` 若**只落 `.sql` 不登记** `drizzle/meta/_journal.json`（及 `meta/0015_snapshot.json`）⇒ `db:migrate`（drizzle-orm `migrate()` 只读 journal）**静默跳过**该迁移 | 本批（plan T4 步骤 2 落载体 + 断言 ⑥；§6.3 载体登记行 + §6.4 P4 探针） |
+| F278 | 建号约束 | 建号写 `username = subject`，官方表 `user_username_unique` 全局唯一 ⇒ **跨通道同 subject 串撞车**时既有兜底不覆盖（只回查 `(provider, subject)` / `user.id`）⇒ 原始 23505 冒到统一出口 = **500**（非结构化码）。LDAP 工号（8 位数字）与社交/OIDC 的数字 sub 存在真实撞车面 | 归 **M4c-3**（候选：subject 加 provider 前缀 / 撞车回查并返结构化码 / 声明 subject 全域唯一）· 本批仅登记 + §5.4 记约束 |
 
 ## 14. i18n 变更规格
 
@@ -366,6 +368,7 @@ WHERE NOT EXISTS (
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.9 | 2026-10-09 | **T1 落地回填 + F278 登记** —— ① §5.4 表增「`username` 全局唯一（隐含约束）」行（跨通道同 subject 撞车 ⇒ 500；处置归 M4c-3，含三个候选）② §13 登记 **F278** —— 由 T1 的模块直测（`identity.test.ts` 第 ⑧ 例「同 subject 不同 provider 不误复用」）稳定照出：单例重跑必失败，非 flaky ⇒ 该例按用户拍板**移除**（T1 承诺零行为变化，修它需先定规则）③ 实测依据：`0008_icy_argent.sql:84` `user_username_unique` · `app.ts:105-124` 统一出口（非 AuthError/AssetError/ReviewError/LabelError ⇒ 500 `internal_error`） |
 | v0.8 | 2026-10-08 | **官方安装页对账（跨文档）** —— 读完官文 `/docs/installation` 后：① §3 表订正入口名（vanilla `better-auth/client` → 官方 **React 入口 `better-auth/react`**，官文点名；实测 `exports["./react"]` 存在且 `useSession` 为 React hook + `useStore`；vanilla 的 `useSession` 是 `Atom<{data,error,isPending}>`）② §3 表后补「依赖声明」（exact · `bun.lock` 同批 · 无 `postinstall`）与「认证配置口径」（不设 `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`，走显式 `secret`/`baseURL`）③ §6.3 增「schema 变更」行（本批零 schema 变更 ⇒ 不跑官方 CLI）。**零实现改动 · 分数不变（9.50）** |
 | v0.7 | 2026-10-08 | **§10 承接指针** —— plan 复核轮 **R4** 指出本件 §10「零新页面 / 零视觉改动」在 plan 无承接 ⇒ §10 表后补「**承接（plan）**」行（零视觉声明→plan **T5 断言 ⑤** · 前端改造面五件→plan T5 · 行为约定不变→plan T5 断言 ③ + T8）。**零实现改动 · 分数不变（9.50）** |
 | v0.6 | 2026-10-08 | **承接指针补齐（plan 侧对账驱动）** —— 第二轮 plan 抽查（R2）指出「本件已写项在 plan 无承接」⇒ §8 表后补「**承接（plan）**」行（四条逐项→T2/T3/T5/T7）· §9 表后补「**承接（plan）**」行（五项逐项→T4/T5/T6/T7，含 **`REGISTRATION_ENABLED` 默认值 → T7 步骤 4 + 断言 ④**）。**零实现改动 · 分数不变（9.50）** |

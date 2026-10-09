@@ -1,11 +1,11 @@
 # M4c-1 认证层统一到官方：官方 SDK 三层 + 目录口令官方 verify 分支 + 建号钩子 —— 批计划
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.6：T1 落地（身份源共享模块）+ F278 登记** —— ① Status ⏳ 待开工 → 🔵 **执行中（T1 ✅ 2026-10-09）** ② §7 回填 T1 落地行（新建 `auth/identity.ts` 194 行纯规则 · 调用方 430→295 · 逐字搬移证据 · 新增直测 9 例 · 门禁全绿）+ §7.1 **18 维 9.43** ③ **F278 登记**（T1 测试照出：跨通道同 subject 撞 `user_username_unique` ⇒ 500；本批不修，归 M4c-3）+ §3 T8 F 号引用 → **F267–F278** ④ 连带：批 design **v0.9** · 主 design **v0.14** · `docs/00` **v1.123** · `docs/README` §6.1 号段）
 > Updated: 2026-10-08（**v0.5：官方安装页对账轮（install 1–5 + D1–D3）** —— 读完官文 `/docs/installation` 逐条对账后补齐 7 项：① **依赖安装形态**（命令 `cd apps/web && bun add better-auth@1.7.5`（exact）· **`bun.lock` 同批提交**（CI `--frozen-lockfile`）· 无 `postinstall` ⇒ 不动 `bunfig.toml`）② **客户端入口改官方 React 入口 `better-auth/react`**（官文点名；`useSession` 为 React hook + `useStore`；原写 vanilla `better-auth/client`）③ **依赖类断言 ⑥**（`apps/web` 可解析 + `bun.lock` 单一 1.7.5 条目）④ 风险 7 补「锁文件未同批 ⇒ CI FAIL」⑤ T8 增**依赖登记复核**（`THIRD-PARTY-NOTICES.md`）⑥ T4 依据补「**零 schema 变更 ⇒ 不跑官方 CLI** `generate`/`migrate`，沿用 `0007`/`0009` 手写先例」⑦ §1 补**认证配置口径**（本仓不设 `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`，走显式选项）⇒ 连带 批 design **v0.8** · 主 design **v0.13** · `docs/00` **v1.122**）
 > Updated: 2026-10-08（**v0.4：R4 承接补齐（复核轮命中）** —— ① **T5 依据行补 B10** · ② **T5 断言新增 ⑤**：零新页面 / 登录页视觉不动（`apps/web/src/pages/` **零新增文件** · `pages/Login.tsx` **本批零改动**（`git diff --name-only` 断言）· 视觉基线引 M4a §4.4 不动）③ §8 自报 **9.31** 由此**成立**（v0.3 报 9.31 时 B10 无承接 ⇒ 实测仅 9.29，本轮补齐）④ 连带：批 design **v0.7**（§10 补承接指针）· 主 design **v0.12** · `docs/00` **v1.121**）
-> Updated: 2026-10-08（**v0.3：第二轮抽查修复（换靶 10 类 · 命中 R1–R3）** —— ① **R1** 头部三处**去硬版本引用**（Status / 上游两行改「版本以各件版本头为准」；原写 批 design v0.4 · 主 design v0.8，实体已 v0.5 / v0.10）② **R2** 批 design §8/§9 已写而 plan 无承接的 **3 条**并入 **T7**：**防枚举**（断言 ② 正反对照）· **口令流转**（断言 ③ 零泄漏）· **`REGISTRATION_ENABLED` 默认关闭**（新步骤 4 + 断言 ④）③ **R3** §4 合并「`lint` + `biome check`」措辞（同物，实测 `lint` = `biome check src`）④ §8 自检 **9.09 → 9.31**（两轮抽查修复后）⑤ 连带：批 design **v0.6**（§8/§9 补承接指针）· 主 design **v0.11** · `docs/00` **v1.120**）
 > **头部口径（本件起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本见 §9 修订记录。
-> Status: ⏳ **待开工**（批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移，沿用 `docs/00` v1.26 先例））· **本批零提交** —— 实现期一事一提交、**逐文件 `git add`**、push 待用户口令
+> Status: 🔵 **执行中**（**T1 ✅ 2026-10-09** · T2–T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移，沿用 `docs/00` v1.26 先例）· **本批零提交** —— 实现期一事一提交、**逐文件 `git add`**、push 待用户口令
 > 上游：批 design `docs/designs/2026-10-08-m4c1-auth-layer-unification-design.md`（**定稿 · 8 维 9.50** · B1–B10 —— 版本以其版本头为准）
 > · 主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 批件登记 · §15 等价判据 —— 版本以其版本头为准）
 > · 视觉真值 SSOT `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（**本批零视觉改动**，仅引用）
@@ -141,7 +141,7 @@
 2. **等价判据三层**：① `hasRole` / `useAuth` 签名不变（调用点 21 处 · 口径见 T5 断言 ①）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 7 dogfood 全绿 + `signInAih` 调用点 grep 归零。
 3. **门禁 12 步**（§4，CI 同序）逐项 exit 0。
 4. **规范回填**：`05` §3.1（目录通道命名 = 企业目录口令验证）· `08` §5（`accountId` 语义 + 标记行口径）· `07` §4（错误码映射）。
-5. **F 号同步**：本批 findings 明细登记于批 design §13（F267–F277 已登记）+ `docs/README.md` §6.1 号段行维护。
+5. **F 号同步**：本批 findings 明细登记于批 design §13（**F267–F278** 已登记）+ `docs/README.md` §6.1 号段行维护。
 6. **依赖登记复核**：实测核对 `THIRD-PARTY-NOTICES.md` 与依赖树一致（本次为**同一依赖的第二消费方**，预期内容不变；若变则按其生成口径重生成）。
 
 **断言 / 门禁**：① 7 脚本 0 FAIL ② 门禁 12 步 exit 0 ③ `doc-audit` / `doc-claims-check` 全绿 ④ 证据文件落 `docs/smoke/`。
@@ -195,7 +195,7 @@ build → db:migrate → test
 
 | Task | 日期 | 实测 | 门禁 | 发现 / 偏差 |
 |------|------|------|------|------------|
-| T1 | | | | |
+| **T1** | 2026-10-09 | 新建 `apps/server/src/auth/identity.ts`（**194 行** · 纯规则：`createAuthEndpoint`/`APIError`/`setSessionCookie`/`ctx.`/`audit(`/`internalAdapter` **全 0 命中**）· 调用方 `plugins/ldap-credentials.ts` **430 → 295 行（−135）** · **搬移逐字比对**（`git show HEAD:` ↔ 新件，去注释/空白后逐行 diff）：`findExternalUser` **0 差异** · `statusError` **0 差异** · `ensureDirectoryUser` **14 行差异 = 13 行签名/类型区（编译期：匿名字面量 → `DirectoryIdentityInput` · 返回类型 → `EnsureDirectoryUserResult`；10 删 + 3 增）+ 2 行 = 1 条 `throw` 文案的删/增**（`directory credentials:` → `identity rules:`）⇒ **运行期唯一差异 = 1 条异常文案** | 本包 `typecheck` ✓ · `lint`（biome 129 文件 · No fixes applied）✓ · 测试 **609 pass / 1 skip / 0 fail**（610 例 / 54 文件 / 34.2s）· 上笔 CI run **37871796462 success** | ① **审计仍留在调用方**（`provisionLdap` / `login.*` 由端点携 `ctx` 元信息写；若搬进模块会让 OIDC 通道**新增** provision 审计 = 行为变化，违反 T1「零行为变化」）⇒ 记为 **待 M4c-3 拍板项** ② 唯一运行期差异 = 1 条异常文案（安全网分支，不可被程序依赖）③ **未新增测试**（`identity.ts` 直接单测缺位，现靠 `app.test.ts` / `session-lifecycle.test.ts` 间接覆盖）⇒ 18 维 C5 已如实扣分 ④ **F278（T1 测试照出的真缺口）**：建号 `username = subject` 撞官方 `user_username_unique` ⇒ 跨通道同 subject 串 ⇒ 既有兜底不覆盖 ⇒ **500**；**本批不修**（T1 零行为变化），处置归 **M4c-3**；原第 ⑧ 例按用户拍板移除，测试件余 **9 例** |
 
 ### 7.1 逐 Task 自检打分位（标准档 **18 维** · A×0.40 + B×0.30 + C×0.30 · 门 ≥9）
 
@@ -225,8 +225,15 @@ build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.6** | 2026-10-09 | sunxuewen-rush | **T1 落地（身份源共享模块）+ F278 登记** —— ① Status → 🔵 **执行中（T1 ✅）** ② §7 回填 + §7.1 18 维 **9.43** ③ 新建 `apps/server/src/auth/identity.ts`（194 行纯规则）· 改造 `plugins/ldap-credentials.ts`（430→295）· **零行为变化证据**（两函数 0 差异 / `ensureDirectoryUser` 14 行差异 = 13 行类型区 + 1 条 throw 文案）④ 新增模块直测 `identity.test.ts` **9 例**（`CI=true` 真库 · 自造前缀 · `afterAll` 自证零残留）⑤ **F278**：跨通道同 subject 撞 `user_username_unique` ⇒ 500（**本批不修**，归 M4c-3）；原第 ⑧ 例按拍板移除 ⑥ 连带 批 design **v0.9**（§5.4 约束行 + §13 F278）· 主 design **v0.14**（上界 F278）· `docs/00` **v1.123** · `docs/README` §6.1 **F267–F278** |
 | **v0.5** | 2026-10-08 | sunxuewen-rush | **官方安装页对账轮（install 1–5 + D1–D3 · 用户「全修」）** —— 读完官文 `/docs/installation` 九步逐条对账后补 7 项：① **依赖安装形态**（`cd apps/web && bun add better-auth@1.7.5`（exact）· **`bun.lock` 同批提交**（CI `--frozen-lockfile`；漏则 FAIL）· 包无 `postinstall` ⇒ 不动 `bunfig.toml`）② **客户端入口订正为官方 React 入口 `better-auth/react`**（官文点名；`useSession` = React hook + `useStore`；原写 vanilla `better-auth/client`，其 `useSession` 实为 `Atom<{data,error,isPending}>`）③ T5 **断言 ⑥**（自 `apps/web` 可解析 + `bun.lock` 单一 1.7.5 条目）④ 风险 **7** 补锁文件口径 ⑤ T8 增**依赖登记复核**（`THIRD-PARTY-NOTICES.md`）⑥ T4 依据补**建表口径**（零 schema 变更 ⇒ 不跑官方 CLI `generate`/`migrate`；引 M4b-pre 可复现 CLI 姿势）⑦ §1 补**认证配置口径**（本批不设 `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`，走 `secret: SESSION_SECRET` / `baseURL: PUBLIC_BASE_URL`）。**实测依据**：官文安装页（真读）· `exports["./react"]` · `vanilla.d.mts:24` · `better-auth.ts:73-74` · `vite.config.ts:16-22` |
 | **v0.4** | 2026-10-08 | sunxuewen-rush | **R4 承接补齐（复核轮命中 · 用户「按推荐修」）** —— 🟡 **R4**：**B10「本批零新页面 / 登录页视觉不动」无 Task 承接、无断言**（v0.3 判它「显式 ✅」实为被头部串「B1–B10」**误命中**的探针假阳性）⇒ ① T5 依据行补 **B10** + **§10** ② T5 断言新增 **⑤**（`pages/` 零新增文件 · `pages/Login.tsx` 本批零改动（`git diff --name-only`）· 视觉基线 M4a §4.4 不动）③ §8 **9.31 成立**（v0.3 报 9.31 时 B10 空缺 ⇒ 实测 9.29）④ 连带 批 design **v0.7**（§10 承接指针）· 主 design **v0.12** · `docs/00` **v1.121** |
 | **v0.3** | 2026-10-08 | sunxuewen-rush | **第二轮抽查修复（换靶 10 类 · 命中 R1–R3）** —— 🟡 **R1** 头部三处**去硬版本引用**（Status / 上游两行 → 「版本以各件版本头为准」；旧写 批 design v0.4 / 主 design v0.8 ≠ 实体 v0.5 / v0.10）· 🟡 **R2** 批 design §8/§9 已写而 plan 零字的 **3 条**并入 T7（防枚举断言 ② 正反对照 · 口令流转断言 ③ · **`REGISTRATION_ENABLED` 默认关闭** 新步骤 4 + 断言 ④）+ §1 行 7 / §2 T7 出口同步 · ⚪ **R3** §4 合并「`lint` + `biome check`」（同物：`lint` = `biome check src`）· §8 **9.31** · 连带 批 design **v0.6** · 主 design **v0.11** · `docs/00` **v1.120** |
 | **v0.2** | 2026-10-08 | sunxuewen-rush | **抽查修复轮（换靶 8 类 · 命中 P1–P4）** —— 🔴 **P1** 迁移载体登记缺失 ⇒ T4 增「登记 `_journal.json` + `0015_snapshot.json`」步骤与断言 ⑥（`migrate.ts:12` 只读 journal 实证），并同步批 design §6.3/§6.4（**F277**）· 🟡 **P2** §1 件清单指针改「主 design §2.7」· 🟡 **P3** T4 依据补 **B3** · 🟡 **P4**「34 处调用点」→ 口径坐实「21 处 / 10 文件（8 + 13）；grep 34 行 = 21 + 11 注释 + 2 定义」· 风险表 **8** 条 · §8 **9.26** |
 | **v0.1** | 2026-10-08 | sunxuewen-rush | **首稿**：由批 design **v0.4（定稿 · 8 维 9.50）** 派生 —— §1 目标 8 项 + 非目标 4 条 + 新增依赖 1 项 · §2 **T1–T8** 总览 · §3 逐 Task 明细（依据 / 步骤 / 断言门禁）· §4 门禁 12 步 · §5 造数（无新脚本 · 迁移执行需授权）· §6 风险 7 条 · §7 落地记录位 + 7.1 逐 Task 18 维打分位 · §8 自检 **9.23**。**本版零实现改动** |
+
+> **T1 收尾自检（标准档 18 维 · A×0.40 + B×0.30 + C×0.30）**：A 基础 **9.525** × 0.40 + B 深度 **9.375** × 0.30 + C 工程 **9.470** × 0.30 = **9.46**（门 ≥9 ✓）
+> **重评 delta（首轮 9.43 → 9.46）**：补测后 A1 9.3→**9.5**（模块 9 例直测）· C5 8.9→**9.4**（`identity.test.ts` 9 例：复用/漂移/邮箱必填/归一/冲突/默认值/成对建号/竞态回查/状态门；`CI=true` 真库 · 自造前缀 · `afterAll` 自证零残留）· C9 9.3→**9.4**（plan §7 回填 + 批 design §5.4 约束行 + F278 登记）；B 维不变
+> - A 逐维：A1 9.5 · A2 9.6（具名接口替匿名字面量 · 无 any）· A3 9.5（导出面/端点/响应形状未动）· A4 9.5（错误路径逐字搬移）
+> - B 逐维：B1 9.4 · B2 9.4（23505 竞态 / 缺行安全网 / null 邮箱全保留）· B3 9.5（工厂形态同 `directoryCredentials(deps)`）· B4 9.2（无新增降级，OIDC 无审计保持原状）
+> - C 逐维：C1 9.4 · C2 9.4 · C3 9.3 · C4 9.6（430→295 行 · 链接策略单点）· **C5 9.4**（9 例直测；移除的第 ⑧ 例对应 **F278** —— 缺口已登记、归 M4c-3，故不视为覆盖到）· C6 9.7 · C7 9.6 · C8 9.5 · C9 9.4 · C10 9.4
