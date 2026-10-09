@@ -1,9 +1,9 @@
 # M4c-1 认证层统一到官方：官方 SDK 三层 + 目录口令官方 verify 分支 + 建号钩子 —— 批计划
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.13：T4 迁移增语句 ⓪（F284 登录名保全）+ 探针 P1–P6** —— ① T4 步骤 1 改「**三条**语句与批 design §6.0/§6.1/§6.2 一字不差」，**顺序不可交换**（⓪ 早于 ①）② 步骤 3 跑 **P1–P6** + 单事务原子依据（`pg-core/dialect.cjs:62-73`）③ 断言区 P1–P6（**P4 判据改形态拆解** · 新增 **P5 登录名保全**）④ 依据补 **F284** ⑤ F 号段 → **F267–F284**）|
 > Updated: 2026-10-09（**v0.12：T3 收尾（F283 定案「甲」· CSRF 平价落地）** —— ① 插件 `hooks.before` 增**首条** CSRF 钩子（复用官方 `formCsrfMiddleware` · `matcher` `/sign-in/*` · **先于建号钩子** ⇒ 不通过零副作用）② 直测 **9 → 10 例**（⑧ 跨源 ⇒ 403 `INVALID_ORIGIN` + 零建号 · ⑨ Fetch-Metadata 跨站导航 ⇒ 403 `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED` + 零建号 · ⑩ 覆盖含 `/sign-in/email`），全部在**显式 `advanced.disableOriginCheck: false`** 口径下（官方测试环境默认 `skipOriginCheck = isTest() ? true : false`）③ **F283 精确化**：核心 `sign-in` / `sign-up` 端点自带该中间件，仅 `username` 插件端点缺口 ④ T3 18 维 **9.48 → 9.52** ⑤ 全库 **642 例 / 0 fail**）|
 > Updated: 2026-10-09（**v0.11：T3 落地（官方 before 钩子首登建号）+ F282/F283 登记** —— ① `identity.ts` 增可选入参 `delegatedPassword` ⇒ 凭据委派行与建号**同事务** ② 插件挂官方 `sign-in/username` 的 `hooks.before`（**不短路** + F281 护栏 + `provisionLdap` 审计）③ 新增 9 例直测（含「钩子不构造响应」源码级硬证、官方语义硬证）④ **F282**（登录审计零消费点 · 归 T6）· **F283**（官方登录端点无 cookieless Origin/CSRF 强校验 · 实测跨源 200 · **修法待拍板**，平价探针已挂 `it.skip`）⑤ T3 18 维 **9.48**）|
-> Updated: 2026-10-09（**v0.10：头部下沉覆盖修复（CI #133 红因）** —— ① v0.5 头部行下沉时尾部「连带：批 design **v0.8** · 主 design **v0.13** · `docs/00` **v1.122**」未迁入 §9 ⇒ `head-sink-coverage` FAIL（CI **#133** 唯一失败步）；已把该连带条款**逐字回填 §9 v0.5 行** ② 本地补跑该门禁（`--base 22f973a --head HEAD`）后提交 |
 > **头部口径（本件起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本见 §9 修订记录。
 > Status: 🔵 **执行中**（**T1 ✅ · T2 ✅ · T3 ✅ 2026-10-09** · T4–T8 ⬜）· 批 design **定稿** · 8 维 **9.50** · B1–B10 全部确认 —— **版本号以各件版本头为准**（防二次漂移）
 > 上游：批 design `docs/designs/2026-10-08-m4c1-auth-layer-unification-design.md`（**定稿 · 8 维 9.50** · B1–B10 —— 版本以其版本头为准）
@@ -96,14 +96,14 @@
 
 ### T4 · server：迁移 `0015` + 探针
 
-> 依据 = 批 design **§6.1 / §6.2 / §6.3 / §6.4** · **B3** · 主 design §3.5 / R8 · 事实依据 **F281**。前置 = T3（后端能力就绪后再动数据）。**执行需用户授权**。
+> 依据 = 批 design **§6.1 / §6.2 / §6.3 / §6.4** · **B3** · 主 design §3.5 / R8 · 事实依据 **F281 / F284**。前置 = T3（后端能力就绪后再动数据）。**执行需用户授权**。
 > **建表口径（官方 CLI）**：本批 **零 schema 变更**（`0015` = **数据迁移**）⇒ **不跑**官方 CLI `auth generate` / `migrate`，沿用 `0007` / `0009` **手写 SQL** 先例；官方 CLI 姿势仅在**未来 schema 变更**时启用（M4b-pre 可复现记录：临时 `export const auth = betterAuth(authOptions())` + `bun x auth@latest generate --adapter drizzle --dialect pg --output <仓外>`，因本仓 auth 实例导出名 `authOptions/createAuth/getAuth` **不符官文约定**故须 `--config`）。
 
-1. 落 `apps/server/drizzle/0015_*.sql`：两条语句与批 design §6.1 / §6.2 **一字不差**（列名 `account_id` / `provider_id` / `password` / `user_id`；provider 常量 `credential` / `ldap` / `oidc`；登录名择优沿用 `0009` 同款 LATERAL 排序）。
+1. 落 `apps/server/drizzle/0015_*.sql`：**三条**语句与批 design **§6.0 / §6.1 / §6.2** **一字不差**（**顺序不可交换**：⓪ 登录名保全**必须**早于 ① 归一 —— ① 会覆盖 `account_id`；**F284**）（列名 `account_id` / `provider_id` / `password` / `user_id`；provider 常量 `credential` / `ldap` / `oidc`；登录名择优沿用 `0009` 同款 LATERAL 排序）。
 2. **登记迁移载体**：`apps/server/drizzle/meta/_journal.json` 追加条目（`idx` 顺延 = **15** · `tag` = 文件名去扩展名）+ 落 `meta/0015_snapshot.json` —— `apps/server/src/db/migrate.ts:12` 走 drizzle-orm `migrate()`，**只读 journal、不扫 `.sql` 目录** ⇒ 漏登记则迁移**静默不执行**（对齐先例 `0009_auth_user_domain_data_move` 的登记形态）。
-3. 执行窗口 = **停服** ⇒ `bun run --filter=@ai-asset-hub/server db:migrate` ⇒ 立即跑 P1–P4。
+3. 执行窗口 = **停服** ⇒ `bun run --filter=@ai-asset-hub/server db:migrate` ⇒ 立即跑 **P1–P6**（三条语句同属一个迁移文件 ⇒ drizzle **单事务**原子：`pg-core/dialect.cjs:62-73`）。
 
-**断言 / 门禁**：**P1** `credential` 行 `account_id IS DISTINCT FROM user_id` 计数 = 0 · **P2** 每个「有 ldap/oidc 行」的用户恰有 1 行 `credential` 行 · **P3** 迁移连跑两次，第二次零插入 · **P4**（**F281**）**登录名合规**：全量 `credential` 账号的 `user.username` 匹配官方默认校验器 `/^[a-zA-Z0-9_.]+$/` 且长度 3–30（真码 `dist/plugins/username/index.mjs:12-14,31-40`）⇒ **不合规计数 = 0**；若 > 0 ⇒ 只出**订正清单**（改数据需另行授权，**不静默改**）· ④ 迁移前后 `user` / `account` 既有行口令哈希**零改动**（除新增标记行）⑤ 迁移前快照已存在 ⑥ **载体已登记**：`meta/_journal.json` 条目数 = **16** 且含 `0015_*` tag · `meta/0015_snapshot.json` 存在。
+**断言 / 门禁**：**P1** 归一零例外：`credential` 行 `account_id IS DISTINCT FROM user_id` 计数 = 0 · **P2** 完整性：每个「有 ldap/oidc 行」的用户恰有 1 行 `credential` 行 · **P3** 幂等：连跑两次，第二次零插入 · **P4**（**F281**）**登录名合规**：`credential` 账号的 `username` 匹配官方默认校验器 `/^[a-zA-Z0-9_.]+$/` 且长度 3–30（真码 `dist/plugins/username/index.mjs:12-14,31-40`）—— ⚠️ **只在干净环境期望 0**；dev 库含夹具 ⇒ 判据为**形态拆解**（真员工账号 = 0），不合规只出**订正清单**（改数据需另行授权，**不静默改**）· **P5**（**F284**）**登录名保全**：迁移后「`username IS NULL` 且 `credential.account_id IS DISTINCT FROM user.id`」的账号数 = 0（不再有「登录名只在 `account_id`」的账号；**由 ⓪ 保证**）· ④ 迁移前后 `user` / `account` 既有行口令哈希**零改动**（除新增标记行）⑤ 迁移前快照已存在 ⑥ **载体已登记**：`meta/_journal.json` 条目数 = **16** 且含 `0015_*` tag · `meta/0015_snapshot.json` 存在。
 
 ### T5 · web：官方 SDK 三层 + 两处适配
 
@@ -145,7 +145,7 @@
 2. **等价判据三层**：① `hasRole` / `useAuth` 签名不变（调用点 21 处 · 口径见 T5 断言 ①）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 7 dogfood 全绿 + `signInAih` 调用点 grep 归零。
 3. **门禁 12 步**（§4，CI 同序）逐项 exit 0。
 4. **规范回填**：`05` §3.1（目录通道命名 = 企业目录口令验证）· `08` §5（`accountId` 语义 + 标记行口径）· `07` §4（错误码映射）。
-5. **F 号同步**：本批 findings 明细登记于批 design §13（**F267–F283** 已登记；**F282 → 归 T6** · **F283 处置待拍板**）+ `docs/README.md` §6.1 号段行维护。
+5. **F 号同步**：本批 findings 明细登记于批 design §13（**F267–F284** 已登记；**F282 → 归 T6** · **F283 已定案「甲」并落地** · **F284 本批已修**（`0015` 增语句 ⓪））+ `docs/README.md` §6.1 号段行维护。
 6. **依赖登记复核**：实测核对 `THIRD-PARTY-NOTICES.md` 与依赖树一致（本次为**同一依赖的第二消费方**，预期内容不变；若变则按其生成口径重生成）。
 
 **断言 / 门禁**：① 7 脚本 0 FAIL ② 门禁 12 步 exit 0 ③ `doc-audit` / `doc-claims-check` 全绿 ④ 证据文件落 `docs/smoke/`。
@@ -245,6 +245,7 @@ build → db:migrate → test
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| **v0.13** | 2026-10-09 | sunxuewen-rush | **T4 迁移增语句 ⓪（F284 登录名保全）+ 探针 P1–P6** —— ① `0015` 由两条改**三条**（⓪ 回填 `user.username = lower(credential.account_id)`（`username IS NULL` 且 `account_id IS DISTINCT FROM user.id` 且非空）· ① 归一 `account_id` · ② 补委派行），**顺序不可交换**（① 会覆盖 `account_id`）② 步骤 3 跑 **P1–P6**（P4 合规判据 = **形态拆解**（干净环境才期望 0）· 新增 **P5 登录名保全**（`username IS NULL` 且 `account_id ≠ user.id` 计数 = 0））③ 依据补 **F284**；单事务原子（`drizzle-orm/pg-core/dialect.cjs:62-73`）④ F 号段 → **F267–F284** |
 | **v0.12** | 2026-10-09 | sunxuewen-rush | **T3 收尾（F283 定案「甲」· CSRF 平价落地）** —— ① `plugins/ldap-credentials.ts` 的 `hooks.before` **首条** = 官方 `formCsrfMiddleware`（`matcher` = `ctx.path.startsWith('/sign-in/')`；数组顺序 ⇒ **先于建号钩子** ⇒ CSRF 不通过则**零建号副作用**）② `plugins/ldap-credentials.test.ts` **9 → 10 例**（⑧ 跨源 ⇒ 403 `INVALID_ORIGIN` + 零建号 · ⑨ `Sec-Fetch-Site: cross-site` + `Mode: navigate` ⇒ 403 `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED` + 零建号 · ⑩ 覆盖面含 `/sign-in/email`），**全部在显式 `advanced.disableOriginCheck: false` 口径下**（官方测试环境默认跳过 Origin 校验 `isTest()`；仓内先例 `app.test.ts:165`）③ **F283 精确化**：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **自带** `formCsrfMiddleware`，缺的只有 `username` 插件端点 ④ T3 18 维 **9.48 → 9.52**（B2 9.3→9.5 · C1 9.2→9.5 · C5 9.5→9.6）⑤ 全库 **642 例 / 57 文件 / 0 fail** ⑥ 链路：钩子建号成功后官方端点经 T2 件 `password-verify.ts` 分派复核口令（`ldap:` 前缀 ⇒ 目录再 bind 一次）；本笔待 **commit/push**（需用户口令） |
 | **v0.11** | 2026-10-09 | sunxuewen-rush | **T3 落地（官方 before 钩子首登建号）+ F282/F283 登记** —— ① `apps/server/src/auth/identity.ts`（220 行）：`DirectoryIdentityInput.delegatedPassword`（可选）⇒ 建号事务内一并写凭据委派行（`credential` · `accountId=user.id` · `password=ldap:<工号>`），`CREDENTIAL_PROVIDER` 导出 ② `plugins/ldap-credentials.ts`（295 → 369 行）：插件对象增 `hooks.before`（`matcher: ctx.path === '/sign-in/username'`），首登建号 + **不短路**（真码 `api/dispatch.mjs:210-231` 先于端点 handler 与其中间件；F275）+ F281 护栏（长度 3–30 + `/^[a-zA-Z0-9_.]+$/`）+ `provisionLdap` 审计 ③ 新增 `apps/server/src/auth/plugins/ldap-credentials.test.ts`（**9 例** · 8 pass / 1 skip）④ `identity.test.ts` 增 ⑩⑪（委派行两行 / 缺省零额外行）⑤ 全库 **640 例 / 57 文件 / 0 fail** ⑥ **F282**：T6 退役 `signInAih` 后 `auth.login.success` / `auth.login.failed` **零消费点**（`app.ts` 包装层只管 logout / device 三件）⇒ 归 **T6** ⑦ **F283**：官方 `sign-in/username` 对无 cookie 请求**不做** Origin/CSRF 强校验（真码 `api/middlewares/origin-check.mjs`）⇒ 跨源登录 POST 实测 **200**；「不短路以保住官方校验」口径不完备 ⇒ **修法待拍板**（甲/乙/丙），平价探针挂 `it.skip`（⑧）|
 | **v0.10** | 2026-10-09 | sunxuewen-rush | **头部下沉覆盖修复** —— CI **#133**（`1ea8c60`）唯一失败步 = `head-sink-coverage`：**v0.5 头部版本行**下沉时其尾部「**连带版本**：批 design v0.8 · 主 design **v0.13** · `docs/00` **v1.122**」未在同文件留存（token `v0.13`/`v1.122`/`122` 零命中）⇒ **逐字迁入 §9 v0.5 行**（⑧ 连带版本）。**流程修正**：文档头部改动的提交，本地门禁须含 `head-sink-coverage.ts --base <before> --head HEAD`（原只跑 4 个默认脚本，漏此项 ⇒ 网络时延后才暴露） （本地验真命令：`--base 22f973a --head HEAD`） |

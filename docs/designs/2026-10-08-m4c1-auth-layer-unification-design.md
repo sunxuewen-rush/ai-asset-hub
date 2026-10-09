@@ -1,9 +1,9 @@
 # M4c-1 认证层统一到官方设计（批 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.14：T4 迁移增语句 ⓪（F284 登录名保全）** —— ① 新增 **§6.0**：`0015` 在 §6.1 归一 `account_id` **之前**回填 `user.username = lower(credential.account_id)`（否则「登录名只存在 `account_id`」的存量本地账号迁移后永久 401 且不可逆）② §6.3 增**语句顺序**与**登录名保全**两行（单事务原子：`drizzle-orm/pg-core/dialect.cjs:62-73`）③ §6.4 探针扩为 **P1–P6**（+P5 登录名保全；P4 合规判据改**形态拆解**）④ §13 登记 **F284** |
 > Updated: 2026-10-09（**v0.13：F283 定案「甲」+ 口径订正** —— ① §5.3 决策段由「待拍板」改为**已定案甲**：插件 `hooks.before` 首条复用官方 `formCsrfMiddleware`、`matcher` = `/sign-in/*`（先于建号钩子）② **F283 精确化**：核心 `sign-in` / `sign-up` 端点**自带**该中间件，缺的只有 `username` 插件端点（本批采纳端点）③ **实测口径订正**：官方测试环境默认 `skipOriginCheck=true` ⇒ 原「实测 200」不成立；显式 `advanced.disableOriginCheck:false` 后实测 403（`INVALID_ORIGIN` / `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`）且**零建号** ④ §8 CSRF 行改「已闭环」|
 > Updated: 2026-10-09（**v0.12：T3 落地 + F282/F283 登记** —— ① §5.1 增**委派行写入点**（建号事务内 · 可选入参 `delegatedPassword`）② §5.3 表增**实现落点 / 登录名护栏 / 审计**三行 ⇒ 返回行为「不短路」并挂 **F283 口径订正** ③ **§8 CSRF/Origin 行订正**（原「不短路以保住官方校验」不完备）④ §13 登记 **F282**（登录审计零消费点 · 归 T6）· **F283**（官方登录端点无 cookieless Origin/CSRF 强校验 · 实测 200 · 修法待拍板）|
-> Updated: 2026-10-09（**v0.11：F281 登记（T2 测试附带发现）** —— 官方默认用户名校验器 `/^[a-zA-Z0-9_.]+$/`（3–30 · 不收 `-`）⇒ 建议 T4 加「credential 行登录名合规」探针）
 > 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §18 修订记录。
 > Status: **定稿**（**批 design** —— 本批落点与契约；实现细则落批 plan）。**定稿条件**：① 8 维自检 **9.50**（标准 9.50 · 深度 9.50；首稿 8.94 → 处置 9.38 → §6 补全 9.44 → **换靶检查 9.19 → 修复后 9.50**）✅ ② 批内对齐 **B1–B10 全部确认**（2026-10-08）✅ ③ 未决项清零（迁移 SQL **与执行窗口口径**已补；dogfood 分段归 plan；CSRF 联调列入实现首批）✅ ⇒ **2026-10-08 用户批准**。本文为**纯设计语言**（意图与契约）。
 > Scope: M4c-1（主 design §2.3）—— **认证层统一到官方**：前端三层改官方 SDK + 后端目录凭据委派行 / `password.verify` 分支 / **不短路**首登建号钩子 / 身份源共享模块 / `accountId` 语义统一（含 1 次数据迁移）+ 退役自绘端点 `signInAih`。
@@ -134,6 +134,24 @@
 
 **载体**：drizzle SQL 迁移（序号 `0015`，文件名由 drizzle-kit 生成）—— 与既有 `0000–0014` 同构；**forward-only · 幂等**。
 
+### 6.0 语句 ⓪：救回「登录名只存在于 `account_id`」的账号（**必须早于 §6.1**）
+
+**依据（M4c-1 T4 执行期发现 · F284）**：官方 `/sign-in/username` **只按 `user.username` 查找**（`normalizer` = 小写，`dist/plugins/username/index.mjs`）⇒ 存量本地账号若 `username IS NULL`（登录名只存在凭据行的 `account_id` —— 旧 `signInAih` 时代即如此，它按 `account_id` 查），§6.1 归一后该登录名在库内**无处可寻** ⇒ 该账号永久 401 且**不可逆**。
+
+```sql
+UPDATE "user" u
+SET "username" = lower(a."account_id"),
+    "display_username" = a."account_id"
+FROM "account" a
+WHERE a."user_id" = u."id"
+  AND a."provider_id" = 'credential'
+  AND u."username" IS NULL
+  AND a."account_id" IS DISTINCT FROM u."id"
+  AND a."account_id" <> '';
+```
+
+**口径**：`username` 存**小写**（对齐官方查找语义）· `display_username` 保留原样（官方 display 归一缺省 = 恒等）。**安全性**：`IS DISTINCT FROM u."id"` 天然排除「`account_id` 已 = `user.id`」的随机 token 夹具行。
+
 ### 6.1 语句 ①：`credential` 行 `accountId` 语义归一（工号 → `user.id`）
 
 ```sql
@@ -177,7 +195,9 @@ WHERE NOT EXISTS (
 
 | 项 | 口径 |
 |----|------|
-| 幂等 | ① 靠 `IS DISTINCT FROM`（重跑零影响）；② 靠 `NOT EXISTS`（已存在 `credential` 行则跳过 ⇒ **不覆盖本仓本地账号的真实口令行**） |
+| 幂等 | ⓪ 靠 `u.username IS NULL`；① 靠 `IS DISTINCT FROM`（重跑零影响）；② 靠 `NOT EXISTS`（已存在 `credential` 行则跳过 ⇒ **不覆盖本仓本地账号的真实口令行**） |
+| **语句顺序** | **不可交换**：⓪ 必须早于 ①（① 归一 `account_id` 后就取不到原登录名）③ | 三条同属一个迁移文件 ⇒ 单事务原子（`drizzle-orm/pg-core/dialect.cjs:62-73` 的 `session.transaction`） |
+| **登录名保全** | 存量本地账号登录名若只存在于 `credential.account_id`（`username IS NULL`）⇒ 由 ⓪ 回填 `user.username = lower(account_id)`（**F284**）；迁移**不得**丢登录名 |
 | 全新库 / 空库 | 两条语句**自然零命中**（幂等迁移的期望行为），无需特判 |
 | 不改哈希 | 不动任何既有 `password` 值；语句 ② 只**新增**标记行 |
 | 目录登录名取自 | 该账号的 **ldap 行 `account_id`**（= 目录 subject，惯例 `sAMAccountName`）；仅 OIDC 行时取其 subject |
@@ -192,10 +212,12 @@ WHERE NOT EXISTS (
 
 | # | 断言 |
 |---|------|
-| P1 | `SELECT count(*) FROM "account" WHERE provider_id='credential' AND account_id IS DISTINCT FROM user_id` = **0** |
-| P2 | 每个「有 ldap/oidc 行」的用户**恰有 1 行** `credential` 行：`SELECT count(*) FROM (SELECT user_id FROM "account" WHERE provider_id IN ('ldap','oidc')) x JOIN (…) y USING (user_id)` 无重复（`credential` 行按 `user_id` 唯一） |
-| P3 | 语句 ② 的幂等：**连跑两次**，第二次零插入 |
-| P4 | **载体已登记**：`meta/_journal.json` 条目数 = **16** 且含 `0015_*` tag；`meta/0015_snapshot.json` 存在 |
+| P1 | 归一零例外：`SELECT count(*) FROM "account" WHERE provider_id='credential' AND account_id IS DISTINCT FROM user_id` = **0** |
+| P2 | 完整性：每个「有 ldap/oidc 行」的用户**恰有 1 行** `credential` 行（`credential` 行按 `user_id` 唯一） |
+| P3 | 幂等：**连跑两次** `db:migrate`，第二次零插入 |
+| P4 | **登录名合规（F281）**：credential 账号的 `username` 不匹配 `/^[a-zA-Z0-9_.]+$/` 或长度不在 3–30 的计数。⚠️ 只在**干净环境**期望 0；dev 库含夹具（随机 token 行 `username IS NULL` · `usr_<uuid>` 形态超长）⇒ 判据改为**形态拆解**（真员工账号 = 0），不合规清单只出**订正清单**不动数据 |
+| P5 | **登录名保全（F284）**：`SELECT count(*) FROM "user" u JOIN "account" a ON a.user_id=u.id WHERE a.provider_id='credential' AND u.username IS NULL AND a.account_id IS DISTINCT FROM u.id` = **0**（迁移后不应再有「登录名只在 `account_id`」的账号） |
+| P6 | 载体已登记：`meta/_journal.json` 条目数 = **16** 且含 `0015_*` tag；`meta/0015_snapshot.json` 存在 |
 
 ## 7. 退役 `signInAih`：调用点切换顺序
 
@@ -272,6 +294,8 @@ WHERE NOT EXISTS (
 
 | F282 | 审计面 | T6 退役 `signInAih` 后，`auth.login.success` / `auth.login.failed` **零消费点**（全仓仅 `plugins/ldap-credentials.ts` 在写；`apps/server/src/app.ts` 包装层只管 `logout` / device 三件）⇒ 官方 `sign-in/username` 路径无登录审计 | 归 **T6**（退役同批补官方路径审计；落点候选 = 官方 `hooks.after` 或 `app.ts` 包装层加 `/sign-in/*` 分支） |
 | F283 | CSRF / Origin | 本批采纳的 `/sign-in/username`（`username` 插件端点）**自身未挂**官方 `formCsrfMiddleware`（核心 `api/routes/sign-in.mjs` / `sign-up.mjs` 都挂了 ⇒ 仅该插件端点缺口）；全局 `originCheckMiddleware` 对**无 cookie** 请求早退（`validateOrigin` 内 `if (!(forceValidate || useCookies)) return;`）⇒ 无 cookie 的跨源登录 POST 不被强校验（**源码判定**；测试环境下 better-auth 默认跳过 Origin 校验 ⇒ 实测须显式 `advanced.disableOriginCheck:false`） | **已定案「甲」并落地（T3）**：插件 `hooks.before` **首条**复用官方 `formCsrfMiddleware`，`matcher` = `/sign-in/*`（先于建号钩子 ⇒ 不通过零副作用）；平价探针 **⑧⑨⑩**（强制校验口径下实测 403 + 零建号） |
+
+| F284 | 迁移丢登录名 | `0015` §6.1 把 `credential.account_id` 归一为 `user.id` 时，**`user.username IS NULL` 的存量本地账号会失去登录名**（其登录名只存在 `account_id`；官方 `/sign-in/username` 只按 `username` 查）⇒ 归一后**不可逆**地登不进来（旧 `signInAih` 按 `account_id` 查故此前可用）。dev 库实测：368 个 `username IS NULL` 的 credential 账号中 **365** 已 `account_id = user.id`（随机 token 夹具，无影响）· 真正受影响 **3** 个（`admin` / `smoke-uploader` / `smoke-admin`）· 本机 dev 无任何真员工账号（`username ~ '^[0-9]{6,10}$'` 命中 0），但生产/其他环境可能有 | **本批已修**：`0015` 增 **§6.0 语句 ⓪**（**早于 ①** 回填 `username = lower(account_id)` · `display_username` 原样 · `IS DISTINCT FROM u.id` 排除夹具行）+ 探针 **P5** |
 
 ## 14. i18n 变更规格
 
@@ -382,6 +406,7 @@ WHERE NOT EXISTS (
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.14 | 2026-10-09 | **T4 迁移增语句 ⓪（F284 登录名保全）** —— ① 新增 **§6.0**（`UPDATE "user" u SET username = lower(a.account_id), display_username = a.account_id FROM account a WHERE … u.username IS NULL AND a.account_id IS DISTINCT FROM u.id AND a.account_id <> ''`），**必须早于 §6.1** ② §6.3 增两行（语句顺序不可交换 · 登录名保全）+ 单事务原子依据 ③ §6.4 探针 **P1–P6**（P4 合规判据改形态拆解 · 新增 P5 登录名保全）④ §13 登记 **F284**（dev 库取证：368 个 NULL username 中 365 为随机 token 夹具、真正受影响 3 个；本机无真员工账号） |
 | v0.13 | 2026-10-09 | **F283 定案「甲」+ 口径订正** —— ① §5.3 决策段改**已定案甲**（`hooks.before` 首条复用官方 `formCsrfMiddleware` · `matcher` `/sign-in/*` · 先于建号钩子）② 精确化：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **自带**该中间件，仅 `username` 插件端点缺 ③ 实测口径订正：官方测试环境 `skipOriginCheck = isTest() ? true : false` ⇒ 原「跨源实测 200」**不成立**；显式 `advanced.disableOriginCheck:false` 后实测 **403**（`INVALID_ORIGIN` · `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`）+ 零建号 ④ §8 CSRF 行 → **已闭环** |
 | v0.12 | 2026-10-09 | **T3 落地 + F282/F283 登记** —— ① §5.1 增**委派行写入点**（`identity.ensureDirectoryUser` 建号事务内写 `credential` 行；可选入参 `delegatedPassword`）② §5.3 表增三行（**实现落点** = 插件 `hooks.before`（真码 `api/dispatch.mjs:157-165` / `:210-231`）· **登录名护栏** 3–30 + `/^[a-zA-Z0-9_.]+$/`（F281）· **`provisionLdap` 审计**）③ **§8 CSRF/Origin 行订正**（原「不短路以保住官方校验」不完备）+ **F283** ④ §13 登记 **F282**（T6 后登录审计零消费点 → 归 T6）· **F283**（官方登录端点 cookieless 请求无 Origin/CSRF 强校验 ⇒ 跨源登录 POST 实测 **200**；修法甲/乙/丙 **待拍板**）⑤ 代码：`identity.ts` 220 行 · `plugins/ldap-credentials.ts` 369 行 · 新增直测 9 例 + `identity.test.ts` 2 例 |
 | v0.11 | 2026-10-09 | **F281 登记（T2 测试附带发现）** —— 官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/`（长度 3–30 · **不收 `-`**；`dist/plugins/username/index.mjs:12-14,31-40` 真码）⇒ 既有账号登录名含其他字符时会被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒（**工号形态安全**）。本批**仅登记**；处置建议 = T4 探针加「全量 `credential` 行登录名合规」断言（不合规者数据订正）。来源：T2 直测首次以 `pwv-xxxx` 造数触发 422，实测坐实 |

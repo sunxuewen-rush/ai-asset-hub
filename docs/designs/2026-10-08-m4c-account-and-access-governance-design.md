@@ -1,9 +1,9 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.19：M4c-1 T4 执行期发现 F284 + 迁移增语句 ⓪** —— `0015` §6.1 归一 `account_id` 会**丢掉**「登录名只存在 `account_id`」的存量本地账号登录名（官方 `/sign-in/username` 只按 `username` 查 ⇒ 永久 401 且不可逆）；批内已修 = 批 design **§6.0 语句 ⓪**（早于 ①，`username = lower(account_id)`）+ 探针 **P5**；§2.5 上界 **F283 → F284** · 批 design **v0.14** · plan **v0.13** · `docs/00` **v1.128**）|
 > Updated: 2026-10-09（**v0.18：M4c-1 T3 CSRF 平价落地（F283 定案「甲」）** —— **F283 精确化 + 闭环**：官方 `username` 插件端点未挂 `formCsrfMiddleware`（核心 `api/routes/sign-in.mjs` / `sign-up.mjs` 自带）⇒ 批内以插件 `hooks.before` **首条**复用官方件、`matcher` `/sign-in/*`、**先于建号钩子**（CSRF 不通过零副作用）；**实测口径订正**：官方测试环境默认跳过 Origin 校验（`isTest()`）⇒ 原「跨源 200」实测不成立，须显式 `advanced.disableOriginCheck: false`（仓内先例 `app.test.ts:165`）后实测 **403**（`INVALID_ORIGIN` / `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`）· 批 design **v0.13** · plan **v0.12** · `docs/00` **v1.127**）|
 > Updated: 2026-10-09（**v0.17：M4c-1 T3 落地回填 + F282/F283 登记** —— ① §2.5 规则行上界 **F281 → F283**（**F282**：T6 退役 `signInAih` 后 `auth.login.success` / `auth.login.failed` 零消费点 ⇒ 归 T6；**F283**：官方 `sign-in/username` 对无 cookie 请求不做 Origin/CSRF 强校验 ⇒ 跨源登录 POST 实测 **200**，修法甲/乙/丙**待拍板**）② §2.3 backlog 表 M4c-1 行 → 批 plan **v0.11**（**T1 ✅ · T2 ✅ · T3 ✅**）· 批 design **v0.12** ③ 批 design **v0.12** · `docs/00` **v1.126**）|
-> Updated: 2026-10-09（**v0.16：M4c-1 T2 落地回填 + F281 登记** —— ① §2.5 规则行上界 **F280 → F281**（官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/` 不收 `-` ⇒ 既有登录名不合规者被官方端点 422 拒；处置建议 = T4 探针）② §2.3 backlog 表 M4c-1 行批 plan → **v0.8 · 执行中（T1 ✅ · T2 ✅）** ③ 批 design **v0.11** · `docs/00` **v1.125**）
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
 > **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
 > 视觉归属：**随批就地定稿**（引 M4a §4.4 · 2026-09-28 拍板 · 2026-10-08 复核维持）。本文为**纯设计语言**（意图与契约）。
@@ -89,7 +89,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 ### 2.5 立项期已核实事实（明细随各批 design 登记 F 号）
 
 > 规则（`docs/designs/README.md`）：F 号全局连续 · 明细主家 = **批 design 的「实施期发现与处置（F…）」** 小节；
-> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F283**），登记时同步 `docs/README.md` §6.1 号段行。
+> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F284**），登记时同步 `docs/README.md` §6.1 号段行。
 
 | 面 | 已核实事实（真码/实测锚点） | 待落批次 |
 |----|--------------------------|---------|
@@ -607,6 +607,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.19 | 2026-10-09 | sunxuewen-rush | **M4c-1 T4 执行期发现 F284 + 迁移增语句 ⓪** —— ① **F284**：`0015` §6.1 把 `credential.account_id` 归一为 `user.id` 时，`user.username IS NULL` 的存量本地账号会**失去登录名**（其登录名只存在 `account_id`；官方 `/sign-in/username` 只按 `username` 查）⇒ 归一后不可逆地 401；dev 库取证：368 个 NULL username 中 365 已是随机 token 夹具（`account_id` = `user.id`，无影响）、真正受影响 3 个（`admin`/`smoke-uploader`/`smoke-admin`）、本机无真员工账号 ② **本批已修**：批 design **§6.0 语句 ⓪**（**早于 ①** 回填 `username = lower(a.account_id)` · `display_username` 原样 · `IS DISTINCT FROM u.id` 排除夹具行）+ 探针 **P5** ③ 连带：批 design **v0.14** · plan **v0.13** · `docs/00` **v1.128** |
 | v0.18 | 2026-10-09 | sunxuewen-rush | **M4c-1 T3 CSRF 平价落地 + F283 定案「甲」** —— ① F283 精确化：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **自带** `formCsrfMiddleware`，缺口仅在 `username` 插件端点（本批采纳端点）② 闭环：插件 `hooks.before` **首条**复用官方件 `formCsrfMiddleware`（`matcher` `/sign-in/*`，**先于建号钩子** ⇒ 不通过零副作用）③ **实测口径订正**：官方测试环境 `skipOriginCheck = isTest() ? true : false` ⇒ 原「跨源实测 200」**不成立**；显式 `advanced.disableOriginCheck: false`（仓内先例 `app.test.ts:165`）后实测 403 两种官方码 + 零建号 ④ 连带：批 design **v0.13** · plan **v0.12** · `docs/00` **v1.127** |
 | v0.17 | 2026-10-09 | sunxuewen-rush | **M4c-1 T3 落地回填 + F282/F283 登记**（承接 v0.15 的 T2 口径：`password.hash` 保持本仓 scrypt，其 `hash` 为全局单参函数、拿不到账号身份 ⇒ 改密拒绝落入口层）—— ① §2.5 上界 **F281 → F283**（F282 = 登录审计零消费点（T6 退役后）→ 归 T6 · F283 = 官方登录端点 cookieless Origin/CSRF 缺口 ⇒ 跨源 200，甲/乙/丙待拍板）② §2.3 backlog 表 M4c-1 行 → 批 plan **v0.11**（执行中 T1 ✅ · T2 ✅ · T3 ✅）· 批 design **v0.12** ③ 连带 `docs/00` **v1.126** |
 | v0.16 | 2026-10-09 | **M4c-1 T2 落地回填 + F281 登记** —— ① §2.5 上界 **F280 → F281**（**F281**：官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/`（3–30 · 不收 `-`；真码 `dist/plugins/username/index.mjs:12-14,31-40`）⇒ 既有账号登录名含其他字符被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒；工号形态安全；处置建议 = T4 加合规探针）② §2.3 backlog 表 M4c-1 行批 plan → **v0.8**（**执行中：T1 ✅ · T2 ✅ 2026-10-09**；T2 = 存值前缀分派 `password-verify.ts`（71 行）+ 11 例直测 + 门禁全绿）③ 批 design **v0.11** · `docs/00` **v1.125** |
