@@ -1,9 +1,9 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
-> Updated: 2026-10-08（**v0.8：M4c-1 批 design 检查修复轮** —— 跨文件合规修复：批 design v0.3 → **v0.4**（新增 §14.2 规范同步项 · §17.4 未决行闭环 · 章节结构对齐同仓先例 · 清除否决路线点名）· 本文件删去批 design 的行数声明（防漂移）· `docs/00` §5 **M4c-1 子行**状态回填「✅ 设计定稿 2026-10-08」）
-> 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §16 修订记录。
-> SSOT：里程碑状态 → `00` §5 与本文档 §2.3 批件登记表 · 自检分 → 各批 design · 实测值与断言数 → `docs/smoke/` 证据文件。
+> Updated: 2026-10-08（**v0.13：官方安装页对账回填** —— ① §3.1 / §3.2 两表行**入口订正**：调用层/会话层由 vanilla `better-auth/client` 改 **官方 React 入口 `better-auth/react`**（官文点名；`useSession` = React hook）② §2.3 backlog 表 M4c-1 行批 plan 记 **v0.5**（install 1–5 + D1–D3 口径补齐：依赖安装形态 / 客户端入口 / 建表 CLI / env 命名 / notices 复核）③ 批 design **v0.8** · `docs/00` **v1.122**）
+> Updated: 2026-10-08（**v0.12：批 plan R4 承接补齐回填** —— §2.3 backlog 表 M4c-1 行批 plan 记 **v0.4 · 自检 9.31（成立）**（复核轮命中 R4：**B10 零新页面 / 登录页视觉不动** 无承接 ⇒ T5 依据补 B10 + §10 + 断言 ⑤；v0.3 报 9.31 时该处空缺，实测 9.29）；批 design 同步 **v0.7**（§10 承接指针）· `docs/00` **v1.121**）
+> Updated: 2026-10-08（**v0.11：批 plan 第二轮抽查修复回填** —— ① §2.3 backlog 表 M4c-1 行批 plan 记 **v0.3 · 自检 9.31**（第二轮换靶命中 R1–R3：头部硬版本引用 · 批 design §8/§9 已写项无承接 · `lint`/`biome` 措辞）② 批 design 同步 **v0.6**（§8/§9 补「承接（plan）」指针）③ `docs/00` **v1.120**）
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
 > **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
 > 视觉归属：**随批就地定稿**（引 M4a §4.4 · 2026-09-28 拍板 · 2026-10-08 复核维持）。本文为**纯设计语言**（意图与契约）。
@@ -77,7 +77,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 批 | 预期 design | 预期 plan | 对齐要点（立项时逐条过） |
 |----|------------|----------|------------------------|
-| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.4** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL + 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md` | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
+| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.4** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL + 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.5** · T1–T8 · 自检 **9.31**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
 | M4c-2 | `2026-MM-DD-m4c2-account-governance-design.md` | `M4c-2-account-governance.md` | 用户管理页交互（§10.2 状态-动作表）· 列表筛选/分页契约 · 建号 Dialog 字段与校验 · 权限门槛分档 · 启停列退休改动面 · 自我操作护栏（不能封自己 / 不能降自己）· **自助改密 Dialog 与目录账号拒绝口径（R21）** · **最后登录聚合取数（R22）** |
 | M4c-3 | `2026-MM-DD-m4c3-external-identity-design.md` | `M4c-3-external-identity.md` | 三个 provider（Google/GitHub/WeChat）开关范式 · 官方内置 Entra ID provider 接入（§2.6 R4）· 账号链接策略（§2.6 R1）· 占位邮箱口径（§2.6 R11）· 登录页 provider 入口交互 · provider 不可达降级 |
 
@@ -89,7 +89,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 ### 2.5 立项期已核实事实（明细随各批 design 登记 F 号）
 
 > 规则（`docs/designs/README.md`）：F 号全局连续 · 明细主家 = **批 design 的「实施期发现与处置（F…）」** 小节；
-> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F266**），登记时同步 `docs/README.md` §6.1 号段行。
+> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F277**），登记时同步 `docs/README.md` §6.1 号段行。
 
 | 面 | 已核实事实（真码/实测锚点） | 待落批次 |
 |----|--------------------------|---------|
@@ -142,7 +142,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | R13 | 登录页 provider 入口形态 | 现有右栏表单**下方加分隔线 + 按钮组**（不改页面结构） | §5.1 / §10.2 |
 | R14 | 本地账号登录名口径 | **也用工号**（`username` = 工号，与目录账号统一单入口） | §3.1 / §4.4 |
 | R15 | `accountId` 语义归一载体 | **正式 drizzle 迁移**（幂等）：`credential` 行 `account_id: 工号 → user.id` + 目录账号补标记行 | §3.5 |
-| R16 | M4c-1 等价完成判据 | 三层硬判据：① `hasRole/useAuth` 对外签名不变（34 处调用点）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 登录态 7 个 dogfood 全绿 + `signInAih` 调用点归零（grep 断言） | §15 |
+| R16 | M4c-1 等价完成判据 | 三层硬判据：① `hasRole/useAuth` 对外签名不变（调用点 **21 处** · 10 文件；口径见批 design §12）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 登录态 7 个 dogfood 全绿 + `signInAih` 调用点归零（grep 断言） | §15 |
 | R17 | 并发竞态（同时改同一用户） | **不引入乐观锁**：以到达顺序胜出，前端提交后重取；并发覆盖不算缺陷 | §9 |
 | R18 | 旧错误码清算 | 收敛表：删 `user_pending` / `user_disabled` / `invalid_credentials` / `ldap_denied` / `email_conflict` / `oidc_state_mismatch` / `oidc_denied`；**保留** `email_missing` / `rate_limited` / `csrf_failed` / `session_expired` / `forbidden` | §4.6 |
 | R19 | 封禁用户的登录提示 | **跟随官方**：明确提示「账号已被停用」（配中文 `bannedUserMessage`）；其余登录失败仍统一码（不泄露存在性） | §6.2 |
@@ -184,21 +184,21 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 层 | 官方件 | 本仓落点 | 关键点 |
 |----|-------|---------|--------|
-| 调用层 | `better-auth/client` 的 `signIn` / `signUp` / `signOut` / `session` 动作 | 替换 `apps/web/src/api/auth.ts` 的端点封装 | 基址 `/api/auth` + `credentials: include` **必须**与 dev 的 CSRF 同源守卫、`AUTH_TRUSTED_ORIGINS` 白名单对齐（须含 `http://localhost:5173`），否则 dev 写请求 403 |
-| 会话层 | SDK 会话 atom（含跨标签页同步） | 替换 `apps/web/src/auth/AuthProvider.tsx` 的内部实现，**保留三态**（loading / anon / authed）对外契约 | **服务端**维持既有 `disableSessionRefresh`（不延长过期）⇒ 前端**不依赖静默续期**；SDK 的 `refetch` 语义为"重读状态"，与之一致 |
+| 调用层 | **官方 React 入口 `better-auth/react`** 的 `createAuthClient`（`signIn` / `signOut` / `useSession`） | 替换 `apps/web/src/api/auth.ts` 的端点封装 | 基址 `/api/auth` + `credentials: include` **必须**与 dev 的 CSRF 同源守卫、`AUTH_TRUSTED_ORIGINS` 白名单对齐（须含 `http://localhost:5173`），否则 dev 写请求 403 |
+| 会话层 | SDK **`useSession`**（React hook；跨标签页同步经 client core） | 替换 `apps/web/src/auth/AuthProvider.tsx` 的内部实现，**保留三态**（loading / anon / authed）对外契约 | **服务端**维持既有 `disableSessionRefresh`（不延长过期）⇒ 前端**不依赖静默续期**；SDK 的 `refetch` 语义为"重读状态"，与之一致 |
 | 交互层 | SDK 的 `fetchOptions` 钩子 | 保留本仓 **401 四分类分流 + 反向守卫 + `next` 白名单**（现集中于 `apps/web/src/api/client.ts`） | SDK 的 `redirectPlugin` **只处理 `{url, redirect}` 响应体、不拦截 401**（实测）⇒ 本仓 401 口径可在 SDK 钩子内原样实现 |
 
 **两处适配（须新建）**：
 
 | 适配 | 方向 | 说明 |
 |------|------|------|
-| 档位适配 | 官方 role 文本（`user` / `admin` / `superadmin`）↔ 本仓数值档（1 / 10 / 100） | 单点落在前端 `apps/web/src/auth/roles.ts`，保持 `hasRole(role, min)` 对外签名不变（消费点 34 处不动） |
+| 档位适配 | 官方 role 文本（`user` / `admin` / `superadmin`）↔ 本仓数值档（1 / 10 / 100） | 单点落在前端 `apps/web/src/auth/roles.ts`，保持 `hasRole(role, min)` 对外签名不变（调用点 **21 处** · 10 文件不动） |
 | 字段适配 | 官方 `user.name` ↔ 本仓 `displayName` | 会话用户形状适配；`/api/auth/me` 薄层契约保持不变（`{ user, role }`） |
 
 **登录名单入口（§2.6 R14）**：统一为**工号**（`username`）——本地账号与目录账号同走官方 `sign-in/username`，登录页保持单一输入框。
 **自助注册（§2.6 R3）**：默认关闭（`disableSignUp` 生效）；建号入口收敛为「管理员建号 + 目录首登自动建号」两个。
 
-**改动面（立项期实测，供批 design 细化）**：认证相关源文件 3 个（`auth/AuthProvider.tsx` · `auth/next.ts` · `auth/roles.ts`）· 认证消费点 **14** 文件（实测查询式：**从 `auth/{AuthProvider,roles,next}` 导入**的模块数） · `useAuth()` / `hasRole()` 调用 34 处 · 涉及登录态的 dogfood 脚本 7 个。
+**改动面（立项期实测，供批 design 细化）**：认证相关源文件 3 个（`auth/AuthProvider.tsx` · `auth/next.ts` · `auth/roles.ts`）· 认证消费点 **14** 文件（实测查询式：**从 `auth/{AuthProvider,roles,next}` 导入**的模块数） · `useAuth()` / `hasRole()` 调用 **21** 处（10 文件；`grep` 命中 34 行 = 21 调用 + 11 注释 + 2 定义） · 涉及登录态的 dogfood 脚本 7 个。
 
 ### 3.2 目录口令校验：官方 `password.verify` 分支
 
@@ -599,7 +599,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 每批出口 = **五件全绿**：① 批 design 8 维 ≥9 定稿 ② 批 plan Task 全绿 ③ 五门禁（typecheck / lint / format / build / test）④ dogfood / 观感（新增页含用户观感复判）⑤ 整体审计（收尾全仓覆盖式扫描：findings 逐条登记 + 处置「修 / 订正 / 回填 / 口径登记」，不留未决项）。
 **完整 converge** 与 M4c 末批同批收口。
 
-**M4c-1「等价完成判据」（§2.6 R16）**：① `hasRole(role,min)` / `useAuth()` 对外签名不变（34 处调用点零改签名）② 401 四分类 + 反向守卫 + `next` 白名单的既有断言全绿 ③ 涉及登录态的 7 个 dogfood 脚本全绿 + `signInAih` 调用点 grep 归零。
+**M4c-1「等价完成判据」（§2.6 R16）**：① `hasRole(role,min)` / `useAuth()` 对外签名不变（调用点 **21 处** · 10 文件零改签名）② 401 四分类 + 反向守卫 + `next` 白名单的既有断言全绿 ③ 涉及登录态的 7 个 dogfood 脚本全绿 + `signInAih` 调用点 grep 归零。
 
 **开工硬前置**：① **重启 dev**（进程新鲜度：现 dev 进程启动时间早于末次提交 ⇒ 视觉/探针工作前必须重启，否则看的是旧码）② 新增文件后同样重启（样式扫描集不含新文件）。
 
@@ -607,6 +607,11 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.13 | 2026-10-08 | **官方安装页对账回填** —— ① §3.1 / §3.2 表两行**入口订正为官方 React 入口 `better-auth/react`**（官文 `/docs/installation` 点名 React；实测 `exports["./react"]` → `dist/client/react/index.mjs`，`useSession` 为 React hook（`react-store.mjs` = `nanostores` + `useSyncExternalStore`）+ 导出 `useStore`；vanilla `better-auth/client` 的 `useSession` 实为 `Atom<{data,error,isPending}>`）② §2.3 backlog 表 M4c-1 行批 plan → **v0.5**（官方安装页对账轮：依赖安装形态（exact + `bun.lock` 同批）· 客户端入口 · 建表 CLI 口径（零 schema 变更 ⇒ 不跑 `auth generate`）· env 命名映射 · notices 复核）③ 批 design **v0.8** · `docs/00` **v1.122**。**零实现改动** |
+| v0.12 | 2026-10-08 | **批 plan R4 承接补齐回填** —— ① §2.3 backlog 表 M4c-1 行批 plan → **v0.4 · 自检 9.31（成立）**（复核轮命中 **R4**：**B10「零新页面 / 登录页视觉不动」无 Task 承接、无断言**；v0.3 的「B10 显式 ✅」系头部串「B1–B10」误命中的探针假阳性 ⇒ 实测 9.29）② 批 design **v0.7**（§10 补「承接（plan）」指针）③ `docs/00` **v1.121**。**零实现改动** |
+| v0.11 | 2026-10-08 | **批 plan 第二轮抽查修复回填** —— ① §2.3 backlog 表 M4c-1 行批 plan → **v0.3 · 自检 9.31**（第二轮换靶 10 类命中 **R1–R3**：🟡 R1 plan 头部三处硬版本引用（批 design v0.4 / 主 design v0.8 ≠ 实体 v0.5 / v0.10）⇒ 改「版本以各件版本头为准」· 🟡 R2 批 design §8 防枚举/口令流转 + §9 `REGISTRATION_ENABLED` 默认值 **在 plan 零承接** ⇒ 并入 T7（新步骤 4 + 断言 ②③④）· ⚪ R3 `lint` 与 `biome check` 同物措辞）② 批 design **v0.6**（§8/§9 补「承接（plan）」指针）③ `docs/00` **v1.120**。**零实现改动** |
+| v0.10 | 2026-10-08 | **批 plan 抽查修复回填 + 调用点口径坐实** —— ① §2.3 backlog 表 M4c-1 行批 plan → **v0.2 · 自检 9.26**（抽查换靶命中 P1–P4）② 「34 处调用点」口径全篇坐实（§2.6 R16 · §2.5 改动面 · §3.x 档位适配行 · §7 等价判据行）→「调用点 **21 处 / 10 文件**（8 + 13）；grep 34 行 = 21 + 11 注释 + 2 定义」③ §2.5 规则行上界 **F266 → F277**（**F277** 已登记：手写迁移未登记 `_journal.json`）④ 批 design **v0.5** · `docs/00` **v1.119**。**零实现改动** |
+| v0.9 | 2026-10-08 | **M4c-1 批 plan 已立** —— 新建 `docs/plans/M4c-1-auth-layer-unification.md`（**v0.1** · **T1–T8** · §8 自检 **9.23** · 门禁 12 步 · 造数=无新脚本（迁移执行需授权）· 风险 7 条）；§2.3 backlog 表 M4c-1 行「预期 plan」→ **已立**（v0.1 · T1–T8）；`docs/00` §5 子行同步（**v1.118**）。**零实现改动** |
 | v0.8 | 2026-10-08 | **M4c-1 批 design 检查修复轮（换靶 6 条）** —— 跨文件修复：① 本文件 v0.7 行「333 行」→ **删去行数声明**（改记版本号，防行数漂移）：批 design 现为 **v0.4 · 18 节 · 8 维 9.50**（**不再记行数** —— 行数随编辑漂移，登记行只记版本与读数） ② §2.3 批件登记行版本 v0.3 → **v0.4** ③ `docs/00` §5 **M4c-1 子行**状态由「⬜ 待对齐」→ **✅ 设计定稿（2026-10-08）**（§5 为状态唯一源）④ 批 design 同轮修：新增 §14.2 规范同步项 · §17.4 未决行改已闭环 · 章节结构对齐先例（§1 分 1.1/1.2/1.3 · §2 更名「拍板结果（本批）」）· 清除否决路线点名。**零实现改动** |
 | v0.7 | 2026-10-08 | **M4c-1 批 design 已立并定稿** —— ① 新建 `docs/designs/2026-10-08-m4c1-auth-layer-unification-design.md`（**定稿** · 18 节 · 8 维 **9.44**：首稿 8.94 → 骨架补齐 9.38 → §6 补全 9.44）② 批内对齐 **B1–B10** 全部确认（/me 薄层保留 · 401 四分类经 SDK `fetchOptions` 注入 · 迁移 `0015` drizzle SQL · 凭据委派行两侧同源 · `signInAih` 两步退役 · 时序侧信道随迁 · 共享模块落 `auth/identity.ts` · 档位/字段适配单点 · 本批零新页面）③ §2.3 backlog M4c-1 行回填实际件名 + 状态 ④ **F267–F276 明细登记于该批 design §13**，`docs/README.md` §6.1 号段行同步（M4b-8 行转「已收口」）。**零实现改动** |
 | v0.6 | 2026-10-08 | **dev 库实测回填（只读查询 · 授权后执行）** —— `user.status` 分布坐实：`ACTIVE` **562** / `DISABLED` **2** / `NULL` **0**（共 564 行）· `banned=true` 现值为 **0**（官方封禁列首次启用）⇒ R8 迁移**实测命中 2 行**；迁移条件订正为 **`status IS DISTINCT FROM 'ACTIVE'`**（成因：`user.status` 列可空（`0008_icy_argent.sql:82` 无 `NOT NULL`），SQL 中 `NULL <> 'ACTIVE'` 判为 UNKNOWN ⇒ 会静默漏行）；§4.2「代码内 `status` 零写入路径」订正为「**现役代码只写 `'ACTIVE'`**（建号钩子 `ldap-credentials.ts:206` · `seed.ts:50`）· 非 `ACTIVE` 行来自 **`0009` 历史数据搬迁**」；§2.5 待坐实项清零。**零契约改动 · 查询脚本用完即删（未入仓）** |

@@ -1,8 +1,9 @@
 # M4c-1 认证层统一到官方设计（批 design）
 
 > Date: 2026-10-08
-> Updated: 2026-10-08（**v0.4：检查修复轮** —— ① 章节结构对齐同仓先例（§1 分 1.1 位置与依赖链 / 1.2 入口与靶件现状 / 1.3 批界；§2 更名「拍板结果（本批）」+ 2.1）② 新增 §14.2 **规范同步项**（`05` §3.1 · `08` §5 · `07` §4）③ §17.4 未决行改**已闭环** ④ 清除对已否路线的点名（纪律项））
-> Updated: 2026-10-08（**v0.3：批内对齐确认 + §6 完整 SQL + 转定稿** —— B1–B10 全部确认 · §6 补两条可直接落盘的幂等 SQL + P1–P3 验收探针 + OIDC-only 边界 · 8 维 **9.44** · Status 草案 → **定稿**）
+> Updated: 2026-10-08（**v0.8：官方安装页对账（跨文档）** —— ① §3 表**两行订正**：调用层/会话层入口由 vanilla `better-auth/client` 改 **官方 React 入口 `better-auth/react`**（官文点名；`useSession` = React hook + `useStore`；vanilla 的 `useSession` 实为 `Atom<{data,error,isPending}>`）② §3 表后补「**依赖声明**」与「**认证配置口径**」两块（exact + `bun.lock` 同批 + 无 `postinstall` / 不设 `BETTER_AUTH_SECRET`·`BETTER_AUTH_URL`，走 `secret: SESSION_SECRET`·`baseURL: PUBLIC_BASE_URL`；dev 同源经 vite proxy）③ §6.3 增「**schema 变更**」行（本批零 schema 变更 ⇒ 不跑官方 CLI `generate`/`migrate`））
+> Updated: 2026-10-08（**v0.7：§10 承接指针** —— 本轮复核（plan R4）指出「**零新页面 / 零视觉改动**」虽在本件 §10 写明却 plan 无断言 ⇒ §10 表后补「**承接（plan）**」行（零视觉声明→**plan T5 断言 ⑤**；前端改造面五件→plan T5）。与前两行同属「本件已写 → plan 承接」类，一并清完）
+> Updated: 2026-10-08（**v0.6：承接指针补齐** —— §8 表后加「**承接（plan）**」行（时序侧信道→T2 · CSRF/Origin→T3+T5 · **防枚举 / 口令流转→T7 断言 ②③**）· §9 表后加「**承接（plan）**」行（`sign-in/aih` 退役→T6 · `account` 行迁移→T4 · **`REGISTRATION_ENABLED` 默认值→T7 步骤 4 + 断言 ④** · 错误码收敛→T7 · `/api/auth/me` 不变→T5）。**零实现改动 · 无分数变动**）
 > 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §18 修订记录。
 > Status: **定稿**（**批 design** —— 本批落点与契约；实现细则落批 plan）。**定稿条件**：① 8 维自检 **9.50**（标准 9.50 · 深度 9.50；首稿 8.94 → 处置 9.38 → §6 补全 9.44 → **换靶检查 9.19 → 修复后 9.50**）✅ ② 批内对齐 **B1–B10 全部确认**（2026-10-08）✅ ③ 未决项清零（迁移 SQL **与执行窗口口径**已补；dogfood 分段归 plan；CSRF 联调列入实现首批）✅ ⇒ **2026-10-08 用户批准**。本文为**纯设计语言**（意图与契约）。
 > Scope: M4c-1（主 design §2.3）—— **认证层统一到官方**：前端三层改官方 SDK + 后端目录凭据委派行 / `password.verify` 分支 / **不短路**首登建号钩子 / 身份源共享模块 / `accountId` 语义统一（含 1 次数据迁移）+ 退役自绘端点 `signInAih`。
@@ -46,7 +47,7 @@
 | B5 | `signInAih` 退役顺序 | **同一批内两步**：前端先切官方 SDK → 后端再下线端点 | 防切换期 401 风暴；CLI / 设备授权流走官方端点，不受影响 |
 | B6 | 时序侧信道处理 | **随迁**到 `verify` 分支内保留（固定假哈希校验） | 现 `plugins/ldap-credentials.ts:393` 的 `DUMMY_PASSWORD_HASH` 逻辑不得随端点退役丢失（主 design §6.1） |
 | B7 | 身份源共享模块落点 | 新文件 `apps/server/src/auth/identity.ts`（自 `plugins/ldap-credentials.ts:166` 的 `ensureDirectoryUser` 抽取/扩展） | 被**官方钩子**调用；不是与官方并行的第二套建号机制（主 design §3.4 定位声明） |
-| B8 | 档位适配单点 | 前端 `apps/web/src/auth/roles.ts`：官方 role 文本（`user`/`admin`/`superadmin`）→ 本仓数值档（1/10/100） | `hasRole(role, min)` 对外签名不变（34 处调用点零改签名） |
+| B8 | 档位适配单点 | 前端 `apps/web/src/auth/roles.ts`：官方 role 文本（`user`/`admin`/`superadmin`）→ 本仓数值档（1/10/100） | `hasRole(role, min)` 对外签名不变（调用点 **21 处**（10 文件）零改签名） |
 | B9 | 字段适配 | 前端会话层把官方 `user.name` 映射为 `displayName` | 消费点无感；`/api/auth/me` 形状不变（B1） |
 | B10 | 本批 UI 面 | **零新页面**；登录页视觉不动（provider 入口归 M4c-3） | 视觉定稿归各批就地处理（主 design §2.2 铁律） |
 
@@ -54,12 +55,14 @@
 
 | 层 | 现状文件 | 目标 | 关键点 |
 |----|---------|------|--------|
-| 调用层 | `apps/web/src/api/auth.ts`（自绘端点封装） | 改官方 `better-auth/client` 的 `signIn` / `signUp` / `signOut` / `session` | 基址 `/api/auth` + `credentials: 'include'` **须与 dev 的 CSRF 同源守卫及 `AUTH_TRUSTED_ORIGINS` 白名单对齐**（须含 `http://localhost:5173`，否则 dev 写请求 403） |
-| 会话层 | `apps/web/src/auth/AuthProvider.tsx`（自管内部实现） | 改 SDK 会话 atom（含跨标签页同步），**保留三态对外契约**（`loading` / `anon` / `authed`） | 服务端维持既有 `disableSessionRefresh`（不延长过期）⇒ 前端**不依赖静默续期**；SDK `refetch` = 「重读状态」，与现语义一致 |
+| 调用层 | `apps/web/src/api/auth.ts`（自绘端点封装） | 改官方 **React 入口 `better-auth/react`** 的 `createAuthClient`（`signIn` / `signOut` / `useSession`） | 基址 `/api/auth` + `credentials: 'include'` **须与 dev 的 CSRF 同源守卫及 `AUTH_TRUSTED_ORIGINS` 白名单对齐**（须含 `http://localhost:5173`，否则 dev 写请求 403） |
+| 会话层 | `apps/web/src/auth/AuthProvider.tsx`（自管内部实现） | 改 SDK **`useSession`**（React hook；跨标签页同步经 client core 的 broadcast channel），**保留三态对外契约**（`loading` / `anon` / `authed`） | 服务端维持既有 `disableSessionRefresh`（不延长过期）⇒ 前端**不依赖静默续期**；SDK `refetch` = 「重读状态」，与现语义一致 |
 | 交互层 | `apps/web/src/api/client.ts`（401 四分类 + 反向守卫 + `next` 白名单） | **保留**，经 SDK `fetchOptions` 钩子注入（B2） | 官方 `redirectPlugin` 不碰 401（实测） |
 
-**改动面（立项期实测）**：认证相关源文件 **3** 个 · 认证消费点 **14** 文件（实测查询式：从 `auth/{AuthProvider,roles,next}` 导入的模块数）· `useAuth()` / `hasRole()` 调用 **34** 处 · 涉及登录态的 dogfood 脚本 **7** 个（`docs/smoke/scripts/*-dogfood.ts`）。
+**改动面（立项期实测）**：认证相关源文件 **3** 个 · 认证消费点 **14** 文件（实测查询式：从 `auth/{AuthProvider,roles,next}` 导入的模块数）· `useAuth()` / `hasRole()` 调用 **21** 处（10 文件：`useAuth()` 8 + `hasRole()` 13；口径：`grep` 命中 34 行 = 21 调用 + 11 注释 + 2 定义） · 涉及登录态的 dogfood 脚本 **7** 个（`docs/smoke/scripts/*-dogfood.ts`）。
 
+> **依赖声明（本批新增 1 个）**：`apps/web` 加官方 React 入口包 `better-auth@1.7.5`（**exact**，与 `@ai-asset-hub/server` 严格一致；1.7.5 实测 `exports["./react"]` → `dist/client/react/index.mjs`）· 命令 `cd apps/web && bun add better-auth@1.7.5` · **同批提交** `apps/web/package.json` + 根 `bun.lock`（CI `bun install --frozen-lockfile` 校验）· 该包**无 `postinstall`** ⇒ 不动 `bunfig.toml` 的 `trustedDependencies`。
+> **认证配置口径（既有事实 · 防按官文误设）**：本仓**不设**官文默认变量 `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL`，走**显式选项** —— `secret: env.SESSION_SECRET`（≥32 校验）· `baseURL: env.PUBLIC_BASE_URL`（`apps/server/src/auth/better-auth.ts:73-74`）。前端与 API **dev 同源**（vite proxy `/api` → `localhost:3000` + `changeOrigin: true`）⇒ 官文「同域可省 `baseURL`」适用；`Origin` 仍为 `5173` ⇒ `trustedOrigins` 须含 `http://localhost:5173`。
 ## 4. 两处适配
 
 | 适配 | 方向 | 落点 | 约束 |
@@ -171,6 +174,8 @@ WHERE NOT EXISTS (
 | 目录登录名取自 | 该账号的 **ldap 行 `account_id`**（= 目录 subject，惯例 `sAMAccountName`）；仅 OIDC 行时取其 subject |
 | OIDC-only 账号 | 若其 subject 非可 bind 的目录登录名 ⇒ **口令路径对其不适用**（该账号走重定向通道登录，M4c-3 接线）—— 迁移照常补行（`verify` 分支对其返回失败，不泄露账号存在性） |
 | 执行窗口与并发 | 迁移在**停服窗口**执行（服务停写）；执行后**立即**跑 §6.4 P1 / P2 复核，并以「`credential` 行按 `user_id` 唯一」作为**重复插入兜底判据** —— 兜住「迁移与首登建号钩子并发」的 `NOT EXISTS` 竞态 |
+| **载体登记** | 手写 SQL **必须**同步登记 `drizzle/meta/_journal.json`（`idx` 顺延 · `tag` = 文件名去扩展名）并落 `meta/0015_snapshot.json` —— `apps/server/src/db/migrate.ts:12` 走 drizzle-orm `migrate()`，**只读 journal、不扫 `.sql` 目录** ⇒ 漏登记则迁移**静默不执行**；先例 `0009_auth_user_domain_data_move` 即此形态（journal 已登记 + 快照存在） |
+| **schema 变更** | 本批 **零 schema 变更**（`0015` = **数据迁移**）⇒ **不跑**官方 CLI `auth generate` / `migrate`，沿用 `0007` / `0009` **手写 SQL** 先例；官方 CLI 姿势（`bun x auth@latest generate --adapter drizzle --dialect pg --output <仓外>` + 临时 `--config`，因本仓 auth 实例导出名 `authOptions/createAuth/gAuth`-style **不符官文约定**）仅在**未来 schema 变更**时启用（M4b-pre 有可复现记录） |
 | 失败处置 | 失败即停并保留现场；迁移前对 `user` / `account` 两表做一次快照备份 |
 | 顺序 | `user.status` 列归 **M4c-2**，本批不动（避免同批混两次迁移） |
 
@@ -181,6 +186,7 @@ WHERE NOT EXISTS (
 | P1 | `SELECT count(*) FROM "account" WHERE provider_id='credential' AND account_id IS DISTINCT FROM user_id` = **0** |
 | P2 | 每个「有 ldap/oidc 行」的用户**恰有 1 行** `credential` 行：`SELECT count(*) FROM (SELECT user_id FROM "account" WHERE provider_id IN ('ldap','oidc')) x JOIN (…) y USING (user_id)` 无重复（`credential` 行按 `user_id` 唯一） |
 | P3 | 语句 ② 的幂等：**连跑两次**，第二次零插入 |
+| P4 | **载体已登记**：`meta/_journal.json` 条目数 = **16** 且含 `0015_*` tag；`meta/0015_snapshot.json` 存在 |
 
 ## 7. 退役 `signInAih`：调用点切换顺序
 
@@ -200,6 +206,7 @@ WHERE NOT EXISTS (
 | CSRF / Origin | 钩子**不短路**以保住官方校验（§5.3）；dev 侧 `AUTH_TRUSTED_ORIGINS` 须含前端源（§3） |
 | 口令流转 | 口令只在验证路径内存中流转：不落盘、不进日志、不进响应体 |
 
+> **承接（plan）**：本表四条 —— 「时序侧信道」→ plan **T2**（步骤 2 + 断言 ③）· 「CSRF / Origin」→ plan **T3**（不短路）+ **T5**（前置探针）· 「**防枚举**」与「**口令流转**」→ plan **T7**（断言 ② / ③）。
 ## 9. 接口变更总览（服务端面）
 
 | 变更 | 类型 | 说明 |
@@ -210,12 +217,14 @@ WHERE NOT EXISTS (
 | 认证错误码 | **收敛** | 删 7 个自绘码、留 5 个（主 design §4.6 / §2.6 R18） |
 | `/api/auth/me` 薄层 | **不变** | 形状 `{ user, role }` 保持（B1） |
 
+> **承接（plan）**：本表五项 —— 「`POST /api/auth/sign-in/aih` 退役」→ plan **T6** · 「`account` 行语义（迁移 `0015`）」→ plan **T4** · 「**`REGISTRATION_ENABLED` 默认值**（`true` → `false`）」→ plan **T7**（步骤 4 + 断言 ④）· 「认证错误码收敛」→ plan **T7** · 「`/api/auth/me` 薄层不变」→ plan **T5**（B1）。
 ## 10. UI-UX 变动总览
 
 - **零新页面 / 零视觉改动**：登录页版式与视觉不变（provider 入口归 M4c-3）。
 - 视觉基线引 `2026-09-09-m4a-marketplace-portal-design.md` §4.4（全站视觉真值 SSOT）—— **不复制**。
 - 前端改造面 = 认证三件（`auth/{AuthProvider.tsx,roles.ts,next.ts}`）+ `api/auth.ts` + `api/client.ts`（401 钩子注入），**用户可见行为约定不变**（登录 / 登出 / 401 分流 / 角色显隐）。
 
+> **承接（plan）**：本节三项 —— 「**零新页面 / 零视觉改动**」→ plan **T5**（**断言 ⑤**：`apps/web/src/pages/` 零新增文件 · `pages/Login.tsx` 本批零改动 · 视觉基线引 M4a §4.4 不动）· 「前端改造面五件」（`auth/{AuthProvider.tsx,roles.ts,next.ts}` + `api/auth.ts` + `api/client.ts`）→ plan **T5**（步骤 2/3/4）· 「用户可见行为约定不变」→ plan **T5** 断言 ③ + **T8** 等价判据。
 ## 11. 线框图
 
 **N/A** —— 本批无新增 / 改造页面（登录页形态不动，§10）。
@@ -224,7 +233,7 @@ WHERE NOT EXISTS (
 
 三层硬判据（主 design §2.6 R16）：
 
-1. `hasRole(role, min)` / `useAuth()` **对外签名不变**（34 处调用点零改签名）。
+1. `hasRole(role, min)` / `useAuth()` **对外签名不变**（调用点 **21 处** · 10 文件：`useAuth()` **8** + `hasRole()` **13**；口径：`grep -rn 'useAuth(\|hasRole(' apps/web/src` 命中 34 行 = 21 调用 + 11 注释 + 2 定义）。
 2. 401 四分类 + 反向守卫 + `next` 白名单的**既有断言全绿**（`apps/web/src/api/client.ts`）。
 3. 涉及登录态的 **7 个 dogfood 脚本全绿** + `signInAih` 调用点 **grep 归零**。
 
@@ -246,6 +255,7 @@ WHERE NOT EXISTS (
 | F274 | 建号路径 | 目录建号直写 drizzle，绕过官方 `databaseHooks` / username 规范化 / 邮箱小写 | 本批（§5.3 钩子 + §5.4 共享模块） |
 | F275 | 钩子时序 | 官方 before 钩子运行在端点自身中间件**之前** ⇒ 钩子内短路会绕过官方 Origin / CSRF 校验 | 本批（§5.3 明确不短路） |
 | F276 | 钩子限制 | 官方 after 钩子只能改写响应体 / 头，**改不了 HTTP 状态码** | 本批（据此确立：登录链必须走官方 `password.verify` 分支，而非响应层兜底） |
+| F277 | 迁移载体 | 手写迁移 `0015` 若**只落 `.sql` 不登记** `drizzle/meta/_journal.json`（及 `meta/0015_snapshot.json`）⇒ `db:migrate`（drizzle-orm `migrate()` 只读 journal）**静默跳过**该迁移 | 本批（plan T4 步骤 2 落载体 + 断言 ⑥；§6.3 载体登记行 + §6.4 P4 探针） |
 
 ## 14. i18n 变更规格
 
@@ -350,11 +360,16 @@ WHERE NOT EXISTS (
 | 跨平台 | 9.5 | 9.5 | **9.5** | 无变动 |
 
 **标准 4 维 9.50 ｜ 深度 4 维 9.50 ｜ 综合 9.50**
+> **同分不同构成声明（v0.5 · 纪律项）**：综合仍 **9.50**，但**构成与 v0.4 不同** —— v0.4 的 9.50 含两条本轮才检出的缺陷（「34 处调用点」口径失真 · 手写迁移未登记 `_journal.json` 的载体缺口）；v0.5 已补齐（§6.3 载体登记行 + §6.4 **P4** · §12 口径坐实 · §13 **F277**）。故此处 9.50 = 修复后实测，**非**沿用上轮虚高分。
 
 ## 18. 修订记录
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.8 | 2026-10-08 | **官方安装页对账（跨文档）** —— 读完官文 `/docs/installation` 后：① §3 表订正入口名（vanilla `better-auth/client` → 官方 **React 入口 `better-auth/react`**，官文点名；实测 `exports["./react"]` 存在且 `useSession` 为 React hook + `useStore`；vanilla 的 `useSession` 是 `Atom<{data,error,isPending}>`）② §3 表后补「依赖声明」（exact · `bun.lock` 同批 · 无 `postinstall`）与「认证配置口径」（不设 `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`，走显式 `secret`/`baseURL`）③ §6.3 增「schema 变更」行（本批零 schema 变更 ⇒ 不跑官方 CLI）。**零实现改动 · 分数不变（9.50）** |
+| v0.7 | 2026-10-08 | **§10 承接指针** —— plan 复核轮 **R4** 指出本件 §10「零新页面 / 零视觉改动」在 plan 无承接 ⇒ §10 表后补「**承接（plan）**」行（零视觉声明→plan **T5 断言 ⑤** · 前端改造面五件→plan T5 · 行为约定不变→plan T5 断言 ③ + T8）。**零实现改动 · 分数不变（9.50）** |
+| v0.6 | 2026-10-08 | **承接指针补齐（plan 侧对账驱动）** —— 第二轮 plan 抽查（R2）指出「本件已写项在 plan 无承接」⇒ §8 表后补「**承接（plan）**」行（四条逐项→T2/T3/T5/T7）· §9 表后补「**承接（plan）**」行（五项逐项→T4/T5/T6/T7，含 **`REGISTRATION_ENABLED` 默认值 → T7 步骤 4 + 断言 ④**）。**零实现改动 · 分数不变（9.50）** |
+| v0.5 | 2026-10-08 | **抽查修复轮（跨文档换靶 · 命中 P1/P4）** —— 🔴 **P1** 手写迁移**载体登记**缺口：§6.3 增「载体登记」行（`_journal.json` + `0015_snapshot.json`；`migrate.ts:12` 只读 journal 实证）+ §6.4 增 **P4** 探针 ⇒ 登记 **F277**（§13）· 🟡 **P4** §12 判据 ① 口径坐实（调用点 **21 处 / 10 文件** = `useAuth()` 8 + `hasRole()` 13；grep 34 行 = 21 + 11 注释 + 2 定义）· §17 加**同分不同构成声明**。**零实现改动** |
 | v0.4 | 2026-10-08 | **检查修复轮（换靶 6 条）** —— 🔴 ① §17.4 未决登记首行已过期（迁移语句已补）⇒ 改**已闭环**；🟡 ② 新增 **§14.2 规范同步项**（本批触发 `05` §3.1 / `08` §5 / `07` §4 三处）③ 章节结构对齐同仓先例（§1 → 1.1/1.2/1.3；§2 → 「拍板结果（本批）」+ 2.1）④ 清除否决路线点名（F276 行）与「替代方案」措辞（纪律项）⑤ **F7**：§6.3 补「迁移执行窗口与并发」口径（停服窗口 + 迁移后立即跑 P1/P2 + `credential` 行按 `user_id` 唯一兜底）⑥ §17 节号归位（原 §17.5 误排在 §17.4 之前 ⇒ 复评块归位为 §17.5 · 未决登记为 §17.4）⇒ 复评 **9.50**。（同轮跨文件修复：主 design 修订行 333 行 → **332 行** · `docs/00` §5 M4c-1 子行状态回填） |
 | v0.3 | 2026-10-08 | **批内对齐确认 + §6 完整 SQL + 转定稿（用户批准）** —— ① §2 决策 B1–B10 **全部确认**（逐条清单式对齐）② §6 重写：两条**可直接落盘的幂等 SQL**（列名 `account_id`/`provider_id`/`password` 与 provider 常量 `credential`/`ldap`/`oidc` 经真码核对；目录账号判定 = 存在 ldap/oidc 行；登录名择优沿用 `0009` 同款 LATERAL 排序）+ §6.3 口径（幂等 / 全新库零命中 / 不改哈希 / **OIDC-only 账号**口径）+ §6.4 验收探针 **P1–P3** ③ §17.5 复评：可实施性 9.0→**9.5** · 实施精度 9.0→**9.5** ⇒ 综合 **9.44** ④ **Status 草案 → 定稿**（三条件闭合）。 |
 | v0.2 | 2026-10-08 | 补 7 段骨架缺口 + 首稿自检：新增 §14 i18n 变更规格（删 7 条错误码文案 · 留 5 条）· §15 回归面与验证口径（门禁 / 零回归 / 7 dogfood / 等价判据 / 造数 / 出口件）· §16 引用文件清单（规范层 / 设计层 / 前后端代码锚点 / 上游事实）· §17 8 维自检（首稿 **8.94** → 处置后 **9.38** + 未决登记 3 项）；§5.1 补「本地账号行同三条件 + 前缀不撞车」；§6 补「全新库零命中」口径。 |
