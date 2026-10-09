@@ -1,9 +1,9 @@
 # M4c-1 认证层统一到官方设计（批 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.13：F283 定案「甲」+ 口径订正** —— ① §5.3 决策段由「待拍板」改为**已定案甲**：插件 `hooks.before` 首条复用官方 `formCsrfMiddleware`、`matcher` = `/sign-in/*`（先于建号钩子）② **F283 精确化**：核心 `sign-in` / `sign-up` 端点**自带**该中间件，缺的只有 `username` 插件端点（本批采纳端点）③ **实测口径订正**：官方测试环境默认 `skipOriginCheck=true` ⇒ 原「实测 200」不成立；显式 `advanced.disableOriginCheck:false` 后实测 403（`INVALID_ORIGIN` / `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`）且**零建号** ④ §8 CSRF 行改「已闭环」|
+> Updated: 2026-10-09（**v0.12：T3 落地 + F282/F283 登记** —— ① §5.1 增**委派行写入点**（建号事务内 · 可选入参 `delegatedPassword`）② §5.3 表增**实现落点 / 登录名护栏 / 审计**三行 ⇒ 返回行为「不短路」并挂 **F283 口径订正** ③ **§8 CSRF/Origin 行订正**（原「不短路以保住官方校验」不完备）④ §13 登记 **F282**（登录审计零消费点 · 归 T6）· **F283**（官方登录端点无 cookieless Origin/CSRF 强校验 · 实测 200 · 修法待拍板）|
 > Updated: 2026-10-09（**v0.11：F281 登记（T2 测试附带发现）** —— 官方默认用户名校验器 `/^[a-zA-Z0-9_.]+$/`（3–30 · 不收 `-`）⇒ 建议 T4 加「credential 行登录名合规」探针）
-> Updated: 2026-10-09（**v0.10：T2 契约口径订正 + F279/F280 登记**
-> Updated: 2026-10-09（**v0.10：T2 契约口径订正 + F279/F280 登记** —— ① §5.2「其他」行订正为**保留本仓 `verifyPassword`**（官方 crypto 与存量哈希互不认，实测抛错 ⇒ **F279**）② §5.2 末行订正：`hash` **保持本仓 `hashPassword`**；「拒绝目录账号改密」落**入口层**（**F280**）③ §13 登记 F279/F280）
 > 头部口径：只留最近 1–2 版 · 不复述历史；更早版本见 §18 修订记录。
 > Status: **定稿**（**批 design** —— 本批落点与契约；实现细则落批 plan）。**定稿条件**：① 8 维自检 **9.50**（标准 9.50 · 深度 9.50；首稿 8.94 → 处置 9.38 → §6 补全 9.44 → **换靶检查 9.19 → 修复后 9.50**）✅ ② 批内对齐 **B1–B10 全部确认**（2026-10-08）✅ ③ 未决项清零（迁移 SQL **与执行窗口口径**已补；dogfood 分段归 plan；CSRF 联调列入实现首批）✅ ⇒ **2026-10-08 用户批准**。本文为**纯设计语言**（意图与契约）。
 > Scope: M4c-1（主 design §2.3）—— **认证层统一到官方**：前端三层改官方 SDK + 后端目录凭据委派行 / `password.verify` 分支 / **不短路**首登建号钩子 / 身份源共享模块 / `accountId` 语义统一（含 1 次数据迁移）+ 退役自绘端点 `signInAih`。
@@ -82,6 +82,8 @@
 | `accountId` | **`user.id`** | 官方口径（非工号） |
 | `password` | **`ldap:<工号>`** | **非空标记**（非密文）。官方在该值为空时直接返 401，走不到 `verify` ⇒ 必须非空 |
 
+**写入点（M4c-1 T3）**：新账号的委派行由 `identity.ensureDirectoryUser` 在**建号事务内**一并写入（可选入参 `delegatedPassword`）= 与 `user` / 外部身份行**同事务** ⇒ 不存在「用户已建但无凭据行 ⇒ 官方登录永久 401」的半途状态；**存量**账号由迁移 `0015`（§6.2）补齐，两者口径一致。
+
 **本地账号（非目录）同口径**：本仓本地账号登录也走官方 `sign-in/username`（主 design §2.6 R14「用工号单入口」）⇒ 其 `credential` 行**同样满足上述三条件**（`accountId = user.id`），由迁移 `0015`（§6）一并归一。前缀不撞车：官方 scrypt 哈希以 `$` 开头，与 `ldap:` 前缀无重叠（列入验收探针）。
 
 ### 5.2 `password.verify` 分支
@@ -99,11 +101,17 @@
 
 | 步骤 | 行为 |
 |------|------|
+| 实现落点 | `apps/server/src/auth/plugins/ldap-credentials.ts` 插件对象的 `hooks.before`（官方插件钩子**并入全局钩子表**并按 `matcher` 判定：`api/dispatch.mjs:157-165`；执行**先于端点 handler 与其自身中间件**：`:210-231`） |
 | 触发条件 | 登录名在本仓**无对应用户**（有用户则不介入，直接放行） |
-| 动作 | 目录 `bind` 校验口令 ⇒ 成功后经 **§3.4 共享模块**建号 + 补凭据委派行（§5.1） |
-| 返回 | **不返回响应（不短路）** ⇒ 官方端点中间件（含 Origin / CSRF）照常执行，随后官方端点按常规流程完成登录 |
+| 登录名护栏 | 不满足官方端点前置校验（长度 **3–30** · 默认校验器 `/^[a-zA-Z0-9_.]+$/`）⇒ **不介入**（否则「先建号、再被官方 422 拒」留下孤儿账号）—— 护栏口径与官方**同源常量**，见 **F281** |
+| 动作 | 目录 `bind` 校验口令 ⇒ 成功后经 **§3.4 共享模块**建号 + 补凭据委派行（§5.1，**同事务**）；`created=true` 时写 `AUDIT_ACTIONS.provisionLdap` |
+| 返回 | **不返回响应（不短路）** ⇒ 官方端点**自有中间件**照常执行，随后官方端点按常规流程完成登录；bind 失败 / 邮箱缺失或冲突 ⇒ 不建号、不返回 |
 
-**关键约束**：官方 **before 钩子运行在端点自身中间件之前** ⇒ 钩子内短路返回会**绕过**官方 Origin / CSRF 校验（主 design §2.5 实测）⇒ 本设计明确要求**不短路**。
+**关键约束**：官方 **before 钩子运行在端点自身中间件之前** ⇒ 钩子内短路返回会**绕过**官方校验（主 design §2.5 实测）⇒ 本设计明确要求**不短路**。
+
+⚠️ **口径订正（F283 · 已定案「甲」）**：「不短路」只能保住官方**既有**中间件，而**本批采纳的 `/sign-in/username`（`username` 插件）自身未挂官方的 `formCsrfMiddleware`**（真码对照：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **都挂了** `use: [formCsrfMiddleware]`，`plugins/username/index.mjs` 的端点**没有**）⇒ 无 cookie 的跨源登录 POST 在该端点**不被强校验**（全局 `originCheckMiddleware` 对无 cookie 请求早退，真码 `api/middlewares/origin-check.mjs`：`validateOrigin` 内 `if (!(forceValidate || useCookies)) return;`）。
+**处置（本批 T3 落地）**：插件 `hooks.before` **首条**复用**官方件** `formCsrfMiddleware`，`matcher` = `ctx.path.startsWith('/sign-in/')`（整个登录面；数组顺序 = 执行顺序 ⇒ **CSRF 先于建号钩子**，不通过则零副作用）。
+**实测口径（订正）**：官方在**测试环境默认跳过 Origin 校验**（`context/create-context.mjs`：`skipOriginCheck = isTest() ? true : false`）⇒ 不加 `advanced.disableOriginCheck: false` 的「实测 200」**不成立**；本批测试按仓内先例（`app.test.ts:165`）**显式强制校验**后实测：跨源 ⇒ **403** `INVALID_ORIGIN` · `Sec-Fetch-Site: cross-site` + `Mode: navigate` ⇒ **403** `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`（两条均**零建号**）。
 
 **失败语义**：目录 `bind` 失败 ⇒ 不建号、不返回响应 ⇒ 由官方端点给出统一登录失败响应（不泄露账号存在性）。
 
@@ -204,7 +212,7 @@ WHERE NOT EXISTS (
 |----|------|
 | 时序侧信道 | 目录 `bind` 耗时显著高于本地 scrypt ⇒ 保留等价耗时处理（`DUMMY_PASSWORD_HASH` 随迁，B6），不得凭响应时间区分「目录账号 / 本地账号 / 账号不存在」 |
 | 防枚举 | 用户不存在 / 口令错 ⇒ **同一官方错误码**；首登建号失败不得返回差异化信息 |
-| CSRF / Origin | 钩子**不短路**以保住官方校验（§5.3）；dev 侧 `AUTH_TRUSTED_ORIGINS` 须含前端源（§3） |
+| CSRF / Origin | 钩子**不短路**以保住官方校验；dev 侧 `AUTH_TRUSTED_ORIGINS` 须含前端源（§3）。**补强（F283 · 已定案甲）**：官方 `formCsrfMiddleware` 未挂在 `username` 插件端点上 ⇒ 本插件 `hooks.before` **首条**复用该官方件、`matcher` 覆盖 `/sign-in/*`（先于建号钩子）⇒ 跨源 / Fetch Metadata 跨站导航一律 **403** 且零副作用（强制校验口径下实测） |
 | 口令流转 | 口令只在验证路径内存中流转：不落盘、不进日志、不进响应体 |
 
 > **承接（plan）**：本表四条 —— 「时序侧信道」→ plan **T2**（步骤 2 + 断言 ③）· 「CSRF / Origin」→ plan **T3**（不短路）+ **T5**（前置探针）· 「**防枚举**」与「**口令流转**」→ plan **T7**（断言 ② / ③）。
@@ -261,6 +269,9 @@ WHERE NOT EXISTS (
 | F279 | 口令校验口径 | 「`password.verify` 其他分支 ⇒ 委托官方 `better-auth/crypto` 的 `verifyPassword`」**不可实施**：官方（`saltHex:keyHex` · N=16384 r=16 dkLen=64 · NFKC 归一）与本仓（`$scrypt$N$r$p$saltB64$hashB64` · N=131072 r=8 dkLen=32）格式与参数**均不同、互不认**；实测反控 = 官方 verify 在本仓哈希上 **抛 `Invalid password hash`** ⇒ 照做 = 存量本地账号（seed/夹具/生产）**一律 500** + 违反 R10 零重置 | 本批订正：非 `ldap:` 分支**保留本仓 `verifyPassword`**（净新增仅「`ldap:` 前缀」一条路径）；T2 断言含**存量零回归**反证 |
 | F280 | 改密拒绝机制 | 「`password.hash` 分支 = 显式拒绝」**机制错**：`password.hash(password)` 为**全局单参函数**（官真实码 `dist/api/routes/password.mjs:162`），**拿不到目标账号** ⇒ 一刀拒绝会失效**所有**设密路径（官方 sign-up · `/change-password` · M4c-2 的 R21 自助改密）。原意（R12：管理员对目录账号改密 ⇒ 明确错误码）正确，**落点错** | 本批订正：`hash` **保持本仓 `hashPassword` 不变**；「拒绝目录账号改密」落**入口层**（按目标账号判定），实现归 **M4c-2**（R21/R12 接线时） |
 | F281 | 用户名合规 | 官方 `username` 默认校验器 = `/^[a-zA-Z0-9_.]+$/`（长度 3–30，**不接受 `-`**；`dist/plugins/username/index.mjs:12-14,31-40`）⇒ 既有账号若登录名含其他字符（如连字符）会被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒（工号形态安全） | 本批登记 + 建议 **T4 探针加「全量 `credential` 行登录名合规」断言**（不合规者需数据订正）· T2 直测已按该规则造数 |
+
+| F282 | 审计面 | T6 退役 `signInAih` 后，`auth.login.success` / `auth.login.failed` **零消费点**（全仓仅 `plugins/ldap-credentials.ts` 在写；`apps/server/src/app.ts` 包装层只管 `logout` / device 三件）⇒ 官方 `sign-in/username` 路径无登录审计 | 归 **T6**（退役同批补官方路径审计；落点候选 = 官方 `hooks.after` 或 `app.ts` 包装层加 `/sign-in/*` 分支） |
+| F283 | CSRF / Origin | 本批采纳的 `/sign-in/username`（`username` 插件端点）**自身未挂**官方 `formCsrfMiddleware`（核心 `api/routes/sign-in.mjs` / `sign-up.mjs` 都挂了 ⇒ 仅该插件端点缺口）；全局 `originCheckMiddleware` 对**无 cookie** 请求早退（`validateOrigin` 内 `if (!(forceValidate || useCookies)) return;`）⇒ 无 cookie 的跨源登录 POST 不被强校验（**源码判定**；测试环境下 better-auth 默认跳过 Origin 校验 ⇒ 实测须显式 `advanced.disableOriginCheck:false`） | **已定案「甲」并落地（T3）**：插件 `hooks.before` **首条**复用官方 `formCsrfMiddleware`，`matcher` = `/sign-in/*`（先于建号钩子 ⇒ 不通过零副作用）；平价探针 **⑧⑨⑩**（强制校验口径下实测 403 + 零建号） |
 
 ## 14. i18n 变更规格
 
@@ -371,6 +382,8 @@ WHERE NOT EXISTS (
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.13 | 2026-10-09 | **F283 定案「甲」+ 口径订正** —— ① §5.3 决策段改**已定案甲**（`hooks.before` 首条复用官方 `formCsrfMiddleware` · `matcher` `/sign-in/*` · 先于建号钩子）② 精确化：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **自带**该中间件，仅 `username` 插件端点缺 ③ 实测口径订正：官方测试环境 `skipOriginCheck = isTest() ? true : false` ⇒ 原「跨源实测 200」**不成立**；显式 `advanced.disableOriginCheck:false` 后实测 **403**（`INVALID_ORIGIN` · `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`）+ 零建号 ④ §8 CSRF 行 → **已闭环** |
+| v0.12 | 2026-10-09 | **T3 落地 + F282/F283 登记** —— ① §5.1 增**委派行写入点**（`identity.ensureDirectoryUser` 建号事务内写 `credential` 行；可选入参 `delegatedPassword`）② §5.3 表增三行（**实现落点** = 插件 `hooks.before`（真码 `api/dispatch.mjs:157-165` / `:210-231`）· **登录名护栏** 3–30 + `/^[a-zA-Z0-9_.]+$/`（F281）· **`provisionLdap` 审计**）③ **§8 CSRF/Origin 行订正**（原「不短路以保住官方校验」不完备）+ **F283** ④ §13 登记 **F282**（T6 后登录审计零消费点 → 归 T6）· **F283**（官方登录端点 cookieless 请求无 Origin/CSRF 强校验 ⇒ 跨源登录 POST 实测 **200**；修法甲/乙/丙 **待拍板**）⑤ 代码：`identity.ts` 220 行 · `plugins/ldap-credentials.ts` 369 行 · 新增直测 9 例 + `identity.test.ts` 2 例 |
 | v0.11 | 2026-10-09 | **F281 登记（T2 测试附带发现）** —— 官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/`（长度 3–30 · **不收 `-`**；`dist/plugins/username/index.mjs:12-14,31-40` 真码）⇒ 既有账号登录名含其他字符时会被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒（**工号形态安全**）。本批**仅登记**；处置建议 = T4 探针加「全量 `credential` 行登录名合规」断言（不合规者数据订正）。来源：T2 直测首次以 `pwv-xxxx` 造数触发 422，实测坐实 |
 | v0.10 | 2026-10-09 | **T2 契约口径订正 + F279/F280 登记**（用户「全修」）—— 🔴 **F279**：§5.2「其他（官方 scrypt 哈希）⇒ 委托官方 `better-auth/crypto` 的 verifyPassword」**不可实施**（官 方/本仓格式参数互不认；实测反控 = 官方 verify 在本仓哈希上 **THREW `Invalid password hash`**）⇒ 订正为**保留本仓 `verifyPassword`**（N=131072 r=8 dkLen=32 · `$scrypt$…` 自描述）· 🔴 **F280**：§5.2 末行「`password.hash` 分支 = 显式拒绝」机制错（全局单参函数 ⇒ 失效所有设密路径，含 R21 自助改密）⇒ 订正为 `hash` 保持本仓 `hashPassword` + 拒绝落**入口层**（实现归 M4c-2）· 证据：`better-auth/dist/crypto/password.mjs`（委托 `@better-auth/utils/password`，格式 `salt:key`）· `@better-auth/utils/dist/password.node.mjs`（N=16384 r=16 dkLen=64）· 临时探针正反双证（已删） |
 | v0.9 | 2026-10-09 | **T1 落地回填 + F278 登记** —— ① §5.4 表增「`username` 全局唯一（隐含约束）」行（跨通道同 subject 撞车 ⇒ 500；处置归 M4c-3，含三个候选）② §13 登记 **F278** —— 由 T1 的模块直测（`identity.test.ts` 第 ⑧ 例「同 subject 不同 provider 不误复用」）稳定照出：单例重跑必失败，非 flaky ⇒ 该例按用户拍板**移除**（T1 承诺零行为变化，修它需先定规则）③ 实测依据：`0008_icy_argent.sql:84` `user_username_unique` · `app.ts:105-124` 统一出口（非 AuthError/AssetError/ReviewError/LabelError ⇒ 500 `internal_error`） |

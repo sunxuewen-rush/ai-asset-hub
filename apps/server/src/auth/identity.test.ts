@@ -279,3 +279,48 @@ describe('identity rules §5.4 · 状态门（纯函数）', () => {
     expect(rules.statusError(null)).toBeNull();
   });
 });
+
+describe('identity rules §5.1 · 凭据委派行（M4c-1 T3）', () => {
+  it('⑩ 给出 `delegatedPassword` ⇒ 同事务落**两行**：外部身份行 + 凭据委派行（accountId=user.id · password=标记）', async () => {
+    const id = newId();
+    const subject = newSubject();
+    const res = await rules.ensureDirectoryUser({
+      provider: 'ldap',
+      subject,
+      displayName: '委派',
+      email: emailOf(id),
+      userId: id,
+      delegatedPassword: `ldap:${subject}`,
+    });
+    if (!res.ok) throw new Error(`建号应成功，实得 ${res.code}`);
+    const external = await readAccount('ldap', subject);
+    expect(external?.userId).toBe(id);
+    const delegated = await readAccount('credential', id); // 官方 `findCredentialAccount` 三条件
+    expect(delegated).not.toBeNull();
+    expect(delegated?.userId).toBe(id);
+    const pw = await db
+      .select({ password: account.password })
+      .from(account)
+      .where(and(eq(account.providerId, 'credential'), eq(account.accountId, id)))
+      .limit(1);
+    expect(pw[0]?.password).toBe(`ldap:${subject}`); // 非空标记（官方空值直接 401）
+  });
+
+  it('⑪ 缺省 `delegatedPassword` ⇒ **零额外行**（OIDC 等无口令语义通道零变化）', async () => {
+    const id = newId();
+    const subject = newSubject();
+    const res = await rules.ensureDirectoryUser({
+      provider: 'oidc',
+      subject,
+      displayName: '无委派',
+      email: emailOf(id),
+      userId: id,
+    });
+    if (!res.ok) throw new Error(`建号应成功，实得 ${res.code}`);
+    const rows = await db
+      .select({ providerId: account.providerId })
+      .from(account)
+      .where(eq(account.userId, id));
+    expect(rows.map((r) => r.providerId)).toEqual(['oidc']);
+  });
+});

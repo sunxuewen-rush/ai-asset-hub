@@ -23,10 +23,18 @@ import type { AuthErrorCode } from './errors.js';
  * 本模块**不是**与官方并行的第二套建号机制，而是**挂在官方钩子下游**的规则实现 ——
  * 两个入口都是官方的（官方端点上的 `hooks.before` · 官方 provider 的建号流程）。
  *
+ * ## 职责增补（M4c-1 T3：凭据委派行）
+ * 「凭据委派行」（providerId=`credential` · accountId=`user.id` · password=`ldap:<工号>`，批 design §5.1）
+ * 由本模块在**建号事务内**一并写入（可选入参 `delegatedPassword`）——避免「用户已建但无凭据行 ⇒
+ * 官方 `sign-in/username` 永久 401」。D6 迁移 `0015` 只负责**存量**账号，两者口径一致。
+ *
  * ## 行为口径（M4c-1 T1：抽取，零行为变化）
  * 本件为**纯规则函数**：不含任何自绘 HTTP 端点、不写审计、不签发会话
  * （会话签发属官方件，留在 `plugins/ldap-credentials.ts` 的 `issueSession`）。
  */
+
+/** 官方凭据 provider 常量（`findCredentialAccount` 三条件之一；批 design §5.1） */
+export const CREDENTIAL_PROVIDER = 'credential';
 
 /** 平台账号行（规则判定所需列；`user` 表的子集） */
 export interface AccountRow {
@@ -45,6 +53,13 @@ export interface DirectoryIdentityInput {
   email: string | null;
   /** 建号主键：LDAP = 工号（沿用旧实现 D3）；OIDC = `usr_oidc_<uuid>` */
   userId: string;
+  /**
+   * 凭据委派行的 `password` 值（**非空标记**，批 design §5.1）：目录通道传 `ldap:<工号>`；
+   * 给出即在**建号事务内**补一行 `providerId='credential'` · `accountId=user.id` 的凭据委派行
+   * ⇒ 官方 `sign-in/username` 的 `findCredentialAccount` 才能命中（M4c-1 T3）。
+   * 缺省不写（OIDC 通道等无口令语义的通道零变化）。
+   */
+  delegatedPassword?: string;
 }
 
 /** 建号/复用结果（`created` 供调用方决定是否写 provision 审计） */
@@ -99,7 +114,7 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
   async function ensureDirectoryUser(
     input: DirectoryIdentityInput,
   ): Promise<EnsureDirectoryUserResult> {
-    const { provider, subject, displayName, email, userId } = input;
+    const { provider, subject, displayName, email, userId, delegatedPassword } = input;
 
     const bound = await findExternalUser(provider, subject);
     if (bound) {
@@ -141,6 +156,17 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
           accountId: subject,
           userId,
         });
+        if (delegatedPassword !== undefined) {
+          // 凭据委派行（批 design §5.1）：与 user / 外部身份行**同事务**——半途失败会留下
+          // 「用户已建但无凭据行」⇒ 官方 `sign-in/username` 永久 401（T3 契约）。
+          await tx.insert(account).values({
+            id: `acc_${crypto.randomUUID()}`,
+            providerId: CREDENTIAL_PROVIDER,
+            accountId: userId,
+            password: delegatedPassword,
+            userId,
+          });
+        }
       });
     };
 

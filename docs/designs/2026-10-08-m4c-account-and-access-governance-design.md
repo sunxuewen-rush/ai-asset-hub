@@ -1,9 +1,9 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-09（**v0.18：M4c-1 T3 CSRF 平价落地（F283 定案「甲」）** —— **F283 精确化 + 闭环**：官方 `username` 插件端点未挂 `formCsrfMiddleware`（核心 `api/routes/sign-in.mjs` / `sign-up.mjs` 自带）⇒ 批内以插件 `hooks.before` **首条**复用官方件、`matcher` `/sign-in/*`、**先于建号钩子**（CSRF 不通过零副作用）；**实测口径订正**：官方测试环境默认跳过 Origin 校验（`isTest()`）⇒ 原「跨源 200」实测不成立，须显式 `advanced.disableOriginCheck: false`（仓内先例 `app.test.ts:165`）后实测 **403**（`INVALID_ORIGIN` / `CROSS_SITE_NAVIGATION_LOGIN_BLOCKED`）· 批 design **v0.13** · plan **v0.12** · `docs/00` **v1.127**）|
+> Updated: 2026-10-09（**v0.17：M4c-1 T3 落地回填 + F282/F283 登记** —— ① §2.5 规则行上界 **F281 → F283**（**F282**：T6 退役 `signInAih` 后 `auth.login.success` / `auth.login.failed` 零消费点 ⇒ 归 T6；**F283**：官方 `sign-in/username` 对无 cookie 请求不做 Origin/CSRF 强校验 ⇒ 跨源登录 POST 实测 **200**，修法甲/乙/丙**待拍板**）② §2.3 backlog 表 M4c-1 行 → 批 plan **v0.11**（**T1 ✅ · T2 ✅ · T3 ✅**）· 批 design **v0.12** ③ 批 design **v0.12** · `docs/00` **v1.126**）|
 > Updated: 2026-10-09（**v0.16：M4c-1 T2 落地回填 + F281 登记** —— ① §2.5 规则行上界 **F280 → F281**（官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/` 不收 `-` ⇒ 既有登录名不合规者被官方端点 422 拒；处置建议 = T4 探针）② §2.3 backlog 表 M4c-1 行批 plan → **v0.8 · 执行中（T1 ✅ · T2 ✅）** ③ 批 design **v0.11** · `docs/00` **v1.125**）
-> Updated: 2026-10-09（**v0.15：T2 契约口径订正回填**
-> Updated: 2026-10-09（**v0.15：T2 契约口径订正回填** —— ① §3.2「其他」行订正为**保留本仓 `verifyPassword`**（官方 crypto 与存量哈希互不认，实测抛错 ⇒ **F279**）② §3.2 边界行 + §2.6 **R12** + §4.8 触发行：`hash` **保持本仓 `hashPassword`**、「拒绝目录账号改密」落**入口层**（**F280**）③ §2.5 上界 → **F280** ④ 批 design **v0.10** · `docs/00` **v1.124**）
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
 > **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
 > 视觉归属：**随批就地定稿**（引 M4a §4.4 · 2026-09-28 拍板 · 2026-10-08 复核维持）。本文为**纯设计语言**（意图与契约）。
@@ -77,7 +77,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 批 | 预期 design | 预期 plan | 对齐要点（立项时逐条过） |
 |----|------------|----------|------------------------|
-| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.4** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL + 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.8** · T1–T8 · **执行中：T1 ✅ · T2 ✅ 2026-10-09**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
+| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.12** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL + 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.11** · T1–T8 · **执行中：T1 ✅ · T2 ✅ · T3 ✅ 2026-10-09**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
 | M4c-2 | `2026-MM-DD-m4c2-account-governance-design.md` | `M4c-2-account-governance.md` | 用户管理页交互（§10.2 状态-动作表）· 列表筛选/分页契约 · 建号 Dialog 字段与校验 · 权限门槛分档 · 启停列退休改动面 · 自我操作护栏（不能封自己 / 不能降自己）· **自助改密 Dialog 与目录账号拒绝口径（R21）** · **最后登录聚合取数（R22）** |
 | M4c-3 | `2026-MM-DD-m4c3-external-identity-design.md` | `M4c-3-external-identity.md` | 三个 provider（Google/GitHub/WeChat）开关范式 · 官方内置 Entra ID provider 接入（§2.6 R4）· 账号链接策略（§2.6 R1）· 占位邮箱口径（§2.6 R11）· 登录页 provider 入口交互 · provider 不可达降级 |
 
@@ -89,7 +89,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 ### 2.5 立项期已核实事实（明细随各批 design 登记 F 号）
 
 > 规则（`docs/designs/README.md`）：F 号全局连续 · 明细主家 = **批 design 的「实施期发现与处置（F…）」** 小节；
-> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F281**），登记时同步 `docs/README.md` §6.1 号段行。
+> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F283**），登记时同步 `docs/README.md` §6.1 号段行。
 
 | 面 | 已核实事实（真码/实测锚点） | 待落批次 |
 |----|--------------------------|---------|
@@ -607,6 +607,8 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.18 | 2026-10-09 | sunxuewen-rush | **M4c-1 T3 CSRF 平价落地 + F283 定案「甲」** —— ① F283 精确化：核心 `api/routes/sign-in.mjs` / `sign-up.mjs` **自带** `formCsrfMiddleware`，缺口仅在 `username` 插件端点（本批采纳端点）② 闭环：插件 `hooks.before` **首条**复用官方件 `formCsrfMiddleware`（`matcher` `/sign-in/*`，**先于建号钩子** ⇒ 不通过零副作用）③ **实测口径订正**：官方测试环境 `skipOriginCheck = isTest() ? true : false` ⇒ 原「跨源实测 200」**不成立**；显式 `advanced.disableOriginCheck: false`（仓内先例 `app.test.ts:165`）后实测 403 两种官方码 + 零建号 ④ 连带：批 design **v0.13** · plan **v0.12** · `docs/00` **v1.127** |
+| v0.17 | 2026-10-09 | sunxuewen-rush | **M4c-1 T3 落地回填 + F282/F283 登记**（承接 v0.15 的 T2 口径：`password.hash` 保持本仓 scrypt，其 `hash` 为全局单参函数、拿不到账号身份 ⇒ 改密拒绝落入口层）—— ① §2.5 上界 **F281 → F283**（F282 = 登录审计零消费点（T6 退役后）→ 归 T6 · F283 = 官方登录端点 cookieless Origin/CSRF 缺口 ⇒ 跨源 200，甲/乙/丙待拍板）② §2.3 backlog 表 M4c-1 行 → 批 plan **v0.11**（执行中 T1 ✅ · T2 ✅ · T3 ✅）· 批 design **v0.12** ③ 连带 `docs/00` **v1.126** |
 | v0.16 | 2026-10-09 | **M4c-1 T2 落地回填 + F281 登记** —— ① §2.5 上界 **F280 → F281**（**F281**：官方 `username` 默认校验器 `/^[a-zA-Z0-9_.]+$/`（3–30 · 不收 `-`；真码 `dist/plugins/username/index.mjs:12-14,31-40`）⇒ 既有账号登录名含其他字符被官方 `sign-in/username` **422 `INVALID_USERNAME`** 拒；工号形态安全；处置建议 = T4 加合规探针）② §2.3 backlog 表 M4c-1 行批 plan → **v0.8**（**执行中：T1 ✅ · T2 ✅ 2026-10-09**；T2 = 存值前缀分派 `password-verify.ts`（71 行）+ 11 例直测 + 门禁全绿）③ 批 design **v0.11** · `docs/00` **v1.125** |
 | v0.15 | 2026-10-09 | **T2 契约口径订正回填（F279/F280）** —— ① §3.2 表「其他（官方 scrypt 哈希）⇒ 委托官方 `better-auth/crypto`」订正为**「其他（本仓 scrypt 哈希）⇒ 保留本仓 `verifyPassword`」**：官方 `saltHex:keyHex`（N=16384 r=16 dkLen=64 + NFKC）与本仓 `$scrypt$N$r$p$saltB64$hashB64`（N=131072 r=8 dkLen=32）**格式参数互不认**，实测**反控**：官方 verify 在本仓哈希上 **THREW `Invalid password hash`** ⇒ 原口径照做 = 存量本地账号（seed/夹具/生产）**一律 500** + 违反 R10 零重置（**F279**）② §3.2 边界行 + **§2.6 R12** + §4.8 触发行：`password.hash` **保持本仓 `hashPassword`**；「拒绝目录账号改密」**落入口层按目标账号判定**（原「`password.hash` 分支 = 显式拒绝」机制错：官真实码 `ctx.context.password.hash(newPassword)` 单参、拿不到账号 ⇒ 一刀拒 = 失效所有设密路径，含 R21 自助改密；**F280**）③ §2.5 规则行上界 **F278 → F280** ④ 批 design **v0.10** · `docs/00` **v1.124** · plan **v0.7** |
 | v0.14 | 2026-10-09 | **M4c-1 T1 落地回填** —— ① §2.5 规则行上界 **F277 → F278**（新号 **F278**：建号写 `username = subject`，官方 `user_username_unique` 全局唯一 ⇒ 跨通道同 subject 串撞车时既有兜底不覆盖 ⇒ 原始 23505 = **500**；由 T1 模块直测稳定照出；处置归 **M4c-3**）② §2.3 backlog 表 M4c-1 行批 plan → **v0.6**（执行中：T1 ✅ 新建 `auth/identity.ts` 194 行 · 调用方 430→295 · 逐字搬移两函数 0 差异 · 18 维 9.43 → C5 补齐后重评）③ 批 design **v0.9**（§5.4 隐含约束行 + §13 F278）· `docs/00` **v1.123**。**F278 非本批修复项**（T1 = 零行为变化） |
