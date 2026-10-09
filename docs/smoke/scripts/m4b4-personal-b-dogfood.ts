@@ -26,9 +26,9 @@
  * ⚠️ G15 口径（F60 登记）：**幂等以 API 两次 `PUT` 判**，不以 UI 连点两次判
  *    —— UI 的收藏按钮是**切换**语义（连点两次 = 收藏后取消），那是正确行为、不是幂等失败。
  *
- * ⚠️ **登录限流**：服务端 `LOGIN_RATE_LIMIT = 15 分钟 / 20 次`（`apps/server/src/auth/better-auth.ts:64`·
- *    in-memory）。2026-09-20 起脚本自身做了两道缓解（原症状：凭据正确但 `/api/auth/me` 回
- *    `401:anon` ⇒ 打印诊断行后中止）：
+ * ⚠️ **登录限流**：**官方内核 `rateLimit`**（生产默认开启 · 内置 `/sign-in*` = 10 秒/3 次；dev / test 默认关闭
+ *    —— 官方 `context/create-context.mjs` 的 `enabled ?? isProduction`）。2026-09-20 起脚本自身做了
+ *    两道缓解（原症状：凭据正确但 `/api/auth/me` 回 `401:anon` ⇒ 打印诊断行后中止）：
  *      ① **会话复用**：同一账号二次进入不再重新登录 —— 当前已登录（`curUser` 一致）直接复用；
  *         曾登录过的账号还原 cookie 并核对 `me.user.id` 一致（`/api/auth/me` 响应面无 `username`
  *         字段）⇒ 免登录。一轮真登录次数 = 各账号首次之和。

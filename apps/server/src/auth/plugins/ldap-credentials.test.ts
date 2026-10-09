@@ -351,7 +351,7 @@ describe('T3 · 官方 `sign-in/username` before 钩子（首登建号）', () =
 });
 
 /**
- * T6 · 登录审计面（**F282 收口**）：自绘 `signInAih` 退役后，官方 `/sign-in/username` 是唯一口令登录入口，
+ * T6 · 登录审计面（**F282 收口**）：官方 `/sign-in/username` 是**唯一**口令登录入口，
  * 官方端点自身不写审计 ⇒ 由插件 `hooks.after` 承接（真码 `api/dispatch.mjs:234-245`：handler 抛 APIError
  * 后**仍执行** after 钩子）。两例分别钉定**成功**（actorId 归因）与**失败**（匿名 + 官方码 + 无明文）。
  */

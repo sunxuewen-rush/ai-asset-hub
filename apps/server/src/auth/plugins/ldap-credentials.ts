@@ -159,7 +159,8 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
            * **首条 = CSRF / Origin 平价（F283 · 用户拍板「甲」）**：登录请求（**无 cookie**）时官方全局
            * `originCheckMiddleware` 会**直接放行**（真码 `api/middlewares/origin-check.mjs`：
            * `validateOrigin` 内 `if (!(forceValidate || useCookies)) return;`），而补这一层的官方
-           * `formCsrfMiddleware` **只挂在本批将退役的自绘 `signInAih` 上** ⇒ 复用**官方件**把它补到官方登录面。
+           * `formCsrfMiddleware` **未挂**在官方 `/sign-in/username`（`username` 插件端点缺口）⇒ 以**官方件**
+           * 把它补到官方登录面（本仓零自绘中间件）。
            *
            * 必须排在建号钩子**之前**（数组顺序 = 执行顺序）⇒ CSRF 不通过时**零建号副作用**。
            * 覆盖面 = 整个登录面（`/sign-in/*`；`/sign-in/username` 为 M4c-1 采纳端点，email/social 同族同缺口）。
@@ -226,7 +227,7 @@ export function directoryCredentials(deps: DirectoryCredentialsDeps) {
       ],
       /**
        * M4c-1 T6（**F282 收口**）：登录成败审计 —— 官方 `/sign-in/username` 成为**唯一**口令登录入口后，
-       * 审计面由本钩子承接（退役的自绘 `signInAih` 原是 `auth.login.*` 的唯一写入点；官方端点自身不写审计）。
+       * 审计面由本钩子承接（官方端点自身不写 `auth.login.*` —— 本仓唯一的登录审计写入点即此处）。
        *
        * 官方机制（真码 `api/dispatch.mjs:234-245`）：handler 抛 `APIError` 时先被收敛成 `{ response, status }`，
        * **之后仍执行 after 钩子** ⇒ 成败两态在此可判（`ctx.context.returned` = 成功响应体 / `APIError` 实例）。

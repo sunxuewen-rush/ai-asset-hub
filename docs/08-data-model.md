@@ -1,8 +1,8 @@
 # 数据模型设计
 
 > Date: 2026-09-04
+> Updated: 2026-10-09（**v1.11：M4c-1 认证层统一到官方同步（§3 用户域原地补写）** —— §3 补「M4c-1 变更」段：`account.account_id` 语义统一为 **`user.id`**（官方 `findCredentialAccount` 三条件）· 登录名只存 `user.username`（迁移 `0015` 语句 ⓪ 保号回填）· 目录账号**凭据委派行**口径（`provider_id='credential'` · `account_id=user.id` · `password='ldap:<工号>'` **标记前缀**非密文 · 按 `user_id` 只补缺的幂等规则））
 > Updated: 2026-09-23（**v1.10：M4b-6 治理批同步** —— §6 治理域补 **`download_event`**（下载事件：`asset_id`/`version_id`/`created_at` + 2 索引；与 `download_count` 自增**同事务**写入）+ **表数口径 15 → 16**（官方认证 6 + 业务 10 · 迁移 **0014**））
-> Updated: 2026-09-22（**v1.9：M4b-5 规范同步 · 审核人 = 提交人已放开（R2）** —— §5.2 `review_task` 注记 · §7 状态机行 · §6 授权集行三处同步。**补登记**：内容随 M4b-5 收口（`ad05b4e`）已改入正文，当时漏记版本头与修订记录，本行补齐）
 > v1.7（M4b-4 T15 收藏最小集落地）——§5.1 `asset` 增 **`star_count INT NOT NULL DEFAULT 0`**（迁移 0012）· 新增 **§5.35 `asset_star`**（收藏关系：`UNIQUE(asset_id,user_id)` + 双向 `ON DELETE CASCADE`）· 运行库终态 **15 表** = 官方认证 6 + **业务 9**）
 > v1.6（M4b-pre 认证整车迁移同步）——§1 对照表 05 落点改官方 6 表 · §2 补官方表口径（列名/类型照官方生成物，本仓不改形）· §3 用户域**整节重写**（`user_account`/`identity_binding`/`local_credential`/`api_token` 四表删除 → 官方 `user`/`session`/`account`/`verification`/`device_code`/`apikey`；角色落 `user.rol**；**v1.5：M4-pre 扁平化重构同步**——§3 用户域删 4 表（role/permission/role_permission/user_role_binding）→ `user_account.role` 4 档单列；§4 空间域整删（留注记保编号）；§5.1 **）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§10 修订记录**。
@@ -65,6 +65,14 @@ apikey         id TEXT PK · config_id · name · start · prefix · reference_i
 邮箱取目录值（缺失仅**逃生账号**按 `SEED_ADMIN_EMAIL` 合成，其余**绝不合成**）·
 存量令牌 `token_hash`（sha256 hex）**re-encode** 为 `base64url` ⇒ 原明文凭据继续可用（持有者无感）·
 `scope` 字符串 → `apikey.permissions` JSON 文本（两层聚合保全同 resource 的全部 action）。
+
+**M4c-1 变更（认证层统一到官方 · 迁移 `0015`，2026-10-09）**：`account.account_id` 语义统一为
+**`user.id`**（官方 `findCredentialAccount` 三条件 = `provider_id='credential'` + `account_id=user.id`
++ `user_id` 匹配，真码 `better-auth/dist/db/internal-adapter.mjs`）；**登录名只存 `user.username`**
+（迁移 `0015` 语句 ⓪ 把 `user.username IS NULL` 的存量账号按原 `account_id` 回填保号）。
+目录（LDAP）账号增**凭据委派行**：`provider_id='credential'` · `account_id=user.id` · `user_id=user.id`
+· `password='ldap:<工号>'` —— `password` 位存**前缀标记**而非密文（口令真值在企业目录），官方
+`password.verify` 见 `ldap:` 前缀即转目录 `bind`（05 §3.1）；迁移按 `user_id` 匹配、只补缺、不回改既有行（幂等）。
 
 **M4-pre 变更（迁移 0005）**：原 `user_role_binding` / `role` / `permission` / `role_permission`
 四表**整体删除** —— 平台角色改为 `user.role` 单列档名（05 §6.1）；权限码矩阵取消
@@ -241,7 +249,7 @@ DRAFT → SCANNING → SCAN_FAILED ──► （修正后同版本重传回 DRAF
 ## 10. 修订记录
 
 | 版本 | 日期 | 作者 | 变更 |
-|------|------|------|------|
+| v1.11 | 2026-10-09 | sunxuewen-rush | **M4c-1 认证层统一到官方同步（§3 用户域原地补写）** —— ① `account.account_id` = **`user.id`**（官方 `findCredentialAccount` 三条件真码行号）② 登录名唯一载体 = `user.username`（迁移 `0015` 语句 ⓪ 存量保号回填）③ 目录账号**凭据委派行**（`provider_id='credential'` · `account_id=user.id` · `user_id=user.id` · `password='ldap:<工号>'` 标记前缀非密文）④ 幂等口径（按 `user_id` 匹配 · 只补缺 · 不回改既有行）||------|------|------|------|
 | v1.10 | 2026-09-23 | sunxuewen-rush | **M4b-6 治理批同步**：§6 治理域新增 `download_event`（迁移 **0014** · 2 索引 · 同事务写入语义）+ 表数口径 **16 表**（官方 6 + 业务 10） |
 | **v1.9** | 2026-09-22 | sunxuewen-rush | **M4b-5 规范同步（补登记）**：① §5.2 `review_task` 注记「防自审（05 §6.4）」→「审核人 = 提交人：**M4b-5 R2 起放开**」② §7 状态机 `PENDING_REVIEW → PUBLISHED` 行同步 ③ §6 授权集行「审核人 = 提交人」→「**已放开**」（依据 = `05` §6.4 偏离登记 · 批 design `2026-09-21-m4b5-review-workbench-design` §4.6.1）。**补登记说明**：三处内容随 `ad05b4e` 已改，版本登记漏记，本行补齐 |
 | **v1.8** | 2026-09-18 | sunxuewen-rush | **M4b-4 T10 规范同步（Q11 A 随批即改）**：① §7 补 **「资产级非 ACTIVE 授权集」**注记——`status ≠ ACTIVE` 时六面（详情/版本列表/版本详情/文件/下载/预览）**同一守卫**，授权集 = **owner 本人 · 管理档 · 超管**，集外 404（无 403）② §7 补 **状态运营语义**：`HIDDEN` = 临时下架/可恢复 · `ARCHIVED` = 长期退役/停止维护（详情页「恢复」动作判据）③ 与 `05` §6.4 v1.10 对齐 |
