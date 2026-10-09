@@ -11,6 +11,7 @@ import { getEnv } from './config/env.js';
 import type { Db } from './db/client.js';
 import { session } from './db/schema/index.js';
 import { createAdminRoutes } from './http/admin.js';
+import { createAdminUserRoutes } from './http/admin-users.js';
 import { createAssetRoutes, UPLOAD_RATE_LIMIT } from './http/assets.js';
 import { createAuditRoutes } from './http/audit.js';
 import { officialSessionMiddleware, rbacContext } from './http/auth-middleware.js';
@@ -213,6 +214,8 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/audit', createAuditRoutes({ db: deps.db }));
   // M4b-6 T1：管理看板三只读端点（`role >= ADMIN`）
   app.route('/api/admin', createAdminRoutes({ db: deps.db }));
+  // M4c-2 T2：/api/admin 用户治理面（6 薄端点 · 委托官方 admin 插件 · **另立件** ⇒ 与看板只读族不混）
+  app.route('/api/admin', createAdminUserRoutes({ db: deps.db, auth, audit: deps.audit }));
 
   return app;
 }

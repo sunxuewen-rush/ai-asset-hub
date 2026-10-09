@@ -1,9 +1,9 @@
 # M4c-2 账号与权限治理 · 批设计（用户管理页 + 启停交官方 + 列退休 + 自助改密）
 
 > Date: 2026-10-09
+> Updated: 2026-10-09（**v0.4：F294 订正 —— 搜索改「字段选择器 + 关键词」**（用户拍板「A」）—— 官方 `list-users` 单次仅一组 search（字段限 email|name）+ 一组 filter 且 AND ⇒ 跨字段 OR 不可直给；§3.2/§3.3/线框三处同步 + 新增 §13 实施期发现（F294））
 > Updated: 2026-10-09（**v0.3：声明核验轮（定稿后复检）** —— 按 `design-doc-claim-verification` 方法对**文档内全部可量化声明**做真码回读（29 条：官方 dist 行号 15 · 本仓落点/事实 12 · 数字/连带 2）：**命中 2 处真缺陷并已修** —— ① 官方 `banUser` / `unbanUser` 行号**互换**（真值 `banUser` = `routes.mjs:506`（body 模式 `:480`）· `unbanUser` = `:447`（body 模式 `:431`））② `m4b2` 占位断言连带口径失真（实为 **SSOT 派生 ⇒ 自动跟随**，无需改脚本）⇒ 复验全过。评分**当场撤回 v0.2 自报的 9.50**（自报未验），改为核验后 **9.49**（标准 9.50 · 深度 9.48 · 残余扣分 = 「dev 库命中 2 行」系**引主 design §2.5 立项期实测**，本轮未自测，迁移 Task 内 P2 探针复核））
 > Updated: 2026-10-09（**v0.2：定稿** —— grilling 轮 U1–U5 全部定案（用户「全按推荐来」）：① **F270 处置 = 甲**（薄层加**一致性哨兵**：同一筛选条件我方 `count(*)` 与官方 `total` 交叉核对，不一致 ⇒ 500 `user.list_failed`）② 分页 = **替换式页码** ③ 管理档直访 = **读列表 200 + 动作 403** ④ 建号初始口令**必填** ⑤ 视觉补录**就地入 M4a §4.4 映射表**；8 维重评 **9.00 → 9.50** ⇒ 满足定稿门（≥9））
-> Updated: 2026-10-09（**v0.1：首稿** —— ① 立项对齐 8 条拍板结果（用户「全按推荐来」）② 服务端薄层委托范式（headers 透传 + 出参归一）③ 迁移 `0016`（`status` 列退休）④ 前端零新视觉值（复用件清单）⑤ 线框两幅 ⑥ 8 维自检首稿）
 > Status: **定稿**（2026-10-09 · 8 维 **9.49**（标准 9.50 · 深度 9.48 · **声明核验轮后**）· grilling 轮 U1–U5 全定案 · 门 ≥9 ✓；实现细则落批 plan）· 上游 = 主 design `2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 拆批 · **§4 契约** · §7.1/§7.2/§7.3 · §8.1 · §10.2 · §11 · §12；版本以其版本头为准）
 > Scope: `/admin/users` 用户管理（列表 / 筛选 / 分页 · 改角色 · 封禁·解封 · 强制登出 · 管理员建号）· 权限码 `session:['revoke']` · `user.status` **列退休**（迁移 `0016`）· 本地账号**自助改密** · 侧栏「管理」组条目与 i18n
 
@@ -41,7 +41,7 @@
 
 | 端点 | 方法 | 入参 | 出参 | 委托官方 | 权限码 | 审计 |
 |------|------|------|------|---------|--------|------|
-| `/api/admin/users` | GET | `limit`（默认 20 · 上限 100）· `offset` · `q`（工号 / 姓名 / 邮箱）· `role`（档名）· `status`（`active`/`banned`）· `sort`（`username`/`name`/`email`/`role`/`createdAt`）· `dir` | `{ items: [{ userId, username, name, email, role, banned, banReason, banExpires, lastLoginAt }], total }` | `list-users`（`routes.mjs:322`） | `user:['list']` | —（读面不写） |
+| `/api/admin/users` | GET | `limit`（默认 20 · 上限 100）· `offset` · `q`（关键词）· **`field`（搜索字段：`username` 工号 / `name` 姓名 / `email` 邮箱 · 默认 `username`）** · `role`（档名）· `status`（`active`/`banned`）· `sort`（`username`/`name`/`email`/`role`/`createdAt`）· `dir` | `{ items: [{ userId, username, name, email, role, banned, banReason, banExpires, lastLoginAt }], total }` | `list-users`（`routes.mjs:322`） | `user:['list']` | —（读面不写） |
 | `/api/admin/users` | POST | `{ username, name, email, role, password }`（**四项必填** · 初始口令管理员手填 · U4 定案） | `{ userId }` | `create-user`（`routes.mjs:133`）+ 同事务直写 `username`/`display_username` | `user:['create']` | `user.create` |
 | `/api/admin/users/:id/role` | PATCH | `{ role }` | `{ ok: true }` | `set-role`（`routes.mjs:43`） | `user:['set-role']` | `user.role_change` |
 | `/api/admin/users/:id/ban` | POST | `{ reason?, expiresIn? }` | `{ ok: true }` | `ban-user`（`routes.mjs:506`） | `user:['ban']` | `user.ban` |
@@ -50,7 +50,14 @@
 
 ### 3.3 列表取数与 F270 处置
 
-- **筛选映射**：`q` ⇒ 官方 `searchValue` + `searchField`（工号 = `username` / 姓名 = `name` / 邮箱 = `email`，前缀判定后逐项传；工号与姓名同值时优先 `username`）· `role`/`status` ⇒ 官方 `filterField` + `filterOperator=eq`（`banned` 字段直传布尔）· `sort`/`dir` ⇒ `sortBy`/`sortDirection`（真码 `listUsersQuerySchema` `routes.mjs:306-320`）。
+- **筛选映射（2026-10-09 订正 · F294 · 用户拍板「A」）**：官方 `list-users` 单次**最多**一组 search（`searchField` 被官方 **z.enum 限死 `email`\|`name`**）+ 一组 filter（任意字段/操作符），二者 **AND** 组合，**不支持跨字段 OR** ⇒ UI 改为**「字段选择器 + 关键词」**，服务端按 `field` 分派：
+  | `field` | 官方入参 |
+  |---------|---------|
+  | `username`（工号 · **默认**） | `filterField:'username'` + `filterOperator:'contains'` + `filterValue:q` |
+  | `name`（姓名） | `searchValue:q` + `searchField:'name'`（`searchOperator` 默认 `contains`） |
+  | `email`（邮箱） | `searchValue:q`（`searchField` 官方默认即 `email`） |
+  `role` ⇒ `filterField:'role'` + `filterOperator:'eq'` · `status` ⇒ `filterField:'banned'` + `filterValue:true|false`（官方 schema 允许布尔）· `sort`/`dir` ⇒ `sortBy`/`sortDirection`（真码 `listUsersQuerySchema` `routes.mjs:306-320`）。
+  ⚠️ **限制须知（F294）**：`field` 与 `role` 同用且 `field=username` 时二者争**同一个 filter 位** ⇒ 服务端规则 = **`field=username` 时忽略 `role` 筛选**（`field=name|email` 时 `role` 仍生效）；UI 对 `field=username` **禁用角色下拉**并提示。
 - **`lastLoginAt`**：官方 `list-users` **不返回**该字段 ⇒ 本仓薄层对当页 `userId` 集合做**一次只读聚合** `max(session.created_at)`（`group by user_id`）。
   > **为何此处仍是「我方自绘」**（原则要求写明理由）：官方件不提供该字段，而主 design R22 要求展示「最后登录」；本处**只做聚合读**，不替代官方数据面（列表主体仍来自官方），且**不做任何写**。
 - **F270 处置 = 「一致性哨兵」（定案 · grilling U1 甲）**：官方 `list-users` 的 `catch` 把查询异常吞成 `{users:[],total:0}`（真码 `routes.mjs:378`）⇒ 空列表不可区分真伪。本仓薄层用**同一筛选条件**做一次 `count(*)`（我方 drizzle **只读**）与官方 `total` 交叉核对：**不一致 ⇒ 500 + `user.list_failed`**（新码）。**代价 = 每次列表多 1 次 count**（可接受：列表页低频、count 走既有索引）。
@@ -174,7 +181,7 @@
 ├─ SideNav ───┬─ 主区 ───────────────────────────────────────────────────────┤
 │ 超级管理     │ 用户管理                                    [ + 新建用户 ]    │
 │  标签定义    │ ┌─ 筛选 ──────────────────────────────────────────────────┐   │
-│  系统设置    │ │ [搜索 工号/姓名/邮箱]  [角色 ▾]  [状态 ▾]  [重置]        │   │
+│  系统设置    │ │ [字段 ▾ 工号/姓名/邮箱] [关键词]  [角色 ▾]  [状态 ▾] [重置]│   │
 │ ★用户管理    │ └─────────────────────────────────────────────────────────┘   │
 │              │ ┌─ 表 ─────────────────────────────────────────────────────┐ │
 │ 管理         │ │ 账号       │姓名 │邮箱 │角色 │状态    │最后登录│操作│列显隐│ │
@@ -271,6 +278,13 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.4 | 2026-10-09 | **T2 实施期：F294 订正（用户拍板「A」）** —— 官方 `list-users` 单次仅容一组 search（字段限 `email`\|`name`）+ 一组 filter 且 AND 组合 ⇒ 跨字段 OR 不可直给；改为**「字段选择器 + 关键词」**（`field` ∈ username/name/email ⇒ 分派官方 filter/search 通道）· 定 `field=username` 与 `role` 冲突规则 · 新增 **§13 实施期发现与处置（F294）** · §3.2 / §3.3 / 线框三处同步 |
 | v0.3 | 2026-10-09 | **声明核验轮（定稿后复检 · 用户「先检查并打分」）** —— ① 方法：按 `design-doc-claim-verification` 三查（件在哪个包 / 导出符号 / 计数单位）+ 本仓落点回读，共 **29 条可量化声明** ② **命中 2 处真缺陷并修**：官方 `banUser` / `unbanUser` 行号**互换**（真值 `:506` / `:447`；补 body 模式 `:480` / `:431`）· `m4b2` 占位断言连带口径失真（实为 **SSOT 派生 ⇒ 自动跟随**）③ 复验两条全过 ④ 评分：**撤回 v0.2 自报 9.50**（自报未验）⇒ 核验后 **9.49**（标准 9.50 · 深度 9.48 · 残余 = 上游实测引用未自测）⑤ 门禁：doc-audit 259/0 · table-structure 46/0 · file-ref-closure 37/0 · doc-claims 130/0 |
 | v0.2 | 2026-10-09 | **定稿** —— grilling 轮 U1–U5 全部定案（用户「全按推荐来」）：① **F270 处置 = 一致性哨兵**（同一筛选条件我方 `count(*)` 与官方 `total` 交叉核对 · 不一致 ⇒ 500 `user.list_failed` · 代价 = 每次列表多 1 次 count）② 分页 = 替换式页码 ③ 管理档直访 = 读列表 200 + 动作 403 ④ 建号初始口令必填 ⑤ 视觉补录就地入 M4a §4.4 映射表；§6 未决项 → 定案表（否决项只记一行 · 不入正文）；8 维重评 **9.00 → 9.50** |
 | v0.1 | 2026-10-09 | **首稿** —— 立项对齐 8 条拍板结果（用户「全按推荐来」）· 服务端薄层委托范式（headers 透传 + 出参归一 + 双保险）· 端点契约 6 条（含官方 dist 行号）· 列表取数与 **F270** 处置（甲/乙待定）· `lastLoginAt` 我方只读聚合（**理由已写明**）· 迁移 `0016`（`status` 列退休 + 探针 P1–P4）· 权限码 `session:['revoke']` · 审计动作 `user.*` ×5 · 前端零新视觉值（复用件清单 · 就地补录 M4a §4.4）· 线框两幅 · 判据（新 dogfood + 既有回归 + 连带 `m4b2` 占位条目断言）· 未决项 U1–U5 待 grilling · 8 维首稿 **9.00** |
+
+## 13. 实施期发现与处置（F…）
+
+| F | 类 | 发现（实测） | 处置 |
+|---|----|------------|------|
+| **F294** | 官方件能力边界 | 官方 `list-users`（`plugins/admin/routes.mjs:306-320`）单次只容**一组 search**（`searchField` 被 z.enum 限死 `email`\|`name`）+ **一组 filter**（任意字段/操作符），二者 **AND** 组合 ⇒ **跨字段 OR 搜索不可直给**（§3.2 原写「`q` 跨工号/姓名/邮箱」无法表达） | **T2 实施期已定案「A」**（用户拍板）：UI 改**「字段选择器 + 关键词」**，按 `field` 分派到官方 search/filter 两通道（§3.3 映射表）；并定 `field=username` 与 `role` 同用时的冲突规则（忽略 role + UI 禁用）。**零我方 SQL**；§3.2 / §3.3 / 线框已同步 |

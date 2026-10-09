@@ -1,9 +1,9 @@
 # M4c-2 账号与权限治理：用户管理页 + 启停交官方 + `status` 列退休 + 自助改密 —— 批计划
 
 > Date: 2026-10-09
+> Updated: 2026-10-09（**v0.4：F294 订正**（用户拍板「A」）—— 搜索改「字段选择器 + 关键词」；T4 `FilterBar` 同步 · 批 design v0.4 已同步）
 > Updated: 2026-10-09（**v0.3：T2 落点定案「甲」** —— 另立 `apps/server/src/http/admin-users.ts` + 同前缀第二组挂载 ⇒ §8 可实施性 9.3 → **9.4** · 综合 **9.41**）
 > Updated: 2026-10-09（**v0.2：声明核验轮** —— 落点 31 / 官方行号 12 / 事实 10 / 内部自洽 3 项实测；命中并修 **1 处真缺陷**（「四个动作 403」⇒ **五个写端点**）· 去 `api/admin.ts` 疑问语气 · T3 连带面点名；自报 9.39 **撤回** ⇒ 核验 **9.40**）
-> Updated: 2026-10-09（**v0.1：首稿** —— T1–T8 编序（权限码/审计单源 → 薄端点 → 列退休迁移 → 用户管理页 → 自助改密 → 视觉就地定稿 → dogfood/回归 → 收口）· 每 Task 三段（步骤 / 断言与门禁 / 落点依据）· 门禁 12 步 · 造数口径 · 风险回退 · 落地记录位 + 逐 Task 18 维自检位）
 > Status: 🟡 待拍板（**未开工**）· 上游 = 批 design `docs/designs/2026-10-09-m4c2-user-governance-design.md`（**定稿 · 8 维 9.49** · v0.3 · U1–U5 定案 —— 版本以其版本头为准）
 > · 主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§4 契约 · §7 入口三层 · §8.1 端点 · §10.2 交互 · §15 出口 —— 版本以其版本头为准）
 > · 视觉真值 SSOT `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（本批**零新视觉值**，只就地补录映射）
@@ -67,7 +67,7 @@
 
 > 依据 = 批 design **§3.1/§3.2/§3.3/§3.6** · 主 design §8.1；官方真值：`list-users` `routes.mjs:322`（query schema `:306` · 吞错 `catch` `:378`）· `set-role` `:43` · `ban-user` `:506`（body `:480`）· `unban-user` `:447`（body `:431`）· `create-user` `:133` · `revoke-user-sessions` `:710`（返 `{ success: true }`）。前置 = T1。
 
-1. **另立件（T2 落点定案「甲」· 2026-10-09）**：新建 `apps/server/src/http/admin-users.ts`，在 `apps/server/src/app.ts:215` 的 `createAdminRoutes` 挂载点旁**同前缀再挂一组**（`app.route('/api/admin', createAdminUserRoutes({ db, auth }))`）—— `http/admin.ts` 保持**只读看板族**不混治理写（先例：独立成件的 `http/oidc-routes.ts`）：
+1. **另立件（T2 落点定案「甲」· 2026-10-09）**：新建 `apps/server/src/http/admin-users.ts`，在 `apps/server/src/app.ts:216` 的 `createAdminRoutes` 挂载点旁**同前缀再挂一组**（`app.route('/api/admin', createAdminUserRoutes({ db, auth }))`）—— `http/admin.ts` 保持**只读看板族**不混治理写（先例：独立成件的 `http/oidc-routes.ts`）：
    - `app.use('*', requireRole(ACCOUNT_ROLE.ADMIN))`（薄层第一道）+ 官方权限码为第二道（`deps.auth.api.*` 透传 `headers: c.req.raw.headers`）。
    - 六条路由按批 design §3.2 表：`GET /users` · `POST /users` · `PATCH /users/:id/role` · `POST /users/:id/ban` · `POST /users/:id/unban` · `POST /users/:id/sessions/revoke`。
    - 出参归一：列表 `{ items, total }`（先例 `http/assets.ts:284`）· 动作 `{ ok: true }`。
@@ -97,7 +97,7 @@
 
 > 依据 = 批 design **§4.1/§4.2/§4.3/§4.4** · 主 design §7.1/§7.2/§7.3/§10.2/§11；复用件真值：`ui/{DataTable,Pagination,ColumnVisibilityMenu,Badge,EmptyState,ErrorState}.tsx` · `console/{FilterBar,ConfirmDialog,Drawer,PageHeader,StatusPill}.tsx`（12/12 实测存在）。前置 = T3。
 
-1. `apps/web/src/pages/AdminUsers.tsx`（新）：`PageHeader`（标题 + `[+ 新建用户]`）· `FilterBar`（搜索 / 角色 / 状态 / 重置）· `DataTable` + `ColumnVisibilityMenu`（列：账号 / 姓名 / 邮箱 / 角色 / 状态 / 最后登录 / 操作）· `Pagination`（替换式页码 + 共 N 条）· 行操作菜单（`DropdownMenu`：改角色 / 封禁·解封 / 吊销会话 ⇒ `ConfirmDialog` 二次确认；封禁填原因 + 可选到期）。
+1. `apps/web/src/pages/AdminUsers.tsx`（新）：`PageHeader`（标题 + `[+ 新建用户]`）· `FilterBar`（**字段选择器（工号默认 / 姓名 / 邮箱）+ 关键词** / 角色 / 状态 / 重置；`field=username` 时角色下拉禁用并提示 —— **F294**）· `DataTable` + `ColumnVisibilityMenu`（列：账号 / 姓名 / 邮箱 / 角色 / 状态 / 最后登录 / 操作）· `Pagination`（替换式页码 + 共 N 条）· 行操作菜单（`DropdownMenu`：改角色 / 封禁·解封 / 吊销会话 ⇒ `ConfirmDialog` 二次确认；封禁填原因 + 可选到期）。
 2. 路由：`apps/web/src/main.tsx` 既有 `<RoleGuard minRole={ROLE.ADMIN}>` 块内新增 `/admin/users`（与 `/admin/*` 同族）。
 3. 侧栏：`components/ui/navItems.tsx` 超管组「用户管理」由**占位 BUTTON** → `{ to: '/admin/users', text: t('admin','users'), icon: <Users/> }`（「系统设置」保持占位）。
 4. 护栏显隐：本人行禁用「改角色 / 封禁」+ 标「（我）」；末位超管行禁用「封禁 / 降级」+ 标「（末位超管）」；动作提交期按钮禁用（无乐观更新，成功后**重取当页**）；请求序号守卫防竞态。
@@ -206,7 +206,7 @@ build → db:migrate → test
 | Task | 日期 | 实测 | 门禁 | 发现 / 偏差 |
 |------|------|------|------|------------|
 | **T1** | 2026-10-09 | 4 件 +37/−3：① `auth/roles.ts` —— `ROLE_STATEMENT` 加 `session: ['revoke']`（仅 revoke）· `ROLES.superadmin` 加 `session:['revoke']`（**admin 不给** ⇒ 写面 5 端点全归超管，供 T2 的 403 断言）· 两条口径注释（批 design §3.4 / 主 design §2.6 R20 / §7.3）② `audit/audit.ts` —— `AUDIT_ACTIONS` + `user.*` ×5（**必须与目录同批**：`actions.test.ts` 的**反向扫描**会抓「目录有而代码不写的幽灵项」）③ `audit/actions.ts` —— 新增 `user` 组 ④ `auth/roles.test.ts` —— 探针 `PermissionProbe` 加 `session`；+3 组断言（admin 拒 revoke · superadmin 放行并纳入全量探针 · 独立用例「仅超管放行」）；单调包含探针纳入 `session:['revoke']` | 本包 `typecheck` ✓ · `lint` **EXIT=0**（133 文件 · No fixes applied · **读 exit code** 口径）✓ · 靶测试 `roles` + `audit/actions` **13 pass / 0 fail** ✓ · 全量 **645 pass / 1 skip / 0 fail**（Ran 646 · 57 文件 · +1 = 本轮新增用例）| ① **首轮红（我自己的错，已修）**：插测试名时把 `session:['revoke']`（含单引号）放进 TS **单引号串** ⇒ TS1005 语法错 → 改为不带内嵌引号的标题 ② 反向扫描坑已预先规避（常量表与目录同批登记）③ T1 **无端点** ⇒ 官方 `403` 链路由 T2 实测，本 Task 只锁声明面 |
-| **T2** | — | — | — | — |
+| **T2** | 2026-10-09 | 新建 `apps/server/src/http/admin-users.ts`（**6 薄端点**：列表 / 建号 / 改角色 / 封禁 / 解封 / 吊销会话）+ `admin-users.test.ts`（**15 例**）+ `app.ts` 挂载（同前缀第二组）· 数据面**全委托官方**（`auth.api.*` + headers 透传 + 官方 `APIError` → 中文码映射）· 护栏 4 例（自己改档位 / 封自己 / 提权越界 / 目标不存在）· **F270 哨兵**（官方 total=0 时我方 count 交叉核对 ⇒ 不一致 500 `user.list_failed`）· `lastLoginAt` 当页 `max(session.created_at)` 只读聚合 · 出参归一（`{items,total}` / `{ok:true}`）· 5 审计动作写入 | 本包 `typecheck` ✓ · `lint` **EXIT=0**（135 文件）✓ · T2 新测试 **15 pass / 0 fail**（44 断言 · 真库真端点）✓ · 全量 server **660 pass / 1 skip / 0 fail**（Ran 661 · 58 文件 · 645 → 660 = +15）✓ · `format:check` 333 件 ✓ | ① **F294**：官方单次仅一组 search（字段限 email\|name）+ 一组 filter 且 AND ⇒ 跨字段 OR 不可直给 ⇒ 用户拍板「A」：搜索改「字段选择器 + 关键词」，design v0.4 / plan v0.4 / README 号段 F294 同步 ② **实现口径改进（已申报）**：登录名经官方 `data` 与账号**同一次写入**（官方 create-user 合并 `data` ⇒ 无「已建号但登录名未落」的半成品窗口），优于 §3.2 原「建号后直写」措辞、意图相同 ③ **首轮红 = 我的测试数据违规**：用例登录名用 `admu-…`（含连字符）⇒ 命中官方/我方校验器（**F281**）⇒ 400；改 `admu…` 后全绿 ④ **覆盖缺口 2 处（如实）**：F270 哨兵需注入官方侧 DB 异常才可复现；末位超管护栏需「全库仅 1 活跃超管」前置（与并行测试文件共享库冲突）⇒ 两者归 **T7 dogfood** 专用数据态 |
 | **T3** | — | — | — | — |
 | **T4** | — | — | — | — |
 | **T5** | — | — | — | — |
@@ -221,7 +221,7 @@ build → db:migrate → test
 | Task | A（4 维） | B（4 维） | C（10 维） | 合计 | 备注（扣分项） |
 |------|:--:|:--:|:--:|:--:|------|
 | T1 | 9.50 | 9.53 | 9.58 | **9.53** | A4 9.4（纯声明面 · 无运行时错误路径可测）· C7 9.4（本 Task 无新文档，T8 集中回填） |
-| T2 | — | — | — | — | — |
+| T2 | 9.48 | 9.50 | 9.53 | **9.50** | A4 9.3 / C5 9.4 ⬅（**F270 哨兵 + 末位超管护栏未自动化覆盖**，归 T7 dogfood）· C7 9.4（`07` §4 错误码回填归 T8） |
 | T3 | — | — | — | — | — |
 | T4 | — | — | — | — | — |
 | T5 | — | — | — | — | — |
@@ -281,6 +281,7 @@ build → db:migrate → test
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.4 | 2026-10-09 | **T2 实施期：F294 订正（用户拍板「A」）** —— 官方 `list-users` 单次仅容一组 search（字段限 `email`\|`name`）+ 一组 filter 且 AND ⇒ 跨字段 OR 不可直给 ⇒ 搜索改**「字段选择器 + 关键词」**；T4 `FilterBar` 描述同步（`field=username` 时角色下拉禁用）；批 design v0.4 已同步（§3.2 / §3.3 / 线框 / §13 发现） |
 | v0.3 | 2026-10-09 | **T2 落点定案「甲」（用户拍板）** —— 另立 `apps/server/src/http/admin-users.ts` + `app.ts` 同前缀第二组挂载（`http/admin.ts` 保持只读看板族不混治理写）；§8 可实施性 9.3 → **9.4**，综合 **9.40 → 9.41**；plan 内不再留待拍项（仅余 T6 视觉数值 · 实现期就地定稿） |
 | v0.2 | 2026-10-09 | **声明核验轮（用户「自检打分了吧？」）** —— ① 方法同 design 核验轮：落点 31 处 · 官方行号 12 处 · 事实/数字 10 项 · 内部数字自洽 3 项 ② **命中 1 处真缺陷并修**：「管理档四个动作 403」与端点面不符（写集 = **5**：建号 / 改角色 / 封禁 / 解封 / 吊销）③ 核验附带改进 2 处：`api/admin.ts` **实测已存在**（去疑问语气）· T3 连带面点名 `token-middleware.ts` 两处 + `assets/stats.ts` `totalUsers` 口径，并记 `admin/overview.ts` 甄别后不动 ④ 如实披露 1 处**探针自身 bug**（空串当假值 ⇒ 误报 1 条）⑤ 评分：**撤回 v0.1 自报 9.39** ⇒ 核验后 **9.40**（标准 9.375 · 深度 9.425）⑥ 门禁：doc-audit 264/0 · table-structure 47/0 · file-ref-closure 37/0 · doc-claims 132/0 |
 | v0.1 | 2026-10-09 | **首稿** —— T1–T8 编序（权限码/审计单源 → 用户面薄端点 6 条 + F270 哨兵 → 迁移 `0016` 列退休与连带收敛 → 用户管理页 + 侧栏条目 + i18n → 自助改密 → 视觉就地定稿与映射补录 → 新 dogfood + 回归 + 门禁 → 收口）· 每 Task 三段（步骤 / 断言与门禁 / 落点依据）· 门禁 12 步（含「读 exit code」实证口径）· 造数口径（复用 `m4b2-seed-roles` + 自愈 seed + 迁移授权）· 风险与回退 6 条 · 落地记录位 + 逐 Task 18 维打分位 · 自检 **9.39** |
