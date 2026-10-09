@@ -556,14 +556,14 @@ describe('LDAP channel via HTTP (fake server, real network)', () => {
       .select({
         email: user.email,
         role: user.role,
-        status: user.status,
+        banned: user.banned,
         username: user.username,
       })
       .from(user)
       .where(eq(user.id, 'alice'));
     expect(row?.email).toBe('alice.wu@corp-test.local'); // 官方写入路径小写化（X1）
     expect(row?.role).toBe('user'); // 默认档
-    expect(row?.status).toBe('ACTIVE');
+    expect(row?.banned).toBe(false); // M4c-2 T3：启停真值 = 官方 banned（未封禁）
     expect(row?.username).toBe('alice');
 
     const accounts = await db

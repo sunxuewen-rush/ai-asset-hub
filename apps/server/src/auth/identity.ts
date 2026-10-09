@@ -41,7 +41,8 @@ export interface AccountRow {
   id: string;
   displayName: string;
   email: string | null;
-  status: string | null;
+  /** 官方封禁列（启停真值 · M4c-2 T3 起替代本仓 status 列） */
+  banned: boolean | null;
   role: string | null;
 }
 
@@ -82,7 +83,7 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
         id: user.id,
         displayName: user.name,
         email: user.email,
-        status: user.status,
+        banned: user.banned,
         role: user.role,
       })
       .from(account)
@@ -98,8 +99,8 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
    * `DISABLED` 与遗留 `PENDING` **行为不变（仍拒）**，仅对外码面收敛为官方码；
    * `PENDING` 概念与枚举随列退休归 M4c-2（主 design §4.7）。
    */
-  function statusError(status: string | null): AuthSurfaceCode | null {
-    if (status === 'DISABLED' || status === 'PENDING') return OFFICIAL_BANNED_CODE;
+  function statusError(banned: boolean | null): AuthSurfaceCode | null {
+    if (banned === true) return OFFICIAL_BANNED_CODE;
     return null;
   }
 
@@ -107,7 +108,7 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
    * 目录建号/复用（design R15 第 5 步）——替代原 `auth/provision.ts`：
    * 1. `(provider, subject)` 命中 → 复用（防同一外部身份双账号）+ 显示名漂移同步
    * 2. 未命中 → **邮箱必填**（缺失即拒，绝不合成）· **邮箱冲突即拒**（同邮箱两身份需人工处置）
-   * 3. 建 `user`（`status='ACTIVE'` · `role='user'` 默认档 · `username`=subject）
+   * 3. 建 `user`（`banned` 缺省 false（未封禁）· `role='user'` 默认档 · `username`=subject）
    *    + `account`（`account_id` = subject）——一个事务内
    *
    * **链接策略（批 design §5.4「唯一实现处」）**：撞邮箱的处置**只在本函数第 2 步**决定 ——
@@ -126,7 +127,7 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
         await db.update(user).set({ name: displayName }).where(eq(user.id, bound.id));
         bound.displayName = displayName;
       }
-      const gate = statusError(bound.status);
+      const gate = statusError(bound.banned);
       return gate ? { ok: false, code: gate } : { ok: true, account: bound, created: false };
     }
 
@@ -148,7 +149,6 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
           email: normalizedEmail,
           emailVerified: true,
           // 目录身份可信（05 §3.1）：直接 ACTIVE + 默认档
-          status: 'ACTIVE',
           role: 'user',
           username: subject,
           displayUsername: subject,
@@ -188,7 +188,7 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
                   id: user.id,
                   displayName: user.name,
                   email: user.email,
-                  status: user.status,
+                  banned: user.banned,
                   role: user.role,
                 })
                 .from(user)
@@ -197,7 +197,7 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
             )[0])
           : undefined;
       if (!raced) throw err;
-      const gate = statusError(raced.status);
+      const gate = statusError(raced.banned);
       return gate ? { ok: false, code: gate } : { ok: true, account: raced, created: false };
     }
 
@@ -206,7 +206,7 @@ export function createIdentityRules(deps: IdentityRulesDeps) {
         id: user.id,
         displayName: user.name,
         email: user.email,
-        status: user.status,
+        banned: user.banned,
         role: user.role,
       })
       .from(user)

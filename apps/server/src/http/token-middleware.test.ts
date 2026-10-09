@@ -33,11 +33,8 @@ let db: Db;
 let auth: AihAuth;
 let rbac: RbacService;
 
-async function makeUser(
-  displayName: string,
-  status: 'ACTIVE' | 'DISABLED' = 'ACTIVE',
-): Promise<string> {
-  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName, status });
+async function makeUser(displayName: string, banned = false): Promise<string> {
+  return createTestUser(db, { id: `usr_${randomUUID()}`, displayName, banned });
 }
 
 async function setRole(userId: string, role: AccountRole): Promise<void> {
@@ -154,7 +151,7 @@ describe('Bearer token 认证中间件（T17 · 官方 api-key 校验）', () =>
   });
 
   it('token 用户 DISABLED → 拒（401；账号状态门由本中间件判——官方 verify 不看该列）', async () => {
-    const u = await makeUser('bearer-disabled', 'DISABLED');
+    const u = await makeUser('bearer-disabled', true);
     const { plain } = await mintToken(u);
     const res = await getWithAuth(plain);
     expect(res.status).toBe(401);

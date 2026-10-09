@@ -34,11 +34,8 @@ import { z } from 'zod';
  */
 
 /**
- * `user.status`（05 §4.1 账号状态机）——M4b-pre T3：原 `db/schema/users.ts` 的
- * `userStatusSchema` 随用户域表定义一并迁入（08 §2：枚举列 = `text` + 应用层 zod 枚举，不建 PG enum）。
+ * 启停真值 = **官方封禁列 `banned` / `ban_reason` / `ban_expires`**（M4c-2 T3 起；原本仓 `user.status` 三态列随迁移 `0016` 退休，05 §4.1 / 08 §3）。
  */
-export const userStatusSchema = z.enum(['PENDING', 'ACTIVE', 'DISABLED']);
-export type UserStatus = z.infer<typeof userStatusSchema>;
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
@@ -58,7 +55,6 @@ export const user = pgTable('user', {
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires'),
   /** 05 §4.1 账号状态机（三态单值真值列，design R5；`input:false` ⇒ 只由服务端写） */
-  status: text('status').default('ACTIVE'),
 });
 
 export const session = pgTable(

@@ -53,7 +53,7 @@ beforeAll(async () => {
   await insertAsset('stt-ns-only-mcp', 'mcp', 'ACTIVE', 999);
   await insertAsset('stt-hidden-asset', 'skill', 'HIDDEN', 999);
   await insertAsset('stt-pub-extra', 'skill', 'ACTIVE', 999);
-  // v0.17：用户数口径（status = 'ACTIVE'）——baseline 之后建 2 个 ACTIVE + 1 个 DISABLED（后者不计入）
+  // v0.17 用户数口径（M4c-2 T3 起真值 = 官方 `banned`）——baseline 之后建 2 个未封禁 + 1 个已封禁（后者不计入）
   await makeUser('u1');
   await makeUser('u2');
   const disabledId = `usr_${randomUUID()}`;
@@ -61,7 +61,7 @@ beforeAll(async () => {
     id: disabledId,
     name: `${PREFIX}disabled`,
     email: `${disabledId}@test.local`.toLowerCase(),
-    status: 'DISABLED',
+    banned: true,
   });
 });
 

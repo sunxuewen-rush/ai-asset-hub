@@ -143,7 +143,7 @@ describe('auth middleware（M4-pre 4 档层级判定）', () => {
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
     // M4b-pre T3：会话先签（登录要求 ACTIVE），随后置 DISABLED ⇒ 断言「持有效会话但状态门拒」
     const cookie = await cookieFor(uid);
-    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
+    await db.update(user).set({ banned: true }).where(eq(user.id, uid));
     const res = await buildApp().request('/probe-auth', { headers: { cookie } });
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({ code: 'auth.session_expired' });
@@ -153,7 +153,7 @@ describe('auth middleware（M4-pre 4 档层级判定）', () => {
     const uid = await makeUser('mw-disabled-admin');
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
     const cookie = await cookieFor(uid);
-    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
+    await db.update(user).set({ banned: true }).where(eq(user.id, uid));
     const res = await buildApp().request('/probe-admin', { headers: { cookie } });
     expect(res.status).toBe(401);
   });

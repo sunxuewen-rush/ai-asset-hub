@@ -186,7 +186,7 @@ describe('会话落库与 cookie 契约（design §2.2 · §5 R6）', () => {
     });
     const cookie = cookieOf(await signInRaw(uid));
     const { user } = await import('../db/schema/index.js');
-    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
+    await db.update(user).set({ banned: true }).where(eq(user.id, uid));
     const res = await makeApp().request('/api/auth/me', { headers: { ...ORIGIN, cookie } });
     expect(res.status).toBe(401);
   });

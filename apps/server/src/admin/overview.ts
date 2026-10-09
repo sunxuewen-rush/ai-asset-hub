@@ -51,7 +51,7 @@ export interface AdminOverviewKpi {
   pending: number;
   /** `review_task` 全部行 —— 副行 hint「累计审核」 */
   reviewsTotal: number;
-  /** `user.status = 'ACTIVE'` 账号数（D34 —— 与 `/api/stats.totalUsers` 同口径） */
+  /** 启用账号数（`banned !== true` · D34 —— 与 `/api/stats.totalUsers` 同口径；M4c-2 T3 起真值 = 官方 `banned`） */
   activeUsers: number;
   /** `user` 全部行（含 `PENDING` / `DISABLED`）—— 副行 hint「全部账号」 */
   allUsers: number;
@@ -85,6 +85,14 @@ export interface AdminOverview {
 /** 标签名 locale（看板为中文优先 UI；回退链保证永不空显示 —— 与 `rankings.ts` 同口径） */
 const LABELS_LOCALE = 'zh-CN';
 
+/**
+ * 启用账号数（M4c-2 T3：真值 = 官方 `banned`）—— `banned !== true` 的行计入（`null` 视为未封禁）。
+ * 口径与 `/api/stats.totalUsers` 一致（D34；`docs/08` §3）。
+ */
+function enabledUsersOf(rows: Array<{ banned: boolean | null; n: number }>): number {
+  return rows.filter((r) => r.banned !== true).reduce((a, r) => a + r.n, 0);
+}
+
 /** 按状态取值（缺失即 0——分组查询天然只回有数据的状态） */
 function nOf(rows: Array<{ status: string | null; n: number }>, status: string): number {
   return rows.find((r) => r.status === status)?.n ?? 0;
@@ -110,7 +118,7 @@ export async function getAdminOverview(db: Db): Promise<AdminOverview> {
       .from(reviewTask)
       .groupBy(reviewTask.status),
     // ④ 账号按状态分组（activeUsers + allUsers）
-    db.select({ status: user.status, n: count() }).from(user).groupBy(user.status),
+    db.select({ banned: user.banned, n: count() }).from(user).groupBy(user.banned),
     // ⑤ 一级标签全集（含零挂载者 ⇒ count 0；保证口径行「仅 N 个一级标签」与定义数一致）
     db
       .select({ id: labelDefinition.id, slug: labelDefinition.slug })
@@ -156,7 +164,7 @@ export async function getAdminOverview(db: Db): Promise<AdminOverview> {
       downloads: Number(downloadRow[0]?.d ?? 0),
       pending: nOf(reviewRows, 'PENDING'),
       reviewsTotal: totalOf(reviewRows),
-      activeUsers: nOf(userRows, 'ACTIVE'),
+      activeUsers: enabledUsersOf(userRows),
       allUsers: totalOf(userRows),
       downloads7d,
     },

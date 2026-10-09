@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { user } from './auth.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -69,7 +70,7 @@ describe('认证域表结构（官方 6 表）', () => {
     }
   });
 
-  it('user 表关键列满足官方语义（email 非空唯一 · role 文本 · status 默认 ACTIVE）', async () => {
+  it('user 表关键列满足官方语义（email 非空唯一 · role 文本 · 启停真值 = 官方封禁列）', async () => {
     const email = await columnRow('user', 'email');
     expect(email.is_nullable).toBe('NO');
     expect(await constraintCount('user_email_unique')).toBe(1);
@@ -78,8 +79,11 @@ describe('认证域表结构（官方 6 表）', () => {
     const role = await columnRow('user', 'role');
     expect(role.data_type).toBe('text');
 
-    const status = await columnRow('user', 'status');
-    expect(status.column_default).toContain('ACTIVE');
+    // M4c-2 T3：本仓 `status` 三态列随迁移 `0016` 退休（DB 级探针 P1–P3 见批 plan §7 落地记录）
+    // —— 此处锁「声明面」：drizzle 表定义不再有 status，启停真值 = 官方封禁三件套。
+    expect('status' in user).toBe(false);
+    expect((await columnRow('user', 'banned')).data_type).toBe('boolean');
+    expect((await columnRow('user', 'ban_reason')).data_type).toBe('text');
   });
 
   it('session/device_code/apikey 的关键约束与索引到位', async () => {

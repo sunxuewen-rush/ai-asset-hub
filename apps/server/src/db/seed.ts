@@ -54,7 +54,6 @@ async function seedAdmin(): Promise<void> {
         name: username,
         email,
         emailVerified: true,
-        status: 'ACTIVE',
         role: 'superadmin',
         username,
         displayUsername: username,

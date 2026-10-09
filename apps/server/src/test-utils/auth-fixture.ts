@@ -63,13 +63,14 @@ export interface TestUserOptions {
   id?: string;
   /** 数值档位（`ACCOUNT_ROLE.*`；缺省 USER） */
   role?: number;
-  status?: 'ACTIVE' | 'PENDING' | 'DISABLED';
   displayName?: string;
   /** 登录名（缺省 = `loginNameOf(id)` —— 归一为官方校验器口径） */
   username?: string;
   password?: string;
   /** 身份通道（'credential' 缺省；'ldap'/'oidc' 用于目录建号断言——不建口令行） */
   providerId?: string;
+  /** M4c-2 T3：官方封禁列（启停真值）—— 缺省 false */
+  banned?: boolean;
 }
 
 /** 直写官方用户域表建测试账号；返回用户 id */
@@ -85,10 +86,10 @@ export async function createTestUser(db: Db, options: TestUserOptions = {}): Pro
     // `user.email` NOT NULL + UNIQUE（官方表形态）⇒ 测试内确定性合成（非生产路径）
     email: `${id}@test.local`.toLowerCase(),
     emailVerified: true,
-    status: options.status ?? 'ACTIVE',
     role: roleNameOf(options.role ?? ACCOUNT_ROLE.USER),
     username,
     displayUsername: username,
+    banned: options.banned ?? false,
   });
   await db.insert(account).values({
     id: `acc_${randomUUID()}`,

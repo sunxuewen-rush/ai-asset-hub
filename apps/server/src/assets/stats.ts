@@ -32,7 +32,7 @@ export async function getPublicStats(db: Db): Promise<PublicStats> {
       .from(asset)
       .where(eq(asset.status, 'ACTIVE'))
       .groupBy(asset.type),
-    db.select({ count: count() }).from(user).where(eq(user.status, 'ACTIVE')),
+    db.select({ count: count() }).from(user).where(sql`coalesce(${user.banned}, false) = false`),
   ]);
 
   const typeCounts: Record<string, number> = {};

@@ -19,33 +19,36 @@ import { ACCOUNT_ROLE, type AccountRole, accountRoleOf } from './roles.js';
  * （`assets/manage.ts` 的 `canManageAsset`）。
  */
 
-/** 账号状态三态（官方 `user.status` 为 text 列，此处收敛为字面量联合） */
-export type UserStatus = 'PENDING' | 'ACTIVE' | 'DISABLED';
-
-function asStatus(value: string | null | undefined): UserStatus | null {
-  return value === 'ACTIVE' || value === 'PENDING' || value === 'DISABLED' ? value : null;
-}
+/**
+ * 账号停用判定（M4c-2 T3：真值 = 官方封禁列 `banned`，05 §4.1 三态随列退休）。
+ * 口径：`banned === true` ⇒ 停用（拒全部，401 `auth.session_expired` 语义）。
+ */
 
 export class RbacService {
   constructor(private readonly db: Db) {}
 
-  /** 账号状态（05 §4.1；requireAuth 组合判定用） */
-  async getAccountStatus(userId: string): Promise<UserStatus | null> {
+  /**
+   * 账号是否停用（05 §4.1；`requireAuth` / 令牌面组合判定用）。
+   * **账号不存在也判停用** —— 与「未登录同权」从严口径一致（旧 `status !== 'ACTIVE'` 语义等价）。
+   */
+  async isAccountDisabled(userId: string): Promise<boolean> {
     const rows = await this.db
-      .select({ status: user.status })
-      .from(user)
-      .where(eq(user.id, userId));
-    return asStatus(rows[0]?.status);
-  }
-
-  /** 有效角色档位：非 ACTIVE / 账号不存在 / 档名非法 → `null`（与未登录同权） */
-  async roleOf(userId: string): Promise<AccountRole | null> {
-    const rows = await this.db
-      .select({ role: user.role, status: user.status })
+      .select({ banned: user.banned })
       .from(user)
       .where(eq(user.id, userId));
     const row = rows[0];
-    if (row?.status !== 'ACTIVE') return null;
+    if (!row) return true;
+    return row.banned === true;
+  }
+
+  /** 有效角色档位：**停用** / 账号不存在 / 档名非法 → `null`（与未登录同权） */
+  async roleOf(userId: string): Promise<AccountRole | null> {
+    const rows = await this.db
+      .select({ role: user.role, banned: user.banned })
+      .from(user)
+      .where(eq(user.id, userId));
+    const row = rows[0];
+    if (!row || row.banned === true) return null;
     return accountRoleOf(row.role);
   }
 

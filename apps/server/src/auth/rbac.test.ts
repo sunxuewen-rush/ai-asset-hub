@@ -74,7 +74,7 @@ describe('RbacService.roleOf / hasRole —— 4 档层级（M4-pre §2.2）', ()
   it('DISABLED 用户 → roleOf=null，hasRole 全假（即使 role=超管）', async () => {
     const uid = await makeUser('rbac-disabled');
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
-    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
+    await db.update(user).set({ banned: true }).where(eq(user.id, uid));
     await expect(rbac.roleOf(uid)).resolves.toBeNull();
     await expect(rbac.hasRole(uid, ACCOUNT_ROLE.USER)).resolves.toBe(false);
     await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
@@ -110,7 +110,7 @@ describe('hasRole —— 管理档判定（原 can() 平台侧语义收敛）', 
   it('DISABLED 用户 / 不存在用户 → 全假', async () => {
     const uid = await makeUser('rbac-can-disabled');
     await setRole(uid, ACCOUNT_ROLE.SUPER_ADMIN);
-    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, uid));
+    await db.update(user).set({ banned: true }).where(eq(user.id, uid));
     await expect(rbac.hasRole(uid, ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
     await expect(rbac.hasRole('usr_no-such-user', ACCOUNT_ROLE.ADMIN)).resolves.toBe(false);
   });

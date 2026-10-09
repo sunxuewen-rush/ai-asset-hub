@@ -50,11 +50,11 @@ export function tokenAuthMiddleware(db: Db, auth: AihAuth) {
       return;
     }
     const [owner] = await db
-      .select({ displayName: user.name, status: user.status })
+      .select({ displayName: user.name, banned: user.banned })
       .from(user)
       .where(eq(user.id, verified.userId));
-    // 账号不存在/非 ACTIVE（DISABLED/PENDING）→ 匿名拒
-    if (owner?.status !== 'ACTIVE') {
+    // 账号不存在 / 已停用（官方 `banned`）→ 匿名拒（05 §4.1；M4c-2 T3 起真值 = `banned`）
+    if (!owner || owner.banned === true) {
       await next();
       return;
     }

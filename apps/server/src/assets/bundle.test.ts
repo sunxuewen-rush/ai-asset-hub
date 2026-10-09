@@ -42,7 +42,6 @@ beforeAll(async () => {
     id: userId,
     name: `${PREFIX}u`,
     email: `${userId}@test.local`.toLowerCase(),
-    status: 'ACTIVE',
   });
   const [a] = await db
     .insert(asset)

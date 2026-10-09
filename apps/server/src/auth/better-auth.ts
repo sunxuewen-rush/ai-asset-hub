@@ -110,13 +110,11 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
     trustedOrigins: parseTrustedOrigins(env.AUTH_TRUSTED_ORIGINS),
 
     user: {
-      additionalFields: {
-        /**
-         * R5：账号状态**单值真值列**（05 §4.1 三态；服务端拥有——`input:false` 防客户端写入）。
-         * 不使用官方 `banned` 列（布尔表达不了 PENDING，且双真值必然漂移）。
-         */
-        status: { type: 'string', required: false, defaultValue: 'ACTIVE', input: false },
-      },
+      /**
+       * M4c-2 T3：原 `additionalFields.status`（本仓三态单值列）**随列退休删除** ——
+       * 启停真值改读官方封禁三件套（`banned` / `banReason` / `banExpires`，主 design §4.2 R8/R19）；
+       * PENDING 概念一并清除（§2.6 R5）。
+       */
     },
 
     /**

@@ -292,7 +292,7 @@ describe('T1 · overview 聚合口径', () => {
       id: `${PREFIX}user-disabled_${randomUUID()}`,
       displayName: `${PREFIX}user-disabled`,
     });
-    await db.update(user).set({ status: 'DISABLED' }).where(eq(user.id, disabledId));
+    await db.update(user).set({ banned: true }).where(eq(user.id, disabledId)); // M4c-2 T3：启停真值 = 官方 banned;
 
     const after = await getJson<OverviewBody>('/api/admin/overview', adminCookie);
 

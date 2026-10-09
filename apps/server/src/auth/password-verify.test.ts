@@ -84,14 +84,14 @@ async function signIn(app: Hono, username: string, password: string): Promise<Re
 }
 
 /** 造「目录账号」：`user` + 凭据委派行（`accountId = user.id` · `password = 'ldap:<工号>'`，迁移 0015 语义） */
-async function createDirectoryUser(employeeId: string, status = 'ACTIVE'): Promise<string> {
+async function createDirectoryUser(employeeId: string, banned = false): Promise<string> {
   const id = newId();
   await db.insert(user).values({
     id,
     name: `目录用户 ${employeeId}`,
     email: emailOf(id),
     emailVerified: true,
-    status,
+    banned,
     role: 'user',
     username: employeeId,
     displayUsername: employeeId,
@@ -253,7 +253,6 @@ describe('T2 · 官方 sign-in/username 端到端（真库 · 真 HTTP）', () =
       name: '异格式账号',
       email: emailOf(id),
       emailVerified: true,
-      status: 'ACTIVE',
       role: 'user',
       username,
       displayUsername: username,

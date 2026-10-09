@@ -44,7 +44,7 @@ async function readUser(id: string) {
       name: user.name,
       email: user.email,
       emailVerified: user.emailVerified,
-      status: user.status,
+      banned: user.banned,
       role: user.role,
       username: user.username,
       displayUsername: user.displayUsername,
@@ -76,7 +76,6 @@ async function insertBareUser(id: string, email: string): Promise<void> {
     name: 'bare',
     email,
     emailVerified: true,
-    status: 'ACTIVE',
     role: 'user',
     username: id,
     displayUsername: id,
@@ -215,7 +214,7 @@ describe('identity rules §5.4 · 建号/复用', () => {
     expect(await countUsers(idB)).toBe(0);
   });
 
-  it('⑥ 新建默认值：role=user · status=ACTIVE · emailVerified=true · username=displayUsername=subject', async () => {
+  it('⑥ 新建默认值：role=user · banned=false（未封禁）· emailVerified=true · username=displayUsername=subject', async () => {
     const id = newId();
     const subject = newSubject();
     const res = await rules.ensureDirectoryUser({
@@ -228,7 +227,7 @@ describe('identity rules §5.4 · 建号/复用', () => {
     if (!res.ok) throw new Error(`建号应成功，实得 ${res.code}`);
     const row = await readUser(id);
     expect(row?.role).toBe('user');
-    expect(row?.status).toBe('ACTIVE');
+    expect(row?.banned).toBe(false);
     expect(row?.emailVerified).toBe(true);
     expect(row?.username).toBe(subject);
     expect(row?.displayUsername).toBe(subject);
@@ -274,9 +273,8 @@ describe('identity rules §5.4 · 建号/复用', () => {
 describe('identity rules §5.4 · 状态门（纯函数）', () => {
   it('⑨ DISABLED / PENDING 拒；ACTIVE / null 放行', () => {
     // M4c-1 T7：状态门对外码收敛为**官方封禁码**（R19）——DISABLED 与遗留 PENDING 行为不变（仍拒）
-    expect(rules.statusError('DISABLED')).toBe('BANNED_USER');
-    expect(rules.statusError('PENDING')).toBe('BANNED_USER');
-    expect(rules.statusError('ACTIVE')).toBeNull();
+    expect(rules.statusError(true)).toBe('BANNED_USER');
+    expect(rules.statusError(false)).toBeNull();
     expect(rules.statusError(null)).toBeNull();
   });
 });

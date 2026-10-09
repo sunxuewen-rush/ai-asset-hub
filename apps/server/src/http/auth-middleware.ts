@@ -67,8 +67,9 @@ export function officialSessionMiddleware(auth: AihAuth) {
     if (c.get('authVia') === 'bearer') headers.delete('cookie');
     const session = await auth.api.getSession({ headers });
     if (session) {
-      const status = (session.user as unknown as { status?: string | null }).status;
-      if (status === undefined || status === 'ACTIVE') {
+      // M4c-2 T3：启停真值 = 官方 `banned`（M4c-1 T7 起对外码统一为官方 `BANNED_USER`）
+      const banned = (session.user as unknown as { banned?: boolean | null }).banned;
+      if (banned !== true) {
         c.set('principal', {
           userId: session.user.id,
           displayName: session.user.name,
@@ -86,11 +87,10 @@ function requireRbac(c: Context): RbacService {
   return rbac;
 }
 
-/** 账号状态门（05 §4.1：DISABLED/PENDING 拒全部，401 session_expired 语义） */
+/** 账号状态门（05 §4.1：已停用 ⇒ 拒全部，401 `session_expired` 语义；M4c-2 T3 起真值 = 官方 `banned`） */
 async function assertActiveAccount(c: Context, userId: string): Promise<void> {
   const rbac = requireRbac(c);
-  const status = await rbac.getAccountStatus(userId);
-  if (status !== 'ACTIVE') throw new AuthError('auth.session_expired');
+  if (await rbac.isAccountDisabled(userId)) throw new AuthError('auth.session_expired');
 }
 
 export function requireAuth() {
