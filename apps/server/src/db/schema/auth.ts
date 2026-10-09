@@ -8,7 +8,6 @@ import {
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { z } from 'zod';
 
 /**
  * 认证域表定义（M4b-pre design §5.1）：6 张官方 better-auth 模型表。

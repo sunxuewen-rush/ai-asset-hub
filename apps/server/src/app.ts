@@ -124,7 +124,7 @@ export function createApp(deps: AppDeps): Hono {
   app.get('/healthz', (c) => c.json({ status: 'ok' }));
 
   // —— 自留认证端点（先注册；官方 catch-all 在最后）——
-  app.route('/api/auth', createAuthRoutes());
+  app.route('/api/auth', createAuthRoutes({ db: deps.db }));
   // Device Flow：M4b-pre T5 起**整体交官方**（`deviceAuthorization` 插件：/device/code · /device · /device/approve ·
   // /device/deny · /device/token），自研路由与内存 pending 存储已删除
   // OIDC 授权码流（T24/T25；authorize/callback 为访客端点——无 requireAuth，走独立 state cookie）

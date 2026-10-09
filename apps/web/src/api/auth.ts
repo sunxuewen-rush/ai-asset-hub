@@ -94,6 +94,8 @@ export interface AuthUser {
 export interface MeResponse {
   user: AuthUser;
   role: number;
+  /** M4c-2 T5：本账号是否有本地口令（目录账号 = `false` ⇒ 不显示改密入口 · 批 design §4.5 R21） */
+  hasLocalPassword: boolean;
 }
 
 /** 登录成功响应（官方 `POST /api/auth/sign-in/username`；`session` 位为官方返回体，本批不消费） */
@@ -263,4 +265,20 @@ export async function denyDevice(
   } catch (err) {
     normalizeDeviceError(err);
   }
+}
+
+/* ───────────────────── 自助改密（官方 `change-password` · M4c-2 T5）───────────────────── */
+
+/**
+ * 自助改密：`POST /api/auth/change-password`（官方端点 · 本批**零薄端点**）。
+ *
+ * - `revokeOtherSessions: true`（批 design §4.5 R21）——改密成功后**其余会话一并失效**，当前会话由官方保留；
+ * - 目录账号**无入口**（`hasLocalPassword === false`，见 `UserMenu`）⇒ 本函数不会被调用；
+ * - 失败码（官方 `INVALID_PASSWORD` 等）由调用方经 `tErr` 呈现。
+ */
+export async function changePassword(
+  body: { currentPassword: string; newPassword: string },
+  opts?: { signal?: AbortSignal },
+): Promise<void> {
+  await apiPost('/api/auth/change-password', { ...body, revokeOtherSessions: true }, opts);
 }

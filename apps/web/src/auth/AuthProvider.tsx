@@ -38,7 +38,7 @@ export type AuthStatus = 'loading' | 'anon' | 'authed';
 export type AuthState =
   | { status: 'loading' }
   | { status: 'anon' }
-  | { status: 'authed'; user: AuthUser; role: number };
+  | { status: 'authed'; user: AuthUser; role: number; hasLocalPassword: boolean };
 
 interface AuthContextValue {
   state: AuthState;
@@ -46,6 +46,11 @@ interface AuthContextValue {
   role: number | null;
   /** 已登录用户（同上 = `null`） */
   user: AuthUser | null;
+  /**
+   * **M4c-2 T5**：本账号是否具备**本地口令**（`/api/auth/me` 权威）——目录账号（`ldap:` 凭据行）⇒ `false`，
+   * 消费点据此**不显示**改密入口（批 design §4.5 R21「入口层拒绝」）。`/me` 未回（网络/5xx）⇒ `false`（保守：不显示）
+   */
+  hasLocalPassword: boolean | null;
   /** 重新探测会话（**绕过预热缓存**）——登录成功 / 登出后由消费方调用（design §4.4） */
   refresh: () => Promise<void>;
 }
@@ -136,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user: { id: userId, displayName: sessionUser?.name ?? userId },
             // `/me` 为权威；未回（网络/5xx）时用 SDK 会话的官方文本档兜底（B8 单点归一）
             role: meRes?.role ?? roleLevelOf(sessionUser?.role ?? null),
+            hasLocalPassword: meRes?.hasLocalPassword ?? false,
           }
         : { status: 'anon' };
 
@@ -144,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       state,
       role: state.status === 'authed' ? state.role : null,
       user: state.status === 'authed' ? state.user : null,
+      hasLocalPassword: state.status === 'authed' ? state.hasLocalPassword : null,
       refresh,
     }),
     [state, refresh],

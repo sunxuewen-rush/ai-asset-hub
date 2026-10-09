@@ -1,9 +1,11 @@
 import { LogIn } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { invalidateCache } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { ROLE } from '@/auth/roles';
+import { ChangePasswordDialog } from '@/components/ui/ChangePasswordDialog';
 import { Avatar, AvatarFallback } from '@/components/ui/shadcn/avatar';
 import { Badge } from '@/components/ui/shadcn/badge';
 import {
@@ -42,7 +44,8 @@ const ROLE_BADGE_KEY: Partial<Record<number, DictKey<'navigation'>>> = {
 };
 
 export function UserMenu() {
-  const { state, role, refresh } = useAuth();
+  const { state, role, refresh, hasLocalPassword } = useAuth();
+  const [pwOpen, setPwOpen] = useState(false);
   const { t } = useI18n();
   const navigate = useNavigate();
 
@@ -107,12 +110,24 @@ export function UserMenu() {
             <DropdownMenuItem asChild>
               <Link to="/dashboard/tokens">{t('dashboard', 'tokens')}</Link>
             </DropdownMenuItem>
+            {/* M4c-2 T5：本地口令账号才有改密入口（目录账号入口层拒绝 · 批 design §4.5 R21） */}
+            {hasLocalPassword ? (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setPwOpen(true);
+                }}
+              >
+                {t('account', 'menu.changePassword')}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => void handleLogout()}>
               {t('navigation', 'logout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
       </SidebarMenuItem>
     </SidebarMenu>
   );

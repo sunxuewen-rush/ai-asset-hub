@@ -624,6 +624,21 @@ export const en: Dict = {
     noPermission: 'Your account does not have access to this page',
     loadMore: 'Load more',
   },
+  account: {
+    'menu.changePassword': 'Change password',
+    'password.title': 'Change password',
+    'password.desc':
+      'Enter your current and new password. Other devices will need to sign in again.',
+    'password.current': 'Current password',
+    'password.new': 'New password',
+    'password.confirm': 'Confirm new password',
+    'password.hint': 'At least 8 characters (same as the official validator)',
+    'password.mismatch': 'The two new passwords do not match',
+    'password.tooShort': 'New password must be at least 8 characters',
+    'password.revokeNote': 'Saving revokes all other sessions (this one stays signed in)',
+    'password.submit': 'Save',
+    'toast.changed': 'Password updated',
+  },
   users: {
     title: 'User management',
     desc: 'Account and access governance: roles · ban / unban · force sign-out · admin-created accounts',
