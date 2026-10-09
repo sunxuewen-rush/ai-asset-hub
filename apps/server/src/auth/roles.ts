@@ -50,13 +50,16 @@ export function accountRoleOf(role: unknown): AccountRole | null {
 /**
  * 权限码 statement（官方 access control 形态：资源 → 动作数组）。
  * 动作集覆盖既有 token scope 码 + 官方 admin 插件在本项目需要的最小动作面。
- * M4c（账号与权限治理）若接线官方 `set-password` / `delete` / `impersonate` 端点，在此处扩展。
+ * M4c-2（账号与权限治理 · 2026-10-09）：新增 `session: ['revoke']`（强制登出所需）；
+ * `user: ['set-password']` / `delete` / `impersonate` **不新增**（不接线官方对应端点 · 批 design §3.4）。
  */
 export const ROLE_STATEMENT = {
   asset: ['publish', 'manage'],
   review: ['submit', 'approve'],
   audit: ['read'],
   user: ['list', 'set-role', 'ban', 'create'],
+  /** M4c-2（强制登出）：**仅 revoke** —— 不给会话列表（主 design §2.6 R20） */
+  session: ['revoke'],
 } as const;
 
 export const ac = createAccessControl(ROLE_STATEMENT);
@@ -64,8 +67,11 @@ export const ac = createAccessControl(ROLE_STATEMENT);
 /**
  * 档位 → 权限码集合（与 05 §6.4 操作 × 角色矩阵对齐）：
  * - `user`：发布资产 + 提交审核（自助面）
- * - `admin`：追加资产管理 / 审核裁决 / 审计浏览 / 用户列表
- * - `superadmin`：全量（含改角色、封禁）
+ * - `admin`：追加资产管理 / 审核裁决 / 审计浏览 / **用户列表（只读）**
+ * - `superadmin`：全量（含改角色、封禁、建号、**吊销会话**）
+ *
+ * ⚠️ M4c-2 档位分工（批 design §3.4 / 主 design §7.3）：`session:['revoke']` **只给超管** ——
+ * 管理档调强制登出端点 ⇒ 官方权限码判定 403（写面全 5 个端点归超管；读面 `user:['list']` 管理档+）。
  */
 export const ROLES = {
   user: ac.newRole({
@@ -83,6 +89,7 @@ export const ROLES = {
     review: ['submit', 'approve'],
     audit: ['read'],
     user: ['list', 'set-role', 'ban', 'create'],
+    session: ['revoke'],
   }),
 } as const;
 

@@ -7,6 +7,8 @@ interface PermissionProbe {
   review?: ('submit' | 'approve')[];
   audit?: 'read'[];
   user?: ('list' | 'set-role' | 'ban' | 'create')[];
+  /** M4c-2：强制登出（仅 revoke） */
+  session?: 'revoke'[];
 }
 
 /**
@@ -80,6 +82,8 @@ describe('roles：权限码声明（官方 access control）', () => {
     expect(ROLES.admin.authorize({ user: ['list'] }).success).toBe(true);
     expect(ROLES.admin.authorize({ user: ['set-role'] }).success).toBe(false);
     expect(ROLES.admin.authorize({ user: ['ban'] }).success).toBe(false);
+    // M4c-2：强制登出只给超管 ⇒ 管理档 403（写面 5 个端点全归超管）
+    expect(ROLES.admin.authorize({ session: ['revoke'] }).success).toBe(false);
   });
 
   test('superadmin 档：全量动作放行（与 05 §6.4 矩阵的超管全放一致）', () => {
@@ -89,8 +93,15 @@ describe('roles：权限码声明（官方 access control）', () => {
         review: ['submit', 'approve'],
         audit: ['read'],
         user: ['list', 'set-role', 'ban', 'create'],
+        session: ['revoke'],
       }).success,
     ).toBe(true);
+  });
+
+  test('M4c-2 强制登出：session revoke 权限码仅超管放行（用户 / 管理档均拒）', () => {
+    expect(ROLES.superadmin.authorize({ session: ['revoke'] }).success).toBe(true);
+    expect(ROLES.admin.authorize({ session: ['revoke'] }).success).toBe(false);
+    expect(ROLES.user.authorize({ session: ['revoke'] }).success).toBe(false);
   });
 
   test('档位越高授权面越宽（单调包含：user ⊆ admin ⊆ superadmin）', () => {
@@ -104,6 +115,7 @@ describe('roles：权限码声明（官方 access control）', () => {
       { user: ['set-role'] },
       { user: ['ban'] },
       { user: ['create'] },
+      { session: ['revoke'] },
     ];
     const width = (role: (typeof ROLES)[keyof typeof ROLES]) =>
       probes.filter((probe) => role.authorize(probe).success).length;

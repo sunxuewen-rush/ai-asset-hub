@@ -52,6 +52,11 @@ export const AUDIT_ACTION_GROUPS: ReadonlyArray<{ prefix: string; actions: reado
     prefix: 'oidc',
     actions: ['oidc.provisioned'],
   },
+  {
+    // M4c-2 账号与权限治理（用户管理面五动作；写入点 = T2 薄端点 `http/admin-users.ts`）
+    prefix: 'user',
+    actions: ['user.ban', 'user.create', 'user.role_change', 'user.session_revoke', 'user.unban'],
+  },
 ];
 
 /** 全部动作（扁平化）—— 供出参与扫描用例比对 */

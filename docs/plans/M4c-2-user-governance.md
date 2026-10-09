@@ -205,7 +205,7 @@ build → db:migrate → test
 
 | Task | 日期 | 实测 | 门禁 | 发现 / 偏差 |
 |------|------|------|------|------------|
-| **T1** | — | — | — | — |
+| **T1** | 2026-10-09 | 4 件 +37/−3：① `auth/roles.ts` —— `ROLE_STATEMENT` 加 `session: ['revoke']`（仅 revoke）· `ROLES.superadmin` 加 `session:['revoke']`（**admin 不给** ⇒ 写面 5 端点全归超管，供 T2 的 403 断言）· 两条口径注释（批 design §3.4 / 主 design §2.6 R20 / §7.3）② `audit/audit.ts` —— `AUDIT_ACTIONS` + `user.*` ×5（**必须与目录同批**：`actions.test.ts` 的**反向扫描**会抓「目录有而代码不写的幽灵项」）③ `audit/actions.ts` —— 新增 `user` 组 ④ `auth/roles.test.ts` —— 探针 `PermissionProbe` 加 `session`；+3 组断言（admin 拒 revoke · superadmin 放行并纳入全量探针 · 独立用例「仅超管放行」）；单调包含探针纳入 `session:['revoke']` | 本包 `typecheck` ✓ · `lint` **EXIT=0**（133 文件 · No fixes applied · **读 exit code** 口径）✓ · 靶测试 `roles` + `audit/actions` **13 pass / 0 fail** ✓ · 全量 **645 pass / 1 skip / 0 fail**（Ran 646 · 57 文件 · +1 = 本轮新增用例）| ① **首轮红（我自己的错，已修）**：插测试名时把 `session:['revoke']`（含单引号）放进 TS **单引号串** ⇒ TS1005 语法错 → 改为不带内嵌引号的标题 ② 反向扫描坑已预先规避（常量表与目录同批登记）③ T1 **无端点** ⇒ 官方 `403` 链路由 T2 实测，本 Task 只锁声明面 |
 | **T2** | — | — | — | — |
 | **T3** | — | — | — | — |
 | **T4** | — | — | — | — |
@@ -220,7 +220,7 @@ build → db:migrate → test
 
 | Task | A（4 维） | B（4 维） | C（10 维） | 合计 | 备注（扣分项） |
 |------|:--:|:--:|:--:|:--:|------|
-| T1 | — | — | — | — | — |
+| T1 | 9.50 | 9.53 | 9.58 | **9.53** | A4 9.4（纯声明面 · 无运行时错误路径可测）· C7 9.4（本 Task 无新文档，T8 集中回填） |
 | T2 | — | — | — | — | — |
 | T3 | — | — | — | — | — |
 | T4 | — | — | — | — | — |

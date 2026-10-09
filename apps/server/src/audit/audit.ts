@@ -17,6 +17,16 @@ export const AUDIT_ACTIONS = {
   deviceDeny: 'device.deny',
   /** 设备流：CLI 凭 device_code 换得会话令牌（审计关联归属用户；明文不落 detail） */
   deviceTokenIssued: 'device.token_issued',
+  /**
+   * M4c-2（账号与权限治理 · 用户管理面五动作）：T1 先登记（本表 + `AUDIT_ACTION_GROUPS` 双向锁），
+   * 写入点由 T2 的薄端点落（`http/admin-users.ts`）。
+   * ⚠️ 「反向扫描」用例（不得有幽灵项）要求常量与目录同步登记 ⇒ 二者必须同批加。
+   */
+  userCreate: 'user.create',
+  userRoleChange: 'user.role_change',
+  userBan: 'user.ban',
+  userUnban: 'user.unban',
+  userSessionRevoke: 'user.session_revoke',
 } as const;
 
 export interface AuditEntry {
