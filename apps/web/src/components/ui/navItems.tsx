@@ -147,7 +147,7 @@ export function buildNav(t: Translate): { portal: PortalNavEntry[]; groups: NavG
         entries: [
           { to: '/admin/labels', text: t('admin', 'labels'), icon: <Tags className="size-4" /> },
           { text: t('admin', 'settings'), icon: <Settings className="size-4" /> },
-          { text: t('admin', 'users'), icon: <Users className="size-4" /> },
+          { to: '/admin/users', text: t('admin', 'users'), icon: <Users className="size-4" /> },
         ],
       },
     ],

@@ -103,8 +103,10 @@ const ANCHORS: { file: string; line: number; keyword: string; why: string }[] = 
   {
     file: 'apps/web/src/main.tsx',
     // 行号随代码迁移更新（M4b-7 T8 在个人段插入 `/dashboard/publish` 路由 + 注释 ⇒ 158 → 159；
-    // 同一批 T1 亦曾推动 `app.ts` 锚点 —— 见下条。断言意图不变 = 「改动 4 条 admin 路由已注册」）
-    line: 159,
+    // 同一批 T1 亦曾推动 `app.ts` 锚点 —— 见下条；
+    // M4c-2 T4 在管理段插入 `/admin/users` 路由 + 页 import ⇒ 159 → 160。
+    // 断言意图不变 = 「admin 段路由已注册」）
+    line: 160,
     keyword: '/admin/assets',
     why: '路由 4 条之一',
   },
@@ -345,11 +347,12 @@ const PAGES = [
   'apps/web/src/pages/AdminAssets.tsx',
   'apps/web/src/pages/AdminLabels.tsx',
   'apps/web/src/pages/AdminAudit.tsx',
+  'apps/web/src/pages/AdminUsers.tsx', // M4c-2 T4
 ];
 for (const p of PAGES) ok(existsSync(abs(p)), `[5] 页件存在 ${p}`);
 
 const mainTsx = read('apps/web/src/main.tsx');
-for (const r of ['/admin', '/admin/assets', '/admin/audit', '/admin/labels']) {
+for (const r of ['/admin', '/admin/assets', '/admin/audit', '/admin/labels', '/admin/users']) {
   ok(mainTsx.includes(`path="${r}"`), `[5] 路由已注册 ${r}`);
 }
 

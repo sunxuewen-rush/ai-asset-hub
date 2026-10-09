@@ -197,3 +197,104 @@ export async function reorderLabels(
   invalidateLabelCaches(); // F216
   return res;
 }
+
+/* ═══════════════ M4c-2 T4：用户治理面（薄端点 `/api/admin/users*`） ═══════════════
+ * 契约 = 服务端 `apps/server/src/http/admin-users.ts`（批 design §3.2/§3.3 · **F294** 字段选择器口径）。
+ * ⚠️ `field=username` 与 `role` / `status` 互斥（服务端 400 `request.invalid`）⇒ UI 须禁用互斥控件。
+ */
+
+export interface AdminUserRow {
+  /** 满足 `DataTable` 的 `RowDataLike`（`Record<string, unknown>`）索引签名 */
+  [key: string]: unknown;
+  userId: string;
+  /** 登录名（工号）—— 与 `user.username` 同源 */
+  username: string | null;
+  name: string | null;
+  email: string | null;
+  role: string | null;
+  banned: boolean;
+  banReason: string | null;
+  banExpires: string | null;
+  /** 最后登录（`max(session.created_at)`；从未登录 ⇒ null） */
+  lastLoginAt: string | null;
+}
+
+export interface AdminUsersResponse {
+  items: AdminUserRow[];
+  total: number;
+}
+
+export type AdminUserSearchField = 'username' | 'name' | 'email';
+export type AdminUserStatus = 'active' | 'banned';
+
+export interface AdminUsersQuery {
+  limit: number;
+  offset: number;
+  q?: string;
+  field?: AdminUserSearchField;
+  role?: string;
+  status?: AdminUserStatus;
+  sort?: 'username' | 'name' | 'email' | 'role' | 'createdAt';
+  dir?: 'asc' | 'desc';
+}
+
+/** 用户列表（服务端分页；`{ items, total }`） */
+export function fetchAdminUsers(
+  q: AdminUsersQuery,
+  opts?: ApiGetOptions,
+): Promise<AdminUsersResponse> {
+  const p = new URLSearchParams({ limit: String(q.limit), offset: String(q.offset) });
+  if (q.q) p.set('q', q.q);
+  if (q.field) p.set('field', q.field);
+  if (q.role) p.set('role', q.role);
+  if (q.status) p.set('status', q.status);
+  if (q.sort) p.set('sort', q.sort);
+  if (q.dir) p.set('dir', q.dir);
+  return apiGet<AdminUsersResponse>(`/api/admin/users?${p.toString()}`, opts);
+}
+
+/** 建号（只建本地账号；登录名 = 工号） */
+export function createAdminUser(
+  body: { username: string; name: string; email: string; role: string; password: string },
+  opts?: ApiWriteOptions,
+): Promise<{ userId: string }> {
+  return apiPost<{ userId: string }>('/api/admin/users', body, opts);
+}
+
+/** 改角色（服务端护栏：不可改自己 / 不可越权提档 / 末位超管不可降） */
+export function setAdminUserRole(
+  userId: string,
+  role: string,
+  opts?: ApiWriteOptions,
+): Promise<{ ok: true }> {
+  return apiPatch<{ ok: true }>(
+    `/api/admin/users/${encodeURIComponent(userId)}/role`,
+    { role },
+    opts,
+  );
+}
+
+/** 封禁（`expiresIn` = 到期秒数；缺省 = 永久） */
+export function banAdminUser(
+  userId: string,
+  body: { reason?: string; expiresIn?: number } = {},
+  opts?: ApiWriteOptions,
+): Promise<{ ok: true }> {
+  return apiPost<{ ok: true }>(`/api/admin/users/${encodeURIComponent(userId)}/ban`, body, opts);
+}
+
+export function unbanAdminUser(userId: string, opts?: ApiWriteOptions): Promise<{ ok: true }> {
+  return apiPost<{ ok: true }>(`/api/admin/users/${encodeURIComponent(userId)}/unban`, {}, opts);
+}
+
+/** 强制登出（吊销该用户**全部**会话；不给会话数量 —— 主 design §2.6 R20） */
+export function revokeAdminUserSessions(
+  userId: string,
+  opts?: ApiWriteOptions,
+): Promise<{ ok: true }> {
+  return apiPost<{ ok: true }>(
+    `/api/admin/users/${encodeURIComponent(userId)}/sessions/revoke`,
+    {},
+    opts,
+  );
+}

@@ -13,6 +13,7 @@ import AdminAssets from '@/pages/AdminAssets';
 import AdminAudit from '@/pages/AdminAudit';
 import AdminBoard from '@/pages/AdminBoard';
 import AdminLabels from '@/pages/AdminLabels';
+import AdminUsers from '@/pages/AdminUsers';
 import { Assets } from '@/pages/Assets';
 import type { CenterType } from '@/pages/Center';
 import { Dashboard } from '@/pages/Dashboard';
@@ -161,6 +162,9 @@ function AppRoutes() {
               <Route path="/admin/labels" element={<AdminLabels />} />
               {/* 审计日志：**真页**（M4b-6 T9）—— 过滤区（快捷 + 动作分组 + 日期）· 6 列 · 详情抽屉 */}
               <Route path="/admin/audit" element={<AdminAudit />} />
+              {/* 用户管理：**真页**（M4c-2 T4）—— 列表（字段选择器 + 关键词 / 角色 / 状态 · 服务端分页）·
+                  改角色 / 封禁·解封 / 强制登出（二次确认）· 建号 Dialog（超管入口 · 数据面 user:['list'] 管理档+）*/}
+              <Route path="/admin/users" element={<AdminUsers />} />
             </Route>
           </Route>
         </Routes>
