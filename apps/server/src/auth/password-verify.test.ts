@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { and, eq, like, or } from 'drizzle-orm';
+import { like, or } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import type { Hono } from 'hono';
 
@@ -13,7 +13,6 @@ import { createClient, type Db } from '../db/client.js';
 import { account, user } from '../db/schema/index.js';
 import { createLocalStorage } from '../storage/local.js';
 import { createTestUser, TEST_PASSWORD } from '../test-utils/auth-fixture.js';
-import { hashPassword } from './better-auth.js';
 import type { LdapAuthResult, LdapChannel } from './ldap.js';
 import {
   DIRECTORY_CREDENTIAL_PREFIX,
