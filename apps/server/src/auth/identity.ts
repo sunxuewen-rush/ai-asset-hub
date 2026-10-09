@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { account, user } from '../db/schema/index.js';
-import { OFFICIAL_BANNED_CODE, type AuthSurfaceCode } from './errors.js';
+import { type AuthSurfaceCode, OFFICIAL_BANNED_CODE } from './errors.js';
 
 /**
  * 身份源共享模块（M4c-1 批 design §5.4 · 主 design §3.4）——**两条以上身份通道共用的产品规则**。

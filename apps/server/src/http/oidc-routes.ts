@@ -10,7 +10,7 @@ import {
 } from 'openid-client';
 import { AUDIT_ACTIONS, type AuditWriter } from '../audit/audit.js';
 import type { AihAuth } from '../auth/better-auth.js';
-import { AuthError, OFFICIAL_BANNED_CODE, type AuthSurfaceCode } from '../auth/errors.js';
+import { AuthError, type AuthSurfaceCode, OFFICIAL_BANNED_CODE } from '../auth/errors.js';
 import type { OidcClient } from '../auth/oidc.js';
 import { getOidcClient } from '../auth/oidc.js';
 import { getEnv } from '../config/env.js';
