@@ -30,7 +30,7 @@ import { ROLE } from '@/auth/roles';
 import { ConfirmDialog } from '@/components/console/ConfirmDialog';
 import { PageHeader } from '@/components/console/PageHeader';
 import { PAGE_SIZE } from '@/components/market/sortOptions';
-import { DataTable } from '@/components/ui/DataTable';
+import { type ColumnUiMeta, DataTable } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
 import { Badge } from '@/components/ui/shadcn/badge';
 import { Button } from '@/components/ui/shadcn/button';
@@ -60,6 +60,34 @@ import {
 import { useApi } from '@/hooks/useApi';
 import { useI18n } from '@/i18n/I18nProvider';
 
+/**
+ * **T6 视觉就地定稿 —— 列宽权重**（沿用 `AdminAssets` 的 92%/8% 纪律：数据列合计 92% · 操作列 8%）。
+ *
+ * 权重值 = 本页局部视觉决策（登记于 M4a design §4.4 映射表）；改动只影响本页列宽比例。
+ */
+const COL_WEIGHTS: Record<string, number> = {
+  username: 14,
+  name: 12,
+  email: 24,
+  role: 10,
+  banned: 9,
+  lastLoginAt: 15,
+};
+/** 数据列合计百分比（操作列 = 余下 8%，固定 `w-[8%]`） */
+const DATA_W_TOTAL = 92;
+
+/** 可见列的 CSS 变量表（`--cw-<columnKey>` ⇒ 百分比字符串 · 与 `AdminAssets` 同法） */
+function useColumnVars() {
+  return useMemo(() => {
+    const sum = Object.values(COL_WEIGHTS).reduce((acc, w) => acc + w, 0);
+    const scale = DATA_W_TOTAL / sum;
+    const vars: Record<string, string> = {};
+    for (const [key, weight] of Object.entries(COL_WEIGHTS))
+      vars[`--cw-${key}`] = `${(weight * scale).toFixed(3)}%`;
+    return vars;
+  }, []);
+}
+
 /** 档位下拉项（值 = 官方 role 名；顺序 = 由低到高） */
 const ROLE_OPTIONS = [
   { value: 'user', key: 'role.user' },
@@ -83,6 +111,7 @@ const FIELD_LABEL_KEY = {
 export default function AdminUsers() {
   const { t, tErr } = useI18n();
   const { role: myRole, myUserId } = useAuthRole();
+  const columnVars = useColumnVars();
   const canGovern = (myRole ?? 0) >= ROLE.SUPER_ADMIN;
 
   // ── 筛选态（q/field 与 role/status 互斥 —— F294）──
@@ -147,14 +176,20 @@ export default function AdminUsers() {
       {
         accessorKey: 'username',
         header: t('users', 'col.account'),
+        meta: { headClassName: 'w-[var(--cw-username)]', hidable: false } satisfies ColumnUiMeta,
         cell: ({ row }: { row: { original: AdminUserRow } }) => (
           <span className="font-mono text-xs">{row.original.username ?? '—'}</span>
         ),
       },
-      { accessorKey: 'name', header: t('users', 'col.name') },
+      {
+        accessorKey: 'name',
+        header: t('users', 'col.name'),
+        meta: { headClassName: 'w-[var(--cw-name)]', hidable: true } satisfies ColumnUiMeta,
+      },
       {
         accessorKey: 'email',
         header: t('users', 'col.email'),
+        meta: { headClassName: 'w-[var(--cw-email)]', hidable: true } satisfies ColumnUiMeta,
         cell: ({ row }: { row: { original: AdminUserRow } }) => (
           <span className="text-xs text-muted-foreground">{row.original.email ?? '—'}</span>
         ),
@@ -162,6 +197,7 @@ export default function AdminUsers() {
       {
         accessorKey: 'role',
         header: t('users', 'col.role'),
+        meta: { headClassName: 'w-[var(--cw-role)]', hidable: true } satisfies ColumnUiMeta,
         cell: ({ row }: { row: { original: AdminUserRow } }) => {
           const key = ROLE_OPTIONS.find((o) => o.value === row.original.role)?.key;
           return <span>{key ? t('users', key) : (row.original.role ?? '—')}</span>;
@@ -170,6 +206,7 @@ export default function AdminUsers() {
       {
         accessorKey: 'banned',
         header: t('users', 'col.status'),
+        meta: { headClassName: 'w-[var(--cw-banned)]', hidable: true } satisfies ColumnUiMeta,
         cell: ({ row }: { row: { original: AdminUserRow } }) =>
           row.original.banned ? (
             <Badge variant="destructive">{t('users', 'status.banned')}</Badge>
@@ -180,6 +217,7 @@ export default function AdminUsers() {
       {
         accessorKey: 'lastLoginAt',
         header: t('users', 'col.lastLogin'),
+        meta: { headClassName: 'w-[var(--cw-lastLoginAt)]', hidable: true } satisfies ColumnUiMeta,
         cell: ({ row }: { row: { original: AdminUserRow } }) => (
           <span className="text-xs text-muted-foreground">
             {formatTime(row.original.lastLoginAt, t('users', 'neverLoggedIn'))}
@@ -189,6 +227,7 @@ export default function AdminUsers() {
       {
         id: 'actions',
         header: t('users', 'col.actions'),
+        meta: { headClassName: 'w-[8%]', hidable: false } satisfies ColumnUiMeta,
         cell: ({ row }: { row: { original: AdminUserRow } }) => {
           const u = row.original;
           const isSelf = u.userId === myUserId;
@@ -319,7 +358,7 @@ export default function AdminUsers() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6" style={columnVars}>
       <PageHeader
         title={t('users', 'title')}
         description={t('users', 'desc')}
