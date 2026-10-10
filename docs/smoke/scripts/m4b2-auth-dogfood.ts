@@ -35,15 +35,18 @@ const ok = (name: string, cond: boolean, extra = '') => {
 };
 
 /* ── CDP 基础设施 ── */
-const targets = (await (await fetch(`${DBG}/json`)).json()) as Array<{
+/** **F296 修根因（2026-10-09）**：一律**自建标签**且**直落受保护路由** —— ① `dogfood-all` 的清理会关掉所有含
+ * `5173` 的标签 ⇒ 「找现成标签」会 0 标签开场秒退；② 本脚本的 G5 登出断言前提 = **应用当时处于受保护路由**
+ * （`RoleGuard` 保码归位 `/login`），而超管登录后落 `/` ⇒ 起点必须是 `${APP}/dashboard`。
+ * 实测（干净实例 · runner 隔离）：起点 `APP/` ⇒ 22 PASS / 2 FAIL；起点 `APP/dashboard` ⇒ **24 PASS / 0 FAIL**。 */
+const target = (await (
+  await fetch(`${DBG}/json/new?${APP}/dashboard`, { method: 'PUT' })
+).json()) as {
   type: string;
   url: string;
   webSocketDebuggerUrl: string;
-}>;
-const target =
-  targets.find((t) => t.type === 'page' && t.url.includes('5173')) ??
-  targets.find((t) => t.type === 'page');
-if (!target) throw new Error('无可用浏览器 tab（Edge CDP :9222）');
+};
+if (!target?.webSocketDebuggerUrl) throw new Error('无法新建浏览器 tab（Edge CDP）');
 const ws = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((r) => ws.addEventListener('open', r));
 let seq = 0;

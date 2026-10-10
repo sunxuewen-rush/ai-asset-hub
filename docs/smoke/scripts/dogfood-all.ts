@@ -37,6 +37,8 @@ const CDP = `http://127.0.0.1:${CDP_PORT}`;
 const EDGE_BIN =
   process.env.SMOKE_EDGE ?? '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
 const MANAGE_BROWSER = process.env.SMOKE_NO_BROWSER_MGMT !== '1';
+/** 应用 origin（剪贴板授权用） */
+const APP_ORIGIN = 'http://localhost:5173';
 let browserProc: ReturnType<typeof spawn> | null = null;
 let profileDir = '';
 
@@ -131,6 +133,54 @@ function killBrowser(): void {
   }
 }
 
+/**
+ * **剪贴板授权（F296 · m4b3 根因处置 · 2026-10-09）**：`navigator.clipboard.writeText()` 在**未获授权**的
+ * origin 上会被拒 ⇒ 应用不标记"已复制"⇒ 明文态弹窗关闭时改弹确认 ⇒ 后续断言（掩码/编辑/删除）**一因多果全红**。
+ * 旧 profile 恰好被历史操作授权过 ⇒ 一直"恰好能复制"；换干净 profile 即暴露（实测：日志内 G12 时刻弹窗文本
+ * 仍是「还没有复制，确定关闭吗？」）。全仓脚本此前**零** clipboard 处理（grep 零命中）。
+ * 处置：由 runner 在**自管实例**上对该 origin 授予剪贴板权限（`Browser.grantPermissions` · browser 级命令）。
+ */
+async function grantClipboardPermission(): Promise<boolean> {
+  const ver = (await fetch(`${CDP}/json/version`)
+    .then((r) => r.json())
+    .catch(() => null)) as { webSocketDebuggerUrl?: string } | null;
+  if (!ver?.webSocketDebuggerUrl) return false;
+  const ws = new WebSocket(ver.webSocketDebuggerUrl);
+  const opened = await new Promise<boolean>((res) => {
+    ws.onopen = () => res(true);
+    ws.onerror = () => res(false);
+    setTimeout(() => res(false), 3000);
+  });
+  if (!opened) return false;
+  const granted = await new Promise<boolean>((res) => {
+    const onMsg = (ev: MessageEvent) => {
+      try {
+        const m = JSON.parse(ev.data as string) as { id?: number; error?: unknown };
+        if (m.id === 1) {
+          ws.removeEventListener('message', onMsg);
+          res(!m.error);
+        }
+      } catch {
+        /* 非 JSON 帧忽略 */
+      }
+    };
+    ws.addEventListener('message', onMsg);
+    ws.send(
+      JSON.stringify({
+        id: 1,
+        method: 'Browser.grantPermissions',
+        params: {
+          origin: APP_ORIGIN,
+          permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'],
+        },
+      }),
+    );
+    setTimeout(() => res(false), 3000);
+  });
+  ws.close();
+  return granted;
+}
+
 /** 健康探针：新开标签发 `Runtime.evaluate`，3s 内不回 ⇒ 判定老化 */
 async function probeBrowser(): Promise<boolean> {
   const tab = (await fetch(`${CDP}/json/new?about:blank`, { method: 'PUT' })
@@ -199,8 +249,10 @@ if (!webUp) {
 
 if (MANAGE_BROWSER) {
   launchBrowser();
-  if (await waitCdp(15000)) ok(`CDP 自管实例就绪（端口 ${CDP_PORT} · 临时 profile · F297）`);
-  else {
+  if (await waitCdp(15000)) {
+    ok(`CDP 自管实例就绪（端口 ${CDP_PORT} · 临时 profile · F297）`);
+    ok(`剪贴板授权 ${APP_ORIGIN}：${(await grantClipboardPermission()) ? '✓' : '⚠️ 失败'}`);
+  } else {
     bad(`CDP 自管实例未就绪（${CDP} · Edge=${EDGE_BIN}）`);
     fatal = true;
   }
@@ -290,6 +342,7 @@ for (const name of selected) {
       killBrowser();
       launchBrowser();
       await waitCdp(15000);
+      await grantClipboardPermission();
     }
   }
   let r = run(name, 15 * 60 * 1000);
@@ -300,6 +353,7 @@ for (const name of selected) {
     killBrowser();
     launchBrowser();
     await waitCdp(15000);
+    await grantClipboardPermission();
     r = run(name, 15 * 60 * 1000);
   }
   const timedOut = r.signal === 'SIGTERM';
