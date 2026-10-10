@@ -9,6 +9,7 @@
  *
  * 运行：`SMOKE_M4B2_PASSWORD=… bun docs/smoke/scripts/m4b2-auth-dogfood.ts`
  */
+import { isProtectedRoute } from '../../../apps/web/src/auth/next.js';
 import { NAV_ROLE, navGroupCounts, navPlaceholderCount } from './nav-truth.js';
 
 const DBG = process.env.SMOKE_CDP ?? 'http://127.0.0.1:9222'; // F297：CDP 地址可由 runner 注入（默认 9222）
@@ -361,24 +362,47 @@ await evalJs(`(() => {
   return !!it;
 })()`);
 await sleep(2400);
-const path5 = (await evalJs(`location.pathname`)) as string;
+/**
+ * **F296 口径加固（2026-10-10 · 用户拍板「按 1 来」）**：**不锁单一落点**。
+ *
+ * 登出落点由**两条设计路径**决定，哪条最后生效取决于执行序（**同一脚本在两种环境实测到两种落点**）：
+ * ① 批 design §4.4「清会话上下文（置 `anon`）+ `invalidateCache()` + `navigate('/')`」⇒ 落**公开首页 `/`**
+ * ② design §4.2 ② / `RoleGuard`：`anon` 落**受保护路由** ⇒ `/login?next=<原路>`
+ * 原断言写死 `path === '/login'` ⇒ 锁的是**竞态结果**：健康实例侥幸绿、降级实例（F297）翻红，
+ * 且落 `/`（**恰是 §4.4 的明文口径**，§9.3 G5 验收行亦写「登出 → 回首页」）反被误判为失败。
+ * 现口径 = **设计真正保证的契约**：登出后**不得停留在受保护路由**（判定用应用侧单点
+ * `apps/web/src/auth/next.ts` 的 `isProtectedRoute` ⇒ **不复制前缀清单**）。
+ */
+const path5 = (await evalJs(`location.pathname + location.search`)) as string;
+/** 受保护路由判定**单独取值**：`undefined`（eval 失败）必须**判红**而非静默通过（`isProtectedRoute('')` = false 会假绿） */
+const pathname5 = (await evalJs(`location.pathname`)) as string | undefined;
 const me5 = (await evalJs(
   `fetch('/api/auth/me', { credentials: 'include' }).then((r) => r.status)`,
 )) as number;
-const s5 = JSON.parse((await evalJs(SIDEBAR)) as string);
+const s5 = JSON.parse((await evalJs(SIDEBAR)) as string) as {
+  groups: Record<string, number>;
+  items: Record<string, string[]>;
+  userArea: string | null;
+  links: string[];
+};
 ok(
-  'G5 登出后归位 /login（受保护路由 /dashboard 未登录 ⇒ `RoleGuard` 保码归位，design §4.3）',
-  path5 === '/login',
-  `path=${path5}`,
+  'G5 登出后不留在受保护路由（design §4.4 回首页 `/` ∨ §4.2② 守卫归位 `/login?next=`）',
+  typeof pathname5 === 'string' && !isProtectedRoute(pathname5),
+  `落点=${path5}`,
 );
 ok('G5 登出后 /me 401', me5 === 401, `me=${me5}`);
 const sidebar5 = (await evalJs(
   `document.querySelectorAll('[data-slot="sidebar"]').length`,
 )) as number;
+/** 落 `/` ⇒ 壳内用户区须回「登录」入口；落 `/login` 独立版式 ⇒ 无壳（`sidebar=0`），以三档归零为准 */
+const loginEntry5 = (s5.links ?? []).some((h) => h?.includes('/login'));
 ok(
-  'G5 登出后无侧栏（独立版式 `/login` ⇒ 三组归零）',
-  sidebar5 === 0 && !s5.groups['个人'] && !s5.groups['管理'] && !s5.groups['超级管理'],
-  `sidebar=${sidebar5} groups=${JSON.stringify(s5.groups)}`,
+  'G5 登出后三档角色面归零（个人 / 管理 / 超级管理；门户公开面不受此限）',
+  !s5.groups['个人'] &&
+    !s5.groups['管理'] &&
+    !s5.groups['超级管理'] &&
+    (loginEntry5 || sidebar5 === 0),
+  `groups=${JSON.stringify(s5.groups)} sidebar=${sidebar5} userArea=${s5.userArea ?? '(无壳)'} 落点=${path5}`,
 );
 
 /* ─────────────── G6 设备授权认领 → 批准 ─────────────── */

@@ -612,6 +612,10 @@ async function main() {
       const s = x.querySelector('svg');
       return { t: x.innerText.trim(), svg: !!s,
         w: s ? Math.round(s.getBoundingClientRect().width) : 0,
+        // F296 判读补件（2026-10-10）：**布局值**（不受 transform / 动画推进影响）——与物理值 w 并列，
+        // 使降级实例（F297 · 动画不推进 ⇒ 进场动画定格 zoom-in-95 ⇒ 16×0.95≈15.2 打整 15）一眼可判
+        // 「环境 or 真回归」。**断言语义不变**：仍以物理尺寸 16 为准（动画坏了导致永久缩小属真缺陷）。
+        css: s ? getComputedStyle(s).width : null,
         color: s ? getComputedStyle(s).color : null };
     }) });
   })()`)) as string,

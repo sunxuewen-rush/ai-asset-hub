@@ -382,3 +382,15 @@ if (failed.length > 0) {
   process.exit(1);
 }
 console.log('\n🎉 全绿');
+/*
+ * **F299 处置（2026-10-10）**：成功路径原先**无退出点** ⇒ `spawn()` 的 Edge 子进程持有事件循环、
+ * 主进程**不退出** ⇒ 唯一的清理钩子 `process.on('exit', killBrowser)` **永不触发**（实测：两个 runner
+ * 打印完汇总后分别存活 19:33 / 17:38）⇒ ① 实例泄漏（每跑一次绿泄漏 1 个实例）② 下一轮新起的 Edge
+ * **绑不上 9333**（端口被上一轮占用），而各脚本一律连 `127.0.0.1`（IPv4）⇒ **静默复用上一轮实例**
+ * = **F297「CDP 老化」的生成机制**；「每轮全新 profile」的干净基线承诺亦不成立。
+ *
+ * ⚠ **不要改用 `browserProc.unref()`** —— Bun 1.3.14 下 `ChildProcess.unref()` **实测不生效**
+ * （隔离双证：不 `unref` 2.032s · `unref()` 2.035s · `kill` 子进程 0.033s · `process.exit` 0.020s）。
+ * ⇒ 与失败路径同法**显式退出**：`'exit'` 钩子随即 `killBrowser()`（`pkill` + `SIGKILL` + 清临时 profile）。
+ */
+process.exit(0);
