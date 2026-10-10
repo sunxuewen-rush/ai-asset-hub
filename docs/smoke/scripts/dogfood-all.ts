@@ -14,15 +14,31 @@
  *   `SMOKE_LOG_DIR=<dir>`     日志目录（缺省 `/tmp/dogfood-all-<ts>`，每脚本一份 `.log`）
  */
 
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const ROOT = new URL('../../../', import.meta.url).pathname.replace(/\/$/, '');
 const SCRIPT_DIR = new URL('./', import.meta.url).pathname;
 const API = 'http://127.0.0.1:3000';
 /** web 的 vite 只监听 **IPv6 回环**（实测 `[::1]:5173`）⇒ 优先 ::1，再回落 127.0.0.1 */
 const WEB_CANDIDATES = ['http://[::1]:5173/', 'http://127.0.0.1:5173/'];
-const CDP = 'http://127.0.0.1:9222';
+/**
+ * **浏览器生命周期自管（F297 处置 · 2026-10-09）** —— 为什么：长期运行的无头调试 Edge 会「老化」：
+ * CDP 连得上但命令/事件不返回（实测脚本卡在 `about:blank` · CPU 0% · 烧满 900s/脚本超时 ·
+ * `/json/activate` 无效；实例跑满 1d4h / 4h 后复现；**重启后同一脚本立刻恢复 8/8 · 519/0**）。
+ * 故本 runner **自起自灭**一个全新实例：专属端口（不与手工/其它工具的 :9222 争用）+ 临时 profile
+ * （`mktemp -d` ⇒ 每轮全新）+ 只杀自己启动的进程；每脚本前做健康探针，超时则重启并重试一次。
+ * 逃生口：`SMOKE_NO_BROWSER_MGMT=1`（回到旧行为：用外部既有实例）。
+ */
+const CDP_PORT = Number(process.env.SMOKE_CDP_PORT ?? 9333);
+const CDP = `http://127.0.0.1:${CDP_PORT}`;
+const EDGE_BIN =
+  process.env.SMOKE_EDGE ?? '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
+const MANAGE_BROWSER = process.env.SMOKE_NO_BROWSER_MGMT !== '1';
+let browserProc: ReturnType<typeof spawn> | null = null;
+let profileDir = '';
 
 /** 造数脚本（可重放 · 幂等）——按脚本名前缀排序执行 */
 const SEEDS = [
@@ -61,6 +77,105 @@ async function reachable(url: string, ms = 8000): Promise<boolean> {
   }
 }
 
+/* ── 0. 浏览器生命周期工具（F297）── */
+function launchBrowser(): void {
+  if (browserProc) return;
+  profileDir = mkdtempSync(join(tmpdir(), 'edge-dogfood-'));
+  browserProc = spawn(
+    EDGE_BIN,
+    [
+      '--headless=new',
+      `--remote-debugging-port=${CDP_PORT}`,
+      `--user-data-dir=${profileDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      'about:blank',
+    ],
+    { stdio: 'ignore' },
+  );
+  browserProc.on('error', () => {
+    browserProc = null;
+  });
+}
+
+async function waitCdp(ms: number): Promise<boolean> {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    const v = await fetch(`${CDP}/json/version`, { signal: AbortSignal.timeout(2000) })
+      .then((r) => r.json() as Promise<{ Browser?: string }>)
+      .catch(() => null);
+    if (v?.Browser) return true;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return false;
+}
+
+/** 只动**自己启动**的实例：按临时 profile 路径匹配 + 杀自身子进程 */
+function killBrowser(): void {
+  if (profileDir) spawnSync('pkill', ['-f', profileDir], { stdio: 'ignore' });
+  if (browserProc) {
+    try {
+      browserProc.kill('SIGKILL');
+    } catch {
+      /* 已退出 */
+    }
+    browserProc = null;
+  }
+  if (profileDir) {
+    try {
+      rmSync(profileDir, { recursive: true, force: true });
+    } catch {
+      /* 忽略 */
+    }
+    profileDir = '';
+  }
+}
+
+/** 健康探针：新开标签发 `Runtime.evaluate`，3s 内不回 ⇒ 判定老化 */
+async function probeBrowser(): Promise<boolean> {
+  const tab = (await fetch(`${CDP}/json/new?about:blank`, { method: 'PUT' })
+    .then((r) => r.json())
+    .catch(() => null)) as { id?: string; webSocketDebuggerUrl?: string } | null;
+  if (!tab?.webSocketDebuggerUrl) return false;
+  const ws = new WebSocket(tab.webSocketDebuggerUrl);
+  const opened = await new Promise<boolean>((res) => {
+    ws.onopen = () => res(true);
+    ws.onerror = () => res(false);
+    setTimeout(() => res(false), 3000);
+  });
+  let healthy = false;
+  if (opened) {
+    healthy = await new Promise<boolean>((res) => {
+      const onMsg = (ev: MessageEvent) => {
+        try {
+          if ((JSON.parse(ev.data as string) as { id?: number }).id === 1) {
+            ws.removeEventListener('message', onMsg);
+            res(true);
+          }
+        } catch {
+          /* 非 JSON 帧忽略 */
+        }
+      };
+      ws.addEventListener('message', onMsg);
+      ws.send(
+        JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: '1 + 1' } }),
+      );
+      setTimeout(() => res(false), 3000);
+    });
+    ws.close();
+  }
+  await fetch(`${CDP}/json/close/${tab.id}`).catch(() => null);
+  return healthy;
+}
+
+process.on('exit', killBrowser);
+for (const sig of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(sig, () => {
+    killBrowser();
+    process.exit(130);
+  });
+}
+
 /* ── 1. 前置体检：dev 三件 ── */
 console.log('【前置体检】');
 let fatal = false;
@@ -82,13 +197,22 @@ if (!webUp) {
   fatal = true;
 }
 
-const cdpVersion = await fetch(`${CDP}/json/version`, { signal: AbortSignal.timeout(8000) })
-  .then((r) => r.json() as Promise<{ Browser?: string }>)
-  .catch(() => null);
-if (!cdpVersion?.Browser) {
-  bad(`Edge CDP ${CDP} 不可达（启动：见各脚本头部注释）`);
-  fatal = true;
-} else ok(`Edge CDP 在线（${cdpVersion.Browser}）`);
+if (MANAGE_BROWSER) {
+  launchBrowser();
+  if (await waitCdp(15000)) ok(`CDP 自管实例就绪（端口 ${CDP_PORT} · 临时 profile · F297）`);
+  else {
+    bad(`CDP 自管实例未就绪（${CDP} · Edge=${EDGE_BIN}）`);
+    fatal = true;
+  }
+} else {
+  const cdpVersion = await fetch(`${CDP}/json/version`, { signal: AbortSignal.timeout(8000) })
+    .then((r) => r.json() as Promise<{ Browser?: string }>)
+    .catch(() => null);
+  if (!cdpVersion?.Browser) {
+    bad(`Edge CDP ${CDP} 不可达（启动：见各脚本头部注释）`);
+    fatal = true;
+  } else ok(`Edge CDP 在线（${cdpVersion.Browser}）`);
+}
 
 /* ── 2. 标签清理（F290：陈旧 5173 标签会污染断言） ── */
 const tabs =
@@ -111,7 +235,7 @@ function run(file: string, timeoutMs: number) {
   const started = Date.now();
   const r = spawnSync('bun', [`${SCRIPT_DIR}${file}`], {
     cwd: ROOT,
-    env: process.env,
+    env: { ...process.env, SMOKE_CDP: CDP },
     encoding: 'utf8',
     timeout: timeoutMs,
     maxBuffer: 64 * 1024 * 1024,
@@ -156,9 +280,28 @@ const results: Array<{
   status: number | null;
   ms: number;
 }> = [];
+const retried = new Set<string>();
 for (const name of selected) {
   process.stdout.write(`\n── ${name} ──\n`);
-  const r = run(name, 15 * 60 * 1000);
+  if (MANAGE_BROWSER) {
+    const healthy = await probeBrowser();
+    if (!healthy) {
+      process.stdout.write('   ⚠️ CDP 健康探针失败 ⇒ 重启浏览器实例后继续（F297）\n');
+      killBrowser();
+      launchBrowser();
+      await waitCdp(15000);
+    }
+  }
+  let r = run(name, 15 * 60 * 1000);
+  // F297：**超时**（`SIGTERM`）判为环境可疑 ⇒ 重启实例后重试一次（只一次，避免掩盖真缺陷）
+  if (MANAGE_BROWSER && r.signal === 'SIGTERM' && !retried.has(name)) {
+    retried.add(name);
+    process.stdout.write('   ⚠️ 超时 ⇒ 重启浏览器实例后重试一次（F297）\n');
+    killBrowser();
+    launchBrowser();
+    await waitCdp(15000);
+    r = run(name, 15 * 60 * 1000);
+  }
   const timedOut = r.signal === 'SIGTERM';
   results.push({ name, pass: r.pass, fail: r.fail, status: r.status, ms: r.ms });
   const line = `${name}: ${r.pass} PASS / ${r.fail} FAIL · EXIT=${r.status}${timedOut ? '（超时）' : ''} · ${(r.ms / 1000).toFixed(1)}s`;

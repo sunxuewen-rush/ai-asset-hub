@@ -28,12 +28,15 @@ const authNetLogs: string[] = [];
  *  （避免覆盖历史里程碑的 docs/smoke/*.png 产物）。 */
 const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:5173';
 const API_BASE = process.env.SMOKE_API_URL ?? 'http://localhost:3000';
+/** F297：CDP 地址（runner 可注入；默认 9222） */
+const DBG = process.env.SMOKE_CDP ?? 'http://127.0.0.1:9222';
+
 const SHOT_PREFIX = process.env.SMOKE_SHOT_PREFIX ?? '';
 
 async function main() {
   const cwd = process.cwd();
-  const target = await fetch('http://127.0.0.1:9222/json/new?about:blank', { method: 'PUT' }).then(
-    (r) => r.json(),
+  const target = await fetch(`${DBG}/json/new?about:blank`, { method: 'PUT' }).then((r) =>
+    r.json(),
   );
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise<void>((res, rej) => {

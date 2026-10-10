@@ -11,7 +11,7 @@
  */
 import { NAV_ROLE, navGroupCounts, navPlaceholderCount } from './nav-truth.js';
 
-const DBG = 'http://127.0.0.1:9222';
+const DBG = process.env.SMOKE_CDP ?? 'http://127.0.0.1:9222'; // F297：CDP 地址可由 runner 注入（默认 9222）
 const APP = 'http://localhost:5173';
 const API = 'http://localhost:3000';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
