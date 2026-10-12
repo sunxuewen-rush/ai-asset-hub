@@ -1,7 +1,17 @@
 import { describe, expect, test } from 'bun:test';
+import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Hono } from 'hono';
 import { resetEnvCache } from '../config/env.js';
-import { createAuth, parseTrustedOrigins } from './better-auth.js';
+import { getDb } from '../db/client.js';
+import { auditLog, user } from '../db/schema/index.js';
+import {
+  createAuth,
+  EXTERNAL_PROVIDER_IDS,
+  parseTrustedOrigins,
+  shouldRecordExternalProvision,
+} from './better-auth.js';
 
 /**
  * `better-auth` 装配面测试（两组）。
@@ -167,5 +177,74 @@ describe('M4c-3 T2：外部身份源装配（L1 两态 · L2 降级）', () => {
         expect((await signInSocial('microsoft')).status).toBe(404);
       },
     );
+  });
+});
+
+/**
+ * M4c-3 **T5**：外部通道建号审计（`external.provisioned` · 批 design §3.6 **v0.8 定案**）。
+ *
+ * 判据（纯函数）：`providerId ∈ 四通道` **且** 该用户此刻**仅此一条** account 行 ⇒ 首登建号。
+ * 负例（真库真端点）：本地自助注册走 `credential` 通道 ⇒ 必须**零** `external.provisioned` 行。
+ * ⚠ **诚实标注**：正例（真外部回调 ⇒ 记 `external.provisioned` / `auth.login.success`）依赖真 IdP
+ * ⇒ 归 **L5 假 issuer（T10）**，本文件不伪造。
+ */
+async function countExternalProvisions(): Promise<number> {
+  const rows = await getDb()
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(eq(auditLog.action, 'external.provisioned'));
+  return rows.length;
+}
+
+describe('M4c-3 T5 · 外部通道建号审计（external.provisioned）', () => {
+  test('纯函数判据：四通道 × account 数 1 ⇒ true；非四通道 或 计数 ≠ 1 ⇒ false', () => {
+    for (const p of EXTERNAL_PROVIDER_IDS) expect(shouldRecordExternalProvision(p, 1)).toBe(true);
+    for (const p of ['credential', 'oidc', 'ldap', 'wechatx', '']) {
+      expect(shouldRecordExternalProvision(p, 1)).toBe(false);
+    }
+    for (const p of EXTERNAL_PROVIDER_IDS) {
+      expect(shouldRecordExternalProvision(p, 2)).toBe(false); // 链接既有账号 ⇒ 不记建号
+      expect(shouldRecordExternalProvision(p, 0)).toBe(false); // 不该发生
+    }
+  });
+
+  test('负例（真库真端点）：本地自助注册（credential）⇒ 零 external.provisioned 行', async () => {
+    const db = getDb();
+    await migrate(db, { migrationsFolder: './drizzle' });
+    const email = `m4c3t5-${randomUUID()}@test.local`;
+    const before = await countExternalProvisions();
+
+    const prev = process.env.REGISTRATION_ENABLED;
+    process.env.REGISTRATION_ENABLED = 'true';
+    resetEnvCache();
+    let createdId: string | null = null;
+    try {
+      const res = await minimalAuthApp().request('/api/auth/sign-up/email', {
+        method: 'POST',
+        headers: {
+          host: 'localhost:3000',
+          origin: 'http://localhost:3000',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ email, password: 'pw-m4c3-t5-12', name: 'm4c3t5' }),
+      });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { user?: { id?: string } };
+      createdId = body.user?.id ?? null;
+      expect(createdId).toBeTruthy();
+    } finally {
+      process.env.REGISTRATION_ENABLED = prev;
+      resetEnvCache();
+    }
+
+    expect(await countExternalProvisions()).toBe(before); // 零新增（credential 通道被过滤）
+
+    // 收尾：删本用例建的行（`audit_log.actor_id` 有 FK ⇒ 先删审计；session/account 级联）
+    if (createdId) {
+      await db.delete(auditLog).where(eq(auditLog.actorId, createdId));
+      await db.delete(user).where(eq(user.id, createdId));
+      const left = await db.select({ id: user.id }).from(user).where(eq(user.id, createdId));
+      expect(left.length).toBe(0);
+    }
   });
 });

@@ -1,10 +1,10 @@
 # M4c-3 外部身份源接入：社交 provider + 官方内置 Entra ID + 账号链接统一 + 登录页入口 —— 批计划
 
 > Date: 2026-10-12
+> Updated: 2026-10-12（**v0.8：T5 落地（只加不删）+ 件面 23 → 24** —— ① `external.provisioned` 动作 + `external` 组登记 ② `better-auth.ts`：`EXTERNAL_PROVIDER_IDS` 单一真源 + 纯函数判据 + **官方 `account.create.after`** 建号审计（`providerId` 原生在场 + 判据「无其他 account 行」）③ `app.ts`：包装层命中 `/api/auth/callback/<provider>` ⇒ 响应 `Set-Cookie` 反查 actor ⇒ 补记 `auth.login.success`（`detail.provider`）④ 靶 **11/0** · **23/0** · 全量 **687/1/0** · 门禁 **275/141/3/50/37/2**（含行锚 `216 → 268` 同步）⑤ **件面 23 → 24**（`doc-claims-check.ts`）⑥ T5 自检 **9.54**（§7.1））
+> Updated: 2026-10-12（**v0.7：T5 轮 —— 删面归位 + 写入点定案** —— ① **同批约束（同 T1/T2 教训）**：`oidc` 审计组 / `provisionOidc` / 2 错误码的**删除归 T6**（消费点 `http/oidc-routes.ts:134/149/153/155/189` 到 T6 才删）⇒ **T5 = 只加不删 ⇒ 零中间红** ② **写入点定案**（design §3.6 v0.8 补写）：`external.provisioned` = 官方 **`account.create.after`** 钩子（`providerId` 原生在场 + 判据「无其他 account 行」）· `auth.login.success` = **包装层**（响应 `Set-Cookie` → token 查库）③ T5 断言改为**可自动化四组**（纯函数直测 + 本地注册负例；正例归 L5/T10））
 > Updated: 2026-10-12（**v0.6：T4 落地（占位邮箱识别 + 管理面出参归一）** —— ① `auth/identity.ts` 加 **`isPlaceholderEmail`**（`PLACEHOLDER_EMAIL_DOMAIN` 派生后缀 · **按域判定**（后缀 **或** `@域`）· 官方真值来源与口径偏差均注释）② `http/admin-users.ts` 列表出参**归一为 null**（P7 丙 · 零前端改动 · 零新键）③ `identity.test.ts` +5 用例 / `admin-users.test.ts` +1 用例（**T4 轮补入件面**）④ 靶 **16/0** · **19/0** · 全量 **685/1/0** · 门禁 **275/141/3/50/37/0** ⑤ **件面 22 → 23** ⑥ T4 自检 **9.53**（§7.1））
-> Updated: 2026-10-12（**v0.5：T3 落地** —— `GET /api/meta/auth-providers` 匿名只读**启用集**（出参 `{providers: string[]}` · 序 = 界面入口序**单表驱动** · 落在既有 `http/meta.ts` 内**不新建文件**）+ **5 用例**（全关 `[]` / 1·2 乱序·4 三态序 / 匿名可读 + 幂等 / **9 密钥哨兵不出参** / 工厂入参数 0 = 结构性零副作用）· 靶 **9/0** · 全量 **679/1/0** · 门禁 **275/141/3/50/37/0** · 真服务 **`200 {"providers":[]}`** · **T3 自检 9.57**（§7.1））
-> Updated: 2026-10-12（**v0.4：T2 落地 + F307 登记 + 件面订正 21 → 22** —— ① T2：`auth/better-auth.ts` 四通道 env 条件装配（`microsoft` 带 `tenantId`）+ `better-auth.test.ts` L1/L2 单测（**T2 轮补入件面**）② **F307**（官方「provider 未装配」404 真值 code = **`PROVIDER_NOT_FOUND`**，非 `oauth_provider_not_found`）⇒ design 4 处 + plan 3 处 + README 号段（本段上界 → **F307**）③ **件面 21 → 22** ④ 靶 **9/0** · 全量 **674/1/0** · 门禁 **275/141/3/50/37/0** · T2 自检 **9.54**（§7.1））
-> Status: 🟢 **执行中**（**T1 ✅ 9.51 · T2 ✅ 9.54 · T3 ✅ 9.57 · T4 ✅ 9.53** · 2026-10-12）—— 上游 = 批 design **v0.7**（8 维 9.69 · F 账 → **F307**）· 本 plan **v0.6** · 待 T5 开工
+> Status: 🟢 **执行中**（**T1 ✅ 9.51 · T2 ✅ 9.54 · T3 ✅ 9.57 · T4 ✅ 9.53 · T5 ✅ 9.54** · 2026-10-12）—— 上游 = 批 design **v0.8**（8 维 9.69 · F 账 → **F307**）· 本 plan **v0.8** · 待 T6 开工
 > 上游 = 批 design `docs/designs/2026-10-12-m4c3-external-identity-design.md`（**定稿 · v0.5 · 8 维 9.69** —— 版本以其版本头为准）
 > · 主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§2.6 R1/R4/R10/R11/R13 · §2.7 件面 · §3.4 共享模块 · §5 详章 · §6.1 · §10.2 线框 —— 版本以其版本头为准）
 > · 视觉真值 SSOT `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（本批**仅 1 个新间距值** 16px · 其余复用本页既有档 · 引 M4c 主 design §2.3「视觉随批就地定稿」）
@@ -15,7 +15,7 @@
 
 ## 1. 目标与非目标
 
-**目标**（四块：社交三通道 + 企业 IdP 换官方件 + 账号链接统一 + 登录页入口；**删件 4 · 改造 23 · 新建 2** · 迁移 **0** · 新表 **0** · 自绘端点 **0**）：
+**目标**（四块：社交三通道 + 企业 IdP 换官方件 + 账号链接统一 + 登录页入口；**删件 4 · 改造 24 · 新建 2** · 迁移 **0** · 新表 **0** · 自绘端点 **0**）：
 
 | # | 交付 | 说明 |
 |---|------|------|
@@ -47,8 +47,8 @@
 | **T2** | server | provider 装配 4 个（官方 `socialProviders`） | T1 | 关态不装配 / 开态装配且 `microsoft` 含 `tenantId`（L1）· 未装配 ⇒ **404** `oauth_provider_not_found`（L2） |
 | **T3** | server | 只读启用集端点 `GET /api/meta/auth-providers` | T2 | 全关 ⇒ `[]` · 开 N ⇒ N 项且**序**正确（L4）· 匿名可读 · 零副作用 · 不回显密钥 |
 | **T4** | server | 共享模块：占位邮箱识别（唯一实现处） | T3 | 模块直测（L3）· **零行为变化**（既有建号/链接断言不变） |
-| **T5** | server | 审计 `external` 组 + 错误码收敛 + 登录补记 | T4 | 源扫幽灵项绿 · 建号 ⇒ `external.provisioned`（含 `detail.provider`）· 登录 ⇒ `auth.login.success` |
-| **T6** | server | 自绘 OIDC 全链退役（删件 4 + 收敛 + **删 env 5 键**） | T5 | **判据① grep 归零** · env `OIDC_*` 归零 · 全量测试绿（**重记基线**）· 注释腐化 0 |
+| **T5** | server | 审计 **`external` 组 + 建号/登录补记**（**只加不删**） | T4 | 源扫幽灵项绿 · 建号 ⇒ `external.provisioned`（含 `detail.provider`）· 登录 ⇒ `auth.login.success` |
+| **T6** | server | 自绘 OIDC 全链退役（删件 4 + 收敛 + **删 env 5 键** + **收删除面**：`oidc` 审计组 / 2 错误码） | T5 | **判据① grep 归零** · env `OIDC_*` 归零 · 审计组与错误码收敛 · 全量测试绿（**重记基线**）· 注释腐化 0 |
 | **T7** | web | 登录页入口：退役 `altMode` + 文字链一行 + 降级 + 骨架 + i18n | T6 | 关态无链接行 · 开态**一行**按序（ZH 250 / EN 294 < 336）· 竖线 1×12 · 16px · 骨架**零跳动** · 两条错误互斥 · `NO JS ERRORS` |
 | **T8** | web | 登出链调序（**F298 关账**） | T7 | 连续 **5 次**登出**全落 `/`**（正反双证）· `m4b2` G5 断言不变 |
 | **T9** | web | 管理面连带：占位邮箱列 + 审计分组标签 | T8 | 占位邮箱 ⇒ 列显「—」· 审计页无「OIDC」组 / 有「外部身份源」组 |
@@ -108,25 +108,26 @@
 
 **落点**：`apps/server/src/auth/identity.ts` · `apps/server/src/auth/identity.test.ts`
 
-### T5 · server：审计 `external` 组 + 错误码收敛 + 登录补记
+### T5 · server：审计 `external` 组 + 建号/登录补记（**只加不删** · 删除面归 T6）
 
 > 依据 = 批 design **§3.6 · G5 · G11**；先例 = `plugins/ldap-credentials.ts:214-220`（审计字段惯例 `{ provider, via }`）· `app.ts:132`（包装层「先读上下文 → 官方处理 → 成功即补审计」，已用于 `sign-out` / `device.approve|deny`）；`db/schema/governance.ts:138`（`detail` jsonb）。前置 = T4。
 
-1. `audit/actions.ts`：删 `oidc` 组（**`:52-55`**）⇒ 新增 `external` 组 / `external.provisioned`（四通道共用一枚动作）。
-2. `audit/audit.ts`：删 `provisionOidc`（`:12-13`）⇒ 加 `provisionExternal`。
-3. `auth/errors.ts`：删 2 码（`:15-16`）+ 2 个 `case`（`:58-59`）。
-4. 包装层**补记** `auth.login.success`（`detail.provider` = 官方 provider 键名）—— 同 `sign-out` 先例。
+1. `audit/actions.ts`：**新增** `external` 组 / `external.provisioned`（四通道共用一枚动作）——⚠ **`oidc` 组的删除归 T6**（消费点 `http/oidc-routes.ts:189` 引用 `AUDIT_ACTIONS.provisionOidc` ⇒ 须同批删，否则中间态编译红）。
+2. `audit/audit.ts`：**新增** `provisionExternal`（**`provisionOidc` 的删除同样归 T6**）。
+3. ~~`auth/errors.ts` 删 2 码~~ ⇒ **移入 T6**（消费点 `oidc-routes.ts:134/149/153/155` 同批删；同 T1 的 `OIDC_*` 教训）。
+4. **写入点定案（design §3.6 v0.8 补写 · 本 Task 落）**：① **`external.provisioned`** = 官方 **`databaseHooks.account.create.after`** 钩子（`better-auth.ts`）—— `providerId ∈ {microsoft,google,github,wechat}` **且**该用户**无其他 account 行**（首登建号；链接不记）⇒ `detail: { provider, via: 'oauth/callback' }` ② **`auth.login.success`** = **包装层**（`app.ts` 命中 `/api/auth/callback/<provider>`）—— 响应 `Set-Cookie` 取 token 查库（复用 `sessionOwnerOfResponse` 手法，因会话由**响应**下发）⇒ 同带 `detail.provider`。
 5. **`ldap` 组不动**（G11：历史审计行已有 `ldap.provisioned`）。
 
-**断言 / 门禁**：① `audit/actions.test.ts` 源码扫描绿（幽灵项反向扫描）② 首登建号 ⇒ `external.provisioned` + `detail.provider` 为官方键名；二次登录**不重复建号**、不再写该动作 ③ 登录成功 ⇒ `auth.login.success`（同带 `detail.provider`）④ 错误码集合收敛（删 2）；`errors` 组 i18n 2 键随 T7 退役 ⑤ 本包 `typecheck` + `lint`。
+**断言 / 门禁**：① `audit/actions.test.ts` 源码扫描绿（幽灵项反向扫描：常量表与目录同批加）② **建号判据纯函数**直测（`providerId` 四通道 / 非四通道 × account 数 1 / ≥2 四组）③ **负例实测**（真库真端点）：本地自助注册（`providerId='credential'`）⇒ **零** `external.provisioned` 行 ④ `auth.login.success` 的**正例**依赖真回调 ⇒ 归 **L5/T10**（诚实标注）⑤ 本包 `typecheck` + `lint`（删除面归 T6 ⇒ 本 Task **零删除** ⇒ 零中间红）。
 
-**落点**：`apps/server/src/audit/actions.ts` · `apps/server/src/audit/audit.ts` · `apps/server/src/auth/errors.ts` · `apps/server/src/app.ts`
+**落点**：`apps/server/src/audit/actions.ts` · `apps/server/src/audit/audit.ts` · `apps/server/src/auth/better-auth.ts` · `apps/server/src/app.ts` · `apps/server/src/auth/better-auth.test.ts`
 
 ### T6 · server：自绘 OIDC 全链退役（删件 4 + 连带收敛）
 
 > 依据 = 批 design **§3.5 件面 · U5 · §3.7 判据①**；实测命中：`http/oidc-routes.ts`（50）· `http/oidc-routes.test.ts`（29）· `auth/oidc.ts`（19）· `auth/oidc.test.ts`（20）；`app.ts:132`（挂载）· `plugins/ldap-credentials.ts:116`（端点 `signInAihOidc`）。前置 = T5。
 
 1. **删 4 件**：`http/oidc-routes.ts` · `http/oidc-routes.test.ts` · `auth/oidc.ts` · `auth/oidc.test.ts`。
+1a. **收删除面（自 T5 移入 · 同批零中间红）**：`audit/actions.ts` 删 `oidc` 组 · `audit/audit.ts` 删 `provisionOidc` · `auth/errors.ts` 删 2 码（`:15-16`）+ 2 `case`（`:58-59`）—— 三处消费点均在本次所删件内。
 1b. **删 env 5 键 + 2 段校验**（`config/env.ts:69-75` 的 `OIDC_*` · `:119-125` 完整性校验 · `:126-133` discovery https 校验）—— **与本步同批**（消费件已删 ⇒ 零中间红）；`.env.example` 同步删 5 键。
 2. 连带收敛（**只删不迁**）：`app.ts` 删 import + `/api/auth/oidc` 挂载 · `plugins/ldap-credentials.ts` 删端点 `signInAihOidc` 与其 `OIDC_PROVIDER` 引用（**保留** `before` 钩子：CSRF 平价 + 首登建号）· `test-utils/auth-fixture.ts` 注释订正（`'ldap'/'oidc'` ⇒ `'ldap'/'external'`）· `http/admin-users.ts` 注释先例指针改指现存件（防注释腐化）· 相关测试同步删。
 3. **不做兼容层**（旧协议彻底删 · 用户偏好）。
@@ -258,7 +259,7 @@ bun run build → bun run db:migrate → bun run test
 | **T2** | 2026-10-12 | **2 件 +124 / −0**：① `auth/better-auth.ts` **+45 行**（`socialProviders` 四通道 **env 条件装配** · `microsoft` 带 `tenantId` · 注释含**官方键名来源** / 404 语义 / 不采 SSO 插件）② `auth/better-auth.test.ts` **+79 行**（**T2 轮补入件面**：`PROVIDER_ENV_KEYS` 逐键复位 + 只挂官方 handler 的 `minimalAuthApp`（同 `app.ts:147`）+ **3 用例**：L2 关态逐 provider 404 / L1 Entra 200 且 URL 含**本租户段** / L1 三通道各自官方端点 + 启用集隔离） | 本包 `typecheck` **EXIT=0** · `lint`/`format` **EXIT=0**（首轮 format 红 ⇒ `bun run format` 修 1 件）· 靶测试 **9 pass / 0 fail**（24 expects）· **全量 server 674 pass / 1 skip / 0 fail**（671 + 3）· 门禁 6 道 **275/141/3/50/37/0** | ① **F307 新登记（真码 ⇄ 文档不符）**：官方「provider 未装配」404 的 `code` **实测 = `PROVIDER_NOT_FOUND`**，design/plan 原写 `oauth_provider_not_found`；**正反双证** = 真服务 `curl` body `{"message":"Provider not found","code":"PROVIDER_NOT_FOUND"}` ＋ 官方源 `@better-auth/core@1.7.5` `dist` 内旧串**零命中** / 新串见 `error/codes.mjs:14` ⇒ 订正 **7 处**（design 4 + plan 3）+ README 号段 → **上界 F307**；⚠ **无行为影响**（前端**不按官方码分支** · 失败态统一走 `login.providerFailed`）② **件面漏算 1 件**：`better-auth.test.ts` 不在原件面 21 件内 ⇒ **改造 21 → 22**（design Scope / §1 ⑥ / §3.5 表 #22 / F303 两处 + plan 四处同步）③ 首轮 lint/format 红 = 我写的长行未过 biome（**非逻辑缺陷**）④ **过程事故（如实记）**：回填脚本末行误用 `open(P,'w').write(open(P).read())`（**先截断再读**）⇒ plan 工作副本被清空；已 `git checkout --` 从 HEAD（含 v0.3 + T1 全部内容）还原并重打 ⇒ **零内容丢失** ⑤ 未做：三社交通道**真跳**（端点硬编码 · 归 L7 条件项） |
 | **T3** | 2026-10-12 | **2 件 +36 / −4**：① `http/meta.ts`（**既有件内加端点 · 不新建文件**）：新增 `GET /api/meta/auth-providers` + 出参类型 `AuthProviders` + **单表驱动**的 `AUTH_PROVIDER_ORDER`（`readonly [string, (env: Env) => boolean]` × 4；`filter→map` 单链，序单源）+ 头注释改写为「两端点并列」（含「官方**无** provider 清单端点 ⇒ 本仓自备」依据）② `http/meta.test.ts`：**+5 用例**（全关 ⇒ `[]` / 1·2 乱序·4 三态且**序**不受输入顺序影响 / 匿名可读 + 幂等字节恒等 / **9 个密钥哨兵串实测不出现在响应体** + 出参键集合精确 / 结构性零副作用 = 工厂入参数 0） | 本包 `typecheck` **EXIT=0** · `lint`/`format` **EXIT=0**（首轮 format 红 ⇒ `bun run format` 修 1 件）· 靶测试 **9 pass / 0 fail**（28 expects · 5 新）· **全量 server 679 pass / 1 skip / 0 fail**（674 + 5）· 门禁 6 道 **275/141/3/50/37/0** · **真服务实测** `curl /api/meta/auth-providers` ⇒ `200` `{"providers":[]}`（全关档 · 热重载已生效） | ① **LSP 拦下真错**：`meta.ts` 用了 `Env` 未导入 ⇒ 补 `import { type Env, getEnv }`（LSP 报错即修，未进 typecheck 轮）② 首轮 format 红 = 我写的长行未过 biome（非逻辑缺陷）③ **零新建文件**已验（端点落在既有 `meta.ts` 内 · §3.3 契约项）④ 未做：前端消费（取数 + 渲染）归 **T7** |
 | **T4** | 2026-10-12 | **4 件 +58 / −3**：① `auth/identity.ts` **+29**（`PLACEHOLDER_EMAIL_DOMAIN` + 派生的 `PLACEHOLDER_EMAIL_SUFFIX` + **`isPlaceholderEmail`** —— 纯判定不写库 · 注释含官方真值来源与**实现口径偏差**）② `http/admin-users.ts`（**管理面出参归一** · P7 丙）：列表出参 `email: isPlaceholderEmail(u.email) ? null : (u.email ?? null)`（**零前端改动 · 零新键**）③ `auth/identity.test.ts` **+5 用例**（官方形态 / 大小写与空白 / 正常邮箱 / **相似反例**（`notplaceholder.invalid` · `placeholder.invalid.evil.com`）/ 空值族）④ `http/admin-users.test.ts`（**T4 轮补入件面**）**+1 用例**：占位账号 ⇒ 出参 `email = null` **且真值不外泄**（`JSON.stringify` 不含 `placeholder.invalid`）+ 正常邮箱原样对照 | 本包 `typecheck` **EXIT=0** · `lint`/`format` **EXIT=0**（`bun run format` 修 2 件）· 靶测试 `identity` **16/0** · `admin-users` **19/0** · **全量 server 685 pass / 1 skip / 0 fail**（679 + 6）· 门禁 6 道 **275/141/3/50/37/0** | ① **靶测试照出语义边界（已修）**：初版只认 `.placeholder.invalid` 后缀 ⇒ **裸域** `…@placeholder.invalid` 不命中（官方合成**必含 namespace**，故非真实形态）；改为**按域判定**（后缀 **或** `@<域>`）⇒ 官方形态判定结果不变，且防未来上游变形时占位真值泄漏到管理面 ⇒ **口径偏差已在 `identity.ts` 注释 + 本行显式登记** ② **LSP 两次拦下真错**：`admin-users.ts` / `identity.test.ts` 用新符号未导入 ⇒ 立即补 import（未进 typecheck 轮）③ **LSP 拦下作用域错**：初版对照用例引了 describe 内的 `created` ⇒ 改**自建对照账号**（合 PREFIX 隔离纪律）④ **件面 +1**（`admin-users.test.ts`）⇒ 改造 **22 → 23**（design §3.5 #23 / Scope / §1 ⑥ / F303 + plan 四处同步；F303 的测试件计数改**枚举式 5 件**）⑤ 未做：规范层 `docs/05` 回填（归 T11）· 前端「—」渲染（T7 验证） |
-| **T5** | — | — | — | — |
+| **T5** | 2026-10-12 | **6 件**：① `audit/audit.ts` **+6**（`provisionExternal: 'external.provisioned'`）② `audit/actions.ts` **+5**（`external` 组登记）③ `auth/better-auth.ts`（`EXTERNAL_PROVIDER_IDS` 单一真源 + **`shouldRecordExternalProvision`** 纯函数判据 + **`databaseHooks.account.create.after`** 建号审计；`account`/`eq` 导入）④ `app.ts`（包装层：`/api/auth/callback/<provider>` 命中四通道 ⇒ `sessionOwnerOfSetCookie` 反查 actor ⇒ 补记 `auth.login.success` + `detail.provider`）⑤ `http/admin-users.test.ts`… 见下 ⑥ `auth/better-auth.test.ts` **+2 用例**（判据纯函数四组 / **真库真端点负例**：本地注册 ⇒ 零 `external.provisioned` 行）⑦ **`doc-claims-check.ts`** 行锚 `216 → 268`（**T5 轮补入件面**） | 本包 `typecheck` **EXIT=0** · `lint`/`format` **EXIT=0**（首轮 lint 红 = import 顺序 ×1 已修）· 靶测试 `better-auth` **11/0** · `audit/*` + 靶 **23/0** · **全量 server 687 pass / 1 skip / 0 fail**（685 + 2）· 门禁 6 道 **275/141/3/50/37/2** | ① **设计缺口（本轮补写 v0.8）**：§3.6 原未定 `external.provisioned` 的**信号来源** ⇒ 实测官方 `databaseHooks.account.create.after`（`Account.providerId` 原生在场 + `with-hooks.mjs` 全模型分派）⇒ 定案**钩子记建号 / 包装层记登录成功**；备选（`createdAt` 启发式 · `validateUserInfo` 校验缝）**未采 + 写明理由** ② **删面归位（同 T1/T2 教训）**：`oidc` 审计组 / `provisionOidc` / 2 错误码的**删除归 T6**（消费点 `oidc-routes.ts:134/149/153/155/189`）⇒ 本 Task **零删除** ⇒ 零中间红 ③ **门禁抓到真漂移**：`app.ts` 插入约 52 行 ⇒ `doc-claims-check.ts` 的 `createAdminRoutes` 行锚 `216 → 268` FAIL ⇒ 同步锚点 + 注明迁移原因（同 F224/M23 先例）⇒ **件面 23 → 24** ④ 首轮 lint 红 = `better-auth.test.ts` import 顺序（biome assist）⇒ 手工排序修正 ⑤ **残余风险（如实记）**：包装层的审计写在 `await` 链上 ⇒ 审计写失败会把成功登录变成 500 —— **与既有 `sign-out` / `device.*` 分支同形**（沿用先例，单轨）；如需加固建议单独立项 ⑥ 正例（真回调 ⇒ 建号/登录两笔审计）**归 L5/T10**（诚实标注，不伪造） |
 | **T6** | — | — | — | — |
 | **T7** | — | — | — | — |
 | **T8** | — | — | — | — |
@@ -276,7 +277,7 @@ bun run build → bun run db:migrate → bun run test
 | T2 | 9.55 | 9.50 | 9.56 | **9.54** | B4 9.4（未装配路径无 fallback = 设计意图）· A4 9.5（官方错误体原样透传）· C9 9.5（本轮文档订正 = F307 已同批完成） |
 | T3 | 9.55 | 9.58 | 9.60 | **9.57** | A4 9.4 / C3 9.4 / C10 9.4（只读白名单端点**无错误路径与 I/O** ⇒ 维度不适用，如实记低）· C9 9.4（规范层回填归 T11） |
 | T4 | 9.53 | 9.53 | 9.55 | **9.53** | A4 9.4 / B4 9.4 / C3 9.4 / C10 9.4（纯判定 + 出参映射，**无错误路径与降级语义** ⇒ 维度不适用，如实记低） |
-| T5 | — | — | — | — | — |
+| T5 | 9.53 | 9.53 | 9.57 | **9.54** | A4 9.4 / B4 9.4 / C10 9.4（**审计写失败会阻断成功登录** —— 与既有分支同形 · 沿用先例，风险已登记）· C3 9.5 |
 | T6 | — | — | — | — | — |
 | T7 | — | — | — | — | — |
 | T8 | — | — | — | — | — |
@@ -291,12 +292,12 @@ bun run build → bun run db:migrate → bun run test
 | 维度 | 分 | 依据 |
 |------|:--:|------|
 | 完整性 | 9.4 | 11 Task 覆盖批 design 全部十项目标（env → 装配 → 端点 → 共享模块 → 审计 → 退役 → 入口 → 登出 → 管理面 → 验证 → 收口）；每 Task 三段齐（步骤 / 断言与门禁 / 落点）；**待**实现期回填落地记录 |
-| 一致性 | 9.4 | 每 Task 标「依据 = 批 design §X (+ 主 design §Y)」；件面 **删 4 / 改造 23 / 新建 2** 与 design 一致（T2/T4 轮各 +1）；i18n **16 → 17 / 701 → 698** 与 design §4.4 同源；**判据① grep 集合逐字取自 design §3.7** |
+| 一致性 | 9.4 | 每 Task 标「依据 = 批 design §X (+ 主 design §Y)」；件面 **删 4 / 改造 24 / 新建 2** 与 design 一致（T2/T4/T5 轮各 +1）；i18n **16 → 17 / 701 → 698** 与 design §4.4 同源；**判据① grep 集合逐字取自 design §3.7** |
 | 清晰度 | 9.4 | Task 总览表（前置 / 出口）+ 明细编号步骤；**安全窗写明理由**（端点先于页面 · 退役置于装配之后） |
 | 可实施性 | 9.4 | 落点逐文件（含新件标「新」）；断言到**命令 / 选择器 / 数值级**（1×12 · 16px · 250/294/336 · 零跳动 · NO JS ERRORS）；**零待拍项** |
 | 设计纯粹性 | 9.5 | 零新自绘端点 · 零迁移 · 零新表；唯一新增视觉值 = 1 个间距（16px）；退役彻底（不做兼容层）；非目标 11 项**明确说不** |
 | 边界覆盖 | 9.4 | 0/1/N 启用集 · 未装配 404 · 两条错误互斥 · 骨架零跳动 · 换行边界（ZH/EN） · 幂等二次登录 · grep 归零 · 基线重记 · 假 issuer 的 `issuer` 校验 |
-| 实施精度 | 9.4 | 真码行锚（`Login.tsx:46/90-91/160-172/174-218/222-231/223`）· 官方入参与行号 · 落点 23 件逐条 · 门禁 13 步照 `ci.yml` 真序 |
+| 实施精度 | 9.4 | 真码行锚（`Login.tsx:46/90-91/160-172/174-218/222-231/223`）· 官方入参与行号 · 落点 24 件逐条 · 门禁 13 步照 `ci.yml` 真序 |
 | 跨平台 | 9.5 | 无平台分支（服务端 env + 前端件 + 文档）⇒ Win / macOS / Linux 行为同一 |
 
 **标准 4 维 9.40 ｜ 深度 4 维 9.45 ｜ 综合 9.43** —— 满足开工门（≥9 ✓）
@@ -310,7 +311,7 @@ bun run build → bun run db:migrate → bun run test
 |--------|:--:|------|
 | 行锚 / 真码引用（`Login.tsx` 7 · `UserMenu.tsx` 2 · `AdminUsers.tsx` 1 · `AdminAudit.tsx` 1 · `errors.ts` 4 · `audit/actions.ts` 1 · `audit/audit.ts` 1 · `ldap-credentials.ts` 1 · `app.ts` 1 · `m4b2-ui-redo-assertions.ts` 2） | 20 | **3 ❌**（承 design）：`audit/actions.ts` oidc 组实测 **`:52-55`**（写 `:51-54`）· `AdminUsers.tsx` 兜底实测 **`:297`**（写 `:298`）· F298 引用漏记 `{replace: true}` 且未写**真实执行序** ⇒ 三处已订正（design 就地 + plan 同步） |
 | 落点文件存在性（服务端 10 · 前端 4 · 脚本 2） | 16 | 全 ✅（`meta.ts` **34 行** · `meta.test.ts` 75 · `identity.ts` 224 · `identity.test.ts` 325 · `env.ts` 147 · `env.test.ts` 118 · `better-auth.ts` 315 · `auth-fixture.ts` 205 · `admin-users.ts` 624 · `web/api/meta.ts` 51 · `dogfood-all.ts` 396 · `m4b2-ui-redo-assertions.ts` 949 · `.env.example` 60 · 待删 2 件在场） |
-| 数字 / 内部自洽（i18n `16 → 17` / `701 → 698` · 件面 删 4 / 改造 **23**（T2/T4 轮各 +1） / 新建 2 · 门禁 13 步 · dogfood 8 → 9 · 基线 666/1/0） | 5 | 全 ✅（i18n 算术用工具复算；门禁 13 步与 `.github/workflows/ci.yml` 的 `name:` 逐步核对；基线 666/1/0 取自 M4c-2 终态读数） |
+| 数字 / 内部自洽（i18n `16 → 17` / `701 → 698` · 件面 删 4 / 改造 **24**（T2/T4/T5 轮各 +1） / 新建 2 · 门禁 13 步 · dogfood 8 → 9 · 基线 666/1/0） | 5 | 全 ✅（i18n 算术用工具复算；门禁 13 步与 `.github/workflows/ci.yml` 的 `name:` 逐步核对；基线 666/1/0 取自 M4c-2 终态读数） |
 | 探针自身 | — | **2 处假警报**（把 `Login.tsx:172` 的 `) : (` 与 `audit/audit.ts:12` 的注释行当失败）⇒ 如实记录、doc 正确、**不改文档** |
 
 **门禁自抓（本轮 · 首轮红 → 已修）**：plan 首稿在 T11 落点**写了尚未存在的证据文件路径**（按批日期命名的那份 · **T11 才归档**）—— ⚠ **连本节留痕里的字面路径也会被扫**（复跑时本轮第二次 FAIL 即出在此）⇒ `doc-audit` **FAIL［B］死路径 2 处**。处置 = 照**仓内先例写法**（M4c-2 T8）改为「`docs/smoke/` 下按**批日期**命名的**新证据文件**（先例 = **已存在**的 `docs/smoke/2026-10-09-m4c2.md`）」⇒ 复跑 **275/0 绿**。教训入档：**plan 不得引用本批尚未产出的路径**，改用「命名规则 + 已存在先例」表述（证据文件在 T11 归档后才可具名引用）。
@@ -337,8 +338,10 @@ bun run build → bun run db:migrate → bun run test
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.8 | 2026-10-12 | **T5 落地（审计 external 组 + 建号/登录补记 · 只加不删）** —— ① `audit/audit.ts` + `audit/actions.ts`：`external.provisioned` 动作 + 组登记 ② `auth/better-auth.ts`：`EXTERNAL_PROVIDER_IDS`（单一真源）+ `shouldRecordExternalProvision`（纯函数判据）+ **`databaseHooks.account.create.after`** 建号审计 ③ `app.ts`：包装层命中 `/api/auth/callback/<provider>` ⇒ `sessionOwnerOfSetCookie` 反查 actor ⇒ 补记 `auth.login.success`（`detail.provider`）④ 靶 `better-auth` **11/0** · `audit/*` 靶 **23/0** · 全量 **687/1/0** · 门禁 **275/141/3/50/37/2**（含 `doc-claims-check` 行锚 `216 → 268` 同步）⑤ **件面 23 → 24**（补 `doc-claims-check.ts`）⑥ **T5 自检 18 维 = 9.54**（§7.1） |
+| v0.7 | 2026-10-12 | **T5 轮：删面归位 + 写入点定案** —— ① `oidc` 审计组 / `provisionOidc` / 2 错误码**删除归 T6**（消费点同批删 · T5 **只加不删**）② `external.provisioned` 写入点 = 官方 `account.create.after`（`providerId` + 「无其他 account 行」判据）· `auth.login.success` = 包装层（响应 `Set-Cookie` → token 查库）③ T5 断言改**四组可自动化** |
 | v0.6 | 2026-10-12 | **T4 落地（占位邮箱识别 + 管理面出参归一）** —— ① `identity.ts` 加 `isPlaceholderEmail`（按域判定 · 含官方真值来源注释与口径偏差登记）② `admin-users.ts` 列表出参归一（P7 丙 · 零前端改动）③ 靶 `identity` **16/0** · `admin-users` **19/0** · 全量 **685/1/0** · 门禁 **275/141/3/50/37/0** ④ **件面 22 → 23**（补 `admin-users.test.ts`）⑤ **T4 自检 18 维 = 9.53**（§7.1） |
-| v0.5 | 2026-10-12 | **T3 落地** —— `GET /api/meta/auth-providers`（匿名只读启用集 · 单表驱动序 · 落在既有 `meta.ts` 内**不新建文件**）+ **5 用例**（全关/多态序/匿名幂等/**密钥哨兵不出参**/结构性零副作用）· 靶 **9/0** · 全量 **679/1/0**（674 + 5）· 门禁 **275/141/3/50/37/0** · 真服务 `200 {"providers":[]}` · **T3 自检 18 维 = 9.57**（§7.1） |
+| v0.5 | 2026-10-12 | **T3 落地** —— `GET /api/meta/auth-providers`（匿名只读启用集 · 出参 `{providers: string[]}` 逐字） · 单表驱动序 · 落在既有 `meta.ts` 内**不新建文件**）+ **5 用例**（全关/多态序/匿名幂等/**密钥哨兵不出参**/结构性零副作用）· 靶 **9/0** · 全量 **679/1/0**（674 + 5）· 门禁 **275/141/3/50/37/0** · 真服务 `200 {"providers":[]}` · **T3 自检 18 维 = 9.57**（§7.1） |
 | v0.4 | 2026-10-12 | **T2 落地 + F307 登记 + 件面订正** —— ① **T2 实测**：2 件 +124 · 靶 **9/0** · 全量 **674/1/0**（671 + 3）· 门禁 **275/141/3/50/37/0** ② **F307**（官方 404 `code` 真值 = `PROVIDER_NOT_FOUND`）⇒ 订正 7 处 + README 号段（上界 → **F307**）③ **件面 21 → 22** ④ **T2 自检 18 维 = 9.54**（§7.1）· ⑤ 回填事故已还原（零丢失） |
 | v0.3 | 2026-10-12 | **T1 落地 + 顺序订正** —— ① **同批约束订正**：`OIDC_*` 5 键**删面归 T6**（消费件 `auth/oidc.ts` 同批删 ⇒ 避免中间态编译红）· `+13` 归 T1（§1 目标 #1 / §2 注 / §3 T1 步骤 2 / §3 T6 步骤 1b / §6 风险 1 五处同步）② **T1 实测**：3 件 +146/−0 · 靶 **18/0** · 全量 **671/1/0**（基线零漂移）· 门禁 **275/141/3/50/37/0** · 进程级 3 例拒启 **exit=1** + 全关档 200 ③ **T1 自检 18 维 = 9.51**（A 9.53 · B 9.47 · C 9.54 · §7.1） |
 | v0.2 | 2026-10-12 | **声明核验轮** —— 44 条声明逐条实测（20 行锚 / 16 件存在性 / 5 数字自洽 / 2 探针假警报）；3 处锚点与引用偏差双向订正（承 design · **design 已就地同步**）；T8 当前序→目标序；**首稿死路径引用 → doc-audit FAIL 已修**（照仓内先例）；新增 §8.1；**8 维 9.46**（v0.1 = 9.43 · 已撤回自报）· 门禁 **275/139/3/49/37/0** |

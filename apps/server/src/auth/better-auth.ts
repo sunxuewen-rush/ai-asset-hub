@@ -3,6 +3,7 @@ import { apiKey } from '@better-auth/api-key';
 import { type Auth, type BetterAuthOptions, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin, bearer, deviceAuthorization, username } from 'better-auth/plugins';
+import { eq } from 'drizzle-orm';
 import {
   AUDIT_ACTIONS,
   type AuditWriter,
@@ -11,6 +12,7 @@ import {
 } from '../audit/audit.js';
 import { getEnv } from '../config/env.js';
 import { getDb } from '../db/client.js';
+import { account } from '../db/schema/index.js';
 import type { LdapChannel } from './ldap.js';
 import { verifyCredential } from './password-verify.js';
 import { directoryCredentials } from './plugins/ldap-credentials.js';
@@ -183,6 +185,33 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
           },
         },
       },
+      /**
+       * 外部身份源**首登建号** ⇒ 记 `external.provisioned`（M4c-3 §3.6 v0.8 定案）：
+       * - 信号 = 官方 `account.create.after` —— `Account.providerId` **原生在场** ⇒ 零映射表
+       *   （官方 `dist/types/init-options.d.mts:1358-1399`；`with-hooks.mjs` 对所有模型通用）
+       * - 判「建号」而非「链接」= 该用户**无其他 account 行**（见 `shouldRecordExternalProvision`）
+       * - 回调即建号的时序：钩子经 `queueAfterTransactionHook` 在**事务提交后**跑（实测官方实现）
+       *   ⇒ 计数可见本条新行；`credential`（本地/目录）通道**天然被过滤** ⇒ 与 `ldap.provisioned` 不重复
+       */
+      account: {
+        create: {
+          after: async (createdAccount) => {
+            const userId = createdAccount.userId;
+            const rows = await db
+              .select({ id: account.id })
+              .from(account)
+              .where(eq(account.userId, userId));
+            if (!shouldRecordExternalProvision(createdAccount.providerId, rows.length)) return;
+            await audit({
+              actorId: userId,
+              action: AUDIT_ACTIONS.provisionExternal,
+              targetType: 'user',
+              targetId: userId,
+              detail: { provider: createdAccount.providerId, via: 'oauth/callback' },
+            });
+          },
+        },
+      },
     },
 
     plugins: [
@@ -267,6 +296,27 @@ export function parseTrustedOrigins(raw: string): string[] {
     .split(',')
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0);
+}
+
+/**
+ * 外部身份源（M4c-3 §3.2）：官方 provider 键名的**单一真源** —— 装配集（`socialProviders`）·
+ * 审计 `detail.provider` · 启用集端点（`http/meta.ts` 的界面入口序）三处共用。
+ */
+export const EXTERNAL_PROVIDER_IDS = ['microsoft', 'google', 'github', 'wechat'] as const;
+
+/**
+ * 外部身份源**首登建号**判据（M4c-3 §3.6 v0.8 · 纯函数 ⇒ 可直测）。
+ *
+ * 语义：`provider` 属四通道 **且** 该用户此刻**仅此一条** account 行 ⇒ 是首登建号；
+ * 存量本地 / 目录账号**链接**第三方时已有 `credential` 行 ⇒ 计数 ≥ 2 ⇒ **不记建号**（链接 ≠ 建号）。
+ */
+export function shouldRecordExternalProvision(
+  providerId: string,
+  accountCountForUser: number,
+): boolean {
+  return (
+    (EXTERNAL_PROVIDER_IDS as readonly string[]).includes(providerId) && accountCountForUser === 1
+  );
 }
 
 /** 构建实例（app.ts / seed / 测试各自可注入依赖与 LDAP 通道；实例间互不共享状态） */

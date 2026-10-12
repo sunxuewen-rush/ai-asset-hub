@@ -70,7 +70,7 @@
 
 > 依据 = 批 design **§3.1/§3.2/§3.3/§3.6** · 主 design §8.1；官方真值：`list-users` `routes.mjs:322`（query schema `:306` · 吞错 `catch` `:378`）· `set-role` `:43` · `ban-user` `:506`（body `:480`）· `unban-user` `:447`（body `:431`）· `create-user` `:133` · `revoke-user-sessions` `:710`（返 `{ success: true }`）。前置 = T1。
 
-1. **另立件（T2 落点定案「甲」· 2026-10-09）**：新建 `apps/server/src/http/admin-users.ts`，在 `apps/server/src/app.ts:216` 的 `createAdminRoutes` 挂载点旁**同前缀再挂一组**（`app.route('/api/admin', createAdminUserRoutes({ db, auth }))`）—— `http/admin.ts` 保持**只读看板族**不混治理写（先例：独立成件的 `http/oidc-routes.ts`）：
+1. **另立件（T2 落点定案「甲」· 2026-10-09）**：新建 `apps/server/src/http/admin-users.ts`，在 `apps/server/src/app.ts:268` 的 `createAdminRoutes` 挂载点旁（**锚点随代码迁移：`216 → 268`** —— M4c-3 T5 在 `app.ts` 插入约 52 行（回调会话反查助手 + 外部通道登录补记）；**断言意图不变** · 同 **F224/M23** 先例）**同前缀再挂一组**（`app.route('/api/admin', createAdminUserRoutes({ db, auth }))`）—— `http/admin.ts` 保持**只读看板族**不混治理写（先例：独立成件的 `http/oidc-routes.ts`）：
    - `app.use('*', requireRole(ACCOUNT_ROLE.ADMIN))`（薄层第一道）+ 官方权限码为第二道（`deps.auth.api.*` 透传 `headers: c.req.raw.headers`）。
    - 六条路由按批 design §3.2 表：`GET /users` · `POST /users` · `PATCH /users/:id/role` · `POST /users/:id/ban` · `POST /users/:id/unban` · `POST /users/:id/sessions/revoke`。
    - 出参归一：列表 `{ items, total }`（先例 `http/assets.ts:284`）· 动作 `{ ok: true }`。

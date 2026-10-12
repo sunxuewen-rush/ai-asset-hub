@@ -11,6 +11,12 @@ export const AUDIT_ACTIONS = {
   provisionLdap: 'ldap.provisioned',
   /** OIDC 首登建号（原 `http/oidc-routes.ts` 内联字面量，随 M4b-pre T3 收敛到常量表） */
   provisionOidc: 'oidc.provisioned',
+  /**
+   * 外部身份源**首登建号**（M4c-3 §3.6 · 四通道 Entra / Google / GitHub / WeChat 共用一枚动作；
+   * 来源 provider 落 `detail.provider` = **官方 provider 键名**）。
+   * 写入点 = 官方 `databaseHooks.account.create.after`（见 `better-auth.ts`）；`ldap` 组不动（G11）。
+   */
+  provisionExternal: 'external.provisioned',
   /** 设备流：用户确认设备授权（M4b-pre T5；官方端点无钩子 ⇒ 由 app 层包装层记） */
   deviceApprove: 'device.approve',
   /** 设备流：用户拒绝设备授权（官方 `/device/deny` 端点） */

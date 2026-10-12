@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { AssetError } from './assets/errors.js';
 import { AUDIT_ACTIONS, type AuditWriter, auditMetaFromHeaders } from './audit/audit.js';
-import { type AihAuth, createAuth } from './auth/better-auth.js';
+import { type AihAuth, createAuth, EXTERNAL_PROVIDER_IDS } from './auth/better-auth.js';
 import { AuthError } from './auth/errors.js';
 import type { LdapChannel } from './auth/ldap.js';
 import { InMemoryRateLimiter, type RateLimiter } from './auth/rate-limit.js';
@@ -51,6 +51,37 @@ async function readUserCode(req: Request): Promise<string | null> {
   try {
     const body = (await req.clone().json()) as { userCode?: unknown };
     return typeof body?.userCode === 'string' && body.userCode.length > 0 ? body.userCode : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 官方会话 cookie 名（`better-auth` 前缀 + `session_token`；`__Secure-` 前缀变体以 `includes` 兼容） */
+const SESSION_COOKIE_NAME = 'better-auth.session_token';
+
+/**
+ * 从**响应** `Set-Cookie` 读新建会话的归属（M4c-3 **T5** · 外部通道回调专用）。
+ *
+ * 为何不能读请求头：OAuth 回调的会话由**响应**下发（请求头里还没有）⇒ 取 cookie 值首段
+ * （`<token>.<签名>` 的 token 段）查库。手法**复用 device/token 先例** `sessionOwnerOfResponse`
+ * （同一「事后反查会话归属」模式；写审计前先定位 actor）。
+ */
+async function sessionOwnerOfSetCookie(db: Db, res: Response): Promise<string | null> {
+  try {
+    const setCookies =
+      typeof res.headers.getSetCookie === 'function'
+        ? res.headers.getSetCookie()
+        : [res.headers.get('set-cookie') ?? ''];
+    const pair = setCookies.find((v) => v.includes(`${SESSION_COOKIE_NAME}=`));
+    if (!pair) return null;
+    const at = pair.indexOf(`${SESSION_COOKIE_NAME}=`) + SESSION_COOKIE_NAME.length + 1;
+    const token = pair.slice(at).split(';')[0]?.split('.')[0];
+    if (!token) return null;
+    const [row] = await db
+      .select({ userId: session.userId })
+      .from(session)
+      .where(eq(session.token, token));
+    return row?.userId ?? null;
   } catch {
     return null;
   }
@@ -149,6 +180,14 @@ export function createApp(deps: AppDeps): Hono {
     const isSignOut = path === '/api/auth/sign-out';
     const isDeviceApprove = path === '/api/auth/device/approve';
     const isDeviceDeny = path === '/api/auth/device/deny';
+    // 外部通道登录成功（M4c-3 T5 · G5）：命中官方 `/callback/:id` 且 id ∈ 四通道 ⇒ 事后补记登录审计
+    const callbackId = path.startsWith('/api/auth/callback/')
+      ? path.slice('/api/auth/callback/'.length)
+      : null;
+    const externalCallbackProvider =
+      callbackId && (EXTERNAL_PROVIDER_IDS as readonly string[]).includes(callbackId)
+        ? callbackId
+        : null;
     const needsSession = isSignOut || isDeviceApprove || isDeviceDeny;
     const before = needsSession ? await auth.api.getSession({ headers: c.req.raw.headers }) : null;
     const userCode = isDeviceApprove || isDeviceDeny ? await readUserCode(c.req.raw) : null;
@@ -180,6 +219,19 @@ export function createApp(deps: AppDeps): Hono {
           actorId: owner,
           action: AUDIT_ACTIONS.deviceTokenIssued,
           targetType: 'session',
+        });
+      }
+    } else if (response.ok && externalCallbackProvider) {
+      // 外部通道登录成功（M4c-3 T5 · G5）：会话由**响应**下发 ⇒ 从 Set-Cookie 反查 actor
+      const owner = await sessionOwnerOfSetCookie(deps.db, response);
+      if (owner) {
+        await deps.audit({
+          ...auditMetaFromHeaders(c.req.raw.headers),
+          actorId: owner,
+          action: AUDIT_ACTIONS.loginSuccess,
+          targetType: 'user',
+          targetId: owner,
+          detail: { provider: externalCallbackProvider, via: 'oauth/callback' },
         });
       }
     }

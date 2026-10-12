@@ -53,6 +53,11 @@ export const AUDIT_ACTION_GROUPS: ReadonlyArray<{ prefix: string; actions: reado
     actions: ['oidc.provisioned'],
   },
   {
+    // M4c-3 外部身份源（四通道共用一枚动作；写入点 = 官方 account.create.after 钩子，见 better-auth.ts）
+    prefix: 'external',
+    actions: ['external.provisioned'],
+  },
+  {
     // M4c-2 账号与权限治理（用户管理面五动作；写入点 = T2 薄端点 `http/admin-users.ts`）
     prefix: 'user',
     actions: ['user.ban', 'user.create', 'user.role_change', 'user.session_revoke', 'user.unban'],

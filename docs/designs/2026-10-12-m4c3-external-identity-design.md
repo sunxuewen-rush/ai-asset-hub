@@ -1,17 +1,17 @@
 # M4c-3 外部身份源接入 · 批设计（社交 provider + 官方内置 Entra ID + 账号链接统一 + 登录页入口）
 
 > Date: 2026-10-12
+> Updated: 2026-10-12（**v0.8：实现期 T5 轮 —— 设计缺口补写（写入点定案）+ 件面 23 → 24** —— §3.6 原未定「建号信号来源」⇒ 实测官方 `databaseHooks.account.create.after`（`Account.providerId` 原生在场）+ `with-hooks.mjs` 全模型通用 ⇒ 定案 **钩子记建号（providerId ∈ 四通道 且 该用户无其他 account 行）/ 包装层记登录成功（响应 Set-Cookie→token 查库）**；备选（`createdAt` 近因启发式 · `validateUserInfo` 校验缝）**未采**并写明理由；**删除面（oidc 组 / 2 错误码）归 T6**（消费点 `oidc-routes.ts:134/149/189` 同批删）· **件面 23 → 24**：`docs/smoke/scripts/doc-claims-check.ts` 的 `app.ts` 行锚随本轮插入漂移 `216 → 268`（同 F224/M23 先例）· 8 维 **9.69 不变**）
 > Updated: 2026-10-12（**v0.7：实现期 T4 轮订正（件面 22 → 23）** —— ① **件面 +1**：`http/admin-users.test.ts` 补入（T4 轮的「占位邮箱出参归一」用例落点）⇒ **改造 23 件**（Scope / §1 ⑥ / §3.5 表 #23 / F303 两处同步；F303 的「含测试 N」改为**枚举式**测试件 5）② 同轮实现见批 plan v0.6（T4）· 8 维 **9.69 不变**（计数订正不改设计实质））
 > Updated: 2026-10-12（**v0.6：实现期 T2 轮订正（F307 + 件面 22）** —— ① **登记 F307**：官方「provider 未装配」404 的 `code` **实测 = `PROVIDER_NOT_FOUND`**（原写 `oauth_provider_not_found` · **正反双证**：真服务 body ＋ 官方源 `error/codes.mjs:14`，旧串在 dist 内**零命中**）⇒ §3.6 / §3.7④ / §6 L2 / §6 L7③ **四处订正**；⚠ **无行为影响**（前端不按官方码分支，失败态走 `login.providerFailed`）② **件面 21 → 22**（补 `auth/better-auth.test.ts`：**L1/L2 单测落点** · §3.5 表 #22 · Scope / §1 ⑥ / F303 同步）③ 8 维 **9.69 不变**（本轮为**纠错**，设计实质未变；偏差已由 F307 承接））
-> Updated: 2026-10-12（**v0.5：入口形态二次翻转（用户 4 项拍板 · 2026-10-12）** —— ① provider 入口由**按钮组**改**文字链一行**（13px 沿用本页既有链接档 + **常态下划线**）② **「── 或 ──」分隔线去掉** ⇒ **P1 甲 作废**，本页**不再消费** `FieldSeparator`（「全仓第一个消费者」披露**撤回**）③ `providerMicrosoft` 值「企业账号」⇒ **「Microsoft 账号」**（与同行三项同为实名；与 `subtitle` 撞名随之消解 ⇒ subtitle 不动）④ 入口失败行落**链接行之下**（E2）⑤ 间距：主按钮↔链接行 **16px**（其余沿用 22px）⑥ 分隔件 = **1×12 CSS 竖线** ⑦ **P2 甲 / Q1-R3 网格 / 笔 2 / 笔 3 作废并留痕**（§4.6）· 新几何实测（入口块实增 **34** · 1366×768 富余 **468** · 骨架零跳动）⑧ 新登记 **F306**（主 design R13 措辞 4 处过期）· 8 维 **9.69**（标准 9.72 · 深度 9.65 · **§11.6**））
-> Status: **定稿**（2026-10-12 · grilling **G1–G12** + **UI 逐条评审 P1–P13** + **v0.5 入口形态翻转 P14–P17** 全部定案 · 8 维 **9.69**（标准 9.72 · 深度 9.65 · §11.6）· **v0.6/v0.7 实现期订正（F307 + 件面 21 → 23）** · **门 ≥9 ✓** · 实现细则落批 plan）
-> Scope: env 契约（**+13 / −5** 键）· `auth/better-auth.ts` 装配 4 provider（`microsoft` / `google` / `github` / `wechat`）· 只读启用集端点 `GET /api/meta/auth-providers` · 占位邮箱识别（`.placeholder.invalid`）· 登录页 provider 文字链一行（**无「或」分隔线**）+ 降级 · 自绘 OIDC 全链退役（**删件 4 · 改造 23 · 新建 2**）· 登出落点确定化（**F298** 关账）
+> Status: **定稿**（2026-10-12 · grilling **G1–G12** + **UI 逐条评审 P1–P13** + **v0.5 入口形态翻转 P14–P17** 全部定案 · 8 维 **9.69**（标准 9.72 · 深度 9.65 · §11.6）· **v0.6–v0.8 实现期订正（F307 · 件面 21 → 23 · §3.6 写入点定案）** · **门 ≥9 ✓** · 实现细则落批 plan）
+> Scope: env 契约（**+13 / −5** 键）· `auth/better-auth.ts` 装配 4 provider（`microsoft` / `google` / `github` / `wechat`）· 只读启用集端点 `GET /api/meta/auth-providers` · 占位邮箱识别（`.placeholder.invalid`）· 登录页 provider 文字链一行（**无「或」分隔线**）+ 降级 · 自绘 OIDC 全链退役（**删件 4 · 改造 24 · 新建 2**）· 登出落点确定化（**F298** 关账）
 
 ## 1. 目标与非目标
 
 | 类 | 项 |
 |----|----|
-| **目标（本批交付）** | ① env 契约 **+13 键**（企业通道 4 + 社交三通道 9）· **删 5 键**（`OIDC_*`）② `auth/better-auth.ts` 装配 4 provider（官方内置 `microsoft` 含 `tenantId`，不采 SSO 插件 / 不走 `genericOAuth`）③ 只读启用集端点 `GET /api/meta/auth-providers` ④ 占位邮箱识别（共享模块唯一实现处）⑤ 登录页 provider **文字链一行**（**退役 `altMode`** · 无「或」分隔线）+ 降级 ⑥ 自绘 OIDC 全链退役（删件 4 / 改造 **23** / 新建 2：两个 smoke 脚本）⑦ **等价完成判据**（补主 design 缺口 · §3.7）⑧ 登出落点确定化（F298 关账）⑨ 审计动作 `external.provisioned` 替代 `oidc.provisioned` ⑩ 文档订正（F303–F306） |
+| **目标（本批交付）** | ① env 契约 **+13 键**（企业通道 4 + 社交三通道 9）· **删 5 键**（`OIDC_*`）② `auth/better-auth.ts` 装配 4 provider（官方内置 `microsoft` 含 `tenantId`，不采 SSO 插件 / 不走 `genericOAuth`）③ 只读启用集端点 `GET /api/meta/auth-providers` ④ 占位邮箱识别（共享模块唯一实现处）⑤ 登录页 provider **文字链一行**（**退役 `altMode`** · 无「或」分隔线）+ 降级 ⑥ 自绘 OIDC 全链退役（删件 4 / 改造 **24** / 新建 2：两个 smoke 脚本）⑦ **等价完成判据**（补主 design 缺口 · §3.7）⑧ 登出落点确定化（F298 关账）⑨ 审计动作 `external.provisioned` 替代 `oidc.provisioned` ⑩ 文档订正（F303–F306） |
 | **非目标（明确不做）** | 准入策略（主 design §2.6 **D5** 保留不实现）· 管理员重置密码 · 资产面 · **SAML** · 旧自绘 OIDC 兼容层（**彻底删**，不做并行兼容）· **连通性预探测 / 入口禁用**（Q2 备选 A 未采）· 官方 SSO 插件 / `genericOAuth`（主 design §2.6 R4）· 邮件服务（本仓无）· **存量外部身份数据迁移**（**迁移 0** —— 本批不动 `user` / `account` 任何数据）· 管理员删除外部身份行（无入口） |
 
 ## 2. 批内对齐拍板结果
@@ -123,7 +123,7 @@ socialProviders: {
 | `apps/server/src/auth/oidc.ts` | 19 | 自绘 OIDC 客户端工厂（`createOidcClient` / `getOidcClient` / `oidcRedirectUrl` / `resetOidcClientCache`） |
 | `apps/server/src/auth/oidc.test.ts` | 20 | 工厂单测（含 `it.skip` 的 enabled 分支） |
 
-**改造 23 件**（21 + **`better-auth.test.ts`**（T2 轮 · 见 #22）+ **`admin-users.test.ts`**（T4 轮 · 见 #23））：
+**改造 24 件**（21 + **`better-auth.test.ts`**（T2 轮 · 见 #22）+ **`admin-users.test.ts`**（T4 轮 · 见 #23）+ **`doc-claims-check.ts`**（T5 轮 · 见 #24））：
 
 | # | 件 | 命中 | 处置 |
 |--:|---|:--:|------|
@@ -150,6 +150,7 @@ socialProviders: {
 | 21 | `apps/web/src/pages/AdminUsers.tsx` | — | 邮箱列「占位邮箱显 —」（**UI 评审轮 P7 丙 补入件面**：判定经**服务端出参归一**，前端**零逻辑改动**，`{email \|\| '—'}` 兜底直接生效） |
 | 22 | `apps/server/src/auth/better-auth.test.ts` | — | **T2 轮补入件面**（原表漏算）：加 **L1 / L2** 单测 —— 关态逐 provider **404 `PROVIDER_NOT_FOUND`** · 开态装配 + **`tenantId` 接入授权 URL**（行为级断言）⇒ 件面 **21 → 22** |
 | 23 | `apps/server/src/http/admin-users.test.ts` | — | **T4 轮补入件面**：加「**占位邮箱出参归一**」用例（占位账号 ⇒ 出参 `email = null` 且真值不外泄 / 正常邮箱 ⇒ 原样对照）⇒ 件面 **22 → 23** |
+| 24 | `docs/smoke/scripts/doc-claims-check.ts` | — | **T5 轮补入件面**：`app.ts` 的 `createAdminRoutes` 行锚随本轮插入（约 52 行）漂移 **`216 → 268`** ⇒ 同步锚点 + 就地注明迁移原因（**同 F224/M23 先例**）；断言意图不变 ⇒ 件面 **23 → 24** |
 
 **新建 2 件**：
 
@@ -166,6 +167,18 @@ socialProviders: {
 |----|------|
 | 审计动作 | 删 `oidc` 组（`oidc.provisioned`）⇒ 新增 **`external` 组 / `external.provisioned`**（外部身份源首登建号），四通道（Entra / Google / GitHub / WeChat）**共用一枚动作**，来源 provider 落 `audit_log.detail.provider`（`jsonb` · 值 = **官方 provider 键名** · `db/schema/governance.ts:138`）；**登录成功另记既有 `auth.login.success`**（同样带 `detail.provider`）⇒ 三通道登录审计口径统一（**G5**）；写入点沿用本仓既有先例 —— 官方端点在本仓包装层的「先读上下文 → 官方处理 → **成功即补审计**」（`app.ts` 已用于 `sign-out` / `device.approve\|deny`）· **`ldap` 组不动**（G11：史实连续 —— 历史审计行已有 `ldap.provisioned`；目录通道与重定向通道建号入口不同）· 审计字段沿用既有惯例 `{ provider, via }`（写入点惯例 `ldap-credentials.ts:214-220`） |
 | 错误码 | 删 `auth.oidc_state_mismatch` / `auth.oidc_denied`（`errors.ts` + i18n `errors` 组 2 键）· `oidc.not_configured` 键随自绘端点一并退役；**不新增业务错误码**（provider 未装配由官方 **404** `PROVIDER_NOT_FOUND` 承担，见 §4.2 · **F307 订正**） |
+
+> **写入点定案（实现期 T5 轮**补写** · 2026-10-12 · 原为设计缺口）**：本节原只写「写入点沿用既有先例（包装层）」，
+> **未定** `external.provisioned` 的**信号来源**。实测官方 `@better-auth/core@1.7.5`：
+> `databaseHooks.account.create.after(account, ctx)`（`dist/types/init-options.d.mts:1358-1399`）· 钩子对**所有模型通用**
+> （`dist/db/with-hooks.mjs` 的 `createWithHooks` 按 `hooks[model]?.create?.after` 分派）⇒ **定案**：
+> - **`external.provisioned` = 官方 `account.create.after` 钩子**：`account.providerId ∈ {microsoft, google, github, wechat}`
+>   **且**该用户**无其他 account 行**（新建的外部账号是唯一一行 ⇒ **首登建号**；存量本地/目录账号**链接**第三方时已有
+>   `credential` 行 ⇒ 计数 ≥ 2 ⇒ **不记建号**）⇒ `detail: { provider, via: 'oauth/callback' }`（provider = 官方键名）
+> - **`auth.login.success` = 包装层**（`app.ts` 的 `/api/auth/*` catch-all · 命中 `/api/auth/callback/<provider>`）：
+>   会话由**响应**下发（请求头里没有）⇒ 从响应 `Set-Cookie` 取 token 段查库（**复用 device/token 先例** `sessionOwnerOfResponse` 的手法）⇒ `detail: { provider, via: 'oauth/callback' }`
+> - **备选（未采）**：① 包装层按 `user.createdAt` 近因判建号 —— **启发式**，非确定 ② 官方 `validateUserInfo` 校验缝 —— **校验钩子不宜承载副作用**（越权使用扩展点）
+> - **删除面归属**：`oidc` 组 / `provisionOidc` / 2 错误码的**删除**须与消费点（`http/oidc-routes.ts:134/149/153/155/189`）同批 ⇒ **归 T6**（同 T1 的 `OIDC_*` 删键教训）
 
 ### 3.7 等价完成判据（补主 design 缺口）
 
@@ -505,6 +518,7 @@ socialProviders: {
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.8 | 2026-10-12 | **实现期 T5 轮 · 设计缺口补写（写入点定案）+ 件面 23 → 24** —— §3.6 未定「建号信号来源」⇒ 定案：**官方 `account.create.after` 钩子**（`providerId` 原生在场 · 与 `with-hooks.mjs` 全模型分派一致）+ 判据「该用户无其他 account 行」（链接 ≠ 建号）· `auth.login.success` 走**包装层**（响应 `Set-Cookie` → token 查库，复用 device/token 手法）· 备选（`createdAt` 启发式 / `validateUserInfo` 校验缝）**未采 + 写明理由** · **删除面（oidc 组 / 2 错误码 / i18n 2 键）明确归 T6** · **件面 23 → 24**（`doc-claims-check.ts` 行锚 `216 → 268` · 同 F224/M23 先例）· 8 维 **9.69 不变** |
 | v0.7 | 2026-10-12 | **实现期 T4 轮订正（件面 22 → 23）** —— `apps/server/src/http/admin-users.test.ts` 补入件面（T4 的「占位邮箱出参归一」用例落点 · §3.5 表 #23）⇒ Scope / §1 ⑥ / §3.5 标题 / F303 两处同步；F303 的测试件计数改**枚举式**（5 件，可逐条回读）· 8 维 **9.69 不变** |
 | v0.6 | 2026-10-12 | **实现期 T2 轮订正（F307 + 件面 22）** —— ① **F307**：官方 404 `code` 真值 = **`PROVIDER_NOT_FOUND`**（原 `oauth_provider_not_found`）⇒ §3.6 / §3.7④ / §6 L2 / §6 L7③ 四处订正（**正反双证**：真服务 `curl` + 官方源 `error/codes.mjs:14`；旧串 dist 内零命中）· 前端不依赖该串 ⇒ 零行为影响 ② **件面 21 → 22**：补 `apps/server/src/auth/better-auth.test.ts`（L1/L2 单测 · §3.5 表 #22）⇒ Scope / §1 ⑥ / §3.5 标题 / F303 两处同步 ③ 8 维 **9.69 不变**（纠错轮 · 设计实质未变） |
 | v0.5 | 2026-10-12 | **入口形态二次翻转（用户 4 项拍板「按推荐」）** —— ① provider 入口：**按钮组 ⇒ 文字链一行**（13px 沿本页链接档 + 常态下划线 + `hover:text-foreground`）② **「── 或 ──」去掉** ⇒ **P1 甲 作废** + `FieldSeparator` 零消费者披露**撤回**③ `providerMicrosoft`「企业账号」⇒ **「Microsoft 账号」**（撞名随之消解 ⇒ subtitle 不动）· 新增键 **6 → 5**（`login` 16 → 17 · 全仓 701 → **698**）④ 入口失败行落 **链接行之下（E2）** ⑤ 间距 **16px**（仅主按钮↔链接行）⑥ 分隔 = **1×12 CSS 竖线** ⑦ 新增 **§4.6 P14–P17 + 官方/大厂对照留痕**；**P2 甲 / Q1-R3 / 笔 2 / 笔 3 作废留痕** ⑧ 新几何（入口块实增 **34** · 富余 **468** · 骨架零跳动）⑨ 新登记 **F306**（主 design R13 措辞 4 处过期）· 原型换代 `proto-m4c3-login-links.html` · **§11.6 重评 8 维 9.69**（v0.4 = 9.65）|
@@ -518,7 +532,7 @@ socialProviders: {
 | 号 | 面 | 问题（真） | 处置 |
 |----|----|-----------|------|
 | **F298** | 设计 ⇄ 实现偏差（登出落点） | 登出落点**不确定**：主 design / 批 design §4.4 明文「登出回首页 `/`」· 应用侧真码实测为 `UserMenu.tsx:86-88` 的 `invalidateCache(); await refresh(); navigate('/', { replace: true });` —— 即 **navigate 在 `refresh()` 之后**（竞态窗正在此处；`{replace:true}` 已在场）；但实测两态都有（2026-10-10 逐份 `.log` 回读订正：换断言前 **1 次**落 `/login`；换新断言后 **3 次**跑均落 `/`）—— 竞争者两条路径均在真码场（`RoleGuard.tsx:38-41` 的 anon 跳 `/login?next=` · `client.ts:343-359` 401 分流 ② 档 → `AuthProvider.tsx:119`），**「哪条最后生效」属执行序竞态** | **断言侧已修（2026-10-10）**：`m4b2` G5 改按设计契约（不留在受保护路由 · 复用 `next.ts` 的 `isProtectedRoute` 单点 + 三档角色面归零 + 用户区回登录入口 + `/me` 401）· 隔离复跑 **24/0**。**产品侧 = 本批 Q3 甲**（统一落 `/` · `UserMenu.tsx:80-89` 一处调序）+ **探针正反双证** ⇒ 本批**关账** |
-| **F303** | 主 design 估算层失真 | 三处：① **§2.7 件面**写「改造 3」，实测**改造 23 件 · 新建 2 件**（**测试件 5** = `env.test.ts` / `identity.test.ts` / `meta.test.ts` / `better-auth.test.ts`（T2 轮 +）/ `admin-users.test.ts`（T4 轮 +）· 注释订正 4；**+`AdminUsers.tsx` 由 UI 评审轮 P7 丙 补入**）② **§10.2 线框**只画 2 个按钮，实名单 = 3 社交 + 1 Entra（示意未标注）③ **§2.3 表** M4c-3 行对齐要点未含测试策略 ⇒ 主 design 缺「等价完成判据」（M4c-1 有 R16，M4c-3 无） | 本批承载真值（**§3.5 件面 · §9 线框 · §6 测试策略 · §3.7 判据**）+ **主 design 三处就地订正**（§2.7 数字订正为「删件 4 · 改造 **23** · 新建 2」· §10.2 线框加「示意 · 按启用集渲染」注 · §2.3 行补判据指针）；实现 Task 见批 plan |
+| **F303** | 主 design 估算层失真 | 三处：① **§2.7 件面**写「改造 3」，实测**改造 24 件 · 新建 2 件**（**测试件 5** = `env.test.ts` / `identity.test.ts` / `meta.test.ts` / `better-auth.test.ts`（T2 轮 +）/ `admin-users.test.ts`（T4 轮 +）· 注释订正 4；**+`AdminUsers.tsx` 由 UI 评审轮 P7 丙 补入**）② **§10.2 线框**只画 2 个按钮，实名单 = 3 社交 + 1 Entra（示意未标注）③ **§2.3 表** M4c-3 行对齐要点未含测试策略 ⇒ 主 design 缺「等价完成判据」（M4c-1 有 R16，M4c-3 无） | 本批承载真值（**§3.5 件面 · §9 线框 · §6 测试策略 · §3.7 判据**）+ **主 design 三处就地订正**（§2.7 数字订正为「删件 4 · 改造 **24** · 新建 2」· §10.2 线框加「示意 · 按启用集渲染」注 · §2.3 行补判据指针）；实现 Task 见批 plan |
 | **F304** | 主 design 引用锚点失效 | §6.1 写「本仓自绘端点已有同款处理（`plugins/ldap-credentials.ts:393` 的固定假哈希校验）」—— **实测该文件仅 267 行**（行号越界）；真身 = `apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）+ `:63` / `:69`。**且该处理挂在官方 `password.verify` 存值前缀分派上，不依赖任何 OIDC 端点** ⇒ §6.1「须跟着迁移」的前提**不成立**（本批零迁移风险） | 本批**只订正引用**（主 design §6.1 行号改 `auth/password-verify.ts:35/63/69` + 注明「不随 OIDC 退役而迁移」）· **不改该逻辑**（零行为变更） |
 | **F305** | `docs/07` §3 键账过期 | §3 正文写 `users`（用户管理 · 已落地 **63 键**）与 `account`（自助改密 · 已落地 **13 键**）；**实测**（逐键枚举）`users` = **65** · `account` = **12**（zh / en 双向一致）—— 前者落后头部/§3.3 的 65，后者多算 1 | 本批**同批订正**（§3 正文两处数字改实测值 + §3.3 注记 + 修订行），因本批本就要动 `docs/07`（`login` 组键账） |
 | **F306** | 主 design 形态措辞过期 | 主 design **§2.6 R13** 写「现有右栏表单下方**加分隔线 + 按钮组**」，另有 **3 处**同口径指针（§3 入口指针 · §5.1 小标题 · §10.2 线框）—— **v0.5 已改为「provider 文字链一行 · 无分隔线」** ⇒ 主 design **4 处**与本批 design 冲突（R13 的「**不改页面结构**」仍守） | **本批承载真值**（§4.1 件与档 · §4.6 P14–P17 · §9 线框）+ **主 design 4 处就地订正**随实现批文档笔（同 **F303/F304 · G8** 口径）；**同步面**：README §6.1 号段（本次已同步）· 证据 §5 与 `docs/00` §5 子行随实现批 / 收口批补（与 F303–F305 同口径） |
