@@ -12,7 +12,9 @@
  *   白名单子集 · §14.3）；**列显隐**接 `ColumnVisibilityMenu`（账号列必显 · §14.4）；
  * - **数据面 = 服务端薄端点** `/api/admin/users*`（`api/admin.ts` 已封装）—— 服务端分页（替换式）；
  * - **F294 筛选互斥**：`field=username` 与 `role`/`status` 互斥（服务端 400）⇒ 本页禁用互斥控件并提示；
- * - **护栏两侧**：本人行 / 唯一超管行禁用危险动作；服务端仍是权威（403 中文码）；
+ * - **护栏两侧**：本人行 / 唯一超管行禁用危险动作；服务端仍是权威（403 中文码）；**F301 甲（v0.10）**：
+ *   行标记「本人 / 唯一超管」在**角色列**可见（= 被禁用控件的**可见理由**）· 封禁确认框补**「到期（天）」可选输入**
+ *   （留空 = 永久 · 换算秒传服务端 `expiresIn` —— 服务端与 2 个 i18n 键**早已就绪** ⇒ 本次仅补齐 UI 接线）；
  * - **档位**：路由门槛 = 管理档（数据面 `user:['list']`）；治理动作 = 超管 ⇒ 管理档进页为**只读视图**；
  * - **视觉零新值**：全部复用既有件（批 design §4.2 四层账 · 数值登记 M4a design §4.4 v0.46）。
  */
@@ -65,6 +67,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/shadcn/dropdown-menu';
+import { Field, FieldLabel } from '@/components/ui/shadcn/field';
 import { Input } from '@/components/ui/shadcn/input';
 import {
   InputGroup,
@@ -143,6 +146,9 @@ const USER_SORT_LABEL_KEY = {
   email: 'sort.email',
 } as const;
 
+/** 封禁到期换算：**天 → 秒**（服务端 `expiresIn` 单位为秒 · 官方 `banExpiresIn`）—— F301 甲 */
+const SECONDS_PER_DAY = 86_400;
+
 export default function AdminUsers() {
   const { t } = useI18n();
   const { role: myRole, myUserId } = useAuthRole();
@@ -201,6 +207,8 @@ export default function AdminUsers() {
   const [roleTarget, setRoleTarget] = useState<AdminUserRow | null>(null);
   const [roleDraft, setRoleDraft] = useState<string>('user');
   const [banTarget, setBanTarget] = useState<AdminUserRow | null>(null);
+  /** 封禁「到期（天）」草稿（**留空 = 永久** · 提交时换算秒传服务端 `expiresIn` —— F301 甲 · §4.3） */
+  const [banDays, setBanDays] = useState('');
   const [unbanTarget, setUnbanTarget] = useState<AdminUserRow | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<AdminUserRow | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -296,8 +304,20 @@ export default function AdminUsers() {
         header: t('users', 'col.role'),
         meta: { headClassName: 'w-[var(--cw-role)]', hidable: true } satisfies ColumnUiMeta,
         cell: ({ row }: { row: { original: AdminUserRow } }) => {
-          const key = ROLE_OPTIONS.find((o) => o.value === row.original.role)?.key;
-          return <span>{key ? t('users', key) : (row.original.role ?? '—')}</span>;
+          const u = row.original;
+          const key = ROLE_OPTIONS.find((o) => o.value === u.role)?.key;
+          /* 行标记（F301 甲 · 批 design §4.3 矩阵「本人行 / 末位超管行…标」）：
+             与护栏**同一判据**（本人 / 超管）⇒ 被禁用的启停开关由此获得**可见理由**（T10 放大的 UX 洞）。 */
+          const tag =
+            u.userId === myUserId ? 'selfTag' : u.role === 'superadmin' ? 'lastSuperTag' : null;
+          return (
+            <span className="block min-w-0 truncate">
+              {key ? t('users', key) : (u.role ?? '—')}
+              {tag ? (
+                <span className="ml-1 text-[11px] text-muted-foreground">{t('users', tag)}</span>
+              ) : null}
+            </span>
+          );
         },
       },
       {
@@ -366,11 +386,22 @@ export default function AdminUsers() {
 
   const submitBan = async (reason?: string) => {
     if (!banTarget) return;
+    /* 到期（天）：留空 = 永久；合法正整数 ⇒ 换算秒传 `expiresIn`（非法值由服务端 zod 400 兜底 ——
+       `type=number min=1 step=1` 已在 UI 侧拦绝大多数） */
+    const days = Number(banDays);
+    const expiresIn =
+      banDays.trim() !== '' && Number.isFinite(days) && days >= 1
+        ? Math.floor(days) * SECONDS_PER_DAY
+        : undefined;
     setBusy(true);
     try {
-      await banAdminUser(banTarget.userId, reason ? { reason } : {});
+      await banAdminUser(banTarget.userId, {
+        ...(reason ? { reason } : {}),
+        ...(expiresIn ? { expiresIn } : {}),
+      });
       toast.success(t('users', 'toast.banned'));
       setBanTarget(null);
+      setBanDays('');
       refreshList();
     } catch (err) {
       onError(err);
@@ -699,7 +730,12 @@ export default function AdminUsers() {
         {/* ── 停用（原因可选）─ 启用 ─ 强制登出 ── */}
         <ConfirmDialog
           open={banTarget !== null}
-          onOpenChange={(o) => (o ? null : setBanTarget(null))}
+          onOpenChange={(o) => {
+            if (!o) {
+              setBanTarget(null);
+              setBanDays('');
+            }
+          }}
           title={t('users', 'confirm.banTitle')}
           description={t('users', 'confirm.banDesc')}
           confirmLabel={t('users', 'action.ban')}
@@ -707,6 +743,22 @@ export default function AdminUsers() {
           reason="optional"
           reasonLabel={t('users', 'banReasonLabel')}
           reasonPlaceholder={t('users', 'banReasonPlaceholder')}
+          /* 到期（天）**可选** —— 留空 = 永久；填值 ⇒ 前端换算秒传服务端 `expiresIn`（F301 甲 · §4.3） */
+          extraField={
+            <Field>
+              <FieldLabel htmlFor="ban-expire-days">{t('users', 'banExpireLabel')}</FieldLabel>
+              <Input
+                id="ban-expire-days"
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={banDays}
+                placeholder={t('users', 'banExpirePlaceholder')}
+                onChange={(event) => setBanDays(event.target.value)}
+              />
+            </Field>
+          }
           onConfirm={submitBan}
         />
         <ConfirmDialog

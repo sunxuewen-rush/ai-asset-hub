@@ -1,9 +1,9 @@
 # UI 语言与本地化约定
 
 > Date: 2026-09-04
+> Updated: 2026-10-12（**v1.16：`users` 组键数不变（65）· 4 键转活 · 零死键（M4c-2 v0.10 内修正 4 · F301 甲）** —— `banExpireLabel` / `banExpirePlaceholder` / `selfTag` / `lastSuperTag` 由死键转活（**零新增 · 零退役**）；§3.3 注记同步）
 > Updated: 2026-10-12（**v1.15：`users` 组 63 → 65（M4c-2 v0.10 内修正 3 · 启停列实测回填）** —— **+2** `toggle.ban` / `toggle.unban`（开关无障碍名 + 悬浮提示 · 带 `{name}`）· **零退役**；zh / en 成对差集 0；§3.3 注记同步）
 > Updated: 2026-10-12（**v1.14：`users` 组 60 → 63（M4c-2 v0.10 验收期增量实测回填）** —— **+4** `sort.createdAt` / `sort.username` / `sort.name` / `sort.email`（排序档位）· **退役 1** `reset`（「重置」按钮取消）；zh / en **成对 · 差集 0**；§3 正文补 `users` / `account` 两组行 + 新增 **§3.3 `users` 组落地注记**）
-> Updated: 2026-10-09（**v1.13：新增 `users` 组（60 键）· `account` 组（13 键）** —— M4c-2 账号与权限治理：`/admin/users` 页 + 自助改密 Dialog · zh/en 成对差集 0）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§8 修订记录**。
 > Status: 定稿（M0 评审通过；M4a 门户资源已落地，M4b 管理后台资源随其实现铺开）
 > Scope: 前端界面语言机制 —— 支持语言、默认跟随系统、手动切换、错误码本地化、API 语言契约
@@ -52,9 +52,9 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 | 项 | 实测值（2026-10-12） |
 |---|---|
 | 键数 | **65**（`zh.ts` 顶层键逐条回读；`en.ts` 成对 · **差集 0** —— 由 `Dict = typeof zh` 类型 + `typecheck` 双保） |
-| 键账（v0.10 增量） | ① **+4** `sort.createdAt` / `.username` / `.name` / `.email`（排序档位 · 与三列表头同源）· **退役 1** `reset`（「重置」按钮取消）⇒ **60 → 63**（净 +3）② **+2** `toggle.ban` / `toggle.unban`（启停列开关的**无障碍名 + 悬浮提示** · 带 `{name}` 对象名）· **零退役**（列头复用 `col.status`）⇒ **63 → 65** |
+| 键账（v0.10 增量） | ① **+4** `sort.createdAt` / `.username` / `.name` / `.email`（排序档位 · 与三列表头同源）· **退役 1** `reset`（「重置」按钮取消）⇒ **60 → 63**（净 +3）② **+2** `toggle.ban` / `toggle.unban`（启停列开关的**无障碍名 + 悬浮提示** · 带 `{name}` 对象名）· **零退役**（列头复用 `col.status`）⇒ **63 → 65** ③ **内修正 4（F301 甲）**：**零新增 · 零退役** —— `banExpireLabel` / `banExpirePlaceholder` / `selfTag` / `lastSuperTag` **4 键由死键转活**（封禁到期输入 + 行标记）⇒ 仍 **65** · **零死键** |
 | 复用（零新增） | `market.sortLabel` / `market.searchBtn` / `market.searchClose` / `market.{colShow,colRequired,colReset}`（列显示菜单）· `board.kpi.users`（页头计数块 label「有效用户」）· `admin.empty`（空态） |
-| 归属 | **M4c-2 T4**（组骨架 · 60 键）· **M4c-2 v0.10 T9**（排序档位 + 退役 `reset` ⇒ 63 键）· **M4c-2 v0.10 T10**（启停列 `toggle.*` +2 ⇒ **65 键**） |
+| 归属 | **M4c-2 T4**（组骨架 · 60 键）· **M4c-2 v0.10 T9**（排序档位 + 退役 `reset` ⇒ 63 键）· **M4c-2 v0.10 T10**（启停列 `toggle.*` +2 ⇒ **65 键**）· **M4c-2 v0.10 T11 / F301 甲**（4 键转活 · 键数不变） |
 | 消费点 | `apps/web/src/pages/AdminUsers.tsx`（唯一消费页） |
 | 依据 | 批 design `2026-10-09-m4c2-user-governance-design.md` **§14.5**（键账三件式 · 引用不复制） |
 
@@ -94,6 +94,7 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.16 | 2026-10-12 | sunxuewen-rush | **`users` 组键数不变（65）· 4 键转活 · 零死键（M4c-2 v0.10 内修正 4 · F301 甲）** —— `banExpireLabel` / `banExpirePlaceholder`（封禁到期输入）与 `selfTag` / `lastSuperTag`（本人 / 唯一超管行标记）由**死键转活** ⇒ **零新增 · 零退役**；§3.3 注记同步（键数 65 · 键账 · 零死键）|
 | v1.15 | 2026-10-12 | sunxuewen-rush | **`users` 组 63 → 65（M4c-2 v0.10 内修正 3 · 启停列）** —— **+2**（`toggle.ban` / `toggle.unban` · 开关的**无障碍名 + 悬浮提示**，带 `{name}` 对象名）· **零退役**（列头复用 `users.col.status` ⇒ 键账自提案的 66 订正为 **65**）；zh / en 成对差集 0；**§3.3 注记同步**（键数 / 键账 / 消费点）|
 | v1.14 | 2026-10-12 | sunxuewen-rush | **`users` 组 60 → 63（M4c-2 v0.10 验收期增量 · 实测回填）** —— **+4**（`sort.createdAt` / `.username` / `.name` / `.email` · 排序档位与三列表头同源）· **退役 1**（`reset` · 「重置」按钮取消）· **复用零新增**（`market.*` / `board.kpi.users` / `admin.empty`）；zh / en 成对差集 0；§3 正文补 `users` / `account` 两组行 + 新增 **§3.3 `users` 组落地注记**（键数 / 键账 / 复用 / 归属 / 消费点）|
 | v1.13 | 2026-10-09 | sunxuewen-rush | 新增 **`users` 组（60 键）** 与 **`account` 组（13 键）**（zh / en **成对 · 差集 0**）—— M4c-2 账号与权限治理：`/admin/users` 用户管理页（列表 / 字段选择器筛选 / 建号 / 行操作）+ 自助改密 Dialog（批 design §4.2 / §4.5 R21） |

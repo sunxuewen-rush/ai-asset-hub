@@ -149,6 +149,14 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
         roles: ROLES,
         defaultRole: 'user',
         /**
+         * **F302 甲（M4c-2 v0.10 内修正 4）**：未填原因时的**落库默认值**。
+         * 官方默认是英文硬编码 `"No reason"`（`better-auth/dist/plugins/admin/routes.mjs:534`：
+         * `banReason: ctx.body.banReason || opts?.defaultBanReason || "No reason"`）⇒ 中文产品面
+         * （`ban_reason` 列 / 列表出参 / 审计 detail）会出现英文默认值 ⇒ 走**官方自带选项**改为中文默认
+         * （我方 `http/admin-users.ts:528` 保持「仅在**有值**时透传」不动）。
+         */
+        defaultBanReason: '未填写原因',
+        /**
          * R19 / §6.2：已封禁**明确告知**（企业内网取向：告知同事优于隐瞒）。
          * 文案走官方错误体；前端展示仍按码映射 i18n（`errors.BANNED_USER`）——双通道不冲突。
          */

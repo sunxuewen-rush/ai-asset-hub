@@ -36,6 +36,7 @@ export function ConfirmDialog({
   reasonLabel,
   reasonPlaceholder,
   reasonHint,
+  extraField,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,6 +55,11 @@ export function ConfirmDialog({
   reasonLabel?: string;
   reasonPlaceholder?: string;
   reasonHint?: string;
+  /**
+   * **附加字段槽**（可选 · M4c-2 v0.10 **F301 甲** 新增 —— 封禁「到期（天）」）：
+   * 调用方自带标签与输入件，本件只负责**位置**（渲染在原因区之后）。**7 处既有消费点零改**（可选 prop）。
+   */
+  extraField?: ReactNode;
 }) {
   /** ⚠️ 局部态命名 `reasonText`（与 prop `reason` 区分 —— 三态是契约，输入是状态） */
   const [reasonText, setReasonText] = useState('');
@@ -84,6 +90,7 @@ export function ConfirmDialog({
             {reasonHint ? <FieldDescription>{reasonHint}</FieldDescription> : null}
           </Field>
         ) : null}
+        {extraField}
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
