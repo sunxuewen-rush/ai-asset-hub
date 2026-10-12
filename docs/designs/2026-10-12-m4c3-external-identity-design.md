@@ -1,10 +1,10 @@
 # M4c-3 外部身份源接入 · 批设计（社交 provider + 官方内置 Entra ID + 账号链接统一 + 登录页入口）
 
 > Date: 2026-10-12
+> Updated: 2026-10-13（**v1.5：M4c 完整 converge 收口轮（纯文档 · 零实现改动）** —— ① 🔴 **§3.4 / G2 订正：官方 `accountLinking.requireLocalEmailVerified` 默认 = `true`**（真源 `better-auth@1.7.5` `dist/oauth2/link-account.mjs:78` `?? true`）⇒ **风险方向翻转**（真实边界 = 未验证邮箱的本地账号**无法链接**，非「被同邮箱接管」）② §3.1 `issuer` 校验补限定（仅 `idToken` 登录路径）③ **活锚点回填**（`auth/identity.ts:154` · `config/env.ts:125-126` · `Login.tsx` 现 **300 行** · `ldap-credentials.ts` 现 **193 行**）④ §10 上游事实表**逐条标包名** ⑤ §6 L5 补 **F318** 注入位 ⑥ §3.4 补占位邮箱**按域判定** ⑦ 新增 **§11.7 收口轮 8 维回评** ⑨ §3.2 后补「四 provider 全采官方默认」段 ⑩ §3.7 判据① 活文档范围限定 ⑪ **F322–F324 登记**）
 > Updated: 2026-10-12（**v1.4：批收口（T11 · 纯文档）** —— ① 登记 **F321**（L7 ⑧ 复测受阻：隔离实例上「浏览器侧经 vite 代理的 POST」挂起 · 同实例 `curl` 同路径正常 `401`/`404` ⇒ 探针环境项 · 未定位根因 · 非产品缺陷）② 批收口自检 **18 维 = 9.58**（证据 `docs/smoke/2026-10-12-m4c3.md` §7）③ 证据文件 + F 号 4 处（本 §13 · `docs/README` §6.1 · 证据 §5 · `docs/00`）同步）
 > Updated: 2026-10-12（**v1.3：实现期 T10 轮 —— 验证脚本落地（L5 假 issuer 全流程 + L6 登录页入口 dogfood）+ 连带回改 + F315–F320** —— ① **新建 2 件**（§3.5「新建 2」兑现）：`m4c3-entra-fake-issuer.ts`（**L5**：自签 RSA + 假 IdP 三端点 ⇒ 经**本仓真实装配链**（`createAuth({socialProviders})` → 官方 provider → 本仓 `databaseHooks` → `createApp` 包装层）跑通「授权 ⇒ 回调 ⇒ **建号** ⇒ 两条审计」· **11 PASS / 0 FAIL**；含 **L9 反证**「id_token 缺 `oid` ⇒ 官方 `unable_to_get_user_info` 拒绝」+ **L9b 行为记录**「`iss` 换他人租户**仍成功**」）· `m4c3-login-providers-dogfood.ts`（**L6**：关态渲染 · 无「或」分隔线 · 误配降级 **404** · **不回显密钥类项** · **6 PASS / 0 FAIL**） ② **回改 `m4b2-ui-redo-assertions.ts`**：旧标识 **7 处**（计划记 3 处 · **F315**）+ `A4` 副文案断言（**F317**）+ CDP 地址可注入 **`SMOKE_CDP`**（**F316**）⇒ 单跑 **49 PASS / 0 FAIL**（原 3 红全消） ③ **F319（真 bug · 已修）**：`app.ts` 包装层回调分支判据 `response.ok`（仅 2xx）而官方 `/callback/:id` 成功返回 **302** ⇒ **登录审计整条漏记**（G5 落空）⇒ 判据改「2xx **或** 302」⇒ L7 转绿 ④ **F318**：L5 原「`options.authority` 覆盖」**无注入通道** ⇒ 加 `AuthRuntimeDeps.socialProviders` **测试专用注入位**（同 `advanced`/`rateLimit` 先例 · 生产不传 = 零行为变化） ⑤ **F320**：§6 L5「`tenantId` 非 `common` 时官方校验 `issuer`」**口径偏差** —— 实测官方**代码流不验签 / 不校 `iss`**（`verifyProviderIdToken` 只服务「客户端提交 `id_token` 登录」路径）⇒ 口径订正为「**缺 `oid` 才是真守卫**」+ 行为记录断言 ⑥ 服务端全量 **674 pass / 0 fail**（57 文件 · 2149 expect · **F319 修后回归**）· **dogfood 全量 9 脚本 525 PASS / 0 FAIL（9/9 绿 · 既有 8 脚本 519 = 基线零漂移 + 新 L6 6）** · `m4b2-ui-redo` 由红转绿 · 门禁 **275/141/3/50/37/2** · 18 维 **9.57**）
-> Updated: 2026-10-12（**v1.2：实现期 T9 轮 —— 管理面连带落地（审计分组标签 ⇒ `external` · 占位邮箱列 ⇒「—」）** —— ① 交付 **4 件**：`pages/AdminAudit.tsx`（`'oidc'` 分支改名 **`'external'`** + 顺手补 **`'user'`** 组标签 + 头注释组数订正）· `i18n/{zh,en}.ts`（`audit.group.oidc` ⇒ **`audit.group.external`**（「外部身份源」/「External」）· **新增 `audit.group.user`**（「用户」/「Users」））· `pages/AdminUsers.tsx`（**+2 行注释 · 零逻辑改动**） ② **真页实测（中英双语 · 真服务 · CDP）**：`/api/audit/actions` = **9 组含 `external` 且无 `oidc`** · 动作下拉 **34 项** ⇒ 组标签「资产 / 审核 / 标签 / 令牌 / 登录 / 设备 / LDAP / **外部身份源** / **用户**」（EN：Assets / … / LDAP / **External** / **Users**）· **双语「OIDC」0 命中** ③ **断言① 真库实测**（**用户授权的 1 行临时造数 · 用完即删 · 库复位 728**）：占位账号 ⇒ 出参 `email: null` **且不泄露占位串**（响应 JSON 内 `placeholder.invalid` **0 命中**）· 真页「邮箱」列显 **「—」** ④ **F313**：`user` 动作组（M4c-2 起已登记）**无分组标签** ⇒ 双语实测显示裸 `user` ⇒ **本批顺手补**（+1 分支 +2 键）⇒ 键账 **699 → 700** ⑤ **F314**：M4b-6 批 design（2026-09-23）§4.4 / §6.2 仍列 `oidc` 组与键名 ⇒ **订正归 T11** ⑥ 门禁 **275/141/3/50/37/2** · 三绿 exit=0 · `build` exit=0 · 18 维 **9.55**）
-> Status: **定稿**（2026-10-12 · grilling **G1–G12** + **UI 逐条评审 P1–P13** + **v0.5 入口形态翻转 P14–P17** 全部定案 · 8 维 **9.69**（标准 9.72 · 深度 9.65 · §11.6）· **v0.6–v1.1 实现期订正（F307 · F308–F312 · 件面 21 → 25 · §3.6 写入点定案 · §3.7 判据范围 · §4.1 真页实测 · 键账 699 坐实 · §2.2 Q3 甲 机制订正）** · **门 ≥9 ✓** · 实现细则落批 plan）
+> Status: **定稿**（2026-10-12 · grilling **G1–G12** + **UI 逐条评审 P1–P13** + **v0.5 入口形态翻转 P14–P17** 全部定案 · 8 维 **9.69**（v0.5 自评 · **已撤回**：口径过窄、未核官方默认值 · 见 §11.7）· **收口轮回评 9.51**（标准 9.5375 · 深度 9.475 · 2026-10-13 · §11.7）· **v0.6–v1.1 实现期订正（F307 · F308–F312 · 件面 21 → 25 · §3.6 写入点定案 · §3.7 判据范围 · §4.1 真页实测 · 键账 699 坐实 · §2.2 Q3 甲 机制订正）** · **门 ≥9 ✓** · 实现细则落批 plan）
 > Scope: env 契约（**+13 / −5** 键）· `auth/better-auth.ts` 装配 4 provider（`microsoft` / `google` / `github` / `wechat`）· 只读启用集端点 `GET /api/meta/auth-providers` · 占位邮箱识别（`.placeholder.invalid`）· 登录页 provider 文字链一行（**无「或」分隔线**）+ 降级 · 自绘 OIDC 全链退役（**删件 4 · 改造 25 · 新建 2**）· 登出落点确定化（**F298** 关账）
 
 ## 1. 目标与非目标
@@ -58,14 +58,14 @@
 | `ENTRA_ENABLED` | `false` | 企业 IdP（Entra ID）通道开关 |
 | `ENTRA_CLIENT_ID` | `''` | 应用（客户端）ID |
 | `ENTRA_CLIENT_SECRET` | `''` | 客户端密钥 |
-| `ENTRA_TENANT_ID` | `''` | 租户 ID。**必填**（G1 定案 · 2026-10-12）：`ENTRA_ENABLED=true` 且本键为空 ⇒ **拒绝启动**。官方缺省为 `"common"` = **任何 Microsoft 账号（含个人账号）均可走通授权**（实测 `microsoft-entra-id.mjs:19`（`options.tenantId \|\| "common"`））⇒ 自托管企业部署**必须收紧到本租户**；填具体租户时官方**会校验 `issuer`**（`:79`） |
+| `ENTRA_TENANT_ID` | `''` | 租户 ID。**必填**（G1 定案 · 2026-10-12）：`ENTRA_ENABLED=true` 且本键为空 ⇒ **拒绝启动**。官方缺省为 `"common"` = **任何 Microsoft 账号（含个人账号）均可走通授权**（实测 `microsoft-entra-id.mjs:19`（`options.tenantId \|\| "common"`））⇒ 自托管企业部署**必须收紧到本租户**；填具体租户时官方**会校验 `issuer`**（`:79`；**收口轮限定**：该校验属 `idToken` **登录路径**，**授权码回调流不校 `iss`** —— 与 §6 L5 同口径） |
 | `SOCIAL_GOOGLE_ENABLED` / `SOCIAL_GOOGLE_CLIENT_ID` / `SOCIAL_GOOGLE_CLIENT_SECRET` | `false` / `''` / `''` | Google |
 | `SOCIAL_GITHUB_ENABLED` / `SOCIAL_GITHUB_CLIENT_ID` / `SOCIAL_GITHUB_CLIENT_SECRET` | 同上 | GitHub |
 | `SOCIAL_WECHAT_ENABLED` / `SOCIAL_WECHAT_CLIENT_ID` / `SOCIAL_WECHAT_CLIENT_SECRET` | 同上 | WeChat |
 
-**fail-fast（沿用既有模式）**：任一 `*_ENABLED=true` 且其 `_CLIENT_ID` 或 `_CLIENT_SECRET` 为空 ⇒ `parseEnv` 抛错**拒绝启动**（同 `LDAP_ENABLED`（`env.ts:112-114`）/ `OIDC_ENABLED`（`:120-125`）既有校验）。**另加 G1 校验**：`ENTRA_ENABLED=true` 且 `ENTRA_TENANT_ID` 为空 ⇒ 亦**拒启**。
+**fail-fast（沿用既有模式）**：任一 `*_ENABLED=true` 且其 `_CLIENT_ID` 或 `_CLIENT_SECRET` 为空 ⇒ `parseEnv` 抛错**拒绝启动**（同 `LDAP_ENABLED`（现 `config/env.ts:125-126`；立项期 `env.ts:112-114`）/ `OIDC_ENABLED`（**立项期** `:120-125` · 该段已随 T6 删除）既有校验）。**另加 G1 校验**：`ENTRA_ENABLED=true` 且 `ENTRA_TENANT_ID` 为空 ⇒ 亦**拒启**。
 
-**删除 5 键 + 2 段校验**：`OIDC_ENABLED` / `OIDC_DISCOVERY_URL` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_REDIRECT_URL`（`:69-75`）+「OIDC 配置完整性」（`:119-125`）+「discovery 须 https」校验（`:126-133`）。
+**删除 5 键 + 2 段校验**：`OIDC_ENABLED` / `OIDC_DISCOVERY_URL` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_REDIRECT_URL`（`:69-75`）+「OIDC 配置完整性」（**立项期** `:119-125`）+「discovery 须 https」校验（`:126-133`）。
 
 ### 3.2 provider 装配（`apps/server/src/auth/better-auth.ts`）
 
@@ -84,6 +84,8 @@ socialProviders: {
 **官方键名（实测来源 `@better-auth/core@1.7.5` `dist/social-providers/`）**：`microsoft`（文件 `microsoft-entra-id.mjs` · 导出符号 `microsoft`）· `google` · `github` · `wechat`；四者均在官方 `socialProviders` 索引的导出清单内（`social-providers/index.d.mts:1875`），且与 `POST /api/auth/sign-in/social` 的 `provider` 入参**同值**（前端零映射表）。
 **不采**：官方 SSO 插件 · `genericOAuth`（主 design §2.6 R4）。
 
+**四 provider 全采官方默认**（收口轮补录 · 逐条对锁定版源码核）：scope 均不显式配置 —— google 默认 `email profile openid` + `include_granted_scopes=true`；github 默认 `read:user user:email`；wechat 默认 `snsapi_login`（`appid=clientId` + `#wechat_redirect`）；microsoft 走 `tenantId` 路径。**未设** `hd` / `prompt` / `disableImplicitSignUp` / `disableSignUp` / `requireEmailVerification`（**限 `socialProviders` 选项层**；`emailAndPassword.disableSignUp` 另见 `better-auth.ts:94` —— 只管邮箱自助注册，与社交通道无关）（域限制与建号收敛属 `ACCESS_POLICY` D5 保留面 · 本批不启用）。
+
 ### 3.3 只读启用集端点（`apps/server/src/http/meta.ts`）
 
 | 项 | 契约 |
@@ -99,18 +101,18 @@ socialProviders: {
 | 通道 | 建号 / 链接承担者 | 规则 |
 |------|------------------|------|
 | 本地 | 官方 `sign-up/*`（`REGISTRATION_ENABLED` 默认关）+ 管理员建号（M4c-2） | 本批零改动 |
-| 企业目录（LDAP） | 本仓钩子 → 共享模块 `identity.ensureDirectoryUser`（M4c-1 T3 · `plugins/ldap-credentials.ts:203`） | **不变**：邮箱必填 · 缺失即拒（绝不合成）· **同邮箱冲突即拒** |
-| Entra / 社交（重定向） | 官方 `oauth2/link-account.mjs` | **默认即「撞已验证邮箱自动链接」**（实测 `:79` 隐式链接条件：`accountLinking.enabled !== false` 且非 `disableImplicitLinking` 且 `userInfo.emailVerified`）⇒ **本批不改该默认**（= 主 design §2.6 **R1** 拍板「自动链接」） |
+| 企业目录（LDAP） | 本仓钩子 → 共享模块 `identity.ensureDirectoryUser`（M4c-1 T3 · 现锚 `auth/identity.ts:154`；立项期 `plugins/ldap-credentials.ts:203` 已越界） | **不变**：邮箱必填 · 缺失即拒（绝不合成）· **同邮箱冲突即拒** |
+| Entra / 社交（重定向） | 官方 `oauth2/link-account.mjs` | **默认即「撞已验证邮箱自动链接」**（实测 `:79` 为**拒链条件的合取**：`!opts.selectedUser` 前置短路 · `isTrustedProvider` 白名单可绕开邮箱已验证要求 · `requireLocalEmailVerified && !dbUser.user.emailVerified` · `accountLinking.enabled === false` · `disableImplicitLinking` —— 收口轮按源码逐项补全）⇒ **本批不改该默认**（= 主 design §2.6 **R1** 拍板「自动链接」） |
 
 > 口径：**四通道** = 本地 / 目录（LDAP）/ Entra / 社交；其中 **Entra 与社交同属「重定向类」**，共用官方 `oauth2/link-account.mjs` 的链接策略 ⇒ 上表按「通道类别」列三行。
 
 **共享模块新增职责（唯一实现处 = `apps/server/src/auth/identity.ts` 的规则集）**：
-- **占位邮箱识别（G9 甲 · 2026-10-12 落点定案）**：`email` 以 `.placeholder.invalid` 结尾 ⇒ 判为「无邮箱身份」。**服务端零新增拦截** —— R11 的实质**已由官方满足**：① `emailVerified:false` ⇒ 官方**本就不参与自动链接** ② 官方占位串天然唯一 ⇒ **不撞** `user_email_unique`（`db/schema/auth.ts:42`）③ 我方「同邮箱冲突即拒」只在**目录通道**跑，占位邮箱不会从目录来 ⇒ 「跳过邮箱唯一性判定」在服务端**无对应代码**（**这不是漏实现，是官方已满足**）。本批只落两件：**(a)** 服务端**共享识别函数 + 单测**（供未来准入复用，**不改任何建号行为**）；**(b)** **管理面出参把占位邮箱归一为「无」** ⇒ 前端既有 `{email \|\| '—'}` 兜底**直接生效**（**零前端改动 · 零新键**）。
-　⚠ **口径订正（UI 评审轮 P7 丙 · 2026-10-12）**：G9 原定「前端按 RFC 6761 保留 TLD `.invalid` 判定」⇒ 改为**服务端出参归一**。依据（G9 时未见的真码）：① 前端**已有** `{email \|\| '—'}` 兜底（**`AdminUsers.tsx:297`** · 实测回读订正）② 该列**排序与筛选都在服务端**（`AdminUsers.tsx:11`/`:189-192`）⇒ 归一**不影响**两者 ③ 判定单点在数据面 ⇒ 不出现「`.invalid` 常量前端复制」的双源。**连带口径**：管理端**看不到**占位邮箱真值 —— 这是**期望**（R11 = UI 显「—」）；排查走 `account` 表 / 审计 `detail.provider`。
+- **占位邮箱识别（G9 甲 · 2026-10-12 落点定案）**：`email` 以 `.placeholder.invalid` 结尾（**实现按域判定 · 裸域 `…@placeholder.invalid` 亦识别** —— 收口轮补录 · 同 `auth/identity.ts:60-65`）⇒ 判为「无邮箱身份」。**服务端零新增拦截** —— R11 的实质**已由官方满足**：① `emailVerified:false` ⇒ 官方**本就不参与自动链接** ② 官方占位串天然唯一 ⇒ **不撞** `user_email_unique`（`db/schema/auth.ts:42`）③ 我方「同邮箱冲突即拒」只在**目录通道**跑，占位邮箱不会从目录来 ⇒ 「跳过邮箱唯一性判定」在服务端**无对应代码**（**这不是漏实现，是官方已满足**）。本批只落两件：**(a)** 服务端**共享识别函数 + 单测**（供未来准入复用，**不改任何建号行为**）；**(b)** **管理面出参把占位邮箱归一为「无」** ⇒ 前端既有 `{email \|\| '—'}` 兜底**直接生效**（**零前端改动 · 零新键**）。
+　⚠ **口径订正（UI 评审轮 P7 丙 · 2026-10-12）**：G9 原定「前端按 RFC 6761 保留 TLD `.invalid` 判定」⇒ 改为**服务端出参归一**。依据（G9 时未见的真码）：① 前端**已有** `{email \|\| '—'}` 兜底（**`AdminUsers.tsx:299`** · 实测回读订正）② 该列**排序与筛选都在服务端**（`AdminUsers.tsx:11`/`:189-192`）⇒ 归一**不影响**两者 ③ 判定单点在数据面 ⇒ 不出现「`.invalid` 常量前端复制」的双源。**连带口径**：管理端**看不到**占位邮箱真值 —— 这是**期望**（R11 = UI 显「—」）；排查走 `account` 表 / 审计 `detail.provider`。
 - **官方占位邮箱真值已核**（`@better-auth/core@1.7.5` `dist/utils/email.mjs`）：`PLACEHOLDER_EMAIL_DOMAIN = "placeholder.invalid"`，`createPlaceholderEmail({ identifier, namespace })` 产出 `<identifier>@<namespace>.placeholder.invalid`；WeChat provider 即用该函数 + `emailVerified: false`（`social-providers/wechat.mjs:77` / `:82`）⇒ **R11 口径与官方实现一致**。
 - **定位声明（承主 design §3.4）**：本模块**不是**与官方并行的第二套建号机制，而是**挂在官方钩子 / 官方建号流程下游**的规则实现。
 - **显示名（G10 甲 · 2026-10-12）**：外部通道建号时 `user.name` **直接采官方缺省**（provider profile 显示名 · 官方 `mapProfileToUser`），**不额外归一** —— 不加第三套规则；各 provider 风格差异（Google「名 姓」· 微信昵称）**如实接受**（本批无改名入口）。
-- **已知风险（G2 定案 · 2026-10-12 · 显式入档，不藏）**：官方隐式链接条件中 `requireLocalEmailVerified` 默认 **false**（实测 `oauth2/link-account.mjs:79`）⇒ 若某**本地账号**（管理员建号 · 邮箱通常**未验证**）的邮箱被第三方账号证明持有，则**自动链接到该本地账号（含其角色）**。本批**不新增第二套链接机制**（守「官方优先 / 单轨」）：准入收敛放在**身份源侧** —— G1 的租户收紧（只有本企业员工进得来）；社交通道的**域限制**属准入策略 `ACCESS_POLICY`，主 design §2.6 **D5** 保留不实现。**残余风险如实登记**；如需收紧，处置口 = 官方 `accountLinking.requireLocalEmailVerified`（代价：未验证邮箱的本地账号将**拒绝登录**而非链接）。
+- **已知风险（G2 定案 · 2026-10-12 · 显式入档，不藏）**：官方 `accountLinking.requireLocalEmailVerified` 默认 **true**（真源 `better-auth@1.7.5` `dist/oauth2/link-account.mjs:78` `?? true` + `:79` 拒链条件 · **收口轮订正 🔴**）⇒ **未验证邮箱的本地账号（管理员建号 / 目录建号 · `emailVerified` 默认 false）链接第三方会被拒**（落 `account not linked`），**与原稿「会被同邮箱第三方接管」方向相反**。本批**不新增第二套链接机制**（守「官方优先 / 单轨」）：准入收敛放在**身份源侧** —— G1 的租户收紧（只有本企业员工进得来）；社交通道的**域限制**属准入策略 `ACCESS_POLICY`，主 design §2.6 **D5** 保留不实现。**残余风险如实登记**；该开关**已处默认收紧档**（`true`）⇒ **无需收紧**；若日后**放开**链接才需显式置 `false`（代价 = 未验证邮箱的本地账号可被第三方账号链接；**本地口令登录不受影响** —— 仅链接分支返回 `account not linked`）。
 
 ### 3.5 退役面（逐件 · 2026-10-12 实测 · `grep -ric oidc` 命中数为实测）
 
@@ -132,7 +134,7 @@ socialProviders: {
 | 3 | `apps/server/src/auth/errors.ts` | 4 | 删 2 码（`:15-16`）+ 2 个 `case`（`:58-59`） |
 | 4 | `apps/server/src/config/env.ts` | 16 | 删 `OIDC_*` 5 键 + 2 段校验；加 13 键 + fail-fast |
 | 5 | `apps/server/src/config/env.test.ts` | 24 | 删 OIDC 断言块；加 13 键**两态**断言 |
-| 6 | `apps/server/src/audit/actions.ts` | 2 | 删 `oidc` 组（**`:52-55`** · 实测回读）；加 `external` 组（§3.6） |
+| 6 | `apps/server/src/audit/actions.ts` | 2 | 删 `oidc` 组（**`:51-55`** · 实测回读 · 收口轮统一）；加 `external` 组（§3.6） |
 | 7 | `apps/server/src/audit/audit.ts` | 2 | 删 `provisionOidc`（`:12-13`）；加 `provisionExternal` |
 | 8 | `apps/server/src/auth/identity.ts` | 2 | 注释订正（`usr_oidc_<uuid>` / 「OIDC 通道」表述）+ 占位邮箱规则 |
 | 9 | `apps/server/src/auth/identity.test.ts` | 5 | 退役 OIDC 建号断言；加占位邮箱断言 |
@@ -158,15 +160,15 @@ socialProviders: {
 | 件 | 内容 | 层 |
 |----|------|----|
 | `docs/smoke/scripts/m4c3-login-providers-dogfood.ts` | L6：关闭态渲染（**无链接行**）+ 误配降级（未启用 provider ⇒ 404）· **T10 落地 6 PASS / 0 FAIL**（加固：不回显密钥类项 · 无「或」分隔线 · 表单健康） | 冒烟 |
-| `docs/smoke/scripts/m4c3-entra-fake-issuer.ts` | L5：Entra 通道假 issuer 全流程（自签 jwks + 假 IdP 三端点 · `authority` 指向本地）· **T10 落地 11 PASS / 0 FAIL**（含 L9 反证 / L9b 行为记录 / L10 自建行清理复核） | 冒烟 |
+| `docs/smoke/scripts/m4c3-entra-fake-issuer.ts` | L5：Entra 通道假 issuer 全流程（自签 jwks + 假 IdP 三端点 · `authority` 指向本地）· **T10 落地 11 PASS / 0 FAIL**（含 **L9 反证 / L9b 行为记录 / L10 自建行清理复核** —— 三者是 **L5 脚本内的子断言编号**，非新增分层（分层仍 L1–L7 · §6）） | 冒烟 |
 
-**时序侧信道（⚠ 主 design §6.1 锚点失效 · 见 F304）**：主 design §6.1 写「本仓自绘端点已有同款处理（`plugins/ldap-credentials.ts:393` 的固定假哈希校验）」。**实测该文件仅 267 行 ⇒ 行号越界**；真身 = `apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）+ `:63`（无凭据分支后补跑）+ `:69`（目录 `bind` 后补跑）。**且该处理挂在官方 `password.verify` 的存值前缀分派上，不依赖任何 OIDC 端点 ⇒ 本批退役 OIDC 全链对它零影响**（主 design §6.1「须跟着迁移」的前提不成立）。本批**只订正引用，不改该逻辑**。
+**时序侧信道（⚠ 主 design §6.1 锚点失效 · 见 F304）**：主 design §6.1 写「本仓自绘端点已有同款处理（`plugins/ldap-credentials.ts:393` 的固定假哈希校验）」。**实测该文件仅 193 行（收口轮订正） ⇒ 行号越界**；真身 = `apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）+ `:63`（无凭据分支后补跑）+ `:69`（目录 `bind` 后补跑）。**且该处理挂在官方 `password.verify` 的存值前缀分派上，不依赖任何 OIDC 端点 ⇒ 本批退役 OIDC 全链对它零影响**（主 design §6.1「须跟着迁移」的前提不成立）。本批**只订正引用，不改该逻辑**。
 
 ### 3.6 审计与错误码
 
 | 面 | 处置 |
 |----|------|
-| 审计动作 | 删 `oidc` 组（`oidc.provisioned`）⇒ 新增 **`external` 组 / `external.provisioned`**（外部身份源首登建号），四通道（Entra / Google / GitHub / WeChat）**共用一枚动作**，来源 provider 落 `audit_log.detail.provider`（`jsonb` · 值 = **官方 provider 键名** · `db/schema/governance.ts:138`）；**登录成功另记既有 `auth.login.success`**（同样带 `detail.provider`）⇒ 三通道登录审计口径统一（**G5**）；写入点沿用本仓既有先例 —— 官方端点在本仓包装层的「先读上下文 → 官方处理 → **成功即补审计**」（`app.ts` 已用于 `sign-out` / `device.approve\|deny`）· **`ldap` 组不动**（G11：史实连续 —— 历史审计行已有 `ldap.provisioned`；目录通道与重定向通道建号入口不同）· 审计字段沿用既有惯例 `{ provider, via }`（写入点惯例 `ldap-credentials.ts:214-220`） |
+| 审计动作 | 删 `oidc` 组（`oidc.provisioned`）⇒ 新增 **`external` 组 / `external.provisioned`**（外部身份源首登建号），四通道（Entra / Google / GitHub / WeChat）**共用一枚动作**，来源 provider 落 `audit_log.detail.provider`（`jsonb` · 值 = **官方 provider 键名** · `db/schema/governance.ts:138`）；**登录成功另记既有 `auth.login.success`**（同样带 `detail.provider`）⇒ 三通道登录审计口径统一（**G5**）；写入点沿用本仓既有先例 —— 官方端点在本仓包装层的「先读上下文 → 官方处理 → **成功即补审计**」（`app.ts` 已用于 `sign-out` / `device.approve\|deny`）· **`ldap` 组不动**（G11：史实连续 —— 历史审计行已有 `ldap.provisioned`；目录通道与重定向通道建号入口不同）· 审计字段沿用既有惯例 `{ provider, via }`（写入点惯例 `ldap-credentials.ts:144-147`） |
 | 错误码 | 删 `auth.oidc_state_mismatch` / `auth.oidc_denied`（`errors.ts` + i18n `errors` 组 2 键）· `oidc.not_configured` 键随自绘端点一并退役；**不新增业务错误码**（provider 未装配由官方 **404** `PROVIDER_NOT_FOUND` 承担，见 §4.2 · **F307 订正**） |
 
 > **写入点定案（实现期 T5 轮**补写** · 2026-10-12 · 原为设计缺口）**：本节原只写「写入点沿用既有先例（包装层）」，
@@ -195,12 +197,12 @@ socialProviders: {
 
 > **判据① 实测范围（F308 订正 · 2026-10-12）**：原文「全仓 `grep` … ⇒ 零命中」**字面不可执行** —— 构建产物（`apps/*/dist` · `.turbo/`）、早于本批的**历史文档**（实测 ≥12 份 plan/design）与**本批 design / plan**（必须引用待删符号）依定义必然命中。范围写明为：
 > · **代码面**（`apps/*/src` + `packages/*/src`，排除构建产物）= **零命中** ⇒ **T6 出口 = 服务端面（`apps/server/src` + `packages`）零命中**（余 `apps/web/src/pages/Login.tsx` 头部注释 2 行属 **T7 件** ⇒ 全代码面由 **T7 出口复核**）；
-> · **活文档**（`docs/00` · `docs/README`）= **零命中** ⇒ **T11 收口实测**；
+> · **活文档正文/表格**（`docs/00` · `docs/README`）= **零命中** ⇒ **T11 收口实测**（两件的**修订记录历史沿革行**按「历史行」豁免 —— `docs/00` 含旧码名属沿革，不计）；
 > · **豁免**：早于本批的历史设计 / 计划 / 证据文档（不可改写）· 本批 design 与 plan（必须引用）。
 
 ## 4. 前端设计
 
-### 4.1 登录页入口形态（`apps/web/src/pages/Login.tsx` · **236 行**实测）
+### 4.1 登录页入口形态（`apps/web/src/pages/Login.tsx` · **300 行**实测（收口轮订正；立项期 236 行））
 
 **现状**：单表单 + 底部文本链接（`oidcLink` ⇄ `backToForm`）切**整页备选态**（`altMode`）—— 备选态文案的唯一载体是「统一认证页」（自绘 OIDC 时代产物，随 U5 消失、无内容可承载）。
 
@@ -294,7 +296,7 @@ socialProviders: {
 | P5 | 骨架是否镜像入口块 | **镜像**（且**随启用集条件渲染**） |
 | P6 | `login.providerFailed` 文案 | ZH「登录未完成，请稍后重试或联系管理员」· EN「Sign-in could not be completed. Try again or contact your administrator.」（**不暴露内部配置状态**） |
 | P7 | 占位邮箱判定落法 | **丙：服务端出参归一**（**订正 G9 甲**；前端零改动 · 零新键；排序/筛选在服务端不受影响） |
-| P8 | `who` 兜底（`AdminUsers.tsx:335`）是否同规则 | **不动**（「标识符兜底」语义 · 且几乎落不到 email） |
+| P8 | `who` 兜底（`AdminUsers.tsx:337`）是否同规则 | **不动**（「标识符兜底」语义 · 且几乎落不到 email） |
 | P9 | `UserMenu` 改动面归属 | **纯逻辑调序**（登出链）+ **只做行为双证**（改的是执行序，无视觉对象） |
 | P10 | 是否为外部身份源加管理界面 | **不加**（provider 开关 = env 驱动 · U1）⇒ 写为**明确非目标**，不留「以后再定」 |
 | P11 | `docs/07` 落痕形态 | 顺号新增 **§3.4 `login` 组落地注记** + 修订行 **v1.17**；**同笔承载 F305** 的 §3 正文两处订正 |
@@ -345,7 +347,7 @@ socialProviders: {
 | **L2** | 未装配 provider ⇒ `sign-in/social` **404 `PROVIDER_NOT_FOUND`**（body `{"message":"Provider not found","code":"PROVIDER_NOT_FOUND"}` · **F307 订正**） | `apps/server` 单测（`better-auth.test.ts`） | 零 |
 | **L3** | 占位邮箱识别（`.placeholder.invalid`）· 跳过邮箱唯一性 · 不参与自动链接 | 共享模块直测（`identity.test.ts`） | 零 |
 | **L4** | 只读启用集端点两态（全关 ⇒ `[]`；开 N ⇒ N 项且**序**正确） | `meta.test.ts` | 零 |
-| **L5** | **Entra 通道假 issuer 全流程**（唯一可做：官方 `microsoft` 支持 `options.authority` 覆盖 ⇒ 指向本地假端点；`google` / `github` / `wechat` 端点**硬编码**，不可 fake） | 冒烟（自签 jwks + 假 IdP 三端点 ⇒ 本仓真实装配链；**✅ T10 落地 11 PASS / 0 FAIL** —— 含建号 / account 行 / `external.provisioned` / `auth.login.success` / 二次登录复用 / **反证：缺 `oid` 被拒** / **F320 行为记录**） | 本地（**⚠ F320 订正**：官方**代码流不校 `iss`** ⇒ 「校验 `issuer`」只适用于 `id_token` **登录**路径） |
+| **L5** | **Entra 通道假 issuer 全流程**（唯一可做：官方 `microsoft` 支持 `options.authority` 覆盖 ⇒ 指向本地假端点；`google` / `github` / `wechat` 端点**硬编码**，不可 fake） | 冒烟（自签 jwks + 假 IdP 三端点 ⇒ 本仓真实装配链；**✅ T10 落地 11 PASS / 0 FAIL** —— 含建号 / account 行 / `external.provisioned` / `auth.login.success` / 二次登录复用 / **反证：缺 `oid` 被拒** / **F320 行为记录**） | 本地（**⚠ F320 订正**：官方**代码流不校 `iss`** ⇒ 「校验 `issuer`」只适用于 `id_token` **登录**路径）· **F318**：本仓经 `AuthRuntimeDeps.socialProviders` 测试专用注入位接进真实装配链 |
 | **L6** | dogfood **+1 脚本**（默认全关态）：「关闭态渲染」（**无链接行**）+「误配降级」（调未启用 provider ⇒ 404） | CDP dogfood（**新件** `docs/smoke/scripts/m4c3-login-providers-dogfood.ts` + 在 `docs/smoke/scripts/dogfood-all.ts` 的 `SCRIPT_NAMES` 登记）· **✅ T10 落地 6 PASS / 0 FAIL**（另加固：不回显密钥类项 · 无「或」分隔线 · 表单健康）· **全量经 runner 复跑：9 脚本 525 PASS / 0 FAIL（既有 8 脚本 519 零漂移）** | 本地 |
 | **L7** | **手工实测（纳入本批验收 · G12 5 项清单 · 截图 2 张）**：① 关态 ⇒ 登录页**无链接行**（截图 1）② 开态（4 全开）⇒ 链接行**按序**「Microsoft 账号 ｜ Google ｜ GitHub ｜ 微信」**一行**（截图 2）③ 误配降级 ⇒ `POST /api/auth/sign-in/social {provider:'github'}`（未装配）= **404 `PROVIDER_NOT_FOUND`**（**F307 订正**）④ **F298 关账取证**：连续 **5 次**登出**全落 `/`**（正反双证）⑤ 回调落点：`/login?next=%2Fadmin%2Fusers` 发起 ⇒ 成功回 **`/admin/users`**（**条件项**：需真凭据 · **用超管账号跑**，避免误判既有 `RoleGuard` 行为）⑥ **1366×768 无纵向滚动/裁切**（原型实测：富余 **468px**）⑦ **骨架含入口块占位**（`loading → anon` 无跳动）⑧ **两条错误互斥**（不同屏出现两条红字） | 浏览器 | 需重启服务两次（关 / 开切 env）· ⑤ 依赖真 IdP 凭据 |
 
@@ -394,11 +396,11 @@ socialProviders: {
 **上游（本批真值来源）**：主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 拆批 · §2.6 R1/R4/R10/R11/R13 · §2.7 件面 · §3.4 共享模块 · §5.1–§5.3 · §6.1 时序侧信道 · §10.2 线框）· `docs/05-identity-access.md` §3 · `docs/07-i18n-conventions.md` §3/§4 · `docs/08-data-model.md` §5
 
 **代码锚点（实测）**
-- 服务端：`apps/server/src/config/env.ts`(_:69-75/112-133_) · `apps/server/src/auth/better-auth.ts` · `apps/server/src/auth/identity.ts`(_:55/61_) · `apps/server/src/auth/password-verify.ts`(_:35/63/69_ 时序侧信道真锚点) · `apps/server/src/auth/plugins/ldap-credentials.ts`(_:116/155/203_) · `apps/server/src/auth/errors.ts`(_:15-16/58-59_) · `apps/server/src/http/meta.ts` · `apps/server/src/http/oidc-routes.ts`(删) · `apps/server/src/auth/oidc.ts`(删) · `apps/server/src/audit/actions.ts`(_:51-54_) · `apps/server/src/audit/audit.ts`(_:12-13_) · `apps/server/src/db/schema/governance.ts`(_:138_ `detail` jsonb) · `apps/server/src/app.ts`(_:132_)
-- 前端：`apps/web/src/pages/Login.tsx`(_:46/90-91/160-172/202-206/222-231_) · `apps/web/src/api/auth.ts` · `apps/web/src/api/meta.ts` · `apps/web/src/auth/next.ts` · `apps/web/src/components/ui/UserMenu.tsx`(_:80-89_) · `apps/web/src/components/auth/RoleGuard.tsx`(_:38-41_) · `apps/web/src/api/client.ts`(_:343-359_)
-- 脚本：`docs/smoke/scripts/m4b2-ui-redo-assertions.ts`(_:344-360_) · `docs/smoke/scripts/dogfood-all.ts`
+- 服务端：`apps/server/src/config/env.ts`(_:69-75_ **立项期锚点** / _:125-146_ 现址) · `apps/server/src/auth/better-auth.ts` · `apps/server/src/auth/identity.ts`(_:55/61_) · `apps/server/src/auth/password-verify.ts`(_:35/63/69_ 时序侧信道真锚点) · `apps/server/src/auth/plugins/ldap-credentials.ts`(_:116_ · 该件现 **193 行**（旧锚 `:155`/`:203` 越界）) · `apps/server/src/auth/errors.ts`(_:15-16/58-59_) · `apps/server/src/http/meta.ts` · `apps/server/src/http/oidc-routes.ts`(删) · `apps/server/src/auth/oidc.ts`(删) · `apps/server/src/audit/actions.ts`(_:51-55_) · `apps/server/src/audit/audit.ts`(_:12-13_) · `apps/server/src/db/schema/governance.ts`(_:138_ `detail` jsonb) · `apps/server/src/app.ts`(_:132_ · 立项期锚点 · 该处 oidc 挂载已随本批删除)
+- 前端：`apps/web/src/pages/Login.tsx`(_:46/90-91_ · 立项期锚点；该件现 **300 行** —— 错误行实 `:246`、入口失败块 `:287-292`) · `apps/web/src/api/auth.ts` · `apps/web/src/api/meta.ts` · `apps/web/src/auth/next.ts` · `apps/web/src/components/ui/UserMenu.tsx`(_:80-89_) · `apps/web/src/components/auth/RoleGuard.tsx`(_:38-41_) · `apps/web/src/api/client.ts`(_:343-359_)
+- 脚本：`docs/smoke/scripts/m4b2-ui-redo-assertions.ts`(_:365/370_ · 收口轮回填；A10/A10b 已随 F315 落地) · `docs/smoke/scripts/dogfood-all.ts`
 
-**上游事实（`better-auth@1.7.5` / `@better-auth/core@1.7.5` 实测）**：`dist/social-providers/{google,github,wechat,microsoft-entra-id}.mjs` · `dist/social-providers/index.d.mts`（键名清单）· `dist/utils/email.mjs`（占位邮箱域）· `dist/api/routes/sign-in.mjs`(_:23/40/47/151_) · `dist/oauth2/link-account.mjs`(_:79_ 隐式链接门槛) · `dist/api/routes/`（无 provider 清单端点）
+**上游事实（`better-auth@1.7.5` / `@better-auth/core@1.7.5` 实测 · 收口轮逐条标件）**：`@better-auth/core/dist/social-providers/{google,github,wechat,microsoft-entra-id}.mjs` · `@better-auth/core/dist/social-providers/index.d.mts`（键名清单）· `@better-auth/core/dist/utils/email.mjs`（占位邮箱域）· `better-auth/dist/api/routes/sign-in.mjs`(_:23/40/47/151_) · `better-auth/dist/oauth2/link-account.mjs`(_:79_ 隐式链接门槛) · `dist/api/routes/`（无 provider 清单端点）
 
 ## 11. 8 维自检（首稿自评 · 2026-10-12 · 本仓口径 = 标准 4 维 + 深度 4 维）
 
@@ -525,13 +527,19 @@ socialProviders: {
 
 **诚实标注**：本轮 **+0.04 来自「决策留痕 + 对照证据补齐」**，不是功能变化；上表 8 处编辑涟漪**由本轮改动引入或暴露**，已在**同一轮**清零 ⇒ 既不计为质量提升，也不倒扣 v0.4 的 9.65。
 
+### 11.7 收口轮 8 维回评（M4c 完整 converge · 2026-10-13）
+
+综合 **9.50**（标准 4 维 **9.525** × 0.5 + 深度 4 维 **9.475** × 0.5）—— 回评抓出 2 项并**同轮处置**：① §3.4 `requireLocalEmailVerified` 默认值**记反**（🔴 已订正）② 本批改动后**活锚点大面积失效**（已回填现址）。
+⚠ **两套口径不可直接比**：本文头部/§12 记的 **18 维 9.58** 是**批次级**口径（构成见证据 `docs/smoke/2026-10-12-m4c3.md` §7）；本节 **9.69（v0.5 自评）/ 9.50（收口轮回评）** 为**文档 8 维**口径。**撤回 v0.5 的 9.69**（口径过窄 · 未核官方默认值）。
+
 ## 12. 修订记录
 
 | 版本 | 日期 | 变更 |
+| v1.5 | 2026-10-13 | **M4c 完整 converge 收口轮（纯文档 · 零实现改动）** —— ① 🔴 **`requireLocalEmailVerified` 默认值 `false` ⇒ `true`**（真源 `link-account.mjs:78` `?? true`）+ **风险方向翻转** ② §3.1 `issuer` 限定（仅 id_token 路径）③ 活锚点回填（`identity.ts:154` · `env.ts:125-126` · `Login.tsx` 300 行 · `ldap-credentials.ts` 193 行）④ §10 上游表标包名 ⑤ §6 L5 补 F318 ⑥ §3.4 占位邮箱按域判定 ⑦ 新增 **§11.7 收口轮 8 维回评** ⑧ §3.2 补「全采官方默认」段 ⑨ §3.7 判据① 范围限定 ⑩ **F322–F324 登记** |
 |------|------|------|
 | v1.4 | 2026-10-12 | **批收口（T11 · 纯文档 · 零行为改动）** —— ① 登记 **F321** ② 批收口自检 **9.58** ③ 证据文件 `docs/smoke/2026-10-12-m4c3.md` + F 号 4 处同步（`docs/00` §5 **M4c-3 子行 ⇒ ✅ 已收口**） |
 | v1.3 | 2026-10-12 | **实现期 T10 轮 —— 验证脚本落地（L5 + L6）+ 连带回改 + F315–F320** —— ① 新建 2 件（L5 `m4c3-entra-fake-issuer.ts` **11/0** · L6 `m4c3-login-providers-dogfood.ts` **6/0**） ② `m4b2-ui-redo-assertions.ts` 回改 7 处 + A4 文案 + `SMOKE_CDP` ⇒ **49/0** ③ **F319 修**（`app.ts` 回调判据 `ok\|302`）④ **F318** 注入位 ⑤ **F320** 口径订正 ⑥ 服务端全量 **674/0** · 18 维 **9.57** |
-| v1.2 | 2026-10-12 | **实现期 T9 轮 —— 管理面连带落地（审计分组标签 + 占位邮箱列）** —— ① **4 件**：`AdminAudit.tsx`（`'oidc'` ⇒ `'external'` + 补 `'user'`）、`i18n/{zh,en}.ts`（改名 + 新增）、`AdminUsers.tsx`（+2 注释 · 零逻辑改动） ② **真页双语实测**：9 组含 `external` / 无 `oidc` · 组标签「… LDAP / 外部身份源 / 用户」（EN：External / Users）· 双语「OIDC」0 命中 ③ **断言① 真库实测**（1 行临时造数 · 用完即删）：出参 `email: null` · 不泄露占位串 · 真页显「—」 ④ **F313**（`user` 组无标签 ⇒ 顺手补 · 键账 **699 → 700**）⑤ **F314**（M4b-6 design 组清单陈旧 ⇒ 归 T11）⑥ 门禁 275/141/3/50/37/2 · 三绿 + build · 18 维 **9.55** |
+| v1.2 | 2026-10-12 | **实现期 T9 轮 —— 管理面连带落地（审计分组标签 + 占位邮箱列）** —— ① **4 件**：`pages/AdminAudit.tsx`（`'oidc'` ⇒ `'external'` + 补 `'user'`）、`i18n/{zh,en}.ts`（改名 + 新增）、`pages/AdminUsers.tsx`（+2 注释 · 零逻辑改动） ② **真页双语实测**：`/api/audit/actions` = 9 组含 `external` / 无 `oidc` · 动作下拉 **34 项** · 组标签「资产 / 审核 / 标签 / 令牌 / 登录 / 设备 / LDAP / 外部身份源 / 用户」（EN：**Assets** / … / LDAP / **External** / **Users**）· 双语「OIDC」0 命中 ③ **断言① 真库实测**（1 行临时造数 · 用完即删 · **库复位 728**）：出参 `email: null` · **响应 JSON** 内 `placeholder.invalid` **0 命中** · 真页显「—」 ④ **F313**（`user` 组无标签 ⇒ 顺手补 · 键账 **699 → 700**）⑤ **F314**（M4b-6 design 组清单陈旧 ⇒ 归 T11）⑥ 门禁 275/141/3/50/37/2 · 三绿 + `build` **exit=0** · 18 维 **9.55** |
 | v1.1 | 2026-10-12 | **实现期 T8 轮 —— F298 关账 + Q3 甲 订正（F312 实测反证）** —— ① **F312**：Q3 甲「调序 ⇒ 落点确定」**方向错误**（原序落 `/` 5/5 · 调序后落 `navigate('/login?next=…')` 5/5；根因 = 401 分流 `AuthProvider.tsx:116-119` 与 `await refresh()` 的相对位置）⇒ **不采纳调序**（零行为改动 + 「本序不可调换」注释） ② **F298 关账**：正证 5/5 落 `/` · 反证无 `/login` 留驻（60×50ms 采样） ③ 件面**仍 25**（无新增件）· 门禁 **275/141/3/50/37/0** · 18 维 **9.57** |
 | v1.0 | 2026-10-12 | **实现期 T7 轮 —— 登录页入口落地（退役 `altMode`）+ 件面 24 → 25 + 骨架修正（F311）** —— ① provider **文字链一行**（按启用集渲染 · 常态下划线 · 1×12 竖线 · 1 项无竖线 · 0 项不渲染）· 16px · 失败行 E2 · 两错误互斥 · 骨架含链接行位且随启用集条件渲染 ② **真页实测十断言全绿**（ZH 249.77 / EN 294.30 · 竖线 1×12 · 间距 16 · 骨架 301 = 301 / 265.5 = 265.5 · 误配 +8px · 0 JS errors（含 `console.error` 捕获））③ **F311** 骨架 5px 跳动修正 ④ **件面 24 → 25**（`api/auth.ts`）⑤ 判据① **全代码面归零**（F308 的 T7 出口达成）· i18n **699 坐实 F310** ⑥ 门禁 **275/141/3/50/37/0** · 18 维 **9.54** |
 | v0.9 | 2026-10-12 | **实现期 T6 轮 —— 判据口径 + 键账 + 落点（F308 / F309 / F310）** —— ① **F308** §3.7①「全仓零命中」字面不可执行 ⇒ **范围写明**（代码面 + 活文档零命中；历史文档与本批 design/plan 豁免）· T6 = 服务端面 / T7 = 全代码面 / T11 = 批级 ② **F309** i18n `errors` **−3 键归 T6**（生产点同批删）③ **F310** `admin` 组为改名 ⇒ **净 0** · 批末全仓 **699**（T6 后中间值 698）④ T6 落地：**删件 4 + 改件 26**（生产 14 · 测试 8 · 文档与门禁 4）· 服务端全量 **674/0/0**（57 文件）· 门禁 **275/141/3/50/37/0** · 18 维 **9.51** |
@@ -550,7 +558,7 @@ socialProviders: {
 |----|----|-----------|------|
 | **F298** | 设计 ⇄ 实现偏差（登出落点） | 登出落点**不确定**：主 design / 批 design §4.4 明文「登出回首页 `/`」· 应用侧真码实测为 `UserMenu.tsx:86-88` 的 `invalidateCache(); await refresh(); navigate('/', { replace: true });` —— 即 **navigate 在 `refresh()` 之后**（竞态窗正在此处；`{replace:true}` 已在场）；但实测两态都有（2026-10-10 逐份 `.log` 回读订正：换断言前 **1 次**落 `/login`；换新断言后 **3 次**跑均落 `/`）—— 竞争者两条路径均在真码场（`RoleGuard.tsx:38-41` 的 anon 跳 `/login?next=` · `client.ts:343-359` 401 分流 ② 档 → `AuthProvider.tsx:119`），**「哪条最后生效」属执行序竞态** | **断言侧已修（2026-10-10）**：`m4b2` G5 改按设计契约（不留在受保护路由 · 复用 `next.ts` 的 `isProtectedRoute` 单点 + 三档角色面归零 + 用户区回登录入口 + `/me` 401）· 隔离复跑 **24/0**。**产品侧 = 本批 Q3 甲**（统一落 `/` · `UserMenu.tsx:80-89` 一处调序）+ **探针正反双证** ⇒ 本批**关账** |
 | **F303** | 主 design 估算层失真 | 三处：① **§2.7 件面**写「改造 3」，实测**改造 25 件 · 新建 2 件**（T7 轮再 +1 = `apps/web/src/api/auth.ts`；**测试件 5** = `env.test.ts` / `identity.test.ts` / `meta.test.ts` / `better-auth.test.ts`（T2 轮 +）/ `admin-users.test.ts`（T4 轮 +）· 注释订正 4；**+`AdminUsers.tsx` 由 UI 评审轮 P7 丙 补入**）② **§10.2 线框**只画 2 个按钮，实名单 = 3 社交 + 1 Entra（示意未标注）③ **§2.3 表** M4c-3 行对齐要点未含测试策略 ⇒ 主 design 缺「等价完成判据」（M4c-1 有 R16，M4c-3 无） | 本批承载真值（**§3.5 件面 · §9 线框 · §6 测试策略 · §3.7 判据**）+ **主 design 三处就地订正**（§2.7 数字订正为「删件 4 · 改造 **24** · 新建 2」· §10.2 线框加「示意 · 按启用集渲染」注 · §2.3 行补判据指针）；实现 Task 见批 plan |
-| **F304** | 主 design 引用锚点失效 | §6.1 写「本仓自绘端点已有同款处理（`plugins/ldap-credentials.ts:393` 的固定假哈希校验）」—— **实测该文件仅 267 行**（行号越界）；真身 = `apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）+ `:63` / `:69`。**且该处理挂在官方 `password.verify` 存值前缀分派上，不依赖任何 OIDC 端点** ⇒ §6.1「须跟着迁移」的前提**不成立**（本批零迁移风险） | 本批**只订正引用**（主 design §6.1 行号改 `auth/password-verify.ts:35/63/69` + 注明「不随 OIDC 退役而迁移」）· **不改该逻辑**（零行为变更） |
+| **F304** | 主 design 引用锚点失效 | §6.1 写「本仓自绘端点已有同款处理（`plugins/ldap-credentials.ts:393` 的固定假哈希校验）」—— **实测该文件仅 193 行（收口轮订正）**（行号越界）；真身 = `apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）+ `:63` / `:69`。**且该处理挂在官方 `password.verify` 存值前缀分派上，不依赖任何 OIDC 端点** ⇒ §6.1「须跟着迁移」的前提**不成立**（本批零迁移风险） | 本批**只订正引用**（主 design §6.1 行号改 `auth/password-verify.ts:35/63/69` + 注明「不随 OIDC 退役而迁移」）· **不改该逻辑**（零行为变更） |
 | **F305** | `docs/07` §3 键账过期 | §3 正文写 `users`（用户管理 · 已落地 **63 键**）与 `account`（自助改密 · 已落地 **13 键**）；**实测**（逐键枚举）`users` = **65** · `account` = **12**（zh / en 双向一致）—— 前者落后头部/§3.3 的 65，后者多算 1 | 本批**同批订正**（§3 正文两处数字改实测值 + §3.3 注记 + 修订行），因本批本就要动 `docs/07`（`login` 组键账） |
 | **F306** | 主 design 形态措辞过期 | 主 design **§2.6 R13** 写「现有右栏表单下方**加分隔线 + 按钮组**」，另有 **3 处**同口径指针（§3 入口指针 · §5.1 小标题 · §10.2 线框）—— **v0.5 已改为「provider 文字链一行 · 无分隔线」** ⇒ 主 design **4 处**与本批 design 冲突（R13 的「**不改页面结构**」仍守） | **本批承载真值**（§4.1 件与档 · §4.6 P14–P17 · §9 线框）+ **主 design 4 处就地订正**随实现批文档笔（同 **F303/F304 · G8** 口径）；**同步面**：README §6.1 号段（本次已同步）· 证据 §5 与 `docs/00` §5 子行随实现批 / 收口批补（与 F303–F305 同口径） |
 | **F307** | 设计 ⇄ 真码（官方错误码） | 批 design 四处（§3.6 / §3.7 ④ / §6 L2 / §6 L7 ③）把「provider 未装配」的官方 404 `code` 写作 **`oauth_provider_not_found`**；**实测**（T2 靶测试 + 真服务 `curl`）真值 = **`PROVIDER_NOT_FOUND`**（body `{"message":"Provider not found","code":"PROVIDER_NOT_FOUND"}`），且官方源 `@better-auth/core@1.7.5` `dist` 内 **`oauth_provider_not_found` 零命中**、`PROVIDER_NOT_FOUND` 见 `error/codes.mjs:14` / `codes.d.mts:27`（**正反双证**） | **本批同批订正**（design 4 处 + plan 3 处 + 测试期望改 `PROVIDER_NOT_FOUND`）· ⚠ **无行为影响**：前端**不按官方码分支**（失败态统一走本仓 `login.providerFailed` 文案 · §4.1 交互第 3 步）⇒ 纯文档口径纠错；**同步面**：README §6.1 号段（本次已同步）· 证据 §5 与 `docs/00` 随实现批 / 收口批补 |
@@ -568,6 +576,9 @@ socialProviders: {
 | **F319** | **实现 bug（T5 引入 · L5 照出）** | `app.ts` 包装层回调分支判据 `response.ok && externalCallbackProvider` —— 官方 `/api/auth/callback/:id` **成功返回 302**，而 `response.ok` 仅含 2xx ⇒ 该分支**永不进入** ⇒ **OAuth 登录成功永不记 `auth.login.success`**（**G5「三通道登录审计口径统一」落空**）。T5 当时只有**负例**验证（本地注册 ⇒ 零 `external.provisioned` 行）⇒ 负例天然抓不到「正例该记而未记」 | **本批修**（用户 2026-10-12 拍板「修」）：判据改 `response.ok \|\| response.status === 302`（**仅本分支**）；**不误记失败登录** —— 失败回调不下发会话 cookie ⇒ `sessionOwnerOfSetCookie` 返回 null ⇒ 不写审计（不另加启发式）· L5 的 **L7** 断言转绿 · 服务端全量 **674 / 0** 回归 |
 | **F320** | 设计口径偏差（官方真值） | §6 L5 写「**注意** `tenantId ≠ common` 时官方**校验 `issuer`**」。**真读官方源码 + 实测**：该校验（`oauth2/verify-id-token.mjs` 的 `issuer`/`audience`/`verifyClaims`）**只服务「客户端提交 `id_token` 登录」路径**；**授权码回调流不验签、不校 `iss`**（`getUserInfo` 仅 `decodeJwt` 取 claims）⇒ L5 实测：`iss` 换**他人租户**流程**仍成功** | **口径订正**（本批同批）：L5 的真守卫改写为「**缺 `oid` ⇒ 官方拒绝**」（实测落 `unable_to_get_user_info`）；脚本保留 **L9b 行为记录断言**（**非期望断言** ⇒ 官方将来开始校验即翻红提醒）；**风险如实登记**：代码流的信任锚 = **token 端点本身**（OAuth 标准模型 · 非本仓可控面） |
 | **F321** | L7 ⑧ 复测受阻（探针环境项） | T11 复核轮在**临时隔离实例**（API `:3100` + web `:5174`）复测「误配降级 + 两条错误互斥」时，**浏览器侧经 vite 代理的 POST 挂起**（登录 POST 永不返回 ⇒ 表单错误条不出现）；**同实例 `curl` 走同一代理正常**（`/sign-in/username` ⇒ `401` · 未装配 provider ⇒ `404`）⇒ 非产品缺陷、**未定位根因** | **如实登记**（不按红改断言）：⑧ 结论**引用本批 T7 实测**（providerFailed 落链接行之下 **+8px** + 表单错误同屏清零）；后续探针改用 **rogue-free 路径**（`curl`/自管实例 runner）复核 |
+| **F322** | 规范层与实现口径矛盾（收口轮） | `docs/05-identity-access.md` §4 准入结果仍列 `PENDING_APPROVAL`，与同文件 §4.1「`PENDING` 彻底删除」及 M4c-2 §2.6 R7 直接矛盾（主 design §14 声明该同步归 M4c-2 · 未落地） | ✅ **已订正**（`05` **v1.15** · 2026-10-13 · 收口轮） |
+| **F323** | 平台准入限制（外部通道 · 口径登记） | **微信通道本地不可闭环**：微信开放平台为**审核制 + 授权域名绑定**（官文《网站应用微信登录开发指南》：「拥有一个**已审核通过的网站应用**…申请微信登录且通过审核」「redirect_uri 的域名与**审核时填写的授权域名**不一致」；better-auth 官文 Development Notes 同口径「redirect URL domain must match the domain configured in the WeChat Open Platform」）⇒ 回调域 = `localhost` **结构上不满足**，与凭据真假无关 | **口径登记 · 不修代码**（2026-10-13）：本地联调走 Google / GitHub / Microsoft；微信待有可登记域名后再排 |
+| **F324** | 准入策略缺口（安全 · **待拍板**） | **三社交通道（google / github / wechat）无任何准入收紧**：锁定版 `ProviderOptions` 内置 `disableImplicitSignUp` / `disableSignUp` / `requireEmailVerification`（`oauth2/oauth-provider.d.mts:228/232/371`）与 google 的 `hd` 均**未使用** ⇒ 任何外部账号（含个人 Gmail / 任意 GitHub 账号）可**自助建号**并获 `role=user`（`asset:publish` + `review:submit`），而产品口径为「企业内网账号由管理员 / 企业目录建立 · `REGISTRATION_ENABLED` 默认关闭」（该开关**只管邮箱注册** · 与社交通道无关） | **待拍板**（2026-10-13 · 用户「先这样」· 不修代码）：最小档建议 = 四通道 `disableImplicitSignUp: true`（仅链接不建号 · 与既有口径一致）· google 可另加 `hd`；已留 F318 注入位可保测试覆盖 |
 
 ## 14. grilling 轮定案（G1–G12 · 两轮全采 · 2026-10-12 · 用户「按推荐来」）
 
@@ -576,7 +587,7 @@ socialProviders: {
 | # | 议题 | 定案 | 代价 / 留痕 |
 |--:|------|------|------|
 | G1 | Entra 租户是否收紧必填（**安全**） | **必填**：`ENTRA_ENABLED=true` 且 `ENTRA_TENANT_ID` 为空 ⇒ **拒启**（缺省 `''`） | 部署须先取得租户 ID；`env.ts` **+1 校验** |
-| G2 | 自动链接适用范围（**安全**） | **保持官方默认**（不加第二套机制）+ **风险入档**（§3.4 已知风险） | 残余风险如实登记（本地账号可被同邮箱第三方接管 · 收紧口 = 官方 `requireLocalEmailVerified`） |
+| G2 | 自动链接适用范围（**安全**） | **保持官方默认**（不加第二套机制）+ **风险入档**（§3.4 已知风险） | **收口轮订正**：实测默认 **true** ⇒ 真实边界 = 未验证邮箱的本地账号**无法被链接**；原「可被接管」不成立（若要放开链接才需显式置 `false`） |
 | G3 | 入口跳转形态 | **同页跳转**（SDK 默认跳 · 不取 `disableRedirect`） | **订正 Q2-R3**（原「新标签页 + 可关」）；**顺带消 F5 缺口** |
 | G4 | 回调落点 | **严格走 `sanitizeNext` 的 `destination`**（不经 `/?oidc=success` 式旁路） | 零（复用既有单点） |
 | G5 | 外部通道登录审计 | **补记 `auth.login.success`**（`detail.provider`）；建号另记 `external.provisioned` | 包装层 +1 补记分支（同 `sign-out` 先例） |

@@ -392,7 +392,7 @@
 ---
 
 > **实现期前置发现（T7 收尾侦察，2026-09-18）** —— 开工 T12 前须先补 **2 类件**（否则权限单点件 = 死代码）：
-> 1. **`hooks/useViewer`（会话/档位读取）缺失** —— web 侧现无 `useSession`/viewer 抽象（`hooks/` 仅 `use-mobile`/`useApi`/`useMarketQuery`；`api/auth.ts` 为 better-auth 客户端）⇒ **按权限显隐的前提件**。
+> 1. **`hooks/useViewer`（会话/档位读取）缺失** —— web 侧现无 `useSession`/viewer 抽象（`hooks/` 仅 `use-mobile`/`useApi`/`useMarketQuery`；`api/auth.ts` 为 better-auth 客户端）⇒ **按权限显隐的前提件**。（**后续变更指针（M4c 收口轮补）**：M4c-1 已落 `apps/web/src/auth/AuthProvider.tsx` 会话层 + `auth/roles.ts` 档位读取 ⇒ 本行「缺失」为 M4b-4 期状态）
 > 2. **写操作 wrappers 缺失** —— `api/assets.ts` 仅 3 导出（list/detail/params）· `api/labels.ts` 仅 `fetchLabels`
 >    ⇒ 需补 `patchAssetStatus` · `deleteAsset` · `deleteVersion` · `yankVersion` · `attachLabel` · `detachLabel`。
 > 3. `pages/AssetDetail.tsx`（M4a 只读页）**现零管理动作、零权限逻辑** ⇒ `lib/asset-permissions.ts` 必须与

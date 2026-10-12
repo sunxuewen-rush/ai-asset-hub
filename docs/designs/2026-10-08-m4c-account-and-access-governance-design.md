@@ -1,11 +1,11 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-13（**v0.29：M4c 完整 converge 收口轮（纯文档 · 零实现改动）** —— ① **F322–F324 登记**（号段 `docs/README` §6.1）② §2.3 三批登记行**去硬版本 + 状态回填**（M4c-1 v0.21 / M4c-2 **9.44** / M4c-3 实名 v1.4）③ §2.5 **F 上界 ⇒ F321** · 锚点回填（`auth/identity.ts:154` · `internal-adapter.mjs:652-669` · `config/env.ts:39`）④ §2.7 件面 21 ⇒ **25** / ≥36 ⇒ **≥40** ⑤ **§4.6 错误码终态 ⇒ 删 6 留 6**（`email_conflict` 实留：目录通道保留「同邮箱即拒」· R18 实现期偏离登记）⑥ §7.2 / §7.3 / **§12 线框** ⇒ 用户管理归**超级管理组** ⑦ §8:483 错误码行 / §8.1（补 `field` · `password` **必填**）/ §11 移除项 6 码 ⑧ §6.1 行数改「**不记行数**」（防读数腐化）⑨ §14 `05` 行标 **✅ 已落地**（`05` **v1.15**）+ 章节边界注）
 > Updated: 2026-10-12（**v0.28：M4c-3 实现期就地订正（F303 / F304 / F306）** —— ① **F306**：§2.6 **R13** 形态措辞「表单**下方加分隔线 + 按钮组**」⇒ **「表单下方 provider **文字链一行**（13px 本页链接档 · 常态下划线 · 项间 1×12 竖线 · **无分隔线** · 主按钮↔链接行 16px · 按启用集渲染）」**；连带 **4 处**同口径指针同步（§3 入口指针 · §5.1 小标题与名单 · §10.2 线框） ② **F303**：§2.7 **件面数字**订正 —— M4c-3 行「新增 0 / 改造 3 / 退役 2」⇒ **「新增 2 / 改造 21 / 退役 4」**（实现期再补入 4 件 ⇒ 批 design §3.5 计 **25**）；§2.3 拆批表补**判据指针**（等价完成判据 = 批 design §3.7） ③ **F304**：§6.1 时序侧信道锚点 —— 原 `plugins/ldap-credentials.ts:393` **随自绘端点退役失效** ⇒ 改 `apps/server/src/auth/password-verify.ts:35/63/69`（等价耗时处理已在 M4c-1 迁至该件 · **不随 OIDC 退役而迁移**） ④ 另订正 **F314**（M4b-6 批 design 组清单/键名）与本批实现期口径一致 · 本件契约面**无新增**）
 > Updated: 2026-10-09（**v0.27：M4c-2 批 plan 首稿回填** —— §2.3 行更新：批 plan = `M4c-2-user-governance.md`（**已立 · v0.1 首稿** · T1–T8 · 自检 9.39）；本件契约面**未改**）
-> Updated: 2026-10-09（**v0.26：M4c-2 批 design 定稿回填** —— §2.3「各批预期产出物」行更新：批 design = `2026-10-09-m4c2-user-governance-design.md`（**已立 · 定稿** · 8 维 **9.50** · v0.2 · grilling U1–U5 全定案）；批 plan = `M4c-2-user-governance.md`（待立）。本件 §4 契约面**未改**（M4c-2 实现细则以批 design 为准 · 批内内容迁移规则））
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
-> **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
+> **定稿条件（三项已全闭合）**：① **文档 8 维自检 ≥9** —— **9.4**（标准 4 维 9.50 · 深度 4 维 9.38；轨迹 9.50窄口径撤回 → 9.06 → 9.44 → 9.44补章）✅ · **M4c 收口轮复评 9.31**（标准 9.35 · 深度 9.275 · 2026-10-13 · 17 处订正后） ② **决策登记闭环** —— §2.1 **D1–D14** + §2.6 **R1–R22**（grilling 4 轮 + 完整性体检 1 轮）全部已确认 ✅ ③ **整体检查零未决项** —— 读全文 + 量化声明实测 + 引用件真实性 + 决策跨节一致性 四靶（5 项缺陷已修 · 26 处补章）✅ ⇒ **2026-10-08 用户批准转定稿**。
 > 视觉归属：**随批就地定稿**（引 M4a §4.4 · 2026-09-28 拍板 · 2026-10-08 复核维持）。本文为**纯设计语言**（意图与契约）。
 > Scope: M4c（`00` §5）—— **账号与权限治理：管「人」不管「资产」**。含认证层统一到官方 + 用户管理面 + 外部身份源接入；**不含**资产面任何功能。
 > 引用链：本文档 → 规范 `00` §5/§7 · `05` §3/§4/§6 · `07` §3 · `08` §5（**引用不复制**，字段与规则以规范为准）。
@@ -58,8 +58,8 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 批 | 主题 | 范围要点 | 服务端改动 | 前置 |
 |----|------|---------|-----------|------|
 | **M4c-1** | **认证层统一到官方** | 前端三层改官方 SDK（调用层 / 会话层 / 交互层）+ 基于 SDK 扩展 · 档位适配（官方 role 文本 ↔ 本仓数值档）· 字段适配（官方 `name` ↔ 本仓 `displayName`）· 401 分流口径保留 · 后端：目录用户**凭据委派行** + 官方 `password.verify` 分支 + **不短路的首登建号钩子** + 身份源共享模块 + `accountId` 语义统一 · **退役自绘端点 `signInAih`** | **中**：1 次数据迁移（凭据行补齐 + `accountId` 归一）+ 认证配置面 + 1 处薄层退役 | — |
-| **M4c-2** | **账号与权限治理** | 用户管理页 `/admin/users`（列表 / 筛选 / 分页 · 改角色 · 封禁·解封 · **强制登出** · 管理员建号 · **本地账号自助改密**（R21 · 用户区入口））+ 权限码表扩展 + 侧栏「管理」组条目 + i18n 新组 | **小**：启停列退休（1 次迁移）+ 权限码扩展 + 用户面薄端点（内部委托官方）+ 列表「最后登录」聚合（R22） | M4c-1 |
-| **M4c-3** | **外部身份源接入** | 社交 provider（名单见 §2.6 R10）· **官方件替自绘 OIDC**（内置 Entra ID provider · 退役 `oidc-routes.ts` + `signInAihOidc`）· 账号链接策略统一（经 §3.4 共享模块）· 登录页 provider 入口（**判据 = 等价完成判据 §3.7** · **批 design** = `2026-10-12-m4c3-external-identity-design.md`（定稿）· **批 plan** = `M4c-3-external-identity.md`） | **小–中**：认证配置面 + 1 处薄层退役 + （不采 SSO 插件 ⇒ 无自带模型迁移） | M4c-1 |
+| **M4c-2** | **账号与权限治理** | 用户管理页 `/admin/users`（列表 / 筛选 / 分页 · 改角色 · 封禁·解封 · **强制登出** · 管理员建号 · **本地账号自助改密**（R21 · 用户区入口））+ 权限码表扩展 + 侧栏「**超级管理**」组条目 + i18n 新组 | **小**：启停列退休（1 次迁移）+ 权限码扩展 + 用户面薄端点（内部委托官方）+ 列表「最后登录」聚合（R22） | M4c-1 |
+| **M4c-3** | **外部身份源接入** | 社交 provider（名单见 §2.6 R10）· **官方件替自绘 OIDC**（内置 Entra ID provider · 退役 `oidc-routes.ts` + `signInAihOidc`（含测试件 · 共 4 · 见 §2.7））· 账号链接策略统一（经 §3.4 共享模块）· 登录页 provider 入口（**判据 = 等价完成判据 §3.7** · **批 design** = `2026-10-12-m4c3-external-identity-design.md`（定稿）· **批 plan** = `M4c-3-external-identity.md`） | **小–中**：认证配置面 + 1 处薄层退役 + （不采 SSO 插件 ⇒ 无自带模型迁移） | M4c-1 |
 
 **编排说明**：
 
@@ -77,9 +77,9 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 批 | 预期 design | 预期 plan | 对齐要点（立项时逐条过） |
 |----|------------|----------|------------------------|
-| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿** · 8 维 **9.50** · **v0.12** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL（语句 ⓪ 回填 `username = lower(account_id)` 以保全存量登录名 · F284）+ 执行窗口口径 + P1–P3 探针） | `M4c-1-auth-layer-unification.md`（**已立** · **v0.11** · T1–T8 · **执行中：T1 ✅ · T2 ✅ · T3 ✅ 2026-10-09**） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
-| M4c-2 | `2026-10-09-m4c2-user-governance-design.md`（**已立 · 定稿 2026-10-09** · 8 维 **9.50** · **v0.2** · grilling U1–U5 全定案） | `M4c-2-user-governance.md`（**已立 · v0.1 首稿** · T1–T8 · 自检 **9.39** · 待拍板） | 用户管理页交互（§10.2 状态-动作表）· 列表筛选/分页契约 · 建号 Dialog 字段与校验 · 权限门槛分档 · 启停列退休改动面 · 自我操作护栏（不能封自己 / 不能降自己）· **自助改密 Dialog 与目录账号拒绝口径（R21）** · **最后登录聚合取数（R22）** |
-| M4c-3 | `2026-MM-DD-m4c3-external-identity-design.md` | `M4c-3-external-identity.md` | 三个 provider（Google/GitHub/WeChat）开关范式 · 官方内置 Entra ID provider 接入（§2.6 R4）· 账号链接策略（§2.6 R1）· 占位邮箱口径（§2.6 R11）· 登录页 provider 入口交互 · provider 不可达降级 |
+| M4c-1 | `2026-10-08-m4c1-auth-layer-unification-design.md`（**已立 · 定稿 2026-10-08** · 8 维 9.50 · **版本以件头为准** · 批内对齐 B1–B10 全部确认 · 迁移 `0015` 幂等 SQL（语句 ⓪ 回填 `username = lower(account_id)` 以保全存量登录名 · F284）+ 执行窗口口径 + P1–P6 探针） | `M4c-1-auth-layer-unification.md`（**已立 · T1–T8 · ✅ 本批完成 2026-10-09** · 版本以件头为准） | 官方 SDK 三层落点清单 · 档位/字段两处适配 · 401 四分类保留口径 · 凭据委派行数据契约 · `verify` 分支行为 · 建号钩子时序 · `accountId` 迁移脚本口径 · `signInAih` 退役的调用点切换顺序 · 时序侧信道 |
+| M4c-2 | `2026-10-09-m4c2-user-governance-design.md`（**已立 · 定稿 2026-10-09** · 8 维 **9.44**（v0.10 增量重评）· grilling U1–U5 全定案 · 版本以件头为准） | `M4c-2-user-governance.md`（**已立 · T1–T11 · ✅ 已收口（含 2026-10-12 验收期增量）** · 版本以件头为准） | 用户管理页交互（§10.2 状态-动作表）· 列表筛选/分页契约 · 建号 Dialog 字段与校验 · 权限门槛分档 · 启停列退休改动面 · 自我操作护栏（不能封自己 / 不能降自己）· **自助改密 Dialog 与目录账号拒绝口径（R21）** · **最后登录聚合取数（R22）** |
+| M4c-3 | `2026-10-12-m4c3-external-identity-design.md`（**已立 · 定稿 2026-10-12** · 版本以件头为准） | `M4c-3-external-identity.md`（**已立 · T1–T11 · ✅ 批收口完成**） | 三个 provider（Google/GitHub/WeChat）开关范式 · 官方内置 Entra ID provider 接入（§2.6 R4）· 账号链接策略（§2.6 R1）· 占位邮箱口径（§2.6 R11）· 登录页 provider 入口交互 · provider 不可达降级 |
 
 ### 2.4 对齐决策登记
 
@@ -89,18 +89,18 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 ### 2.5 立项期已核实事实（明细随各批 design 登记 F 号）
 
 > 规则（`docs/designs/README.md`）：F 号全局连续 · 明细主家 = **批 design 的「实施期发现与处置（F…）」** 小节；
-> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F290**），登记时同步 `docs/README.md` §6.1 号段行。
+> 本表只作立项期收口清单，**不代替**批 design 明细。新号自**下一个可用号**起分配（现上界 **F321**），登记时同步 `docs/README.md` §6.1 号段行。
 
 | 面 | 已核实事实（真码/实测锚点） | 待落批次 |
 |----|--------------------------|---------|
 | 权限码 | 权限码表缺 `session` 资源与 `set-password` ⇒ 官方 `list-user-sessions` / `revoke-user-sessions` 开箱 403 | M4c-2 |
-| 认证门 | 官方认证面不读本仓 `status` 列（`apps/server/src/app.ts:148` 无状态门） | M4c-1 |
+| 认证门 | 官方认证面不读本仓 `status` 列（`apps/server/src/app.ts` 认证面挂载处无状态门 · 立项期行号 `:148` 已随 M4c-1 前移） | M4c-1 |
 | 建号 | 官方 `create-user` body **无 `username` 字段**（`email` 必填且强制小写）；`password` **可选**（不传则该用户不建凭据行）；官方 username 插件**无 `set-username` 端点**（仅 `is-username-available` / `sign-in/username`，实测 `dist/plugins/username/index.mjs`） | M4c-2 |
 | 列表 | 官方 `list-users` 异常吞错返空列表；`searchField` 需白名单 | M4c-2 |
 | 规范 | `05` §4 缺「策略 → 准入结果」映射表 | M4c-2 |
-| 文档 | `docs/plans/M4b-4-me-assets-and-console.md:395` 措辞不实 | 本批收尾 |
-| 账号行 | 本仓凭据行 `accountId = 工号`（`apps/server/src/db/seed.ts:59`），官方口径 `accountId = user.id`（`dist/db/internal-adapter.mjs:652-668`）⇒ 官方 `sign-in/username` 对本仓既有种子账号返 401 | M4c-1 |
-| 建号路径 | 目录建号走直写 drizzle（`apps/server/src/auth/plugins/ldap-credentials.ts:200-215`），绕过官方 `databaseHooks` / username 规范化 / 邮箱小写 | M4c-1 |
+| 文档 | `docs/plans/M4b-4-me-assets-and-console.md:395` 措辞不实（**已销账 2026-10-12**：该行已加后续变更指针 · M4c-1 落 `web/src/auth/AuthProvider.tsx` 会话层） | 本批收尾 ✅ |
+| 账号行 | 本仓凭据行 `accountId` **= 工号**（**立项期口径** · `db/seed.ts` 当时 `:59`；M4c-1 已归一为 `user.id`），官方口径 `accountId = user.id`（`dist/db/internal-adapter.mjs:652-669`）⇒ 官方 `sign-in/username` 对本仓既有种子账号返 401 | M4c-1 |
+| 建号路径 | 目录建号走直写 drizzle（**立项期** `auth/plugins/ldap-credentials.ts:200-215`；M4c-1 后直写逻辑迁 `auth/identity.ts:154`，该文件现 **193 行**），绕过官方 `databaseHooks` / username 规范化 / 邮箱小写 | M4c-1 |
 | 钩子时序 | 官方 before 钩子运行在**端点自身中间件之前** ⇒ 钩子内短路返回会**绕过**官方 Origin/CSRF 校验 | M4c-1 |
 | 钩子限制 | 官方 after 钩子只能改写响应体与响应头，**改不了 HTTP 状态码**（`dist/api/dispatch.mjs` 失败路径） | M4c-1 |
 | 上游位置 | **provider 实现不在 `better-auth/dist`，在 `@better-auth/core/dist/social-providers/`**（**36** 个 provider：目录 37 个 `.mjs` − 1 个聚合出口 `index.mjs`；含 google/github/gitlab/**wechat**/microsoft-entra-id）⇒ 查上游必须查 core 包且带阳性对照 | M4c-3 |
@@ -109,7 +109,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 封禁挂点 | 官方封禁判定 = `databaseHooks.session.create.before`：已过 `banExpires` ⇒ **自动解封**并放行；否则抛 `FORBIDDEN` + `code:'BANNED_USER'` + 可配 `bannedUserMessage` | M4c-2 |
 | 封禁联动 | `ban-user` 会 `deleteUserSessions(userId)`；官方**已有** `YOU_CANNOT_BAN_YOURSELF` 与 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` 等码 | M4c-2 |
 | 吊销返回 | `revoke-user-session(s)` 返回 **`{ success: true }`（不含数量）**；两者权限码均只需 `session:['revoke']`（`list` 仅在 `list-user-sessions` 用到） | M4c-2 |
-| 注册默认 | `env.ts:35` `REGISTRATION_ENABLED` 默认 **true** + `better-auth.ts:80` `disableSignUp: !env.REGISTRATION_ENABLED` ⇒ 官方 sign-up 端点默认开放 | M4c-1 |
+| 注册默认 | **立项期**：`env.ts:35` `REGISTRATION_ENABLED` 默认 **true** + `better-auth.ts:80` `disableSignUp: !env.REGISTRATION_ENABLED` ⇒ 官方 sign-up 端点默认开放；**M4c-1 已落 R3 ⇒ 默认 `false`**（现锚点 `config/env.ts:39` · `better-auth.ts:84`） | M4c-1 ✅ |
 | 自助改密 | 官方 `/change-password`：POST body `{ currentPassword, newPassword, revokeOtherSessions? }` · 门槛 = `sensitiveSessionMiddleware`（**仅要求有效会话，无新鲜度要求** —— 实测 `dist/api/routes/session.mjs:304-311`）· 返回 `{ status: true }`（吊销其他会话时另返新 token） | M4c-2 |
 | 审计单源 | 审计动作名单源 = `apps/server/src/audit/actions.ts`（`AUDIT_ACTION_GROUPS`），由 `audit/actions.test.ts` 源码扫描兜底 ⇒ **新增 `user.*` 动作必须登记该表，否则测试红** | M4c-2 |
 | 数据分布 | **dev 库实测（2026-10-08 · 只读查询 · 脚本用完即删）**：`user.status` = `ACTIVE` **562** / `DISABLED` **2** / `NULL` **0**（共 **564** 行）；`banned=true` 现值 **0** ⇒ R8 迁移**实测命中 2 行**（官方封禁列**首次启用**）；非 `ACTIVE` 行来自 **`0009` 历史数据搬迁**（旧表 `user_account` 三态原样搬入，`0009_...sql:31,49`），**非现役代码写入** | M4c-1 / M4c-2 |
@@ -144,7 +144,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | R15 | `accountId` 语义归一载体 | **正式 drizzle 迁移**（幂等）：`credential` 行 `account_id: 工号 → user.id` + 目录账号补标记行 | §3.5 |
 | R16 | M4c-1 等价完成判据 | 三层硬判据：① `hasRole/useAuth` 对外签名不变（调用点 **21 处** · 10 文件；口径见批 design §12）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 登录态 7 个 dogfood 全绿 + `signInAih` 调用点归零（grep 断言） | §15 |
 | R17 | 并发竞态（同时改同一用户） | **不引入乐观锁**：以到达顺序胜出，前端提交后重取；并发覆盖不算缺陷 | §9 |
-| R18 | 旧错误码清算 | 收敛表：删 `user_pending` / `user_disabled` / `invalid_credentials` / `ldap_denied` / `email_conflict` / `oidc_state_mismatch` / `oidc_denied`；**保留** `email_missing` / `rate_limited` / `csrf_failed` / `session_expired` / `forbidden` | §4.6 |
+| R18 | 旧错误码清算 | 收敛表：删 `user_pending` / `user_disabled` / `invalid_credentials` / `ldap_denied` / `email_conflict` / `oidc_state_mismatch` / `oidc_denied`；**保留** `email_missing` / `rate_limited` / `csrf_failed` / `session_expired` / `forbidden` —— **实现期偏离 1 枚（收口轮登记）**：`email_conflict` 实留（目录通道保留拒绝行为）⇒ 终态 **6** | §4.6 |
 | R19 | 封禁用户的登录提示 | **跟随官方**：明确提示「账号已被停用」（配中文 `bannedUserMessage`）；其余登录失败仍统一码（不泄露存在性） | §6.2 |
 | R20 | 会话可见性 | **只给动作、不给列表**：行内「吊销全部会话」即可 ⇒ 权限码**只扩 `session:['revoke']`**（`list` 不扩）；会话明细登记为后续候选 | §4.1 / §4.3 / §4.5 |
 | R21 | 本地账号的密码生命周期 | **补「已登录自助改密」**（官方 `/change-password` · **零新权限码** · 零薄端点，仅给入口）。管理员重置密码**仍不做**（D2 不动）⇒ 补掉「本地账号忘记口令 = 死账」缺口 | §4.8 / §4.1 / §8 / §11 |
@@ -155,11 +155,12 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 批 | 新增件 | 改造件 | 退役项 | 迁移 | 新增薄端点 / 审计动作 |
 |----|-------|-------|-------|------|--------------------|
 | **M4c-1** | 1：身份源共享模块 `apps/server/src/auth/identity.ts` | 9：后端 `auth/better-auth.ts` · `auth/plugins/ldap-credentials.ts` · `auth/errors.ts` · `auth/rbac.ts` · `db/schema/auth.ts`；前端 `auth/AuthProvider.tsx` · `auth/roles.ts` · `auth/next.ts` · `api/client.ts` | 1：端点 `POST /api/auth/sign-in/aih` | **1**：凭据行 `accountId` 归一 + 目录标记行补齐 | 0 / 0 |
-| **M4c-2** | 2：`apps/server/src/http/admin-users.ts` · `apps/web/src/pages/AdminUsers.tsx` | 6：`auth/roles.ts`（权限码）· `audit/actions.ts` · `components/ui/navItems.tsx` · i18n `zh/en` · `db/schema/auth.ts`（删列）· 用户区入口 | 1：`user.status` 列 | **1**：非 `ACTIVE` → `banned` + 删列 | **5** / **5** |
-| **M4c-3** | **2**：两个 smoke 脚本（L5 `m4c3-entra-fake-issuer.ts` · L6 `m4c3-login-providers-dogfood.ts`） | **21**：`auth/better-auth.ts`（provider 装配）· `pages/Login.tsx` · i18n · `pages/AdminAudit.tsx` · `pages/AdminUsers.tsx` · `http/admin-users.ts` · `audit/*` · smoke 脚本与门禁件等（**实现期补入 4 件 ⇒ 批 design §3.5 计 25** · 逐件见批 design §3.5） | **4**：`http/oidc-routes.ts` + 其测试 · `auth/oidc.ts` + 其测试（原写 2 = 文件 + 端点） | 0 | 0 / **1**（`external.provisioned`） |
+| **M4c-2** | 2：`apps/server/src/http/admin-users.ts` · `apps/web/src/pages/AdminUsers.tsx` | 6：`auth/roles.ts`（权限码）· `audit/actions.ts` · `components/ui/navItems.tsx` · i18n `zh/en` · `db/schema/auth.ts`（删列）· 用户区入口 | 1：`user.status` 列 | **1**：非 `ACTIVE` → `banned` + 删列 | **6** / **5** |
+| **M4c-3** | **2**：两个 smoke 脚本（L5 `m4c3-entra-fake-issuer.ts` · L6 `m4c3-login-providers-dogfood.ts`） | **25**：`auth/better-auth.ts`（provider 装配）· `pages/Login.tsx` · i18n · `pages/AdminAudit.tsx` · `pages/AdminUsers.tsx` · `http/admin-users.ts` · `audit/*` · smoke 脚本与门禁件等（含实现期补入 4 件 · 逐件见批 design §3.5） | **4**：`http/oidc-routes.ts` + 其测试 · `auth/oidc.ts` + 其测试（原写 2 = 文件 + 端点） | 0 | 0 / **1**（`external.provisioned`） |
 
-**规模量级（条目级 · 各列以各批 design 为准）**：新增件 **5**（1+2+2）· 改造件 **≥36**（9+6+21 · M4c-3 已按实现期实测订正）· 退役项 **6**（1+1+4）· 迁移 **2** · 新增薄端点 **5** · 新增审计动作 **6**。
+**规模量级（条目级 · 各列以各批 design 为准）**：新增件 **5**（1+2+2）· 改造件 **≥40**（9+6+25 · M4c-3 已按实现期实测订正）· 退役项 **6**（1+1+4）· 迁移 **2** · 新增薄端点 **6**（**handler 计** —— M4c-2 六处理器：`GET /users` / `POST /users` / `PATCH /users/:id/role` / `POST /users/:id/ban` / `POST /users/:id/unban` / `POST /users/:id/sessions/revoke`；唯一路径 **5** · 收口轮统一口径）· 新增审计动作 **6**。
 **跨批复用**：控制台组件基建（M4b 已交付）全量复用 · 视觉体系引 M4a §4.4（零新视觉值）· 会话 / CSRF / 限流 / 错误码由官方承担。
+**章节边界注（收口轮补）**：本件为主 design（范围 / 契约 / 路由 / 视觉归属）；**前端组件树与复用边界、复用端点（非新增）契约面归各批 design**（不双写）—— 故本件不设 M4b 主 design 的「前端架构与组件树 / API 消费面」两节。
 
 ## 3. 认证层统一到官方（M4c-1）
 
@@ -240,7 +241,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 ### 3.4 身份源抽象：共享建号 / 链接模块
 
-**一个共享模块**，承载两条以上身份源通道**共用的产品规则**（现雏形 = `ensureDirectoryUser`，`apps/server/src/auth/plugins/ldap-credentials.ts:166`）：
+**一个共享模块**，承载两条以上身份源通道**共用的产品规则**（现雏形 = `ensureDirectoryUser`，**由 M4c-1 迁入** `apps/server/src/auth/identity.ts:154`；立项期锚点 `plugins/ldap-credentials.ts:166` 已随迁件失效）：
 
 | 职责 | 说明 |
 |------|------|
@@ -294,7 +295,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 本仓 `status` 列 | **退休**（含删列迁移）；判定一律改读 `banned` |
 | 契约变更 | **推翻 M4b-pre R5**（该轮结论为"用本仓 status 单值列、不用官方 ban 列"）；`05` §4.1「三态单列」表述须同步 |
 | 改动面（起点实测 · **语义甄别归批 design**） | 原始 `grep -c status` 命中：`auth/rbac.ts` **5** · `http/auth-middleware.ts` **6** · `http/token-middleware.ts` **3** · `auth/plugins/ldap-credentials.ts` **16** · `admin/overview.ts` **10** · `assets/stats.ts` **5** · `auth/errors.ts` **1** —— 以上**含非账号语义命中**（资产状态 / HTTP 状态码 / 其他 `status`），逐处甄别见 §2.5 待坐实；`http/oidc-routes.ts` 实测**零命中**（早年清单误列，已更正）+ i18n zh/en **各 2 条**（实测）+ `grep -rl status apps/server/src --include='*.test.ts'` 命中 **32** 个测试文件（`status` **大小写敏感**匹配；含资产 / HTTP 等非账号语义命中，同需甄别）+ 1 次删列迁移 |
-| 数据 | 迁移口径（§2.6 R8）：`status IS DISTINCT FROM 'ACTIVE'` 的行 ⇒ `banned=true` + `banReason='历史状态迁移'`（语句零 PENDING 字样），随后删列。**dev 库实测命中 2 行**（§2.5「数据分布」）⇒ **非空操作**。写入路径订正：现役代码对 `user.status` **只写 `'ACTIVE'`**（建号钩子 `auth/plugins/ldap-credentials.ts:206` · `db/seed.ts:50`），**无写 `PENDING`/`DISABLED` 的代码路径**；库中非 `ACTIVE` 行来自 **`0009` 历史数据搬迁** |
+| 数据 | 迁移口径（§2.6 R8）：`status IS DISTINCT FROM 'ACTIVE'` 的行 ⇒ `banned=true` + `banReason='历史状态迁移'`（语句零 PENDING 字样），随后删列。**dev 库实测命中 2 行**（§2.5「数据分布」）⇒ **非空操作**。写入路径订正：现役代码对 `user.status` **只写 `'ACTIVE'`**（建号钩子 `auth/identity.ts:154`（M4c-1 迁入）· `db/seed.ts:50`），**无写 `PENDING`/`DISABLED` 的代码路径**；库中非 `ACTIVE` 行来自 **`0009` 历史数据搬迁** |
 
 ### 4.3 强制登出（按用户吊销 Session）
 
@@ -340,7 +341,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | **删除** | `auth.user_pending` | 随用户 PENDING 彻底清除（§2.6 R5） |
 | **删除** | `auth.user_disabled` | 改由官方 `BANNED_USER` 承担（§2.6 R19） |
 | **删除** | `auth.invalid_credentials` · `auth.ldap_denied` | 登录失败统一为官方错误码（不泄露存在性） |
-| **删除** | `auth.email_conflict` | 链接策略改自动链接（§2.6 R1）后不再拒绝冲突 |
+| **~~删除~~ 实留** | `auth.email_conflict` | **实现期偏离（收口轮订正）**：R1 自动链接只落在**重定向类**通道；**目录通道**保持既有「同邮箱即拒绝」行为（`auth/identity.ts:150/177` · M4c-1 零行为变化）⇒ 该码**保留** |
 | **删除** | `auth.oidc_state_mismatch` · `auth.oidc_denied` | M4c-3 自绘 OIDC 退役后随之消失 |
 | **保留** | `auth.email_missing` | 目录通道专用（邮箱必填、不合成） |
 | **保留** | `auth.rate_limited` · `auth.csrf_failed` · `auth.session_expired` · `auth.forbidden` | 框架/权限面 |
@@ -354,12 +355,13 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 提权越界（目标档位不低于自己） | `user.role_escalation_forbidden` |
 | 不可使超管档位归零 | `user.last_superadmin_forbidden` |
 | 建号登录名已占用 | `user.username_taken` |
+| 列表读取失败（**F270** 哨兵） | `user.list_failed` |
 
 （建号邮箱重复 ⇒ 复用官方 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`；封禁自我 ⇒ 复用官方 `YOU_CANNOT_BAN_YOURSELF`）
 
 > **归属口径（M4c-1 T7 实测订正 · F291）**：上表是**终态**。M4c-1 落 4 枚（`user_pending` / `user_disabled` / `invalid_credentials` / `ldap_denied` —— 已删）；
-> `email_conflict` / `oidc_state_mismatch` / `oidc_denied` 三枚的**客户端可见生产点**全在**保留至 M4c-3** 的 `http/oidc-routes.ts`（+ `auth/identity.ts` 的建号规则）
-> ⇒ 随 R1 自动链接与自绘 OIDC 退役一并删（**终态 5 = 12 − 4 − 3**）。已封禁提示 = 官方 `BANNED_USER` + 中文 `bannedUserMessage`（本批已落）。
+> `oidc_state_mismatch` / `oidc_denied` 两枚随自绘 OIDC 退役删（M4c-3 已删）；`email_conflict` **实际保留** —— 它是**目录通道**「同邮箱即拒绝」口径的产物（`auth/identity.ts:177` 仍在生产），
+> R1 自动链接仅落在重定向类通道 ⇒ **终态 6 = 12 − 4 − 2**（R18 原拍板「留 5」在实现期偏离 1 枚 · 如实登记）。已封禁提示 = 官方 `BANNED_USER` + 中文 `bannedUserMessage`（本批已落）。
 
 ### 4.7 用户 PENDING 清除清单（§2.6 R5 · 立项期普查产物）
 
@@ -373,7 +375,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 端点 | `apps/server/src/auth/plugins/ldap-credentials.ts` | 删 `statusError` 的 PENDING 分支 |
 | 类型/判定 | `apps/server/src/auth/rbac.ts` | `UserStatus` 与取值校验删 PENDING |
 | 端点 | `apps/server/src/http/oidc-routes.ts` | 删 `'auth.user_pending'` 引用 |
-| 注释 | `auth/better-auth.ts` · `http/auth-middleware.ts` · `http/token-middleware.ts` · `admin/overview.ts` | 注释里 PENDING 字样随删（**防注释腐化**） |
+| 注释 | `auth/better-auth.ts` · `http/auth-middleware.ts` · `http/token-middleware.ts` · `admin/overview.ts` | 注释里 PENDING 字样随删（**防注释腐化**）—— ⚠ **收口轮（2026-10-13 · 用户拍板「乙」）**：实测真码**仍有 8 处**注释/用例名带 `PENDING`（含 `auth/better-auth.ts` 等）⇒ **不清理**（保持收口笔零实现改动），**如实登记 F325 · 归后继批** |
 | 测试 | `test-utils/auth-fixture.ts` · `auth/session-lifecycle.test.ts` | 状态枚举与用例名同步删 |
 | 文案 | `apps/web/src/i18n/zh.ts` · `en.ts` | 删 `auth.user_pending` 各 1 条 |
 | 规范 | `docs/05` §4.1 状态表 · `docs/00` §5 M4c 行 | 见 §14 规范同步项 |
@@ -417,13 +419,13 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 |----|------|
 | 目标 | LDAP / OIDC / 社交三通道**同一份**链接策略（实现处 = §3.4 共享模块），不出现"一条通道自动合并、另一条拒绝"的分裂 |
 | 拍板 | 自动链接（§2.6 R1） |
-| 依赖事实 | 官方重定向通道的默认行为是「撞邮箱按已验证邮箱自动链接」（`oauth2/link-account.mjs`：三道门槛、可整体关闭）——**已核实**；官方 SSO 插件那条**不适用**（本批不采该插件 · §2.5） |
+| 依赖事实 | 官方重定向通道的默认行为是「撞邮箱按已验证邮箱自动链接」（`oauth2/link-account.mjs`：三道门槛、可整体关闭）——**已核实**；官方 SSO 插件那条**不适用**（本批不采该插件 · §2.5）。⚠ **收口轮订正**：自动链接只落**重定向类**通道，**目录通道仍拒绝**同邮箱（`auth/identity.ts:177`）⇒「三通道同一份策略」**终态未完全达成**（如实登记 · §4.6） |
 
 ## 6. 安全与合规
 
 ### 6.1 时序侧信道
 
-交付前须保留/补足**等价耗时处理**：目录 `bind` 的耗时显著高于本地 scrypt 校验 ⇒ 不能凭响应时间区分"目录账号 / 本地账号 / 账号不存在"。本仓已有同款处理 —— **锚点订正（F304 · 2026-10-12）**：`apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）与 `:63` / `:69`（目录未启用分支 / 目录分支的等价耗时校验）。原写 `plugins/ldap-credentials.ts:393` 的固定假哈希校验 —— 该**自绘端点已随 M4c-3 退役**；等价耗时处理在 **M4c-1 已迁至 `password-verify.ts`**，**不随 OIDC 退役而迁移**（本批已实测：`plugins/ldap-credentials.ts` 268 → 200 行后该处理仍在位）。
+交付前须保留/补足**等价耗时处理**：目录 `bind` 的耗时显著高于本地 scrypt 校验 ⇒ 不能凭响应时间区分"目录账号 / 本地账号 / 账号不存在"。本仓已有同款处理 —— **锚点订正（F304 · 2026-10-12）**：`apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）与 `:63` / `:69`（目录未启用分支 / 目录分支的等价耗时校验）。原写 `plugins/ldap-credentials.ts:393` 的固定假哈希校验 —— 该**自绘端点已随 M4c-3 退役**；等价耗时处理在 **M4c-1 已迁至 `password-verify.ts`**，**不随 OIDC 退役而迁移**（该处理**仍在位**；按本件 v0.8 体例**不记行数**以避免读数腐化）。
 
 ### 6.2 错误码与防枚举
 
@@ -452,14 +454,14 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 `/login` · `/device` · `/` · `/search` · `/assets/:slug` · `/dashboard` · `/dashboard/assets` · `/dashboard/submissions` · `/dashboard/tokens` · `/dashboard/publish` · `/reviews/:id` · `/admin` · `/admin/reviews` · `/admin/assets` · `/admin/labels` · `/admin/audit`（+ 类型化入口由 `path={path}` 生成）
 
-**本批新增**：`/admin/users`（M4c-2 · 超管门槛 · 侧栏「管理」组新增子项「用户管理」）。
+**本批新增**：`/admin/users`（M4c-2 · 超管门槛 · 侧栏「**超级管理**」组新增子项「用户管理」）。
 **本批退役**：无路由退役（`signInAih` / `signInAihOidc` 是端点，非路由）。
 
 ### 7.3 入口与显隐规则（三层门槛）
 
 | 层 | 规则 | 依据 |
 |----|------|------|
-| 侧栏入口 | 「管理 → **用户管理**」条目门槛 = **超管**（沿用现状：管理组条目门槛均为超管） | `apps/web/src/components/ui/navItems.tsx` |
+| 侧栏入口 | 「**超级管理 → 用户管理**」条目门槛 = **超管**（真码 `groupSuperAdmin.gate = SUPER_ADMIN`；「管理」组 `groupAdmin.gate = ADMIN` —— **收口轮订正**，原写「管理组条目门槛均为超管」不实） | `apps/web/src/components/ui/navItems.tsx:145-151` |
 | 路由 | `/admin/users` 直访：档位不足 ⇒ 挡回 `/dashboard` + 轻提示（**路由级 403 档**） | §9 两档口径 |
 | 数据面 | 列表读面 = `user:['list']`（**管理档 +**）· 改角色 / 封禁·解封 / 建号 = 超管权限码 · 吊销全部会话 = `session:['revoke']` | `auth/roles.ts` 实测映射 |
 | 动作面 | 行内按权限显隐，**服务端复核**（前端禁用不替代服务端判定） | §4.6 / §10.2 |
@@ -480,15 +482,15 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | `user.status` 列 | **删除** | M4c-2 | 判定改读官方 `banned`（含删列迁移） |
 | `ACCESS_POLICY` | **不变** | — | 枚举与默认值保留、不实现（D5）；准入结果收敛为 `ALLOW`/`DENY`（§2.6 R7） |
 | `REGISTRATION_ENABLED` 默认值 | **变更** | M4c-1 | 默认 `true` → **`false`**（自助注册默认关闭，§2.6 R3） |
-| 认证错误码 | **收敛** | M4c-1 | 删 7 个自绘码、留 5 个（§2.6 R18 · §4.6） |
+| 认证错误码 | **收敛** | M4c-1 / M4c-3 | 终态删 **6**（本批 4 + M4c-3 2）、留 **6**（R18 原拍板留 5；`email_conflict` 实留 · §4.6） |
 | `OIDC_*` env | **沿用同款开关范式** | M4c-3 | §2.6 R4 选内置 provider ⇒ 保持 `OIDC_*` 默认关闭 + 配置化范式（不做插件配置模型适配） |
 
 ### 8.1 用户面端点契约（薄端点 → 官方端点）
 
 | 薄端点 | 方法 | 入参 | 出参 | 委托官方 | 权限码 | 审计 |
 |--------|------|------|------|---------|--------|------|
-| `/api/admin/users` | GET | `limit` · `offset` · `q`（工号 / 姓名 / 邮箱）· `role` · `status`（`active` / `banned`）· `sort` · `dir` | `{ items: [{ userId, username, name, email, role, banned, banReason, banExpires, lastLoginAt }], total }` | `list-users` | `user:['list']` | —（读面不写） |
-| `/api/admin/users` | POST | `{ email, name, role, username, password? }` | `{ userId }` | `create-user` + 直写 `username` / `displayUsername`（R9） | `user:['create']` | `user.create` |
+| `/api/admin/users` | GET | `limit` · `offset` · `q`（工号 / 姓名 / 邮箱）· `field`（`username`/`name`/`email` · q 的搜索字段白名单）· `role` · `status`（`active` / `banned`）· `sort` · `dir` | `{ items: [{ userId, username, name, email, role, banned, banReason, banExpires, lastLoginAt }], total }` | `list-users` | `user:['list']` | —（读面不写） |
+| `/api/admin/users` | POST | `{ email, name, role, username, password }`（**password 必填 · 8–128** —— 收口轮订正，原写可选与真码不符） | `{ userId }` | `create-user` + 直写 `username` / `displayUsername`（R9） | `user:['create']` | `user.create` |
 | `/api/admin/users/:id/role` | PATCH | `{ role }` | `{ ok: true }` | `set-role` | `user:['set-role']` | `user.role_change` |
 | `/api/admin/users/:id/ban` | POST | `{ reason?, expiresAt? }` | `{ ok: true }` | `ban-user` | `user:['ban']` | `user.ban` |
 | `/api/admin/users/:id/unban` | POST | — | `{ ok: true }` | `unban-user` | `user:['ban']` | `user.unban` |
@@ -537,7 +539,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | 新增 `users` 组 | 页面标题 · 列头 · 筛选项 · 三个动作与确认文案 · 建号表单标签与校验错误 |
 | `auth` 组 | 登录失败错误码映射随 §6.2 调整；provider 入口文案 |
 | 新增 `account` 组 | 自助改密 Dialog（入口 / 三字段 / 目录账号拒绝提示 / 成功与失败文案 · §4.8） |
-| 移除项 | ① 与 `status` 三态相关的文案（随 §4.2 退休）② 收敛删除的 7 个错误码文案（`auth.user_pending` / `auth.user_disabled` / `auth.invalid_credentials` / `auth.ldap_denied` / `auth.email_conflict` / `auth.oidc_state_mismatch` / `auth.oidc_denied`，zh/en 各 1 条 · §2.6 R18） |
+| 移除项 | ① 与 `status` 三态相关的文案（随 §4.2 退休）② 收敛删除的 **6** 个错误码文案（`auth.user_pending` / `auth.user_disabled` / `auth.invalid_credentials` / `auth.ldap_denied` / `auth.oidc_state_mismatch` / `auth.oidc_denied`，zh/en 各 1 条 · §2.6 R18；`auth.email_conflict` **实留** · §4.6） |
 
 ## 12. 线框图
 
@@ -550,11 +552,11 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 │ 管理         │ 用户管理                                    [ + 新建用户 ]    │
 │  资产治理    │ ┌─ 筛选行 ───────────────────────────────────────────────┐   │
 │  审核管理    │ │ [搜索 工号/姓名/邮箱]   [角色 ▾]   [状态 ▾]            │   │
-│  标签定义    │ └───────────────────────────────────────────────────────┘   │
-│  审计日志    │ ┌─ 表 ─────────────────────────────────────────────────────┐ │
-│ ★用户管理    │ │ 账号      │ 姓名  │ 邮箱   │ 角色 │ 状态    │最后登录│操作│ │
-│  （新增）    │ ├───────────┼───────┼────────┼──────┼─────────┼────────┼───┤ │
-│              │ │ 59901934  │ 孙学文│ …@…    │ 超管 │ 正常    │ 10-08  │ ⋮ │ │
+│  审计日志    │ └───────────────────────────────────────────────────────┘   │
+│ 超级管理     │ ┌─ 表 ─────────────────────────────────────────────────────┐ │
+│  标签定义    │ │ 账号      │ 姓名  │ 邮箱   │ 角色 │ 状态    │最后登录│操作│ │
+│ ★用户管理    │ ├───────────┼───────┼────────┼──────┼─────────┼────────┼───┤ │
+│  （新增）    │ │ 59901934  │ 孙学文│ …@…    │ 超管 │ 正常    │ 10-08  │ ⋮ │ │
 │ 个人         │ │ 60012345⁽我⁾│ 张三 │ …@…    │ 用户 │ 正常    │ 10-08  │ ⋮ │ │
 │  …           │ │ 60067890  │ 李四  │ …@…    │ 用户 │ 已封禁  │ 09-30  │ ⋮ │ │
 │              │ └───────────────────────────────────────────────────────┘  │
@@ -591,7 +593,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | `05` §3.1 | 目录通道命名口径：**企业目录口令验证**（非 SSO） | M4c-1 |
 | `05` §6.4 | 操作 × 角色矩阵补用户管理面操作 | M4c-2 |
 | `08` §5 | `account` 行 `accountId` 语义与凭据委派标记列口径 | M4c-1 |
-| `05` §4 | 准入结果**删 `PENDING_APPROVAL`** ⇒ 收敛为 `ALLOW` / `DENY`（§2.6 R7） | M4c-2 |
+| `05` §4 | 准入结果**删 `PENDING_APPROVAL`** ⇒ 收敛为 `ALLOW` / `DENY`（§2.6 R7）**✅ 已落地**（`05` **v1.15** · M4c 收口轮） | M4c-2 ✅ |
 | `05` §4.1 | 账号状态表删 `PENDING` 行（§2.6 R5/R6） | M4c-2 |
 | `05` §4 | 「其余三种策略与审批流归 M4c」表述订正：**审批流废除**，三策略枚举保留不实现（D5） | M4c-2 |
 | `05` §3.1 | 目录通道邮箱规则保留 + 社交通道占位邮箱例外（§2.6 R11） | M4c-1 |
@@ -611,6 +613,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 ## 16. 修订记录
 
 | 版本 | 日期 | 变更 |
+| v0.29 | 2026-10-13 | **M4c 完整 converge 收口轮（纯文档 · 零实现改动）** —— ① **F322–F324 登记**（F322 = `05` §4 准入结果残留 `PENDING_APPROVAL` 已订正；F323 = 微信通道本地不可闭环 · 口径登记；F324 = 三社交通道准入无收紧 · 待拍板）② §2.3 三批登记行去硬版本 + 状态回填 ③ §2.5 F 上界 ⇒ **F321** + 锚点回填（`identity.ts:154` / `652-669` / `env.ts:39`）④ §2.7 件面 **25 / ≥40** ⑤ **§4.6 错误码终态 ⇒ 删 6 留 6**（`email_conflict` 实留 · R18 偏离登记）⑥ §7.2/§7.3/§12 线框 ⇒ 用户管理归**超级管理组** ⑦ §8:483 / §8.1（`field` + `password` 必填）/ §11 6 码 ⑧ §6.1 改「不记行数」⑨ §14 `05` 行 ✅ 已落地（`05` v1.15）+ 章节边界注 |
 |------|------|------|
 | v0.28 | 2026-10-12 | **M4c-3 实现期就地订正（F303 / F304 / F306 + F314 连带）** —— ① **F306**：R13 形态措辞 ⇒「表单下方 provider 文字链一行」（无分隔线 · 1×12 竖线 · 16px · 按启用集渲染）+ §3 入口指针 / §5.1 小标题与名单 / §10.2 线框 四连同改 ② **F303**：§2.7 M4c-3 件面「0 / 3 / 2」⇒「**2 / 21 / 4**」+ §2.3 补判据与实名指针 ③ **F304**：§6.1 锚点 ⇒ `auth/password-verify.ts:35/63/69`（不随 OIDC 退役迁移）④ 本件契约面无新增 |
 | v0.27 | 2026-10-09 | **M4c-2 批 plan 首稿回填** —— §2.3「各批预期产出物」M4c-2 行：批 plan 占位 → **实名已立** `docs/plans/M4c-2-user-governance.md`（**v0.1 首稿** · T1–T8 · 每 Task 三段 · 门禁 12 步 · 自检 **9.39**）· 本件 §4 契约面未改 |

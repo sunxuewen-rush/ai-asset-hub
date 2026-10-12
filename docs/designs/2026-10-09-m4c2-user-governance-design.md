@@ -1,18 +1,19 @@
 # M4c-2 账号与权限治理 · 批设计（用户管理页 + 启停交官方 + 列退休 + 自助改密）
 
 > Date: 2026-10-09
+> Updated: 2026-10-13（**v0.11：M4c 完整 converge 收口轮（纯文档 · 零实现改动）** —— ① §1 目标 ②「5 个薄端点」⇒ **6** 个 · ⑥ 审计/错误码 ⇒ **6 / 6** ② §3.5 迁移 SQL 列名 `"banReason"` ⇒ **`ban_reason`**（与 0016 件一致）+ 语句幂等口径改「**journal 层幂等 · 单次执行**」+ 新增**回退口径** ③ §3.6 / §10 错误码落点 ⇒ **`http/admin-users.ts` 的 `userGuardCodes`** ④ §5 门禁 **12 步 ⇒ 13 步** ⑤ §9 线框页头计数 **692**（≠ 工具条 694 · label「有效用户」）⑥ §11.3「§14 六节」⇒ **九节** · F301 四处行号 off-by-N 订正 · `AdminUserCard 族` ⇒ **`AdminUsers`** ⑦ 官方 `defaultBanReason` 落点 ⇒ **`better-auth.ts:243`** ⑧ 新增 **§14.10 规范同步项**（05 / 07 / 08 / M4a §4.4 · 引用不复制））
 > Updated: 2026-10-12（**v0.10：验收期增量 —— `/admin/users` 与 `/admin/assets` 骨架对齐（12 条落差逐条处置）+ §4.2 复用件清单对平 + 登记 F300** —— 用户「按这个走」；视觉随批**就地定稿**（零新视觉值）· **排序 / 列显隐两口接线**（闭「已实现却零入口」的欠账）· i18n `users` 组 **60 → 63**（+4 `users.sort.*` · 退役 `users.reset`）· 实现任务 = 批 plan **T9** · 全文见 **§14**）
 > Updated: 2026-10-10（**v0.9：F296 收尾（4 条失败逐条查清）+ F298 登记** —— `m4a` 2 条 = **降级实例假红**（全新自管实例上隔离/全量均 **64 PASS / 0 FAIL** 复现全绿）；`m4b2` 2 条 = G5 断言**锁竞态**（写死 `path === '/login'`，与 §4.4/§9.3「登出 → 回首页」相反）⇒ 按**设计契约**加固；新登记 **F298**（登出落点不确定 · 产品侧待拍板）+ **F299**（runner 浏览器生命周期泄漏 ⇒ 实例被下一轮静默复用 = **F297 生成机制** · **已修**：成功路径 `process.exit(0)` · 实测自发退出 + 零泄漏））
-> Updated: 2026-10-09（**v0.8：F296/F297 登记** —— dogfood 标签清理 × 不自建标签 ⇒ 0 标签秒退（已兜底）· 无头调试 Edge 老化 ⇒ CDP 僵死（烧满 900s 超时 · 激活无效）⇒ 重启换 profile 处置中）
 > Status: **定稿**（2026-10-09 · 8 维 **9.49**（标准 9.50 · 深度 9.48 · **声明核验轮后**）· **v0.10 验收期增量重评 9.44**（标准 9.50 · 深度 9.375 · **技能对账轮修正后** · 修前实分 **9.19** · §11.3/§11.4）· **内修正 2 后 9.44**（排序显示对标 · 修前实分 **9.38** · §11.5）· **内修正 3 后 9.44**（启停列 `Switch` · 键账 **63 → 65** · 增量轮不撤回历史分 · §11.6）· **内修正 4 后 9.44**（F301 甲：封禁到期输入 + 行标记 · **4 死键转活** · §14.9）· 2026-10-12 · grilling 轮 U1–U5 全定案 · 门 ≥9 ✓；实现细则落批 plan）· 上游 = 主 design `2026-10-08-m4c-account-and-access-governance-design.md`（§2.3 拆批 · **§4 契约** · §7.1/§7.2/§7.3 · §8.1 · §10.2 · §11 · §12；版本以其版本头为准）
+> **收口轮自评（2026-10-13）**：文档 8 维 **9.38**（标准 9.40 · 深度 9.35 · M4c 完整 converge 复评 · 见 v0.11 修订行）
 > Scope: `/admin/users` 用户管理（列表 / 筛选 / 分页 · 改角色 · 封禁·解封 · 强制登出 · 管理员建号）· 权限码 `session:['revoke']` · `user.status` **列退休**（迁移 `0016`）· 本地账号**自助改密** · 侧栏「管理」组条目与 i18n
 
 ## 1. 目标与非目标
 
 | 类 | 项 |
 |----|----|
-| **目标（本批交付）** | ① `/admin/users` 页（列表 · 筛选 · 分页 · 行操作：改角色 / 封禁·解封 / 强制登出 · 建号 Dialog）② 5 个薄端点（委托官方）③ `session:['revoke']` 权限码 ④ `user.status` 列退休（迁移 `0016` + 判定改读官方 `banned`）⑤ 本地账号自助改密（官方 `/change-password`，用户菜单入口）⑥ 审计动作 `user.*` 5 项 + 错误码 5 项 ⑦ 侧栏「用户管理」条目由**占位**变**真链接** ⑧ **验收期增量（v0.10）**：用户管理页骨架对齐资产管理页（同族治理列表页 · §14）+ **排序入口统一件**（§11.5）+ **启停列 `Switch`**（§14.8） |
-| **非目标（明确不做）** | 管理员重置密码（D2 不动）· 邮件找回（无邮件服务）· 会话列表（R20）· 用户删除 / 模拟登录（`remove-user` / `impersonate-user` 不接线）· 预建目录账号（只建本地账号 · 对齐 2 甲）· 准入策略四枚举（保留不实现 · D5）· **另三页控制台页（标签定义 / 管理看板 / 审核队列）页头族不迁**（官方 `PageHeader` 派保持 · 族内统一归 M4b-8 视觉收敛）· **`market/SortMenu` 泛化**（值域硬绑市场档位 · 4 处消费点属门户面 ⇒ 不在本批 · 见 §13 F300） —— ⚠ **v0.10 内修正 2 已撤销本项**（用户二次点名「排序的显示方法也需要对标资产管理」）：改为「**显示实现归位 `ui/SortMenu` + `market/SortMenu` 退化为市场值域适配**」⇒ **4 处消费点零改** · 见 **§11.5** |
+| **目标（本批交付）** | ① `/admin/users` 页（列表 · 筛选 · 分页 · 行操作：改角色 / 封禁·解封 / 强制登出 · 建号 Dialog）② 6 个薄端点（委托官方）③ `session:['revoke']` 权限码 ④ `user.status` 列退休（迁移 `0016` + 判定改读官方 `banned`）⑤ 本地账号自助改密（官方 `/change-password`，用户菜单入口）⑥ 审计动作 `user.*` 5 项（+ M4c-3 `external.provisioned` ⇒ 全仓 6）+ 错误码 6 项（含 F270 哨兵 `user.list_failed`） ⑦ 侧栏「用户管理」条目由**占位**变**真链接** ⑧ **验收期增量（v0.10）**：用户管理页骨架对齐资产管理页（同族治理列表页 · §14）+ **排序入口统一件**（§11.5）+ **启停列 `Switch`**（§14.8） |
+| **非目标（明确不做）** | 管理员重置密码（D2 不动）· 邮件找回（无邮件服务）· 会话列表（R20）· 用户删除 / 模拟登录（`remove-user` / `impersonate-user` 不接线）· 预建目录账号（只建本地账号 · 对齐 2 甲）· 准入策略四枚举（保留不实现 · D5）· **另三页控制台页（标签定义 / 管理看板 / 审核队列）页头族不迁**（官方 `PageHeader` 派保持 · 族内统一归 M4b-8 视觉收敛）· **`market/SortMenu` 泛化**（值域硬绑市场档位 · 4 处消费点属门户面 ⇒ 不在本批 · 见 §13 F300）~~ —— ⚠ **v0.10 内修正 2 已撤销本项**（用户二次点名「排序的显示方法也需要对标资产管理」）：改为「**显示实现归位 `ui/SortMenu` + `market/SortMenu` 退化为市场值域适配**」⇒ **4 处消费点零改** · 见 **§11.5** |
 
 ## 2. 批内对齐拍板结果（2026-10-09 · 用户「全按推荐来」逐条确认）
 
@@ -74,13 +75,14 @@
 ### 3.5 迁移 `0016`（`status` 列退休）
 
 - 载体三件：`apps/server/drizzle/0016_<name>.sql` + `meta/_journal.json`（16 → **17** 条目）+ `meta/0016_snapshot.json`（`prevId` = `0015` 快照 id）；**执行窗口 = 停服**（先例 `0015`）。
-- 语句（幂等）：
-  1. `UPDATE "user" SET banned = true, "banReason" = '历史状态迁移' WHERE status IS DISTINCT FROM 'ACTIVE'`（**dev 库实测命中 2 行** · 主 design §2.5）
+- 语句（**journal 层幂等 · 单次执行**；`DROP COLUMN` 无 `IF EXISTS`，重复执行会报错）：
+  1. `UPDATE "user" SET banned = true, ban_reason = '历史状态迁移' WHERE status IS DISTINCT FROM 'ACTIVE'`（**dev 库实测命中 2 行** · 主 design §2.5）
   2. `ALTER TABLE "user" DROP COLUMN status`
-- **连带代码面**（主 design §4.2 已给起点 grep 计数，逐处甄别归本批）：`auth/better-auth.ts` 的 `additionalFields.status` 删 · `db/schema/auth.ts:61` 删列 · `auth/rbac.ts` 的 `UserStatus` 收敛 · `http/auth-middleware.ts:93` 判定改读 `banned` · `http/token-middleware.ts` / `admin/overview.ts` / `assets/stats.ts` 的账号语义命中逐处改 · `auth/identity.ts` 的 `statusError`（M4c-1 T7 刚收敛为官方 `BANNED_USER`）改读 `banned` · `test-utils/auth-fixture.ts` + 相关测试。
+- **回退口径**（先例 M4c-1 §6.3）：按迁移前 `user` 表快照重建 `status` 列并回填原值；forward-only，失败即停（详见 0016 件头注释）。
+- **连带代码面**（主 design §4.2 已给起点 grep 计数，逐处甄别归本批）：`auth/better-auth.ts` 的 `additionalFields.status` 删 · `db/schema/auth.ts`（user 表 `:39-57`）删列 · `auth/rbac.ts` 的 `UserStatus` 收敛 · `http/auth-middleware.ts:93` 判定改读 `banned` · `http/token-middleware.ts` / `admin/overview.ts` / `assets/stats.ts` 的账号语义命中逐处改 · `auth/identity.ts` 的 `statusError`（M4c-1 T7 刚收敛为官方 `BANNED_USER`）改读 `banned` · `test-utils/auth-fixture.ts` + 相关测试。
 - **探针（迁移后立即复核）**：P1 非 ACTIVE 行数 = 0 · P2 `banned=true` 行数 = 2（dev）· P3 列已不存在（`information_schema`）· P4 禁用账号登录 ⇒ 官方 `BANNED_USER`（真实端点）。
 
-### 3.6 错误码（`apps/server/src/auth/errors.ts` 家族 + 主 design §4.6）
+### 3.6 错误码（薄端点护栏码落 `apps/server/src/http/admin-users.ts` 的 `userGuardCodes`；`auth/errors.ts` 只承载 auth.* 家族 · 收口轮订正）
 
 新增（我方，薄层护栏）：`user.not_found` · `user.self_target_forbidden` · `user.role_escalation_forbidden` · `user.last_superadmin_forbidden` · `user.username_taken` · **`user.list_failed`**（F270 哨兵不一致时返回 · 定案）。
 复用官方码：建号邮箱重复 ⇒ `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`；封禁自我 ⇒ `YOU_CANNOT_BAN_YOURSELF`（`admin.mjs` 家族）；封禁态登录 ⇒ `BANNED_USER`（`admin.mjs:47`）。
@@ -145,7 +147,7 @@
 |----|------|
 | 新 dogfood | **新增 `docs/smoke/scripts/m4c2-users-dogfood.ts`**（超管全动作 happy path + 护栏负例 + 边界 6 条 + 首页可见性）；纳入统一 runner `dogfood-all.ts` 的脚本表 |
 | 既有回归 | 7 个既有 dogfood 全绿（`dogfood-all.ts` 一键跑）；**连带经实测复核**：`m4b2-auth-dogfood` 的占位断言取**SSOT 派生**（`navPlaceholderCount('超级管理')`，判据 = `placeholder >= SSOT`，只数 `BUTTON` 节点且文本匹配 `系统设置\|用户管理`）⇒ 「用户管理」改真链接后 placeholder **2 → 1 与 SSOT 同步**、**断言自动跟随（无需改脚本）**，仅需回归确认 |
-| 门禁 | 12 步（CI 同序）逐项 exit 0；`db:migrate` 在 dev 与空库双跑（迁移幂等） |
+| 门禁 | 13 步（CI 同序）逐项 exit 0；`db:migrate` 在 dev 与空库双跑（迁移幂等） |
 | 探针 | §3.5 P1–P4 |
 | 出口 | 主 design §15 五件（design 8 维 ≥9 · plan Task 全绿 · 五门禁 · dogfood · 整体审计） |
 
@@ -172,7 +174,7 @@
 | 权限码 `session:['revoke']` | **新增** | 仅 revoke |
 | `user.status` 列 | **删除** | 迁移 `0016`；判定改读官方 `banned` |
 | 审计动作 `user.*` ×5 | **新增** | 单源 `audit/actions.ts` |
-| 我方错误码 ×5（+1 可选） | **新增** | §3.6 |
+| 我方错误码 ×6（含 F270 哨兵 `user.list_failed`） | **新增** | §3.6 |
 
 ## 8. UI-UX 变动总览
 
@@ -191,8 +193,8 @@
 ┌─ 主区（根 py-6 · 内层 px-4 lg:px-6）────────────────────────────────────────┐
 │                                                                          │
 │ ┌ 页头卡（Card · 与 /admin/assets 同构）──────────────────────┬──────────┐│
-│ │ [i] 用户管理                                               │   694    ││
-│ │     ADMIN                                                  │ 用户管理 ││
+│ │ [i] 用户管理                                               │   692    ││
+│ │     ADMIN                                                  │ 有效用户 ││
 │ │     账号与权限治理：改角色 · 封禁 / 解封 · 强制登出        └──────────┘│
 │                                                                          │
 │ 共 694 个账号        [角色▾] [状态▾] [列▾] [⇅] [🔍] [+ 新建账号]          │
@@ -234,7 +236,7 @@
 
 **上游（官方件 · `better-auth@1.7.5`）**：`plugins/admin/admin.mjs`（`:16` `bannedUserMessage` · `:33-47` 封禁检查与 `BANNED_USER`）· `plugins/admin/routes.mjs`（`:306-320` `listUsersQuerySchema` · `:322` `listUsers` · `:378` 吞错 `catch` · `:43` `setRole` · `:506` `banUser`（body 模式 `:480`）· `:447` `unbanUser`（body 模式 `:431`）· `:133` `createUser` · `:710` `revokeUserSessions` · `:753` `removeUser`（**不接线**））· `api/routes/update-user.mjs`（`:75` `/change-password` · `:82-91` body · `:180` `revokeOtherSessions`）
 
-**本仓（服务端）**：`apps/server/src/http/admin.ts`（薄层范式先例）· `apps/server/src/http/oidc-routes.ts`（服务端直呼官方 api 先例）· `apps/server/src/http/auth-middleware.ts`（`requireRole`）· `apps/server/src/auth/roles.ts`（权限码 statement）· `apps/server/src/audit/actions.ts`（审计单源）· `apps/server/src/auth/errors.ts` · `apps/server/src/auth/better-auth.ts`（`admin({ bannedUserMessage })` · `additionalFields.status`）· `apps/server/src/db/schema/auth.ts:61` · `apps/server/src/auth/rbac.ts` · `apps/server/src/auth/identity.ts`（`statusError`）· `apps/server/src/db/seed.ts` · `apps/server/drizzle/0015_auth_credential_delegation.sql`（迁移载体范式）
+**本仓（服务端）**：`apps/server/src/http/admin.ts`（薄层范式先例）· `apps/server/src/http/oidc-routes.ts`（服务端直呼官方 api 先例）· `apps/server/src/http/auth-middleware.ts`（`requireRole`）· `apps/server/src/auth/roles.ts`（权限码 statement）· `apps/server/src/audit/actions.ts`（审计单源）· `apps/server/src/http/admin-users.ts`（`userGuardCodes`）· `apps/server/src/auth/better-auth.ts`（`admin({ bannedUserMessage })` · `additionalFields.status`）· `apps/server/src/db/schema/auth.ts`（user 表 `:39-57`）· `apps/server/src/auth/rbac.ts` · `apps/server/src/auth/identity.ts`（`statusError`）· `apps/server/src/db/seed.ts` · `apps/server/drizzle/0015_auth_credential_delegation.sql`（迁移载体范式）
 
 **本仓（前端 · v0.10 对平后）**：`apps/web/src/main.tsx`（路由）· `components/ui/navItems.tsx` · `components/ui/UserMenu.tsx` · `components/ui/{DataTable,Pagination,ColumnVisibilityMenu,EmptyState,ErrorState,StatTile}.tsx` · **`components/ui/SortMenu.tsx`（新 · 排序统一件 · v0.10 内修正 2 · 泛型 `value`/`options`/`labelOf`/`ariaLabel`）** · **`components/market/SortMenu.tsx`（退化为市场值域适配 · 签名不变）** · `components/market/sortOptions.ts` · `components/ui/shadcn/{button,badge,card,collapsible,dialog,dropdown-menu,input,input-group,label,select}.tsx` · `components/console/ConfirmDialog.tsx` · `components/market/{format.ts,sortOptions.ts}` · `apps/web/src/api/{auth.ts,admin.ts,stats.ts}`（SDK 单点 + **页头计数块的公开聚合源** `fetchStats`）· `apps/web/src/api/types.ts`（`StatsResponse.totalUsers`）· `apps/web/src/auth/{AuthProvider,roles}.tsx` · `apps/web/src/i18n/{zh,en}.ts`
 > 服务端口径依据：`apps/server/src/assets/stats.ts:51`（`totalUsers` = 官方 `banned !== true` · 与门户 `Hero` 同源）
@@ -284,7 +286,7 @@
 | 检查面 | 条数 | 命中 |
 |--------|:--:|------|
 | 官方 dist 行号/符号/返回体（`admin.mjs` · `routes.mjs` · `update-user.mjs`） | 18 | **1 ❌**：`banUser` / `unbanUser` 行号**互换**（已修：`:506` / `:447`，并补 body 模式行 `:480` / `:431`） |
-| 本仓落点与事实（`assets.ts:284` · `auth-middleware.ts:93` · `roles.ts` · `audit/actions.ts` · `schema/auth.ts:61` · `journal` 16 · 复用件 12/12 · F267–F270 登记） | 9 | 全 ✅ |
+| 本仓落点与事实（`assets.ts:284` · `auth-middleware.ts:93` · `roles.ts` · `audit/actions.ts` · `schema/auth.ts:39-57` · `journal` 16 · 复用件 12/12 · F267–F270 登记） | 9 | 全 ✅ |
 | 数字/连带声明（`m4b2` 占位断言 · dev 库 2 行归属） | 2 | **1 ❌**：`m4b2` 占位断言实为 **SSOT 派生 ⇒ 自动跟随**（非「须同步改脚本」）⇒ 已改述；`dev 库 2 行` = 引主 design §2.5（归属已标注） |
 
 | 维度 | 11.1 自报 | 核验后 | 变动理由 |
@@ -308,7 +310,7 @@
 
 | 维度 | v0.9 | v0.10 | 变动理由 |
 |------|:---:|:---:|---------|
-| 完整性 | 9.5 | 9.5 | 增量章 **§14** 六节齐（落差表 / 落法 / 排序值域 / 列显隐 / 键账 / 保留项）+ §4.1/§4.2/§4.3/§4.4/§4.6/§9/§10/§12/§13 同步；Task 级拆分归 plan **T9**（引用不复制） |
+| 完整性 | 9.5 | 9.5 | 增量章 **§14** 十节齐（落差表 / 落法 / 排序值域 / 列显隐 / 键账 / 保留项 / §14.7 对齐声明 / §14.8 启停列 / §14.9 F301 落法 / §14.10 规范同步项）+ §4.1/§4.2/§4.3/§4.4/§4.6/§9/§10/§12/§13 同步；Task 级拆分归 plan **T9**（引用不复制） |
 | 一致性 | 9.5 | 9.5 | 四处同量对照一致（12 条 / 60 → 63 / 4 档）；§9 线框与 §14.2 落法逐项对齐；被推翻项（v0.5 ②）在 §4.3 / §14.4 / 修订行三处写明 |
 | 清晰度 | 9.5 | 9.5 | class 串逐条（可照写）· 权重归一化公式写明 · 键账三件式（+4 / −1 / 复用）· 线框图例（状态列轻字 / 徽标） |
 | 可实施性 | 9.5 | 9.5 | §14.2 十三步 + plan T9 断言可执行（`aria-sort` 变化 / 列摊开 / `disabled` / 渲染条件） |
@@ -327,7 +329,7 @@
 
 | # | 类 | 命中 | 处置 |
 |--:|---|---|---|
-| 1 | 🔴 真缺陷（**同信息两处** · `ui-grammar-alignment` 陷阱 6） | 页头 `StatTile` 与工具条计数**取同一个数字**（均为列表 `total`）⇒ 同一个 694 显示两遍；参照页无此问题（其 `StatTile` 取**全站聚合** `stats.totalAssets`、工具条取**筛选结果**） | 改：`StatTile` 取 `/api/stats.totalUsers`（**有效用户** · 与工具条计数不同数）+ label 复用 `board.kpi.users`（零新增键） |
+| 1 | 🔴 真缺陷（**同信息两处** · `ui-grammar-alignment` 陷阱 6） | 页头 `StatTile` 与工具条计数**取同一个数字**（均为列表 `total`）⇒ 同一个 694 显示两遍；参照页无此问题（其 `StatTile` 取**全站聚合** `stats.totalAssets`、工具条取**筛选结果**） | 改：`StatTile` 取 `/api/stats.totalUsers`（**有效用户** · 与工具条计数不同数）+ label 复用 `board.kpi.users`（零新增键）—— **收口轮**：§9 线框已同步（页头 **692** / 工具条 **694**） |
 | 2 | 🔴 真缺陷（**首帧闪烁** · `ui-design-review-walkthrough` 高价值靶点） | `value={total.toLocaleString()}` 载入前为 0 ⇒ 闪 0 | 改：`stats ? … : '—'`（资产页同法） |
 | 3 | 🟡 纪律漏项（**复制 SSOT** · `portal-ui-design` 红线「design 只记令牌语义，css 落实现」） | §14.2 逐条抄 class 串 / px 值 + 权重表（而权重**早已登记** M4a §4.4 v0.45） | 改：§14.2 瘦身为「件 + 立场 + 行为 + 键名 + 参照页**行号锚点**」，视觉数值归 **M4a §4.4 v0.46** |
 | 4 | 🟡 纪律漏项（**漏登记 + SSOT 打架**） | U5 定案「局部视觉决策随批**就地补录 M4a §4.4**」本轮未做；且 §4.4 v0.45 原登记「已启用 = `secondary` 药丸」与 v0.10 的「正常轻字」**相反** | 改：M4a §4.4 → **v0.46** 登记本批决策 + **订正**状态列口径 |
@@ -372,6 +374,7 @@
 ## 12. 修订记录
 
 | 版本 | 日期 | 变更 |
+| v0.11 | 2026-10-13 | **M4c 完整 converge 收口轮（纯文档 · 零实现改动）** —— ① 薄端点 **5 ⇒ 6** · 审计/错误码 **6 / 6** ② 迁移 SQL 列名 ⇒ **`ban_reason`** + 幂等口径（journal 层）+ 回退口径 ③ 错误码落点 ⇒ `http/admin-users.ts`（`userGuardCodes`）④ 门禁 **12 ⇒ 13 步** ⑤ §9 线框页头 **692**（label「有效用户」）⑥ §11.3 §14 **九节** · F301 行号订正 · `AdminUsers` ⑦ `defaultBanReason` 落点 ⇒ `better-auth.ts:243` ⑧ 新增 **§14.10 规范同步项** |
 |------|------|------|
 | v0.10 | 2026-10-12 | **验收期增量：`/admin/users` 与 `/admin/assets` 骨架对齐（用户「按这个走」· 先出原型图后拍板）** —— ① **12 条落差逐条处置**（§14.1：页头形态 / 页头右侧 / 计数位置 / 筛选行 / 列显隐 / 排序入口 / 文本列截断 / 状态列策略 / 时间口径 / 载态密度 / 根容器内距 / 操作列归槽；**保留**功能差异 2 条）② **§4.2 复用件清单对平**：原声明 6 件与实际采用不符（5 件未采用或用途不符 · v0.5 只在修订记录交代、正文未回改）⇒ 改四层账（官方件 / 仓内公共件 / 页内自绘 / 声明未采用）③ **排序 + 列显隐接线**（闭欠账：服务端 `admin-users.ts:144-145` + 客户端 `api/admin.ts:237-238` 早已实现而 UI 零入口；列显隐**推翻 v0.5 ②**「本批不做」）④ i18n `users` 组 **60 → 63**（+4 `users.sort.*` · 退役 `users.reset`）⑤ 线框（§9）重画为该骨架 + **新增 §14**（验收期增量）· 登记 **F300** ⑥ 视觉随批**就地定稿**（**零新视觉值** · 引 M4a §4.4）；实现任务 = 批 plan **T9** ⑦ **同版内修正（技能对账轮 · 用户「有准备使用 ui 设计的技能么？」→「修」）**：补读 `ui-grammar-alignment` / `ui-design-review-walkthrough` / `portal-ui-design` / 仓内 `ui-direction-board-and-prototype-evidence` 后回扫 —— **命中 2 真缺陷**（页头计数与工具条计数**同信息两处** ⇒ 页头改取 `/api/stats.totalUsers`「有效用户」· `label` 复用 `board.kpi.users`；**首帧闪 0** ⇒ 载入显 `—`）+ **2 纪律漏项**（§14.2 **复制 SSOT** class 串/px ⇒ 瘦身为引用式；**漏就地补录 M4a §4.4** ⇒ 该件 → **v0.46** 并**订正**其 v0.45「已启用 = `secondary` 药丸」陈旧口径）+ 新增 **§14.7 对齐声明**（逐控件二选一 + 唯一刻意偏差 = 排序入口形态）；§11.3 的 9.44 **当场撤回** ⇒ 修前实分 **9.19**、修后 **9.44**（见 **§11.4**）⑧ **内修正 2（用户二次点名「排序的显示方法也需要对标一下资产管理」· §11.5）**：**撤销「排序入口 = 刻意偏差」** —— 显示实现归位 **`ui/SortMenu`**（通用件 · **同 `ColumnVisibilityMenu` 归位路径**）+ `market/SortMenu` 退化为**市场值域适配**（**4 处消费点零改** · 签名不变）；§1 非目标 / §4.2 四层账 / §4.3 / §9 线框 / §14.1 #6 / §14.2 ④ / §14.3 / §14.7 同步改口径；§11.4 的 9.44 **再次撤回** ⇒ 修前实分 **9.38**、修后 **9.44** ⑨ **内修正 3（用户「做」）**：**启停列** —— 停用 / 启用自 ⋮ 菜单**移出为独立列**，用官方 `Switch` **单一承载状态显示 + 操作**（新增 **§14.8**：复用 `banned` 列槽 · 确认流与护栏沿用 · 无障碍名带对象名）· 键账 **+2**（63 → 65 · 零退役）· M4a §4.4 v0.46 **订正**（本页状态列 = `Switch`）· 实现任务 = 批 plan **T10**；总分保持 **9.44**（§11.6）⑩ **内修正 4（用户「按照你的建议来」· 2026-10-12）**：**F301 甲 落地** —— 封禁确认框补**「到期（天）」可选输入**（留空 = 永久 · 换算秒传 `expiresIn`）+ **角色列后缀小字**渲染「本人 / 唯一超管」行标记（§14.3 承诺兑现 · 被禁用控件的可见理由）+ 共享件 `ConfirmDialog` 加**可选 `extraField` 槽**（7 处消费点零改）⇒ **4 死键转活 · 零死键**（键账仍 65）；新增 **§14.9** 落法表 · 新登记 **F302**（未填原因 ⇒ 官方英文默认 `No Reason` · 待拍板）；实现任务 = 批 plan **T11** |
 | v0.9 | 2026-10-10 | **F296 收尾（新会话专查 · 用户拍板「按 1 来」）** —— ① **4 条剩余失败逐条查清**：在**全新自管实例**上 `m4a` 隔离 **64/0** · 全量 **64/0**、`m4b2` 全量 **24/0** ⇒ 515/4 里那 4 条**全部不可复现**，性质 = **降级实例假红**（F297 同族；两处指纹与判读件见 §13 F296 行）② **`m4b2` G5 断言口径修正**（= F298）：原写死 `path === '/login'`（前提「守卫保码归位」）与 §4.4/§9.3「登出 → 回首页」**相反** ⇒ 改按**设计契约**（不留在受保护路由 + 三档角色面归零 + 用户区回「登录」入口 + `/me` 401），判定复用应用侧单点 `apps/web/src/auth/next.ts` 的 `isProtectedRoute`（**不复制前缀清单**）③ **`m4a` 断言语义不动**（16px 物理尺寸这道视觉闸保留），仅把 `getComputedStyle` **布局值**与物理值并列进 `::` 明细 ④ 新登记 **F298**（登出落点不确定 · 产品侧待拍板）· §13 F296 行改写为「已关 + 残余（`m4b3` 找现成标签，不构成失败依赖）」⑤ **新登记 F299**（runner **浏览器生命周期泄漏**：唯一清理钩子 `process.on('exit')` 永不执行 ⇒ 实例泄漏 + 下一轮**静默复用旧实例** = **F297 的生成机制**；已确诊清理；**代码侧已修**（成功路径 `process.exit(0)` · 实测**自发退出** + 零泄漏 · 提交 `48372b4`）） |
@@ -396,8 +399,8 @@
 | **F299** | 工具链缺陷（浏览器生命周期） | **`dogfood-all.ts` 自管实例的清理路径永不执行** —— 唯一的清理钩子是 `process.on('exit', killBrowser)`，而 `spawn()` 的 Edge 子进程**持有事件循环**（**隔离双证实测**：不 `unref` **2.032s** · `unref()` **2.035s** ⇒ **连 `unref()` 在 Bun 1.3.14 都不生效** · `kill` 子进程 **0.033s** · `process.exit` **0.020s**） ⇒ 主进程打印完汇总**不退出**（实测：两个 runner 分别存活 **19:33 / 17:38**，且**只有全绿路径会泄漏** —— 失败路径显式 `process.exit(1)` 反而触发钩子）⇒ ① 自己起的 Edge 永不被清（本轮两轮各泄漏 1 个实例）② **下一轮 runner 新起的 Edge 绑不上 9333**（端口已被上一轮占用；实测一轮落 **IPv4**、下一轮落 **IPv6**），而各脚本一律连 `127.0.0.1`（IPv4）⇒ **静默复用上一轮实例**（本轮实测：full 跑实际用的是 runA 的 `edge-dogfood-Hv472x`；其打印的「清理陈旧 `5173` 标签 1 个」即该实例的遗留标签）⇒ **实例持续老化 = F297 的生成机制**；且「每轮全新 profile」的干净基线承诺不成立（复用旧 profile ⇒ 旧 `localStorage` / 历史标签）③ 推论：runner 的「探针失败 ⇒ **重启浏览器实例**」路径同样失效（新实例绑不上端口 ⇒ 探针仍连旧实例、脚本照旧跑在旧实例上）—— 与 F297 行「当时见效的是**手工**停实例」互为印证 | **本轮处置（确诊后清理）**：按 pid 停掉 2 个泄漏 runner（`SIGTERM` ⇒ 其信号钩子生效 ⇒ 连带清掉 2 个 Edge）⇒ 9333 空出 · 零 profile 残留（实测）⇒ 其后 **runB2** 才拿到**真·全新实例**（开场「`5173` 标签已是干净态」；**注**：`runB` 是导入路径写错导致的秒退跑，非有效跑 —— 见证据 §3.3）。**✅ 代码侧已修（2026-10-10 · 用户批准后落地）**：成功路径**显式退出**（`process.exit(0)` —— 与失败路径同法，退出钩子随即 `killBrowser()`）⇒ 使「自管自灭」真正成立；**实测生效**：runner **自发退出**（`EXIT=0`、**不再需要人工 `SIGTERM`**）· 9333 已释放 · **零**泄漏进程 / 临时 profile（提交 `48372b4`）；⚠ **不要用 `browserProc.unref()`**（隔离实测**无效**，见本行「持有事件循环」处四个读数） |
 | **F300** | 文档 ⇄ 实现偏差（页面骨架） | **本批新页未与同族治理列表页对齐**：`/admin/users` 与 `/admin/assets` 同属「`/admin` 治理列表页」族，实现时却未按族骨架落地 —— **12 条落差**（页头形态 / 页头右侧 / 计数位置 / 筛选行 / 列显隐 / 排序入口 / 文本列截断 / 状态列策略 / 时间口径 / 载态密度 / 根容器内距 / 操作列承载；逐条见 §14.1）；其中 2 条为**已实现却零 UI 入口**的欠账 —— **排序**（服务端 `apps/server/src/http/admin-users.ts:144-145` / `:267-268` + 客户端 `apps/web/src/api/admin.ts:237-238` / `:251-252` 早已实现）= 死代码 · **列显隐**（列 meta `hidable` + 权重表**已写**）= 死配置。**同类第二笔**：**§4.2 复用件清单声明与实际采用不符** —— 声明的 6 件里 `FilterBar`（死件）· `StatusPill`（用途不符：徽标槽 ≠ 表列）· `Drawer` · `Toaster` 未采用，`EmptyState` / `ErrorState` 用途不符；v0.5 只在修订记录交代 2 件、**正文 §4.2 从未回改**。**根源**：「视觉随批就地定稿」在 T4 / T6 落地时**未取同族页基线**（族内一致性判据缺位）⇒ 同族页面各写各的骨架 | **✅ 本轮就地定稿（v0.10）**：① §14 给出逐条落法（骨架 / class 串 / 列宽权重归一化 / 单元格口径 / 分页位置）② §4.2 对平为**四层账**（官方件 · 仓内公共件 · 页内自绘 · 声明未采用）③ **排序 + 列显隐两口接线**（闭死代码 / 死配置）④ 原型对照 + 定稿图 8 张（`apps/web/src/proto/shots/` · 未跟踪）⑤ 实现任务 = 批 plan **T9**。**跨批收敛候选（本批不做 · 已登记）**：页头卡 4 处同构页内自绘（门户 `CenterPage` · `AdminAudit` · `AdminAssets` · 本页）抽件 · `market/SortMenu` 泛化（值域硬绑市场档位 · 4 处消费点属门户面）· `console/FilterBar` 死件退役 —— 三者同归 **M4b-8 视觉收敛** | **技能对账轮追加（2026-10-12 · §11.4）**：① **M4a §4.4 v0.45 登记行陈旧**（「已启用 = `secondary` 药丸」与 v0.10「正常轻字」相反）⇒ 该件 **v0.46** 订正 + 补登本批视觉决策 ② **同信息两处**（页头计数 ≡ 工具条计数）· **首帧闪 0** 两处真缺陷 ⇒ 同版内修正（页头改取 `/api/stats.totalUsers`）③ §14.2 **复制 SSOT** ⇒ 瘦身引用式 ④ 新增 §14.7 对齐声明「唯一刻意偏差 = 排序入口形态」 |
 
-| **F301** | 设计 ⇄ 实现偏差（**已实现却零入口** ×2 · 4 死键） | **自检换靶轮（2026-10-12）命中两类「服务端 / 设计已就绪、UI 未接线」欠账** —— ① **封禁「可选到期」入口缺失**：服务端**已完整实现**（`admin-users.ts:69` body `banExpiresIn?` · `:159-160` zod `expiresIn` · `:529` 传官方 `banExpiresIn` · `:548` 审计记 `expiresIn`）+ §4.5 键账已建 2 键（`banExpireLabel`「到期（天）」/ `banExpirePlaceholder`「留空 = 永久」），但**前端零入口**（`ConfirmDialog` 只给 `reason`）⇒ **2 键成死键** + 主 design §10.2「封禁需填原因（可选到期时间）」**承诺未落地** ② **「（我）/（唯一超管）」行标记未渲染**：§4.3 状态 × 操作矩阵 + §9 线框明文「末位超管行…标「（唯一超管）」（`users.lastSuperTag`）」+ §4.2 局部决策行（标记样式随批定稿）—— 实现**未渲染任何标记**（仅 `disabled`）⇒ 2 键成死键 + **被禁用的启停开关无可见理由**（T10 新列放大该点）。**性质**：均为 **T4 期既有欠账**（非 T9 / T10 引入）· 服务端与设计侧均无需改动 ⇒ 缺口纯在 UI 接线 | ✅ **已关（甲 · 用户「按照你的建议来」· 2026-10-12 · 内修正 4）**：① 封禁确认框加**「到期（天）」可选输入**（留空 = 永久 · 前端换算秒传 `expiresIn`）· ② **角色列后缀小字**渲染「本人 / 唯一超管」标记（与护栏同一判据）· ③ 共享件 `ConfirmDialog` 加**可选 `extraField` 槽**（7 处既有消费点零改）· ④ **4 键全部转活 ⇒ 零死键**（键账零新增零退役 · 仍 65）· 落法见 **§14.9** · 实现任务 = 批 plan **T11** · 实测读数见证据 §3.4 |
-| **F302** | 官方默认值（文案面） | **未填原因时官方落 `No reason`（英文）** —— 归因回实物：`better-auth@1.7.5/dist/plugins/admin/routes.mjs:534` = `banReason: ctx.body.banReason || opts?.defaultBanReason \|\| "No reason"`（我方 `admin-users.ts:528` 仅在**有值**时透传 ⇒ 缺省走官方默认）。影响面 = 库中 `ban_reason` + 列表 API 出参 + 审计 detail（中文产品面出现英文默认值） | ✅ **已关（甲 · 用户「提交 + 甲」· 2026-10-12 · 内修正 4）**：走**官方自带选项** `defaultBanReason`（`auth/better-auth.ts:151-158` · `admin({ … defaultBanReason: '未填写原因' })`）⇒ 我方 `admin-users.ts` 透传逻辑**一字未改**。**实测**：无原因停用 ⇒ 列表出参 `banReason: "未填写原因"`（此前为 `"No reason"`）· 复原后 `banned/banReason/banExpires` 全 `null`（零残留）· `bun test src/` **666 pass / 1 skip / 0 fail**（基线一致）。**文案归属**：该值为**服务端落库默认**（非 UI 文案）⇒ 不占 i18n 键账（与既有服务端中文文案先例一致） |
+| **F301** | 设计 ⇄ 实现偏差（**已实现却零入口** ×2 · 4 死键） | **自检换靶轮（2026-10-12）命中两类「服务端 / 设计已就绪、UI 未接线」欠账** —— ① **封禁「可选到期」入口缺失**：服务端**已完整实现**（`admin-users.ts:70` body `banExpiresIn?` · `:161` zod `expiresIn` · `:532` 传官方 `banExpiresIn` · `:551` 审计记 `expiresIn` —— **收口轮订正 off-by-N**）+ §4.5 键账已建 2 键（`banExpireLabel`「到期（天）」/ `banExpirePlaceholder`「留空 = 永久」），但**前端零入口**（`ConfirmDialog` 只给 `reason`）⇒ **2 键成死键** + 主 design §10.2「封禁需填原因（可选到期时间）」**承诺未落地** ② **「（我）/（唯一超管）」行标记未渲染**：§4.3 状态 × 操作矩阵 + §9 线框明文「末位超管行…标「（唯一超管）」（`users.lastSuperTag`）」+ §4.2 局部决策行（标记样式随批定稿）—— 实现**未渲染任何标记**（仅 `disabled`）⇒ 2 键成死键 + **被禁用的启停开关无可见理由**（T10 新列放大该点）。**性质**：均为 **T4 期既有欠账**（非 T9 / T10 引入）· 服务端与设计侧均无需改动 ⇒ 缺口纯在 UI 接线 | ✅ **已关（甲 · 用户「按照你的建议来」· 2026-10-12 · 内修正 4）**：① 封禁确认框加**「到期（天）」可选输入**（留空 = 永久 · 前端换算秒传 `expiresIn`）· ② **角色列后缀小字**渲染「本人 / 唯一超管」标记（与护栏同一判据）· ③ 共享件 `ConfirmDialog` 加**可选 `extraField` 槽**（7 处既有消费点零改）· ④ **4 键全部转活 ⇒ 零死键**（键账零新增零退役 · 仍 65）· 落法见 **§14.9** · 实现任务 = 批 plan **T11** · 实测读数见证据 §3.4 |
+| **F302** | 官方默认值（文案面） | **未填原因时官方落 `No reason`（英文）** —— 归因回实物：`better-auth@1.7.5/dist/plugins/admin/routes.mjs:534` = `banReason: ctx.body.banReason || opts?.defaultBanReason \|\| "No reason"`（我方 `admin-users.ts:531·532` 仅在**有值**时透传 ⇒ 缺省走官方默认）。影响面 = 库中 `ban_reason` + 列表 API 出参 + 审计 detail（中文产品面出现英文默认值） | ✅ **已关（甲 · 用户「提交 + 甲」· 2026-10-12 · 内修正 4）**：走**官方自带选项** `defaultBanReason`（`auth/better-auth.ts:243` · `admin({ … defaultBanReason: '未填写原因' })`）⇒ 我方 `admin-users.ts` 透传逻辑**一字未改**。**实测**：无原因停用 ⇒ 列表出参 `banReason: "未填写原因"`（此前为 `"No reason"`）· 复原后 `banned/banReason/banExpires` 全 `null`（零残留）· `bun test src/` **666 pass / 1 skip / 0 fail**（基线一致）。**文案归属**：该值为**服务端落库默认**（非 UI 文案）⇒ 不占 i18n 键账（与既有服务端中文文案先例一致） |
 
 ## 14. 验收期增量（v0.10 · 2026-10-12 · 用户「按这个走」）
 
@@ -519,10 +522,21 @@
 | 1 | 封禁到期输入 | `ConfirmDialog` 新增**可选 `extraField` 槽**（本件只负责**位置** · 渲染在原因区之后）· 本页传入 `Field` + `Input type="number" min={1} step={1}`（`#ban-expire-days` · label = `users.banExpireLabel`「到期（天）」· placeholder = `users.banExpirePlaceholder`「留空 = 永久」） |
 | 2 | 换算与缺省 | **留空 = 永久**（不传 `expiresIn`）；合法正整数 ⇒ `Math.floor(天数) × 86400` 秒传 `expiresIn`；非法值由服务端 zod 400 兜底（UI 侧 `min/step` 已拦绝大多数）· 草稿态 `banDays` 随对话框关闭/成功后清空（与原因同法） |
 | 3 | 行标记渲染 | **角色列后缀小字**（`span.ml-1.text-[11px].text-muted-foreground`）= `users.selfTag`「本人」（本人行）或 `users.lastSuperTag`「唯一超管」（超管行）—— 判据与护栏**同一处**（`u.userId === myUserId` / `u.role === 'superadmin'`）⇒ 被禁用控件的**可见理由** |
-| 4 | 共享件影响 | `ConfirmDialog` 加**可选** prop ⇒ **7 处既有消费点零改**（`AssetAdminCard` · `Tokens` · `ReviewDetail` · `Submissions` · `AdminUserCard` 族 · `AssetDetail` · `Publish`） |
+| 4 | 共享件影响 | `ConfirmDialog` 加**可选** prop ⇒ **7 处既有消费点零改**（`AssetAdminCard` · `Tokens` · `ReviewDetail` · `Submissions` · `AdminUsers` · `AssetDetail` · `Publish`） |
 | 5 | 键账 | **零新增 · 零退役** —— 4 个既有键（`banExpireLabel` / `banExpirePlaceholder` / `selfTag` / `lastSuperTag`）由死键**转活** ⇒ `users` 组仍 **65** · **零死键** |
 | 6 | 视觉 | **零新视觉值**：标记用既有 `text-[11px]` 档（= eyebrow 档）+ `text-muted-foreground`；到期输入 = 官方 `Field` + `Input` 默认档 ⇒ 就地补录 **M4a §4.4 v0.46** |
-| 7 | 服务端默认原因（**F302 甲**） | 官方 `admin({ … defaultBanReason: '未填写原因' })`（`auth/better-auth.ts:151-158`）—— 未填原因时**不再落英文 `No reason`**；我方 `admin-users.ts:528` 透传逻辑一字未改（仍「仅在**有值**时透传」）· 该值为**服务端落库默认 · 非 UI 文案** ⇒ 不占 i18n 键账 |
+| 7 | 服务端默认原因（**F302 甲**） | 官方 `admin({ … defaultBanReason: '未填写原因' })`（`auth/better-auth.ts:243`）—— 未填原因时**不再落英文 `No reason`**；我方 `admin-users.ts:531·532` 透传逻辑一字未改（仍「仅在**有值**时透传」）· 该值为**服务端落库默认 · 非 UI 文案** ⇒ 不占 i18n 键账 |
 | 8 | 措辞订正 | §4.3 矩阵原写「（我）/（末位超管）」，**实际键值与渲染文案 = 「本人」/「唯一超管」** ⇒ 已按键值订正（键是 SSOT）· 另注：「末位超管」的**判据**沿用现状（`role === 'superadmin'` 即超管行 · 非「唯一」计数判定）—— 与既有护栏同一口径，**计数判定属行为变更，未动**（另行登记评估） |
 
 **实测读数**（2026-10-12）见证据 §3.4：到期 → API `banExpires` = 次日（`2026-10-13T06:49:47.932Z`）· 复原后 `banned/banReason/banExpires` 全 `null`（零残留）· 「本人 / 唯一超管」两标记分别实测。
+
+### 14.10 规范同步项（收口轮补 · 引用不复制）
+
+| 规范 | 同步内容 | 落点（版本以各件版本头为准） |
+|------|---------|--------------------------|
+| `docs/05-identity-access.md` | 账号启停语义（官方 `banned` 三件套 · `status` 列退休）· §6.4 操作 × 角色矩阵补用户管理面 | §3.1 / §4.1 / §6.4 |
+| `docs/07-i18n-conventions.md` | `users` 组键账（**65** · 4 键由死转活 · 零死键） | §3.3 |
+| `docs/08-data-model.md` | `user.status` 列退休 + `banned` / `ban_reason` / `ban_expires` 口径 | 用户域 |
+| `M4a` §4.4 | 局部视觉决策**就地补录**（页头 / 筛选行 / 列显隐 / 启停列 · 零新视觉值） | §4.4 |
+
+**同步状态（收口轮核 · 2026-10-13）**：`docs/07` / `docs/08` / `M4a §4.4` **均已落**；`docs/05` §6.4「用户管理面」**本轮已补**（`05` **v1.15** —— 矩阵新增「用户管理（列表 / 改角色 / 封禁·解封 / 强制登出 / 建号）」行 = `超管`）。
