@@ -579,22 +579,25 @@ export const en: Dict = {
   },
   login: {
     title: 'Sign in to AI X Hub',
-    subtitle: 'Sign in with your enterprise directory account',
+    subtitle: 'Sign in with your enterprise account',
     username: 'Employee ID / Username',
     password: 'Password',
     submit: 'Sign in',
     submitting: 'Signing in…',
-    oidcLink: 'Sign in with OAuth',
-    oidcHint: 'You will be redirected to the enterprise identity provider (opens in a new tab).',
-    oidcOpen: 'Open the identity provider',
-    backToForm: 'Back to password sign-in',
+    // ── 外部身份源入口（M4c-3 T7 · 序 = 界面入口序）──
+    providerMicrosoft: 'Microsoft account',
+    providerGoogle: 'Google',
+    providerGitHub: 'GitHub',
+    providerWechat: 'WeChat',
+    /** G6 定值：**不暴露内部配置状态**（未装配 / 网络一律同一句） */
+    providerFailed: 'Sign-in could not be completed. Try again or contact your administrator.',
     brandTagline: 'Enterprise AI asset registry and marketplace',
     heroTitle: 'Distribute · Collaborate · Govern',
     heroDesc:
       'A unified registry and distribution platform for skills, MCP servers and agent definitions, with open collaborative review.',
     feature1: 'One protocol and versioned distribution across the three asset families',
     feature2: 'Open collaborative review: submit · verify · audit trail',
-    feature3: 'Direct enterprise directory sign-in (LDAP / OIDC)',
+    feature3: 'Direct enterprise directory sign-in (LDAP / Entra ID)',
   },
   device: {
     title: 'Device authorization',

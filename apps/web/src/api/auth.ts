@@ -123,6 +123,20 @@ export async function login(
 }
 
 /**
+ * 外部身份源登录（M4c-3 T7）—— 官方 `POST /api/auth/sign-in/social`。
+ *
+ * - `provider` = **官方键名逐字**（来自服务端启用集 `/api/meta/auth-providers` ⇒ 前端**零映射表**）；
+ * - `callbackURL` = 本页 `sanitizeNext` **单点**算出的 `destination`（不另立白名单）；
+ * - **不取 `disableRedirect`**：官方 SDK 成功后自行 `window.location.href = url` ⇒ **同页跳转**
+ *   （浏览器原生 OAuth 语义：回调即整页重载 ⇒ `AuthProvider` 重新 bootstrap ⇒ 登录态当场就位）；
+ * - 失败（provider 未装配 / 网络）⇒ 归一 `ApiError`，由页面落 inline 错误条（`login.providerFailed`）。
+ */
+export async function signInWithProvider(provider: string, callbackURL: string): Promise<void> {
+  const { error } = await authClient.signIn.social({ provider, callbackURL });
+  if (error) throw signInError(error as { status?: number; code?: string; message?: string });
+}
+
+/**
  * 登出（官方端点）。
  *
  * **调用形态为实测所得**（2026-09-16 T4 登出链，两种失败各实锤一次）：

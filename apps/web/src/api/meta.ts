@@ -45,6 +45,34 @@ export async function fetchPlatformLimits(opts?: ApiGetOptions): Promise<Platfor
   }
 }
 
+/**
+ * `GET /api/meta/auth-providers`（服务端 M4c-3 T3 只读端点 · T7 消费）。
+ * 形状与类型**随件**（同 `PlatformLimits` 口径：不进 `api/types.ts`，保件面闭合）。
+ */
+export interface AuthProvidersResponse {
+  /** 官方 provider 键名（逐字 `microsoft` / `google` / `github` / `wechat`）· 序 = 界面入口序 */
+  providers: string[];
+}
+
+/**
+ * 读外部身份源**启用集**（匿名只读 · 语言无关 ⇒ 但**不落持久缓存**：服务端开关变更须即时生效）。
+ *
+ * 失败语义（design §4.2「不留死入口」）：**端点不可达 ⇒ 按「未启用」处理**（返回 `[]`）；
+ * 中止（竞态卸载）照 `AbortError` 上抛，交调用方忽略。
+ */
+export async function fetchAuthProviders(opts?: ApiGetOptions): Promise<string[]> {
+  try {
+    const res = await apiGet<AuthProvidersResponse>('/api/meta/auth-providers', {
+      ...opts,
+      cache: false,
+    });
+    return Array.isArray(res?.providers) ? res.providers : [];
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    return [];
+  }
+}
+
 /** 字节 → MiB 文案数值（上限展示统一口径：**四舍五入到整数**，避免 100.0/10.0 之类噪声） */
 export function toMiB(bytes: number): number {
   return Math.round(bytes / (1024 * 1024));

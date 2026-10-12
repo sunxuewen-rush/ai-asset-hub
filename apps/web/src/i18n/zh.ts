@@ -567,27 +567,31 @@ export const zh = {
     'diff.toggleFile': '展开或收起 {path} 的差异',
   },
   /**
-   * 登录页（**UI 重做 T13 · 批 design §14.4 A** —— 16 键 = 原 8 −1（删 `tabLocal`）+ 改名 1
-   * （`tabOidc` → `oidcLink`）+ 新增 8（`subtitle`/`oidcOpen`/`backToForm` + 左栏品牌面板 5 条：
-   * `brandTagline`/`heroTitle`/`heroDesc`/`feature1-3`）。品牌字「AI X Hub」与许可行硬编码（不进字典）。
+   * 登录页（**UI 重做 T13 · 批 design §14.4 A** ⇒ 16 键；**M4c-3 T7**：退 4 —— `oidcLink` / `oidcHint` /
+   * `oidcOpen` / `backToForm`（备用面板随自绘 OIDC 退役）· 增 5 —— `providerMicrosoft` / `providerGoogle` /
+   * `providerGitHub` / `providerWechat` / `providerFailed` ⇒ **17 键**）。品牌字「AI X Hub」与许可行
+   * 硬编码（不进字典）。
    */
   login: {
     title: '登录 AI X Hub',
-    subtitle: '使用企业目录账号登录',
+    subtitle: '使用企业账号登录',
     username: '企业工号 / 用户名',
     password: '密码',
     submit: '登录',
     submitting: '登录中…',
-    oidcLink: '使用 OAuth 登录',
-    oidcHint: '将跳转至统一身份认证页面（在新标签页打开）。',
-    oidcOpen: '打开统一认证页',
-    backToForm: '返回密码登录',
+    // ── 外部身份源入口（M4c-3 T7 · 序 = 界面入口序）──
+    providerMicrosoft: 'Microsoft 账号',
+    providerGoogle: 'Google',
+    providerGitHub: 'GitHub',
+    providerWechat: '微信',
+    /** G6 定值：**不暴露内部配置状态**（未装配 / 网络一律同一句） */
+    providerFailed: '登录未完成，请稍后重试或联系管理员',
     brandTagline: '企业级 AI 资产注册中心与市场',
     heroTitle: '分发 · 协作 · 治理',
     heroDesc: '技能 / MCP Server / Agent 定义的统一注册与分发平台，带开放协作审核治理。',
     feature1: '三族资产统一协议与版本化分发',
     feature2: '开放协作审核：提交 · 复核 · 审计留痕',
-    feature3: '企业目录账号直连（LDAP / OIDC）',
+    feature3: '企业目录账号直连（LDAP / Entra ID）',
   },
   device: {
     title: '设备授权',
