@@ -646,7 +646,14 @@ export const zh = {
     'status.all': '全部状态',
     'status.active': '已启用',
     'status.banned': '已停用',
-    reset: '重置',
+    /** 启停列（T10 · 批 design §14.8）：开关的无障碍名 / 悬浮提示（**必带对象名**，一排开关否则无从区分） */
+    'toggle.ban': '停用 {name}',
+    'toggle.unban': '启用 {name}',
+    /** 排序档位（批 design v0.10 §14.3 · 与三列表头同源） */
+    'sort.createdAt': '创建时间',
+    'sort.username': '账号',
+    'sort.name': '姓名',
+    'sort.email': '邮箱',
     /** F294：官方单次仅容一组过滤条件 ⇒ UI 禁用互斥控件并提示 */
     mutualHint: '工号搜索与角色 / 状态筛选互斥（同时只能用一个）',
     roleAdminOnlyHint: '只读视图：管理档仅可查看列表，治理动作需超级管理档',

@@ -1,9 +1,9 @@
 # UI 语言与本地化约定
 
 > Date: 2026-09-04
+> Updated: 2026-10-12（**v1.15：`users` 组 63 → 65（M4c-2 v0.10 内修正 3 · 启停列实测回填）** —— **+2** `toggle.ban` / `toggle.unban`（开关无障碍名 + 悬浮提示 · 带 `{name}`）· **零退役**；zh / en 成对差集 0；§3.3 注记同步）
+> Updated: 2026-10-12（**v1.14：`users` 组 60 → 63（M4c-2 v0.10 验收期增量实测回填）** —— **+4** `sort.createdAt` / `sort.username` / `sort.name` / `sort.email`（排序档位）· **退役 1** `reset`（「重置」按钮取消）；zh / en **成对 · 差集 0**；§3 正文补 `users` / `account` 两组行 + 新增 **§3.3 `users` 组落地注记**）
 > Updated: 2026-10-09（**v1.13：新增 `users` 组（60 键）· `account` 组（13 键）** —— M4c-2 账号与权限治理：`/admin/users` 页 + 自助改密 Dialog · zh/en 成对差集 0）
-> Updated: 2026-10-09（v1.12：**§4 补「官方认证码直通」口径 + 本批增删（M4c-1 T7）** —— 登录面全交官方后，`errors` 资源表**按官方码建键**（与族协议码键同范式），前端**不**维护「官方码 → 我方码」重映射表；**防枚举**由「同一官方码 ⇒ 同一文案」保证。本批：删 `auth` 4 条（`invalid_credentials` / `ldap_denied` / `user_disabled` / `user_pending`）· 增官方码 5 条（`BANNED_USER` / `INVALID_USERNAME` / `INVALID_USERNAME_OR_PASSWORD` / `USERNAME_TOO_LONG` / `USERNAME_TOO_SHORT`）· 限流仍归一保留码 `auth.rate_limited`）
-> Updated: 2026-09-30（v1.11：**§3 资源组清单补 `dashboard` 组 + 新增 §3.2 落地注记** —— M4b-8 T10 回填 · 主 design §14「M4b 收尾」欠账收口：§3 正文补 `dashboard`（个人工作台 · **M4b-4 已落地：14 键**）；新 §3.2 表列 **14 键**实测 + zh/en 零差集 + 归属（M4b-1 骨架 / M4b-4 落地）+ 消费点 `pages/Dashboard.tsx`；**顺带订正** §3 正文 `publish` 键数 **57 → 64**（与 §3.1 表对齐，正文落后）。**零实现改动**）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§8 修订记录**。
 > Status: 定稿（M0 评审通过；M4a 门户资源已落地，M4b 管理后台资源随其实现铺开）
 > Scope: 前端界面语言机制 —— 支持语言、默认跟随系统、手动切换、错误码本地化、API 语言契约
@@ -33,6 +33,7 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 - 资源按界面域分组：`navigation` / `market`（列表/搜索/详情）· `publish`（发布流 · **M4b-7 已落地：64 键** —— 见 §3.1 落地注记）·
   `dashboard`（个人工作台 · **M4b-4 已落地：14 键** —— 见 §3.2 落地注记）·
+  `users`（用户管理 · **M4c-2 已落地：63 键** —— 见 **§3.3 落地注记**）· `account`（自助改密 · **M4c-2 T5 已落地：13 键**）·
   `review`（审核）· `admin`（管理后台）· `common`（通用）· `errors`（错误码消息）
 - 客户端 i18n 框架加载当前语言资源包；语言切换即换资源包
 - 资产自身内容（作者写的 description/正文/README）**不翻译**——那是内容属性，
@@ -45,6 +46,17 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 | 键数 | **14** —— `title` · `welcome` · `myAssets` · `submissions` · `tokens` · `empty` + `card.pending.title` / `card.pending.cta` / `card.assets.cta` / `card.audit.title` / `card.audit.col.time` / `card.audit.col.action` / `card.audit.col.target` / `card.audit.viewAll`；zh 14 / en 14 逐键回读 · **零差集**（由 `Dict = typeof zh` 类型 + 脚本双验） |
 | 归属 | **M4b-1**（三层骨架）· **M4b-4**（落地：工作台 landing 三项计数卡） |
 | 消费点 | `pages/Dashboard.tsx`（角色感知卡片 —— `role < 10` 只发「我的资产」1 个请求） |
+
+### 3.3 `users` 组落地注记（M4c-2 v0.10 回填 · 2026-10-12 · **实测**）
+
+| 项 | 实测值（2026-10-12） |
+|---|---|
+| 键数 | **65**（`zh.ts` 顶层键逐条回读；`en.ts` 成对 · **差集 0** —— 由 `Dict = typeof zh` 类型 + `typecheck` 双保） |
+| 键账（v0.10 增量） | ① **+4** `sort.createdAt` / `.username` / `.name` / `.email`（排序档位 · 与三列表头同源）· **退役 1** `reset`（「重置」按钮取消）⇒ **60 → 63**（净 +3）② **+2** `toggle.ban` / `toggle.unban`（启停列开关的**无障碍名 + 悬浮提示** · 带 `{name}` 对象名）· **零退役**（列头复用 `col.status`）⇒ **63 → 65** |
+| 复用（零新增） | `market.sortLabel` / `market.searchBtn` / `market.searchClose` / `market.{colShow,colRequired,colReset}`（列显示菜单）· `board.kpi.users`（页头计数块 label「有效用户」）· `admin.empty`（空态） |
+| 归属 | **M4c-2 T4**（组骨架 · 60 键）· **M4c-2 v0.10 T9**（排序档位 + 退役 `reset` ⇒ 63 键）· **M4c-2 v0.10 T10**（启停列 `toggle.*` +2 ⇒ **65 键**） |
+| 消费点 | `apps/web/src/pages/AdminUsers.tsx`（唯一消费页） |
+| 依据 | 批 design `2026-10-09-m4c2-user-governance-design.md` **§14.5**（键账三件式 · 引用不复制） |
 
 ## 4. 错误码本地化
 
@@ -82,6 +94,8 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.15 | 2026-10-12 | sunxuewen-rush | **`users` 组 63 → 65（M4c-2 v0.10 内修正 3 · 启停列）** —— **+2**（`toggle.ban` / `toggle.unban` · 开关的**无障碍名 + 悬浮提示**，带 `{name}` 对象名）· **零退役**（列头复用 `users.col.status` ⇒ 键账自提案的 66 订正为 **65**）；zh / en 成对差集 0；**§3.3 注记同步**（键数 / 键账 / 消费点）|
+| v1.14 | 2026-10-12 | sunxuewen-rush | **`users` 组 60 → 63（M4c-2 v0.10 验收期增量 · 实测回填）** —— **+4**（`sort.createdAt` / `.username` / `.name` / `.email` · 排序档位与三列表头同源）· **退役 1**（`reset` · 「重置」按钮取消）· **复用零新增**（`market.*` / `board.kpi.users` / `admin.empty`）；zh / en 成对差集 0；§3 正文补 `users` / `account` 两组行 + 新增 **§3.3 `users` 组落地注记**（键数 / 键账 / 复用 / 归属 / 消费点）|
 | v1.13 | 2026-10-09 | sunxuewen-rush | 新增 **`users` 组（60 键）** 与 **`account` 组（13 键）**（zh / en **成对 · 差集 0**）—— M4c-2 账号与权限治理：`/admin/users` 用户管理页（列表 / 字段选择器筛选 / 建号 / 行操作）+ 自助改密 Dialog（批 design §4.2 / §4.5 R21） |
 | v1.12 | 2026-10-09 | sunxuewen-rush | **§4 补「官方认证码直通」口径 + 本批增删（M4c-1 T7）** —— ⓐ 新增两条规则：官方码**直通**建键（不设重映射表）· 官方 429 归一保留码 `auth.rate_limited`；ⓑ 键面变更：删 4 条 `auth.*`（`invalid_credentials` / `ldap_denied` / `user_disabled` / `user_pending`）· 增 5 条官方码键（`BANNED_USER` / `INVALID_USERNAME` / `INVALID_USERNAME_OR_PASSWORD` / `USERNAME_TOO_LONG` / `USERNAME_TOO_SHORT`，后四条**同文案 = 防枚举**）；ⓒ zh/en 双向差集 **0**（`doc-claims-check` 实测） |
 | v1.11 | 2026-09-30 | sunxuewen-rush | **§3 资源组清单补 `dashboard` 组 + 新增 §3.2 落地注记**（M4b-8 T10 回填）—— §3 正文补 `dashboard`（个人工作台 · **M4b-4 已落地：14 键**）；**§3.2 新表**逐条列 14 键 + zh/en 零差集 + 归属（M4b-1 骨架 / M4b-4 落地）+ 消费点（`pages/Dashboard.tsx`）；**顺带订正** §3 正文 `publish` **57 → 64**（与 §3.1 表对齐）。**零实现改动** |

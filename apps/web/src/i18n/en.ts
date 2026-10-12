@@ -653,7 +653,15 @@ export const en: Dict = {
     'status.all': 'All statuses',
     'status.active': 'Enabled',
     'status.banned': 'Disabled',
-    reset: 'Reset',
+    /** Enabled/disabled column (T10 · batch design §14.8): accessible name + tooltip for the switch
+     *  (the target name is required so a row of switches stays distinguishable) */
+    'toggle.ban': 'Disable {name}',
+    'toggle.unban': 'Enable {name}',
+    /** Sort options (batch design v0.10 §14.3 · same source as the three sortable headers) */
+    'sort.createdAt': 'Created',
+    'sort.username': 'Account',
+    'sort.name': 'Name',
+    'sort.email': 'Email',
     mutualHint:
       'Employee-ID search cannot be combined with role / status filters (one filter at a time)',
     roleAdminOnlyHint:
