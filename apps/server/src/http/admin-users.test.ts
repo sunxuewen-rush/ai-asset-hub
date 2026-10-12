@@ -324,3 +324,54 @@ describe('M4c-2 T7 · F270 哨兵判定（纯函数 · 补 T2 声明的覆盖缺
     expect(listLooksSwallowed(3, 3, 0)).toBe(false);
   });
 });
+
+/**
+ * M4c-3 **T4**：管理面出参**占位邮箱归一**（批 design §3.4 · **P7 丙**）。
+ *
+ * 语义：外部通道未提供邮箱 ⇒ 官方合成 `<identifier>@<namespace>.placeholder.invalid`；
+ * 本仓出参**归一为 `null`** ⇒ 前端既有 `{email || '—'}` 兜底直接生效（**零前端改动 · 零新键**），
+ * 且**占位真值不外泄**（管理端看不到 ⇒ 排查走 `account` 表 / 审计 `detail.provider`）。
+ */
+describe('M4c-3 T4 · 占位邮箱出参归一（P7 丙）', () => {
+  it('占位邮箱账号 ⇒ 出参 email = null（真值不外泄）；正常邮箱 ⇒ 原样（对照）', async () => {
+    // ① 占位邮箱账号：直写官方 user 域表的 email 列 —— 复刻官方外部通道的合成结果
+    const placeholderId = await createTestUser(db, {
+      id: `${PREFIX}ph_${randomUUID()}`,
+      displayName: `${PREFIX}ph`,
+    });
+    const placeholderEmail = `wx_${randomUUID()}@wechat.placeholder.invalid`;
+    await db.update(user).set({ email: placeholderEmail }).where(eq(user.id, placeholderId));
+
+    const phUsername = (await readUser(placeholderId))!.username!;
+    const listed = await call(
+      'GET',
+      `/api/admin/users?q=${encodeURIComponent(phUsername)}&field=username`,
+      superCookie,
+    );
+    expect(listed.status).toBe(200);
+    const phItem = (listed.json as { items: Array<Record<string, unknown>> }).items.find(
+      (i) => i.userId === placeholderId,
+    );
+    expect(phItem).toBeTruthy();
+    expect(phItem!.email).toBeNull(); // 归一为「无」⇒ 前端显「—」
+    expect(JSON.stringify(phItem)).not.toContain('placeholder.invalid');
+
+    // ② 对照：正常邮箱账号 ⇒ 原样返回（未被归一）—— 自建，保持 PREFIX 隔离
+    const normalId = await createTestUser(db, {
+      id: `${PREFIX}nm_${randomUUID()}`,
+      displayName: `${PREFIX}nm`,
+    });
+    const normalUsername = (await readUser(normalId))!.username!;
+    const normalListed = await call(
+      'GET',
+      `/api/admin/users?q=${encodeURIComponent(normalUsername)}&field=username`,
+      superCookie,
+    );
+    const normalItem = (normalListed.json as { items: Array<Record<string, unknown>> }).items.find(
+      (i) => i.userId === normalId,
+    );
+    expect(normalItem).toBeTruthy();
+    expect(typeof normalItem!.email).toBe('string');
+    expect(normalItem!.email as string).toContain('@');
+  });
+});

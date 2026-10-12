@@ -36,6 +36,41 @@ import { type AuthSurfaceCode, OFFICIAL_BANNED_CODE } from './errors.js';
 /** 官方凭据 provider 常量（`findCredentialAccount` 三条件之一；批 design §5.1） */
 export const CREDENTIAL_PROVIDER = 'credential';
 
+/**
+ * 官方**占位邮箱域**（真值已核：`@better-auth/core@1.7.5` `dist/utils/email.mjs:6`
+ * `PLACEHOLDER_EMAIL_DOMAIN = "placeholder.invalid"`；该常量**未**对外导出 ⇒ 本仓按真值复写并注释来源）。
+ */
+export const PLACEHOLDER_EMAIL_DOMAIN = 'placeholder.invalid';
+
+/** 官方合成形态的**后缀**（`<identifier>@<namespace>.placeholder.invalid` ⇒ `.` + 域） */
+export const PLACEHOLDER_EMAIL_SUFFIX = `.${PLACEHOLDER_EMAIL_DOMAIN}`;
+
+/**
+ * **占位邮箱识别**（M4c-3 §3.4 · 主 design §2.6 **R11**）—— 外部通道**未提供邮箱**时，官方会合成一条
+ * 占位地址：`createPlaceholderEmail({ identifier, namespace })` ⇒ `<identifier>@<namespace>.placeholder.invalid`
+ * （如 WeChat：`social-providers/wechat.mjs:77`/`:82`，并置 `emailVerified: false`）⇒ 判为「**无邮箱身份**」。
+ *
+ * 语义口径（R11）：占位邮箱账号 ① 不参与自动链接（官方 `emailVerified:false` 已满足）
+ * ② 不撞 `user_email_unique`（占位串天然唯一）③ 管理面**不显示真值**（出参归一为「无」⇒ 前端既有
+ * `{email || '—'}` 兜底直接生效）。
+ *
+ * 边界：**纯判定，不写库**；`null` / 非字符串 / 空串 ⇒ `false`（占位串必含 `@` 与后缀）。
+ * 反例：`x@notplaceholder.invalid`（缺少 `.` 分隔）⇒ `false` ✅。
+ *
+ * ⚠ **实现口径（比 design §3.4 的「以 `.placeholder.invalid` 结尾」多一条防御性子句）**：
+ * 官方 `createPlaceholderEmail` 合成**必含 namespace**（`<identifier>@<namespace>.placeholder.invalid`），
+ * 但本函数按**域**判定 ⇒ **裸域** `…@placeholder.invalid` 亦识别为占位（防未来 provider / 上游变形
+ * 时占位真值泄漏到管理面）。该子句不改变官方形态的判定结果（T4 靶测试 ① 两态均覆盖）。
+ */
+export function isPlaceholderEmail(email: string | null | undefined): boolean {
+  if (typeof email !== 'string') return false;
+  const normalized = email.trim().toLowerCase();
+  return (
+    normalized.endsWith(PLACEHOLDER_EMAIL_SUFFIX) ||
+    normalized.endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`)
+  );
+}
+
 /** 平台账号行（规则判定所需列；`user` 表的子集） */
 export interface AccountRow {
   id: string;

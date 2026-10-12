@@ -4,7 +4,7 @@ import { and, eq, like, or } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createClient, type Db } from '../db/client.js';
 import { account, user } from '../db/schema/index.js';
-import { createIdentityRules, type IdentityRules } from './identity.js';
+import { createIdentityRules, type IdentityRules, isPlaceholderEmail } from './identity.js';
 
 process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
 process.env.SESSION_SECRET ??= 'x'.repeat(40);
@@ -321,5 +321,40 @@ describe('identity rules §5.1 · 凭据委派行（M4c-1 T3）', () => {
       .from(account)
       .where(eq(account.userId, id));
     expect(rows.map((r) => r.providerId)).toEqual(['oidc']);
+  });
+});
+
+/**
+ * M4c-3 **T4**：占位邮箱识别（`isPlaceholderEmail`）—— **纯函数直测**（零 DB / 零 env / 零 mock）。
+ *
+ * 真值来源：官方 `@better-auth/core@1.7.5` `dist/utils/email.mjs:6`（`placeholder.invalid`）
+ * ＋ `createPlaceholderEmail({ identifier, namespace })` 的合成形态。
+ */
+describe('M4c-3 T4 · 占位邮箱识别（纯函数）', () => {
+  it('① 官方合成形态 ⇒ true（含 namespace / 裸域 两级）', () => {
+    expect(isPlaceholderEmail('wx_openid_abc@wechat.placeholder.invalid')).toBe(true);
+    expect(isPlaceholderEmail('user@placeholder.invalid')).toBe(true);
+  });
+
+  it('② 大小写与首尾空白不改变判定（判定须稳健）', () => {
+    expect(isPlaceholderEmail('WX@WeChat.Placeholder.Invalid')).toBe(true);
+    expect(isPlaceholderEmail('  wx@wechat.placeholder.invalid  ')).toBe(true);
+  });
+
+  it('③ 正常邮箱 ⇒ false', () => {
+    expect(isPlaceholderEmail('zhang.san@company.com')).toBe(false);
+    expect(isPlaceholderEmail('admin@local.test')).toBe(false);
+  });
+
+  it('④ 相似但非占位 ⇒ false —— 防后缀误判（须含 `.` 分隔）', () => {
+    expect(isPlaceholderEmail('x@notplaceholder.invalid')).toBe(false);
+    expect(isPlaceholderEmail('x@placeholder.invalid.evil.com')).toBe(false);
+  });
+
+  it('⑤ 空值族 ⇒ false（null / undefined / 空串 / 纯空白）', () => {
+    expect(isPlaceholderEmail(null)).toBe(false);
+    expect(isPlaceholderEmail(undefined)).toBe(false);
+    expect(isPlaceholderEmail('')).toBe(false);
+    expect(isPlaceholderEmail('   ')).toBe(false);
   });
 });

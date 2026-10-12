@@ -27,6 +27,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { AUDIT_ACTIONS, type AuditWriter } from '../audit/audit.js';
 import type { AihAuth } from '../auth/better-auth.js';
+import { isPlaceholderEmail } from '../auth/identity.js';
 import { ACCOUNT_ROLE } from '../auth/rbac.js';
 import { accountRoleOf, isRoleName, ROLE_LEVEL } from '../auth/roles.js';
 import type { Db } from '../db/client.js';
@@ -328,7 +329,9 @@ export function createAdminUserRoutes({ db, auth, audit }: AdminUserRoutesDeps):
         userId: u.id,
         username: u.username ?? null,
         name: u.name ?? null,
-        email: u.email ?? null,
+        // 占位邮箱归一为「无」（M4c-3 §3.4 · P7 丙）：外部通道未给邮箱 ⇒ 官方合成 `.placeholder.invalid`
+        // 占位串 ⇒ 出参置 null ⇒ 前端既有 `{email || '—'}` 兜底直接生效（零前端改动 · 零新键）
+        email: isPlaceholderEmail(u.email) ? null : (u.email ?? null),
         role: u.role ?? null,
         banned: u.banned === true,
         banReason: u.banReason ?? null,
