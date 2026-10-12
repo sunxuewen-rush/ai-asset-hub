@@ -292,6 +292,8 @@ export default function AdminUsers() {
         cell: ({ row }: { row: { original: AdminUserRow } }) => {
           const email = row.original.email;
           /* 资产页口径：单元格 `block min-w-0 truncate` + 全值进 `title`（原生悬浮） */
+          /* 空值来源（M4c-3 §3.4 · P7 丙）：外部通道未给邮箱 ⇒ 服务端出参已把官方合成占位串
+             （`.placeholder.invalid`）归一为 `null`（`http/admin-users.ts`）⇒ 下方 `|| '—'` 即「无邮箱」展示 */
           return (
             <span className="block min-w-0 truncate text-xs" title={email ?? ''}>
               {email || '—'}

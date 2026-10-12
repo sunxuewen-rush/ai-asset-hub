@@ -46,7 +46,10 @@ import { type Translate, useI18n } from '@/i18n/I18nProvider';
  *       分页 `offset` 口径；`action` 下拉数据源 = 实现期的 `GET /api/audit/actions`（改动 6）。
  */
 const ALL = '__all__';
-/** 动作组名（潜在全集 9 组 · design §6.3；未知前缀**原样显示**兜底） */
+/**
+ * 动作组名（**已登记组 9 个** + 潜在 `namespace`（本仓无写入点）⇒ 共 **10 个标签分支**；
+ * 真源 = `GET /api/audit/actions` 的登记表；**未知前缀原样显示**兜底 —— 新动作不丢）
+ */
 function groupLabel(t: Translate, prefix: string): string {
   switch (prefix) {
     case 'asset':
@@ -65,8 +68,10 @@ function groupLabel(t: Translate, prefix: string): string {
       return t('admin', 'audit.group.namespace');
     case 'ldap':
       return t('admin', 'audit.group.ldap');
-    case 'oidc':
-      return t('admin', 'audit.group.oidc');
+    case 'external':
+      return t('admin', 'audit.group.external');
+    case 'user':
+      return t('admin', 'audit.group.user');
     default:
       return prefix;
   }
