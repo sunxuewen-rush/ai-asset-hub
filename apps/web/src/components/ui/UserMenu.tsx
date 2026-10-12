@@ -34,8 +34,10 @@ import { type DictKey, useI18n } from '@/i18n/I18nProvider';
  * - 图标态（`collapsible="icon"`）→ 只留头像（`group-data-[collapsible=icon]:hidden` 收文字；
  *   官方 `tooltip` 仅收起态显示）
  *
- * 登出链（design §4.4）：`logout()`（失败不阻断本地清态）→ `invalidateCache()` → `refresh()`
- * （重取 `/me` → `anon`）→ 回首页。菜单内路由均指向占位页（T3 已建，真页后续批替换）。
+ * 登出链（design §4.4 · **M4c-3 T8 关账 F298**）：`logout()`（失败不阻断本地清态）→ `invalidateCache()`
+ * → `refresh()`（重取 `/me` ⇒ 401 ⇒ `anon`）→ `navigate('/', { replace: true })`。**本序即为契约序**：
+ * 实测末跳落 `/` **5/5**（改序会落 `/login?next=…` 5/5 —— 见 `handleLogout` 内注释与 **F312**）。
+ * 菜单内路由均指向占位页（T3 已建，真页后续批替换）。
  */
 const ROLE_BADGE_KEY: Partial<Record<number, DictKey<'navigation'>>> = {
   [ROLE.USER]: 'roleUser',
@@ -84,6 +86,13 @@ export function UserMenu() {
       // 登出请求失败不阻断本地清态（design §4.4 以「清上下文 + 回首页」为准）
     }
     invalidateCache();
+    // ⚠ **本序不可调换**（M4c-3 T8 · **F312 实测反证**）：`refresh()` 的 `/me` 必然 401 ⇒ 触发**401 分流**
+    // （`AuthProvider.tsx` 的 `setUnauthorizedHandler` ⇒ `navigate('/login?next=…')`，`next` = 原受保护路由）。
+    // ① **原序**（`refresh()` → `navigate('/')`）：401 跳转落在 `navigate('/')` **之前**（`refresh` 被 await）
+    //    ⇒ **最终落点 = `/`**（实测 **5/5**）。
+    // ② 若把 `navigate('/')` 提前（"先离开受保护路由"）：401 跳转落在其后 ⇒ **最终落点 = `/login?next=…`**
+    //    （实测 **5/5**）—— 与「统一落 `/`」（批 design §2.2 Q3 甲）冲突。
+    // ⇒ **统一落点是本序保证的**（反直觉）；改序前请先复跑批 plan T8 的登出探针。
     await refresh();
     navigate('/', { replace: true });
   };
