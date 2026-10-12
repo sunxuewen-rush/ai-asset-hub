@@ -115,4 +115,80 @@ describe('parseEnv', () => {
     });
     expect(env.OIDC_ENABLED).toBe(true);
   });
+
+  // ── M4c-3 T1：外部身份源 env 契约（+13 键 · fail-fast · G1）──
+  it('外部身份源默认全关（独立部署零影响）', () => {
+    const env = parseEnv(baseEnv);
+    expect(env.ENTRA_ENABLED).toBe(false);
+    expect(env.ENTRA_CLIENT_ID).toBe('');
+    expect(env.ENTRA_TENANT_ID).toBe('');
+    expect(env.SOCIAL_GOOGLE_ENABLED).toBe(false);
+    expect(env.SOCIAL_GITHUB_ENABLED).toBe(false);
+    expect(env.SOCIAL_WECHAT_ENABLED).toBe(false);
+  });
+
+  it('Entra 全配通过（tenantId 为必填项）', () => {
+    const env = parseEnv({
+      ...baseEnv,
+      ENTRA_ENABLED: 'true',
+      ENTRA_CLIENT_ID: 'api://aih',
+      ENTRA_CLIENT_SECRET: 's3cret',
+      ENTRA_TENANT_ID: '11111111-2222-3333-4444-555555555555',
+    });
+    expect(env.ENTRA_ENABLED).toBe(true);
+    expect(env.ENTRA_TENANT_ID).toBe('11111111-2222-3333-4444-555555555555');
+  });
+
+  it('社交三通道全配通过', () => {
+    const env = parseEnv({
+      ...baseEnv,
+      SOCIAL_GOOGLE_ENABLED: 'true',
+      SOCIAL_GOOGLE_CLIENT_ID: 'g-id',
+      SOCIAL_GOOGLE_CLIENT_SECRET: 'g-secret',
+      SOCIAL_GITHUB_ENABLED: 'true',
+      SOCIAL_GITHUB_CLIENT_ID: 'gh-id',
+      SOCIAL_GITHUB_CLIENT_SECRET: 'gh-secret',
+      SOCIAL_WECHAT_ENABLED: 'true',
+      SOCIAL_WECHAT_CLIENT_ID: 'wx-id',
+      SOCIAL_WECHAT_CLIENT_SECRET: 'wx-secret',
+    });
+    expect(env.SOCIAL_GOOGLE_ENABLED).toBe(true);
+    expect(env.SOCIAL_GITHUB_ENABLED).toBe(true);
+    expect(env.SOCIAL_WECHAT_ENABLED).toBe(true);
+  });
+
+  it('fail-fast：启用但缺凭据 → 拒启（四通道各一例）', () => {
+    // Entra 缺 clientSecret（tenantId 已给 ⇒ 隔离出「凭据校验」这条路径）
+    expect(() =>
+      parseEnv({
+        ...baseEnv,
+        ENTRA_ENABLED: 'true',
+        ENTRA_CLIENT_ID: 'api://aih',
+        ENTRA_TENANT_ID: 't-1',
+      }),
+    ).toThrow(/ENTRA_CLIENT_SECRET/);
+    // Google 缺 clientId
+    expect(() =>
+      parseEnv({ ...baseEnv, SOCIAL_GOOGLE_ENABLED: 'true', SOCIAL_GOOGLE_CLIENT_SECRET: 's' }),
+    ).toThrow(/SOCIAL_GOOGLE_CLIENT_ID/);
+    // GitHub 缺 clientSecret
+    expect(() =>
+      parseEnv({ ...baseEnv, SOCIAL_GITHUB_ENABLED: 'true', SOCIAL_GITHUB_CLIENT_ID: 'i' }),
+    ).toThrow(/SOCIAL_GITHUB_CLIENT_SECRET/);
+    // WeChat 缺 clientId
+    expect(() =>
+      parseEnv({ ...baseEnv, SOCIAL_WECHAT_ENABLED: 'true', SOCIAL_WECHAT_CLIENT_SECRET: 's' }),
+    ).toThrow(/SOCIAL_WECHAT_CLIENT_ID/);
+  });
+
+  it('G1：ENTRA_ENABLED=true 且 tenantId 空 → 拒启（必须收紧本租户）', () => {
+    expect(() =>
+      parseEnv({
+        ...baseEnv,
+        ENTRA_ENABLED: 'true',
+        ENTRA_CLIENT_ID: 'api://aih',
+        ENTRA_CLIENT_SECRET: 's3cret',
+      }),
+    ).toThrow(/ENTRA_TENANT_ID/);
+  });
 });

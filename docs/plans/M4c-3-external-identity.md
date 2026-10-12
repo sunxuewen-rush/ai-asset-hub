@@ -1,9 +1,10 @@
 # M4c-3 外部身份源接入：社交 provider + 官方内置 Entra ID + 账号链接统一 + 登录页入口 —— 批计划
 
 > Date: 2026-10-12
+> Updated: 2026-10-12（**v0.3：T1 落地 + 顺序订正** —— ① **同批约束订正（开工前实测照出）**：`OIDC_*` 5 键的**删面归 T6**（消费件 `auth/oidc.ts:57-62` 同批删 ⇒ 否则中间态编译红），`+13` 归 T1；§1/§2/§3/§6 五处同步 ② **T1 已落地**：3 件 **+146/−0** · 靶测试 **18/0** · 全量 server **671/1/0**（666 + 5 新 · 基线零漂移）· 门禁 **275/141/3/50/37/0** · 进程级 3 例拒启 **exit=1** + 全关档 `/api/meta/limits` **200** ③ **T1 自检 18 维 9.51**（§7.1））
 > Updated: 2026-10-12（**v0.2：声明核验轮** —— 44 条可回读声明逐条实测：**3 处锚点/引用承 design 偏差已双向订正**（`audit/actions.ts` oidc 组 **`:52-55`** · `AdminUsers.tsx` 兜底 **`:297`** · F298 真码引用补 `{replace: true}` + 写明**真实执行序**）· T8 措辞精确化到「当前序 → 目标序」（**只动顺序**）· 2 处探针假警报如实记录 · **首稿死路径引用 → doc-audit FAIL，照仓内先例写法已修** · 新增 **§8.1** · 综合 **9.43 → 9.46**（§8.1））
 > Updated: 2026-10-12（**v0.1：首稿** —— 11 Task 全覆盖（env 契约 → provider 装配 → 启用集端点 → 共享模块 → 审计与错误码 → 自绘 OIDC 退役 → 登录页入口 → 登出链 → 管理面连带 → 验证 → 收口）；承批 design **v0.5**（8 维 9.69 · 门 ≥9 ✓）；零迁移 · 零新表 · 零新自绘端点）
-> Status: 🟡 **待开工**（design 已定稿并提交 `2712c95` · 本 plan 自检 **9.46** 已报 · 待用户提交口令）
+> Status: 🟢 **执行中**（**T1 ✅ 已落地 2026-10-12** · 自检 18 维 **9.51**）—— 上游 = 批 design 定稿 **v0.5**（8 维 9.69）· 本 plan **v0.3** · 待 T2 开工
 > 上游 = 批 design `docs/designs/2026-10-12-m4c3-external-identity-design.md`（**定稿 · v0.5 · 8 维 9.69** —— 版本以其版本头为准）
 > · 主 design `docs/designs/2026-10-08-m4c-account-and-access-governance-design.md`（§2.6 R1/R4/R10/R11/R13 · §2.7 件面 · §3.4 共享模块 · §5 详章 · §6.1 · §10.2 线框 —— 版本以其版本头为准）
 > · 视觉真值 SSOT `docs/designs/2026-09-09-m4a-marketplace-portal-design.md` **§4.4**（本批**仅 1 个新间距值** 16px · 其余复用本页既有档 · 引 M4c 主 design §2.3「视觉随批就地定稿」）
@@ -18,7 +19,7 @@
 
 | # | 交付 | 说明 |
 |---|------|------|
-| 1 | **env 契约 +13 / −5 键** | `ENTRA_*` 4（企业通道）+ `SOCIAL_{GOOGLE,GITHUB,WECHAT}_*` 9（社交三通道）；删 `OIDC_*` 5 键 + 2 段校验；**fail-fast**（启用但缺凭据 ⇒ 拒启）+ **G1**（`ENTRA_ENABLED` 且 `TENANT_ID` 空 ⇒ 拒启） |
+| 1 | **env 契约 +13 / −5 键**（**删键归 T6** · 见 §2 注） | `ENTRA_*` 4（企业通道）+ `SOCIAL_{GOOGLE,GITHUB,WECHAT}_*` 9（社交三通道）**归 T1**；删 `OIDC_*` 5 键 + 2 段校验**归 T6**（须与消费件 `auth/oidc.ts` 退役同批 ⇒ 否则中间态编译红）；**fail-fast**（启用但缺凭据 ⇒ 拒启）+ **G1**（`ENTRA_ENABLED` 且 `TENANT_ID` 空 ⇒ 拒启） |
 | 2 | **provider 装配 4 个（官方内置）** | `microsoft`（含 `tenantId`）/ `google` / `github` / `wechat`；**不采** SSO 插件 / `genericOAuth`；默认全关 ⇒ 独立部署零影响 |
 | 3 | **只读启用集端点** | `GET /api/meta/auth-providers` → `{ providers: string[] }`（序 = 界面入口序的启用子集 · 全关 ⇒ `[]`）；匿名只读 · 零副作用 · 不入审计 · **不回显密钥类 env**（同 `/api/meta/limits` 口径，落在既有 `createMetaRoutes` 内 · 不新建文件） |
 | 4 | **账号链接统一（唯一实现处）** | 重定向类（Entra / 社交）共用官方 `oauth2/link-account.mjs`；**本批不改官方默认**（自动链接）+ **风险入档**；共享模块只加**占位邮箱识别**（`.placeholder.invalid`）· **不改任何建号行为** |
@@ -38,14 +39,16 @@
 **执行序 = 服务端契约（env → 装配 → 端点）→ 共享模块 → 审计/错误码 → 退役 → 前端入口 → 登出链 → 管理面连带 → 验证 → 收口。**
 （顺序即安全窗：**端点先通、页面后接**；**退役放在装配之后**（新通道先可跑，再拆旧链）；**文档订正与 F 号收口置于末 Task**）
 
+> ⚠ **同批约束（v0.3 订正 · 开工前实测）**：`env.OIDC_*` 5 键被 `auth/oidc.ts`（`:57-62` 七处读）与 `env.test.ts` / `oidc.test.ts` 消费 ⇒ **删键与删消费件必须同 Task**（否则 T1 出口「本包 typecheck 绿」必然红）。故 **+13 键归 T1 · −5 键归 T6**（同 M4c-2「列退休置于端点之后」原则：删面跟着消费面走）。
+
 | # | 归属 | 主题 | 前置 | 出口 |
 |---|------|------|------|------|
-| **T1** | server | env 契约 `+13 / −5` 键 + fail-fast + **G1** 租户校验 | — | 13 键两态断言绿 · 拒启 3 例实测 · 本包 `typecheck` + `lint` |
+| **T1** | server | env 契约 **+13 键（只增不删）** + fail-fast + **G1** 租户校验 | — | 13 键两态断言绿 · 拒启 **3** 例实测 · 本包 `typecheck` + `lint` |
 | **T2** | server | provider 装配 4 个（官方 `socialProviders`） | T1 | 关态不装配 / 开态装配且 `microsoft` 含 `tenantId`（L1）· 未装配 ⇒ **404** `oauth_provider_not_found`（L2） |
 | **T3** | server | 只读启用集端点 `GET /api/meta/auth-providers` | T2 | 全关 ⇒ `[]` · 开 N ⇒ N 项且**序**正确（L4）· 匿名可读 · 零副作用 · 不回显密钥 |
 | **T4** | server | 共享模块：占位邮箱识别（唯一实现处） | T3 | 模块直测（L3）· **零行为变化**（既有建号/链接断言不变） |
 | **T5** | server | 审计 `external` 组 + 错误码收敛 + 登录补记 | T4 | 源扫幽灵项绿 · 建号 ⇒ `external.provisioned`（含 `detail.provider`）· 登录 ⇒ `auth.login.success` |
-| **T6** | server | 自绘 OIDC 全链退役（删件 4 + 收敛） | T5 | **判据① grep 归零** · 全量测试绿（**重记基线**）· 注释腐化 0 |
+| **T6** | server | 自绘 OIDC 全链退役（删件 4 + 收敛 + **删 env 5 键**） | T5 | **判据① grep 归零** · env `OIDC_*` 归零 · 全量测试绿（**重记基线**）· 注释腐化 0 |
 | **T7** | web | 登录页入口：退役 `altMode` + 文字链一行 + 降级 + 骨架 + i18n | T6 | 关态无链接行 · 开态**一行**按序（ZH 250 / EN 294 < 336）· 竖线 1×12 · 16px · 骨架**零跳动** · 两条错误互斥 · `NO JS ERRORS` |
 | **T8** | web | 登出链调序（**F298 关账**） | T7 | 连续 **5 次**登出**全落 `/`**（正反双证）· `m4b2` G5 断言不变 |
 | **T9** | web | 管理面连带：占位邮箱列 + 审计分组标签 | T8 | 占位邮箱 ⇒ 列显「—」· 审计页无「OIDC」组 / 有「外部身份源」组 |
@@ -61,11 +64,11 @@
 > 依据 = 批 design **§3.1 · C2 · G1**；事实依据：`config/env.ts:69-75`（`OIDC_*` 5 键）· `:112-114`（`LDAP_ENABLED` 校验范式）· `:119-125`（OIDC 完整性校验，删）· `:126-133`（discovery https 校验，删）。前置 = 无。
 
 1. 新增 **13 键**（默认全关）：`ENTRA_ENABLED=false` / `ENTRA_CLIENT_ID=''` / `ENTRA_CLIENT_SECRET=''` / `ENTRA_TENANT_ID=''` + `SOCIAL_GOOGLE_*` / `SOCIAL_GITHUB_*` / `SOCIAL_WECHAT_*`（各 `_ENABLED` / `_CLIENT_ID` / `_CLIENT_SECRET`）。
-2. 删 **5 键** `OIDC_ENABLED` / `OIDC_DISCOVERY_URL` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_REDIRECT_URL` + 两段校验（完整性 / discovery https）。
+2. ~~删 **5 键** `OIDC_*` + 两段校验~~ ⇒ **移入 T6**（v0.3 订正：其消费件 `auth/oidc.ts:57-62` 到 T6 才删 ⇒ 本 Task 删键会让**中间态编译红**；同批约束见 §2 注）。
 3. **fail-fast**（沿用既有模式）：任一 `*_ENABLED=true` 且其 `_CLIENT_ID` 或 `_CLIENT_SECRET` 为空 ⇒ `parseEnv` 抛错**拒绝启动**；**另加 G1**：`ENTRA_ENABLED=true` 且 `ENTRA_TENANT_ID` 为空 ⇒ 亦**拒启**（官方缺省 `"common"` ⇒ 任何 Microsoft 账号可进，自托管必须收紧）。
 4. `.env.example` 同步 13 键 + 删 5 键（若有该文件）。
 
-**断言 / 门禁**：① 13 键**两态**断言（全关 ⇒ 独立部署零影响；开 ⇒ 生效）② **拒启 3 例**实测：缺 `_CLIENT_ID` / 缺 `_CLIENT_SECRET` / `ENTRA_ENABLED` 且 `TENANT_ID` 空（各断言抛错且**不启动**）③ 删键后 `grep -rn 'OIDC_' apps/server/src/config` ⇒ **仅剩注释留痕 0 处**（config 面归零）④ 本包 `typecheck` + `lint` + 全量测试绿。
+**断言 / 门禁**：① 13 键**两态**断言（全关 ⇒ 独立部署零影响；开 ⇒ 生效）② **拒启 3 例**实测：缺 `_CLIENT_ID` / 缺 `_CLIENT_SECRET` / `ENTRA_ENABLED` 且 `TENANT_ID` 空（各断言抛错且**不启动**）③ 本包 `typecheck` + `lint` + 全量测试绿（**OIDC 面零改动** ⇒ 基线不漂移）④ `git status` 无新文件（只改 `env.ts` / `env.test.ts` / `.env.example`）。
 
 **落点**：`apps/server/src/config/env.ts` · `apps/server/src/config/env.test.ts` · `.env.example`（若在场）
 
@@ -124,10 +127,11 @@
 > 依据 = 批 design **§3.5 件面 · U5 · §3.7 判据①**；实测命中：`http/oidc-routes.ts`（50）· `http/oidc-routes.test.ts`（29）· `auth/oidc.ts`（19）· `auth/oidc.test.ts`（20）；`app.ts:132`（挂载）· `plugins/ldap-credentials.ts:116`（端点 `signInAihOidc`）。前置 = T5。
 
 1. **删 4 件**：`http/oidc-routes.ts` · `http/oidc-routes.test.ts` · `auth/oidc.ts` · `auth/oidc.test.ts`。
+1b. **删 env 5 键 + 2 段校验**（`config/env.ts:69-75` 的 `OIDC_*` · `:119-125` 完整性校验 · `:126-133` discovery https 校验）—— **与本步同批**（消费件已删 ⇒ 零中间红）；`.env.example` 同步删 5 键。
 2. 连带收敛（**只删不迁**）：`app.ts` 删 import + `/api/auth/oidc` 挂载 · `plugins/ldap-credentials.ts` 删端点 `signInAihOidc` 与其 `OIDC_PROVIDER` 引用（**保留** `before` 钩子：CSRF 平价 + 首登建号）· `test-utils/auth-fixture.ts` 注释订正（`'ldap'/'oidc'` ⇒ `'ldap'/'external'`）· `http/admin-users.ts` 注释先例指针改指现存件（防注释腐化）· 相关测试同步删。
 3. **不做兼容层**（旧协议彻底删 · 用户偏好）。
 
-**断言 / 门禁**：① **判据① grep 归零**：`grep -rn "oidc_state\|signInAihOidc\|createOidcRoutes\|getOidcClient\|OIDC_ENABLED\|oidc\.provisioned\|auth\.oidc_" apps/ packages/ docs/` ⇒ **零命中**（豁免：本批 design §13 · 主 design 沿革行 · 历史证据文件）② 全量测试绿（**服务端用例数变化须重记基线**并写入证据）③ 注释腐化扫描（引用已删函数/路由 ⇒ 0）④ 本包 `typecheck` + `lint`。
+**断言 / 门禁**：① **判据① grep 归零**：`grep -rn "oidc_state\|signInAihOidc\|createOidcRoutes\|getOidcClient\|OIDC_ENABLED\|oidc\.provisioned\|auth\.oidc_" apps/ packages/ docs/` ⇒ **零命中**（含 `config/env.ts` 的 5 键）（豁免：本批 design §13 · 主 design 沿革行 · 历史证据文件）② 全量测试绿（**服务端用例数变化须重记基线**并写入证据）③ 注释腐化扫描（引用已删函数/路由 ⇒ 0）④ 本包 `typecheck` + `lint`。
 
 **落点**：4 删件 + `apps/server/src/app.ts` · `apps/server/src/auth/plugins/ldap-credentials.ts` · `apps/server/src/test-utils/auth-fixture.ts` · `apps/server/src/http/admin-users.ts`
 
@@ -235,7 +239,7 @@ bun run build → bun run db:migrate → bun run test
 
 | # | 风险 | 缓解 / 回退 |
 |---|------|------------|
-| 1 | **退役不可逆**（删 4 件 + 删端点 + 删错误码） | git 历史即回退（本批为纯删改，无数据面）· 删前先跑判据① grep 取全命中清单存档 · **不做兼容层**（用户偏好：彻底删） |
+| 1 | **退役不可逆**（删 4 件 + 删端点 + 删错误码 + 删 env 5 键）——⚠ **删面必须与消费面同批**（T6 内一次完成 · v0.3 订正），否则中间态编译红 | git 历史即回退（本批为纯删改，无数据面）· 删前先跑判据① grep 取全命中清单存档 · **不做兼容层**（用户偏好：彻底删） |
 | 2 | **provider 误配致登录不可用** | env 默认**全关** ⇒ 独立部署零影响；fail-fast 三例拒启（缺凭据 / 缺租户）；启用集由**服务端**裁决 ⇒ 前端不可能渲染未装配入口 |
 | 3 | **`ENTRA_TENANT_ID` 留 `common`** ⇒ 任何 Microsoft 账号可进 | **G1 硬校验**（`ENTRA_ENABLED` 且空 ⇒ 拒启）；部署文档写明先取租户 ID；接线断言覆盖 |
 | 4 | **自动链接的残余风险**（本地账号可被同邮箱第三方接管） | 官方默认**不改** + **风险显式入档**（批 design §3.4 已知风险）；收紧口 = 官方 `requireLocalEmailEnabled`（本批不采 · 代价已写明） |
@@ -250,7 +254,7 @@ bun run build → bun run db:migrate → bun run test
 
 | Task | 日期 | 实测 | 门禁 | 发现 / 偏差 |
 |------|------|------|------|------------|
-| **T1** | — | — | — | — |
+| **T1** | 2026-10-12 | **3 件 +146 / −0**：① `config/env.ts` **+52 行**（13 键 schema 块 + **表驱动** 4 通道 fail-fast + G1 租户校验）② `config/env.test.ts` **+76 行**（**5 新用例**：默认全关 / Entra 全配 / 社交三通道全配 / 4 通道拒启 / G1）③ `.env.example` **+18 行**（新段 + 「任一启用缺凭据即拒启」「tenantId 必填」注释） | 本包 `typecheck` **EXIT=0** · `lint` **EXIT=0** · `format:check` **341 件 EXIT=0** · 靶测试 `env.test.ts` **18 pass / 0 fail**（46 expects · 13 → 18）· **全量 server 671 pass / 1 skip / 0 fail**（666 + 5 新 ⇒ **基线零漂移**）· 门禁 6 道 **275/141/3/50/37/0** | ① **plan 顺序缺陷（v0.3 订正 · 本 Task 实测照出）**：首稿把「删 `OIDC_*` 5 键」放在 T1，而其消费件 `auth/oidc.ts:57-62` 到 T6 才删 ⇒ **中间态必编译红**；已改 **+13 归 T1 · −5 归 T6**（同批约束入 §2 注 + §6 风险 1）② **进程级拒启正反双证**（3 例各 **exit=1**）：缺凭据 `ENTRA_ENABLED=true requires ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET` · **G1** 有凭据但租户空 `requires ENTRA_TENANT_ID (pin to your tenant)` · 社交缺凭据；**正例** = 全关档服务健康（`/api/meta/limits` **HTTP 200**）③ 首次实测用 `\| head` **吞了 exit code**（显 0）⇒ 去管道重测得真值 **1**（命令口径如实记）④ **未做**：`.env` 真库代入（不涉本 Task）· 凭据值一律不回显 |
 | **T2** | — | — | — | — |
 | **T3** | — | — | — | — |
 | **T4** | — | — | — | — |
@@ -268,7 +272,7 @@ bun run build → bun run db:migrate → bun run test
 
 | Task | A（4 维） | B（4 维） | C（10 维） | 合计 | 备注（扣分项） |
 |------|:--:|:--:|:--:|:--:|------|
-| T1 | — | — | — | — | — |
+| T1 | 9.53 | 9.47 | 9.54 | **9.51** | B2 9.4（未覆盖大小写 / 多租户数组等**非设计范围**边界）· B4 9.4（配置错误即拒启 · 无 fallback 概念 = 设计意图）· C9 9.4 / C10 9.4（规范层 `docs/05` 与错误恢复口径回填归 T11） |
 | T2 | — | — | — | — | — |
 | T3 | — | — | — | — | — |
 | T4 | — | — | — | — | — |
@@ -333,5 +337,6 @@ bun run build → bun run db:migrate → bun run test
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.3 | 2026-10-12 | **T1 落地 + 顺序订正** —— ① **同批约束订正**：`OIDC_*` 5 键**删面归 T6**（消费件 `auth/oidc.ts` 同批删 ⇒ 避免中间态编译红）· `+13` 归 T1（§1 目标 #1 / §2 注 / §3 T1 步骤 2 / §3 T6 步骤 1b / §6 风险 1 五处同步）② **T1 实测**：3 件 +146/−0 · 靶 **18/0** · 全量 **671/1/0**（基线零漂移）· 门禁 **275/141/3/50/37/0** · 进程级 3 例拒启 **exit=1** + 全关档 200 ③ **T1 自检 18 维 = 9.51**（A 9.53 · B 9.47 · C 9.54 · §7.1） |
 | v0.2 | 2026-10-12 | **声明核验轮** —— 44 条声明逐条实测（20 行锚 / 16 件存在性 / 5 数字自洽 / 2 探针假警报）；3 处锚点与引用偏差双向订正（承 design · **design 已就地同步**）；T8 当前序→目标序；**首稿死路径引用 → doc-audit FAIL 已修**（照仓内先例）；新增 §8.1；**8 维 9.46**（v0.1 = 9.43 · 已撤回自报）· 门禁 **275/139/3/49/37/0** |
-| v0.1 | 2026-10-12 | **首稿** —— 11 Task 全覆盖（T1 env 契约 → T2 装配 → T3 启用集端点 → T4 共享模块 → T5 审计与错误码 → T6 自绘 OIDC 退役 → T7 登录页入口 → T8 登出链 → T9 管理面连带 → T10 验证 → T11 文档收口 + L7）；承批 design **v0.5**（8 维 9.69 · 提交 `2712c95`）；零迁移 · 零新表 · 零新自绘端点 · 唯一新增视觉值 16px；门禁 13 步照 `ci.yml` 真序；§8 首稿自评 **9.43** |
+| v0.1 | 2026-10-12 | **首稿** —— 11 Task 全覆盖（T1 env 契约 → T2 装配 → T3 启用集端点 → T4 共享模块 → T5 审计与错误码 → T6 自绘 OIDC 退役 → T7 登录页入口 → T8 登出链 → T9 管理面连带 → T10 验证 → T11 文档收口 + L7）；承批 design **v0.5**（8 维 9.69 · 提交 `d8b8184`）；零迁移 · 零新表 · 零新自绘端点 · 唯一新增视觉值 16px；门禁 13 步照 `ci.yml` 真序；§8 首稿自评 **9.43** |

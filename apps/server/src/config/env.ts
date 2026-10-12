@@ -74,6 +74,27 @@ const envSchema = z.object({
   /** 可选：缺省运行时以 PUBLIC_BASE_URL 推导 /api/auth/oidc/callback */
   OIDC_REDIRECT_URL: z.string().url().optional(),
 
+  // 外部身份源（M4c-3 §3.1：企业 IdP + 社交三通道；默认全关 ⇒ 独立部署零影响）
+  // 企业 IdP = 官方内置 `microsoft`（Microsoft Entra ID，原 Azure AD）
+  ENTRA_ENABLED: boolFromString.default('false'),
+  ENTRA_CLIENT_ID: z.string().default(''),
+  ENTRA_CLIENT_SECRET: z.string().default(''),
+  /**
+   * 租户 ID（M4c-3 G1：**必填**）。`ENTRA_ENABLED=true` 且本键为空 ⇒ 拒绝启动。
+   * 官方缺省 `"common"` = 任何 Microsoft 账号（含个人账号）均可走通授权 ⇒
+   * 自托管企业部署**必须收紧到本租户**（填具体租户时官方会校验 `issuer`）。
+   */
+  ENTRA_TENANT_ID: z.string().default(''),
+  SOCIAL_GOOGLE_ENABLED: boolFromString.default('false'),
+  SOCIAL_GOOGLE_CLIENT_ID: z.string().default(''),
+  SOCIAL_GOOGLE_CLIENT_SECRET: z.string().default(''),
+  SOCIAL_GITHUB_ENABLED: boolFromString.default('false'),
+  SOCIAL_GITHUB_CLIENT_ID: z.string().default(''),
+  SOCIAL_GITHUB_CLIENT_SECRET: z.string().default(''),
+  SOCIAL_WECHAT_ENABLED: boolFromString.default('false'),
+  SOCIAL_WECHAT_CLIENT_ID: z.string().default(''),
+  SOCIAL_WECHAT_CLIENT_SECRET: z.string().default(''),
+
   // LDAP 企业通道（05 §3.1：默认关闭，独立部署不受影响）
   LDAP_ENABLED: boolFromString.default('false'),
   /** 逗号分隔多 DC（故障转移） */
@@ -130,6 +151,37 @@ export function parseEnv(source: Record<string, string | undefined> = process.en
     if (url.protocol !== 'https:' && !isLocalhost) {
       throw new Error('OIDC_DISCOVERY_URL must use https (localhost allowed for development)');
     }
+  }
+  // 外部身份源启用但缺凭据 → 拒绝（M4c-3 §3.1 fail-fast；同 LDAP / OIDC 既有模式）
+  const externalChannels: ReadonlyArray<readonly [string, boolean, string, string]> = [
+    ['ENTRA', env.ENTRA_ENABLED, env.ENTRA_CLIENT_ID, env.ENTRA_CLIENT_SECRET],
+    [
+      'SOCIAL_GOOGLE',
+      env.SOCIAL_GOOGLE_ENABLED,
+      env.SOCIAL_GOOGLE_CLIENT_ID,
+      env.SOCIAL_GOOGLE_CLIENT_SECRET,
+    ],
+    [
+      'SOCIAL_GITHUB',
+      env.SOCIAL_GITHUB_ENABLED,
+      env.SOCIAL_GITHUB_CLIENT_ID,
+      env.SOCIAL_GITHUB_CLIENT_SECRET,
+    ],
+    [
+      'SOCIAL_WECHAT',
+      env.SOCIAL_WECHAT_ENABLED,
+      env.SOCIAL_WECHAT_CLIENT_ID,
+      env.SOCIAL_WECHAT_CLIENT_SECRET,
+    ],
+  ];
+  for (const [name, enabled, clientId, clientSecret] of externalChannels) {
+    if (enabled && (clientId.trim() === '' || clientSecret.trim() === '')) {
+      throw new Error(`${name}_ENABLED=true requires ${name}_CLIENT_ID and ${name}_CLIENT_SECRET`);
+    }
+  }
+  // G1：Entra 启用但租户未收紧 → 拒绝（官方缺省 "common" 会放行任何 Microsoft 账号）
+  if (env.ENTRA_ENABLED && env.ENTRA_TENANT_ID.trim() === '') {
+    throw new Error('ENTRA_ENABLED=true requires ENTRA_TENANT_ID (pin to your tenant)');
   }
   return env;
 }
