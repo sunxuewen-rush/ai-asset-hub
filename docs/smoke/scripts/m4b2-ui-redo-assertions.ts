@@ -8,13 +8,23 @@
  * 口令只从 shell env 读（`SMOKE_M4B2_PASSWORD`）——**仓库内不落口令**。
  *
  * 运行：`SMOKE_M4B2_PASSWORD=… bun docs/smoke/scripts/m4b2-ui-redo-assertions.ts`
+ *
+ * **M4c-3 T10 回改（2026-10-12 · F315 / F316）**：自绘 OIDC 备用面板（`altMode`）已随 M4c-3 T7 退役 ⇒
+ * ① `A10` / `A10b` 由「底部『使用 OAuth 登录』链接 + 备用面板」改为「**无 Tabs** + 表单下方 provider
+ *    文字链行，**项数 = 服务端启用集**（关态 ⇒ 0 项整行不渲染）+ 旧备用面板**双 0 命中**」
+ * ② `A8` 的 debug 字段 `altMode` ⇒ `providerLinks`（读新入口）
+ * ③ 两处登录前「若留备用面板则切回表单」清理随面板退役删除（表单恒在）
+ * ⑤ `A4` 副文案断言同步 G6 甲新文案（**F317**：原断言绑死已退役的「使用企业目录账号登录」）
+ * ④ CDP 地址支持 `SMOKE_CDP` 注入（**F316** · 同 `m4b2-auth-dogfood.ts` 的 F297 先例；缺省仍 `:9222`，
+ *    手工调试端口不与他人争用）
  */
 import { NAV_ROLE, navIconSequence, navItemTotal } from './nav-truth.js';
 
 /** 侧栏**导航条目数**（SSOT · 超级管理员全组可见）—— C 块与 D 块共用（F221） */
 const NAV_TOTAL = navItemTotal(NAV_ROLE.SUPER_ADMIN);
 
-const DBG = 'http://127.0.0.1:9222';
+/** CDP 地址（**F316**：`SMOKE_CDP` 可注入 ⇒ 验收轮指向 runner 自管实例，不碰手工 `:9222`） */
+const DBG = process.env.SMOKE_CDP ?? 'http://127.0.0.1:9222';
 const APP = 'http://localhost:5173';
 const API = 'http://localhost:3000';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -140,11 +150,7 @@ const clearCookies = async () => {
 };
 const signIn = async (user: string) => {
   await nav(`${APP}/login`);
-  await evalJs(`(() => {
-    const back = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '返回密码登录');
-    back && back.click();
-    return true;
-  })()`);
+  // M4c-3 T10：原「留了备用面板则切回表单」随 T7 退役（面板不存在）⇒ 表单恒在，无需切回
   await sleep(300);
   await evalJs(setInput('#login-username', user));
   await evalJs(setInput('#login-password', PW as string));
@@ -212,12 +218,17 @@ if (want('A')) {
   ok('A3 标题 24px 且居中', !!col && col.fs === '24px' && col.align === 'center', col?.fs);
 
   const loginText = (await evalJs(`document.body.innerText`)) as string;
+  // M4c-3 T10（**F317**）：G6 甲已把副文案改为「使用企业账号登录」/「Sign in with your enterprise account」
+  // ⇒ 断言改为「**新文案在 + 旧目录口径文案与『本地账号』均已清零**」（旧串清零 = 真回归守卫）
   ok(
-    'A4 副文案（zh/en 任一）+ 不含「本地账号」/「local account」',
-    (loginText.includes('使用企业目录账号登录') ||
-      loginText.includes('enterprise directory account')) &&
+    'A4 副文案已换新（企业账号）+ 旧目录口径文案与「本地账号」/「local account」均清零',
+    (loginText.includes('使用企业账号登录') ||
+      loginText.includes('Sign in with your enterprise account')) &&
+      !loginText.includes('使用企业目录账号登录') &&
+      !loginText.includes('enterprise directory account') &&
       !loginText.includes('本地账号') &&
       !loginText.toLowerCase().includes('local account'),
+    `zh/en 新文案命中=${loginText.includes('使用企业账号登录') || loginText.includes('Sign in with your enterprise account')}`,
   );
 
   const inp = (await evalJs(`(() => {
@@ -258,13 +269,7 @@ if (want('A')) {
 
   // A8 错误态：错口令 → inline `<p role=alert>`（非 Alert 块）· URL 不变
   const pathBefore = (await evalJs(`location.pathname + location.search`)) as string;
-  await evalJs(`(() => {
-  if (document.body.innerText.includes('返回密码登录')) {  // 若上次留了备用面板，先切回表单
-    const b = [...document.querySelectorAll('button')].find((x) => x.innerText.trim() === '返回密码登录');
-    b && b.click();
-  }
-  return true;
-})()`);
+  // M4c-3 T10：备用面板随 T7 退役 ⇒ 提交前无需「切回表单」（表单恒在）
   await sleep(400);
   await evalJs(setInput('#login-username', 'no_such_user'));
   await evalJs(setInput('#login-password', 'wrong-password'));
@@ -276,7 +281,8 @@ if (want('A')) {
         await evalJs(`(() => ({
     url: location.pathname,
     forms: document.querySelectorAll('form').length,
-    altMode: document.body.innerText.includes('返回密码登录'),
+    providerLinks: [...document.querySelectorAll('button')].filter((b) =>
+      ['Microsoft 账号', 'Google', 'GitHub', '微信'].includes(b.innerText.trim())).length,
     values: [...document.querySelectorAll('input')].map((i) => i.value),
     btn: !!document.querySelector('form button[type="submit"]'),
     btnDisabled: document.querySelector('form button[type="submit"]')?.disabled ?? null,
@@ -340,24 +346,31 @@ if (want('A')) {
 }))()`)) as any;
   ok('A9 白卡 0 + 无「验证码」', noCard.cards === 0 && !noCard.hasCaptcha, `cards=${noCard.cards}`);
 
-  const tabs = (await evalJs(`(() => {
-  const link = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '使用 OAuth 登录');
-  return { tabs: document.querySelectorAll('[role="tab"]').length, link: !!link };
+  // M4c-3 T10：入口由「底部链接 + 备用面板」改为「表单下方 provider 文字链一行（按启用集渲染）」
+  // ⇒ 断言「链接行项数 = 服务端启用集项数」（不写死 0/4 ⇒ dev 关态与开态都可跑）
+  const enabled = (await (await fetch(`${API}/api/meta/auth-providers`)).json()) as {
+    providers?: string[];
+  };
+  const enabledCount = enabled.providers?.length ?? -1;
+  const entrance = (await evalJs(`(() => {
+  const LABELS = ['Microsoft 账号', 'Google', 'GitHub', '微信'];
+  const links = [...document.querySelectorAll('button')].filter((b) => LABELS.includes(b.innerText.trim()));
+  return {
+    tabs: document.querySelectorAll('[role="tab"]').length,
+    links: links.length,
+    legacyPanel: document.body.innerText.includes('打开统一认证页') || document.body.innerText.includes('返回密码登录'),
+  };
 })()`)) as any;
   ok(
-    'A10 无 Tabs（[role=tab] = 0）+ 底部 OAuth 链接在',
-    tabs.tabs === 0 && tabs.link,
-    `tabs=${tabs.tabs}`,
+    'A10 无 Tabs（[role=tab] = 0）+ provider 链接行项数 = 服务端启用集',
+    entrance.tabs === 0 && entrance.links === enabledCount,
+    `tabs=${entrance.tabs} links=${entrance.links} enabled=${enabledCount}`,
   );
-  await evalJs(
-    `[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '使用 OAuth 登录').click()`,
+  ok(
+    'A10b 旧备用面板已退役（双 0 命中）+ 0 项 ⇒ 链接行整行不渲染',
+    !entrance.legacyPanel && (enabledCount !== 0 || entrance.links === 0),
+    `legacyPanel=${entrance.legacyPanel} enabled=${enabledCount}`,
   );
-  await sleep(700);
-  const panel = (await evalJs(`(() => ({
-  hasOpen: document.body.innerText.includes('打开统一认证页'),
-  back: document.body.innerText.includes('返回密码登录'),
-}))()`)) as any;
-  ok('A10b OAuth 链接 ⇒ 备用面板（打开统一认证页 + 返回密码登录）', panel.hasOpen && panel.back);
   const chrome = (await evalJs(`(() => {
   const sw = document.querySelector('button[aria-label], [data-slot="dropdown-menu-trigger"], .flex.items-center.gap-1 button');
   const hdr = document.querySelectorAll('header').length;

@@ -208,8 +208,12 @@ export function createApp(deps: AppDeps): Hono {
           targetType: 'session',
         });
       }
-    } else if (response.ok && externalCallbackProvider) {
-      // 外部通道登录成功（M4c-3 T5 · G5）：会话由**响应**下发 ⇒ 从 Set-Cookie 反查 actor
+    } else if ((response.ok || response.status === 302) && externalCallbackProvider) {
+      // 外部通道登录成功（M4c-3 T5 · G5）：会话由**响应**下发 ⇒ 从 Set-Cookie 反查 actor。
+      // ⚠️ **F319 修正（2026-10-12 · T10 的 L5 假 issuer 全流程照出）**：官方 `/api/auth/callback/:id`
+      // 成功返回的是 **302**，而 `response.ok` 只认 2xx ⇒ 原判据**永不成立**、登录审计**整条漏记**。
+      // 故本分支判据改为「2xx **或** 302」；**不会误记失败登录** —— 失败回调不下发会话 cookie
+      // ⇒ `sessionOwnerOfSetCookie` 返回 null ⇒ 不写审计（不另加启发式）。
       const owner = await sessionOwnerOfSetCookie(deps.db, response);
       if (owner) {
         await deps.audit({

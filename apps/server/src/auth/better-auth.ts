@@ -61,6 +61,14 @@ export interface AuthRuntimeDeps {
    * 默认 `enabled = isProduction`（源码 `context/create-context.mjs`）⇒ 测试内断言 429 须显式开启。
    */
   rateLimit?: BetterAuthOptions['rateLimit'];
+  /**
+   * 官方 `socialProviders` **覆盖**（**测试专用钩子**，与 `advanced` / `rateLimit` 同款先例）。
+   * 唯一用途 = **M4c-3 L5**：把官方 `microsoft` 的 `options.authority` 指向**本地假 IdP**
+   * （官方 `microsoft-entra-id.mjs` 支持 `authority` 覆盖），从而在「不连真实 IdP」的前提下跑通
+   * 「授权 ⇒ 回调 ⇒ 建号 ⇒ `external.provisioned`」全链（含本文件的 `databaseHooks`）。
+   * **生产不传** ⇒ 走下方 env 条件装配，**零行为变化**（`spread` 在后，仅覆盖同名键）。
+   */
+  socialProviders?: BetterAuthOptions['socialProviders'];
   /** LDAP 通道（缺省 = null ⇒ 纯本地模式；生产由 `index.ts` 按 `LDAP_ENABLED` 构造后传入） */
   ldap?: LdapChannel | null;
   audit?: AuditWriter;
@@ -154,6 +162,8 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
             },
           }
         : {}),
+      /** 测试注入位（L5 假 issuer）· 生产不传 ⇒ 本行恒为空对象展开 */
+      ...(deps.socialProviders ?? {}),
     },
 
     user: {
