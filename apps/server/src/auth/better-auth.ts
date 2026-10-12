@@ -125,7 +125,8 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
      * - 键名逐字照官方（`@better-auth/core@1.7.5` `dist/social-providers/index.d.mts:1875`），
      *   与 `POST /api/auth/sign-in/social` 的 `provider` 入参**同值** ⇒ 前端零映射表
      * - `microsoft`（Entra ID）传 `tenantId`：`parseEnv` 已强制非空（G1）⇒ 只有本租户能进
-     * - 未装配的 provider ⇒ 官方 **404 `oauth_provider_not_found`**（前端渲染期已按启用集裁剪）
+     * - 未装配的 provider ⇒ 官方 **404 `PROVIDER_NOT_FOUND`**（前端渲染期已按启用集裁剪 ·
+     *   **F307 订正**：建仓首稿曾记 `oauth_provider_not_found`，实测官方真值见 `better-auth.test.ts` L2 用例）
      * - **不采**官方 SSO 插件 / `genericOAuth`（主 design §2.6 R4）
      */
     socialProviders: {

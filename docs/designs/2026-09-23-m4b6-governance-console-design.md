@@ -1,6 +1,7 @@
 # M4b-6 治理批：管理看板 + 资产管理 + 标签定义 + 审计日志 —— 批设计
 
 > Date: 2026-09-23
+> Updated: 2026-10-12（**v0.51：M4c-3 连带订正（F314）** —— ① §4.4「组名 = 潜在全集」**9 → 10**：`oidc` ⇒ **`external`**（外部身份源 · 自绘 OIDC 随 M4c-3 退役）+ 补 **`user`**（用户 · M4c-2 起登记）② §6.2 键清单同改（`admin['audit.group.external' \| '.user']` · 中文「外部身份源 / 用户」· EN `External / Users`）。**零实现改动**（该批实现面不受影响 · 仅文档与实际一致））
 > Updated: 2026-09-28（**v0.50：U5 结案（归属/口径定死 · 用户「3A」）** —— §5.2「保留策略」由「待对齐」→ **不做归档（全量保留）**；§11.3 **U5** 行由「归属后续批」→ ✅ **2026-09-28 结案**（重估触发 = 表行量级 / 查询性能触阈值）。**零实现改动**）
 > Updated: 2026-09-28（**v0.49：§12 历史段回填（用户「1A」）** —— 从 `aef6b31^` 原文回填 **`v0.31` 行**（逐字一致）；§12 立说明条；头部下沉最旧一条。**零实现改动**）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；更早版本（**v0.1–v0.48**）见 **§12 修订记录**。
@@ -301,7 +302,7 @@ M4b（管理后台）拆八批中的第 6 批，前序 M4b-1…M4b-5 已交付�
 |---|---|
 | 权限 | `role >= 10`；服务端面已由 `requireRole(ACCOUNT_ROLE.ADMIN, { scope: TOKEN_SCOPES.auditRead })` 把守（`http/audit.ts:45`，M1 交付） |
 | 服务端 | **过滤面已齐备，本批零改动**（除 D23 新增的 `GET /api/audit/actions` 供下拉取全集） |
-| 过滤区（常显） | `action` 分组下拉（按点号前缀分组，组内列动作全集，组名走 i18n；**默认 = 全部动作**，D47）+ 时间区间（官方 `Calendar`，落 `from`/`to`）<br>**组名 = 潜在全集 9 个**：`asset` / `review` / `label` / `token` / `auth` / `device` / **`namespace`** / `ldap` / `oidc`。<br>⚠️ **实测校准（2026-09-23 补原型时）**：真库当前**已出现 7 组** = `asset` / `auth` / `device` / `label` / **`namespace`** / `review` / `token`（`ldap` / `oidc` 尚未出现）—— 故**实现期组名以 `GET /api/audit/actions` 实测全集为准**；前端对**未知前缀原样显示**兜底（不丢动作） |
+| 过滤区（常显） | `action` 分组下拉（按点号前缀分组，组内列动作全集，组名走 i18n；**默认 = 全部动作**，D47）+ 时间区间（官方 `Calendar`，落 `from`/`to`）<br>**组名 = 潜在全集 10 个**：`asset` / `review` / `label` / `token` / `auth` / `device` / **`namespace`** / `ldap` / **`external`** / **`user`**。（**M4c-3 订正 · 2026-10-12 · F314**：`oidc` ⇒ **`external`**（外部身份源 · 自绘 OIDC 退役）· 并补 **`user`**（用户 · M4c-2 起登记）⇒ 全集 **9 → 10**）<br>⚠️ **实测校准（2026-09-23 补原型时）**：真库当前**已出现 7 组** = `asset` / `auth` / `device` / `label` / **`namespace`** / `review` / `token`（`ldap` / `oidc` 尚未出现）—— 故**实现期组名以 `GET /api/audit/actions` 实测全集为准**；前端对**未知前缀原样显示**兜底（不丢动作） |
 | 过滤区（折叠「更多筛选」） | `targetType` · `targetId` · `actorId` · `requestId` · `clientIp`（5 个精确匹配输入，长度上限对齐服务端 schema：64/128/256/64/64） |
 | 日期区间 | 默认近 7 天；快捷项〔今天 / 近 7 天 / 近 30 天 / 自定义〕（D25） |
 | 表格列 | 时间（按 **`Asia/Shanghai`** 展示，与 D35 日切口径同源；接口返回 ISO 8601（UTC），前端按时区格式化） · 动作（原始串）· **操作者（工号 + 姓名；无 actor 行显「—（匿名）」，D48）** · 目标（`targetType:targetId`）· 来源 IP · 请求 ID<br>**列宽口径（v0.25 定 · 对齐资产管理页 §4.2）**：时间 **14** · 动作 **20** · 操作者 **14** · 目标 **16** · 来源 IP **12** · 请求 ID **16**（合计 **92%**）+ **操作槽 8%** = 100%。⚠️ 原先 6 列合计 100% ⇒ **操作列被挤成 0 宽**、查看钮溢出单元格、表格横向溢出（实测 `scrollWidth 1121 > clientWidth 1081`）；改 92% 后实测 操作列 **87px**、`scrollWidth = clientWidth = 1081`、钮在格内 ✓ |
@@ -688,7 +689,7 @@ AdminDashboard
 | 列·操作 | **复用** `review['col.actions']` | 操作 | Actions |
 | 匿名操作者行 | 新增 `admin['audit.anonymous']` | —（匿名） | — (anonymous) |
 | 动作下拉默认项 | 新增 `admin['audit.actionAll']` | 全部动作 | All actions |
-| 动作组名（**潜在全集 9 组** · 新增） | 新增 `admin['audit.group.asset' \| '.review' \| '.label' \| '.token' \| '.auth' \| '.device' \| '.namespace' \| '.ldap' \| '.oidc']` | 资产 / 审核 / 标签 / 令牌 / 登录 / 设备 / **命名空间** / LDAP / OIDC | Assets / Reviews / Labels / Tokens / Auth / Devices / **Namespaces** / LDAP / OIDC |
+| 动作组名（**潜在全集 10 组** · 新增 · **M4c-3 订正 2026-10-12 · F314**） | 新增 `admin['audit.group.asset' \| '.review' \| '.label' \| '.token' \| '.auth' \| '.device' \| '.namespace' \| '.ldap' \| '.external' \| '.user']` | 资产 / 审核 / 标签 / 令牌 / 登录 / 设备 / **命名空间** / LDAP / **外部身份源** / **用户** | Assets / Reviews / Labels / Tokens / Auth / Devices / **Namespaces** / LDAP / **External** / **Users** |
 | 日期快捷 4 项 | 新增 `admin['audit.range.today' \| '.7' \| '.30' \| '.custom']` | 今天 / 近 7 天 / 近 30 天 / 自定义 | Today / Last 7 days / Last 30 days / Custom |
 | 「更多筛选」开关 | 新增 `admin['audit.more']` | 更多筛选 | More filters |
 | 维度标签 | 新增 `admin['audit.field.targetType' \| '.targetId' \| '.clientIp']`（目标类型 / 目标 ID / 来源 IP）；**复用** `audit.col.actor` · `audit.col.requestId` | 目标类型 / 目标 ID / 来源 IP | Target type / Target ID / Source IP |
@@ -905,6 +906,7 @@ AdminDashboard
 > **历史版本段说明（2026-09-28 登记）**：本表**最早一行 = `v0.1`**。实证：`v0.31` 一行于 `aef6b31`（2026-09-24 · T6⁺ 看板重做笔）被删（该笔前有行、该笔后仅剩头部行）⇒ **已于 2026-09-28（`v0.49`）从 `aef6b31^` 原文回填**（逐字一致）。说明：该缺陷**未被既有扫类捕获**（扫类只看行数净降，该笔未净降）。
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| **v0.51** | 2026-10-12 | sunxuewen-rush | **M4c-3 连带订正（F314）** —— §4.4 组名单 **9 组 → 10 组**（`oidc` ⇒ `external` · 补 `user`）· §6.2 键清单同改（`admin['audit.group.external' \| '.user']` · 「外部身份源 / 用户」· `External / Users`）。**零实现改动** |
 | **v0.50** | 2026-09-28 | sunxuewen-rush | **U5 结案（归属/口径定死 · 用户「3A」）** —— §5.2「保留策略」由「待对齐」→ **不做归档**（全量保留）；§11.3 **U5** 行由「归属后续批（含糊）」→ ✅ **2026-09-28 结案**（重估触发 = 表行量级 / 查询性能触阈值时另立批次）。§11.1/§11.2 中「扣分项 = U5 无口径」为该轮评分留痕（**不改**）—— 本行即其失效指针。**零实现改动** |
 | **v0.49** | 2026-09-28 | sunxuewen-rush | **§12 历史段回填（用户「1A」）** —— 从 `aef6b31^` 原文回填 `v0.31` 行（逐字一致）；§12 立**历史版本段说明**条；头部下沉 `v0.47`。**零实现改动** |
 | **v0.48** | 2026-09-28 | **头部口径统一**：头部版本行 3 → 2（v0.45 / v0.46 自头部移除 —— 两版在修订记录表内已有行 · 零内容丢失）；头部口径行收敛为唯一表述。零实现改动。 |
@@ -935,7 +937,7 @@ AdminDashboard
 | v0.23 | 2026-09-23 | `visibleInFilter` 放回创建+编辑对话框（**默认打开** · 服务端零改动）· §6.3 表单键 5→6 · **U12 闭环**（不做列表列内切换） |
 | v0.22 | 2026-09-23 | 二级标签层级视觉定值：缩进 22→**28px** + 二级 **2px 引导线**（实测校准，dev 库插 `agentic-rag` 样例）· §4.3 层级视觉行 |
 | v0.21 | 2026-09-23 | 标签创建/编辑表单去 `visibleInFilter`（默认可见 · 零服务端改动）· §6.3 表单键去 `.visibleInFilter` · 新增 U12（可见性维护入口） |
-| v0.20 | 2026-09-23 | 原型↔文档对齐同步：§4.4 组名清单补 `namespace`（潜在全集 9 · 实测 7）· §6.2 补 `admin['audit.group.namespace']` · §4.4「时间」列补 `Asia/Shanghai` 时区口径 |
+| v0.20 | 2026-09-23 | 原型↔文档对齐同步：§4.4 组名清单补 `namespace`（当时全集 9 · 实测 7）· §6.2 补 `admin['audit.group.namespace']` · §4.4「时间」列补 `Asia/Shanghai` 时区口径 |
 | v0.19 | 2026-09-23 | 换靶第 4 轮修复：删 §6.2 旧行 `audit.anonymous`（同键两形式 ⇒ 统一 `admin['audit.anonymous']`）· §6.1 补机器核对结论与两类探针教训 · 复评 9.31 → **9.50** |
 | v0.18 | 2026-09-23 | **状态文案定为「已上线」**（用户拍板）：`zh.ts` `assets.filter.status.active` 「活跃」→「已上线」（en 保持 `Active`）；排除项如实登记（「已发布」撞版本级且详情页同屏 ·「启用」撞 MCP `enabled` ·「公开」撞已删可见性维度）；影响面 = 3 消费页零代码改动 + 本设计措辞同步 + §6.2 跨批修正登记 |
 | v0.17 | 2026-09-23 | 原型补齐 + 口径修正（用户「补」）：状态筛选（第 4 入口）落原型并真环境实测（`status` 依赖改动 4 ⇒ 当前不生效，属预期；「全部」显式传 `ALL`）· 页头计数块标签 →「**活跃资产**」（`/api/stats` 恒 ACTIVE 口径，实测 29 vs 全站 44）· 原型状态/类型文案对齐既有键 · 截图与依赖标注留档 |

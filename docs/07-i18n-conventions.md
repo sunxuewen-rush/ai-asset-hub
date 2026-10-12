@@ -1,9 +1,9 @@
 # UI 语言与本地化约定
 
 > Date: 2026-09-04
+> Updated: 2026-10-12（**v1.17：`login` 组落地注记（§3.4 · M4c-3 T7/T9）· 并订正 §3 正文两处过期值（F305）** —— ① **新增 §3.4**：`login` 组 **16 → 17 键**（退役 4 `oidcLink`/`oidcHint`/`oidcOpen`/`backToForm` · 新增 5 `providerMicrosoft` 等 · 改值 2 键数不变：`subtitle` ⇒「使用企业账号登录」、`feature3` ⇒「企业目录账号直连（LDAP / Entra ID）」）；**另有改名（净 0）** `admin` 组审计分组键 + **+1**（F313）⇒ **批末全仓 700 键 / 16 组 · 双向差集 0** ② **F305**：§3 正文 `users` **63 ⇒ 65** · `account` **13 ⇒ 12**（§3.3 注记早已是 65 ⇒ 正文落后）③ §3 资源清单补 `login` 组指针）
 > Updated: 2026-10-12（**v1.16：`users` 组键数不变（65）· 4 键转活 · 零死键（M4c-2 v0.10 内修正 4 · F301 甲）** —— `banExpireLabel` / `banExpirePlaceholder` / `selfTag` / `lastSuperTag` 由死键转活（**零新增 · 零退役**）；§3.3 注记同步）
 > Updated: 2026-10-12（**v1.15：`users` 组 63 → 65（M4c-2 v0.10 内修正 3 · 启停列实测回填）** —— **+2** `toggle.ban` / `toggle.unban`（开关无障碍名 + 悬浮提示 · 带 `{name}`）· **零退役**；zh / en 成对差集 0；§3.3 注记同步）
-> Updated: 2026-10-12（**v1.14：`users` 组 60 → 63（M4c-2 v0.10 验收期增量实测回填）** —— **+4** `sort.createdAt` / `sort.username` / `sort.name` / `sort.email`（排序档位）· **退役 1** `reset`（「重置」按钮取消）；zh / en **成对 · 差集 0**；§3 正文补 `users` / `account` 两组行 + 新增 **§3.3 `users` 组落地注记**）
 > **头部口径（2026-09-18 起）**：只留最近 1-2 版 · 不复述历史与验收数字；完整历史见 **§8 修订记录**。
 > Status: 定稿（M0 评审通过；M4a 门户资源已落地，M4b 管理后台资源随其实现铺开）
 > Scope: 前端界面语言机制 —— 支持语言、默认跟随系统、手动切换、错误码本地化、API 语言契约
@@ -33,7 +33,8 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 - 资源按界面域分组：`navigation` / `market`（列表/搜索/详情）· `publish`（发布流 · **M4b-7 已落地：64 键** —— 见 §3.1 落地注记）·
   `dashboard`（个人工作台 · **M4b-4 已落地：14 键** —— 见 §3.2 落地注记）·
-  `users`（用户管理 · **M4c-2 已落地：63 键** —— 见 **§3.3 落地注记**）· `account`（自助改密 · **M4c-2 T5 已落地：13 键**）·
+  `users`（用户管理 · **M4c-2 已落地：65 键** —— 见 **§3.3 落地注记**）· `account`（自助改密 · **M4c-2 T5 已落地：12 键**）·
+  `login`（登录页 · **M4c-3 已落地：17 键** —— 见 **§3.4 落地注记**；`admin` 组审计分组键见同节）·
   `review`（审核）· `admin`（管理后台）· `common`（通用）· `errors`（错误码消息）
 - 客户端 i18n 框架加载当前语言资源包；语言切换即换资源包
 - 资产自身内容（作者写的 description/正文/README）**不翻译**——那是内容属性，
@@ -57,6 +58,18 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 | 归属 | **M4c-2 T4**（组骨架 · 60 键）· **M4c-2 v0.10 T9**（排序档位 + 退役 `reset` ⇒ 63 键）· **M4c-2 v0.10 T10**（启停列 `toggle.*` +2 ⇒ **65 键**）· **M4c-2 v0.10 T11 / F301 甲**（4 键转活 · 键数不变） |
 | 消费点 | `apps/web/src/pages/AdminUsers.tsx`（唯一消费页） |
 | 依据 | 批 design `2026-10-09-m4c2-user-governance-design.md` **§14.5**（键账三件式 · 引用不复制） |
+
+### 3.4 `login` 组落地注记（M4c-3 T11 回填 · 2026-10-12 · **实测**）
+
+| 项 | 实测值（2026-10-12） |
+|---|---|
+| 键数 | **17**（真实 `import` `zh.ts` / `en.ts` 逐键计数 · zh / en **双向差集 0**） |
+| 键账（M4c-3 增量） | **退役 4** —— `oidcLink` / `oidcHint` / `oidcOpen` / `backToForm`（自绘 OIDC 备用面板随 **M4c-3 T7** 一并退役）· **新增 5** —— `providerMicrosoft`（「Microsoft 账号」/`Microsoft account`）· `providerGoogle` · `providerGitHub` · `providerWechat`（「微信」/`WeChat`）· `providerFailed`（失败提示）· **改值 2（键数不变）** —— `subtitle` ⇒「使用企业账号登录」· `feature3` ⇒「企业目录账号直连（LDAP / Entra ID）」⇒ **16 → 17**（净 +1） |
+| 姊妹改动（净 0 与 +1） | `admin` 组：`audit.group.oidc` ⇒ **`audit.group.external`**（「外部身份源」/`External` · 随审计动作组改名 · **净 0**）· **T9 轮 +1** —— 新增 `audit.group.user`（「用户」/`Users` · **F313** 顺手补，原走 `default` 兜底显裸 `user`） |
+| 批末全仓 | **700 键 / 16 组 · 双向差集 0**（真实 `import` 实测 · **T7 时 699 ⇒ T9 补 `audit.group.user` +1 ⇒ 700**） |
+| 归属 | **M4c-3 T7**（入口形态：退役 `altMode` ⇒ 表单下方 provider **文字链一行**）· **M4c-3 T6**（`errors` 组 −3 键：随自绘端点退役）· **M4c-3 T9**（审计分组标签改名 + 补 `user`） |
+| 消费点 | `apps/web/src/pages/Login.tsx`（`login` 组唯一消费页）+ `apps/web/src/pages/AdminAudit.tsx`（`admin.audit.group.*` 分组标签） |
+| 依据 | 批 design `2026-10-12-m4c3-external-identity-design.md` **§4.4 i18n 键账**（引用不复制） |
 
 ## 4. 错误码本地化
 
@@ -94,9 +107,10 @@ UI 资源回退英文（§2），label 数据回退 slug（06 §2.3）。
 
 | 版本 | 日期 | 作者 | 变更 |
 |------|------|------|------|
+| v1.17 | 2026-10-12 | sunxuewen-rush | **`login` 组落地注记（§3.4 · M4c-3）+ 订正 §3 正文两处过期值（F305）** —— ① 新增 **§3.4**：`login` **16 → 17**（退 4 新 5 改值 2）· 姊妹改动 `admin` 组改名（净 0）+ `audit.group.user`（+1 · F313）⇒ **批末 700 键 / 16 组** ② **F305**：§3 正文 `users` 63 ⇒ **65** · `account` 13 ⇒ **12** ③ §3 资源清单补 `login` 指针 |
 | v1.16 | 2026-10-12 | sunxuewen-rush | **`users` 组键数不变（65）· 4 键转活 · 零死键（M4c-2 v0.10 内修正 4 · F301 甲）** —— `banExpireLabel` / `banExpirePlaceholder`（封禁到期输入）与 `selfTag` / `lastSuperTag`（本人 / 唯一超管行标记）由**死键转活** ⇒ **零新增 · 零退役**；§3.3 注记同步（键数 65 · 键账 · 零死键）|
 | v1.15 | 2026-10-12 | sunxuewen-rush | **`users` 组 63 → 65（M4c-2 v0.10 内修正 3 · 启停列）** —— **+2**（`toggle.ban` / `toggle.unban` · 开关的**无障碍名 + 悬浮提示**，带 `{name}` 对象名）· **零退役**（列头复用 `users.col.status` ⇒ 键账自提案的 66 订正为 **65**）；zh / en 成对差集 0；**§3.3 注记同步**（键数 / 键账 / 消费点）|
-| v1.14 | 2026-10-12 | sunxuewen-rush | **`users` 组 60 → 63（M4c-2 v0.10 验收期增量 · 实测回填）** —— **+4**（`sort.createdAt` / `.username` / `.name` / `.email` · 排序档位与三列表头同源）· **退役 1**（`reset` · 「重置」按钮取消）· **复用零新增**（`market.*` / `board.kpi.users` / `admin.empty`）；zh / en 成对差集 0；§3 正文补 `users` / `account` 两组行 + 新增 **§3.3 `users` 组落地注记**（键数 / 键账 / 复用 / 归属 / 消费点）|
+| v1.14 | 2026-10-12 | sunxuewen-rush | **`users` 组 60 → 63（M4c-2 v0.10 验收期增量 · 实测回填）** —— **+4**（`sort.createdAt` / `sort.username` / `sort.name` / `sort.email` · 排序档位与三列表头同源）· **退役 1**（`reset` · 「重置」按钮取消）· **复用零新增**（`market.*` / `board.kpi.users` / `admin.empty`）；zh / en 成对差集 0；§3 正文补 `users` / `account` 两组行 + 新增 **§3.3 `users` 组落地注记**（键数 / 键账 / 复用 / 归属 / 消费点）|
 | v1.13 | 2026-10-09 | sunxuewen-rush | 新增 **`users` 组（60 键）** 与 **`account` 组（13 键）**（zh / en **成对 · 差集 0**）—— M4c-2 账号与权限治理：`/admin/users` 用户管理页（列表 / 字段选择器筛选 / 建号 / 行操作）+ 自助改密 Dialog（批 design §4.2 / §4.5 R21） |
 | v1.12 | 2026-10-09 | sunxuewen-rush | **§4 补「官方认证码直通」口径 + 本批增删（M4c-1 T7）** —— ⓐ 新增两条规则：官方码**直通**建键（不设重映射表）· 官方 429 归一保留码 `auth.rate_limited`；ⓑ 键面变更：删 4 条 `auth.*`（`invalid_credentials` / `ldap_denied` / `user_disabled` / `user_pending`）· 增 5 条官方码键（`BANNED_USER` / `INVALID_USERNAME` / `INVALID_USERNAME_OR_PASSWORD` / `USERNAME_TOO_LONG` / `USERNAME_TOO_SHORT`，后四条**同文案 = 防枚举**）；ⓒ zh/en 双向差集 **0**（`doc-claims-check` 实测） |
 | v1.11 | 2026-09-30 | sunxuewen-rush | **§3 资源组清单补 `dashboard` 组 + 新增 §3.2 落地注记**（M4b-8 T10 回填）—— §3 正文补 `dashboard`（个人工作台 · **M4b-4 已落地：14 键**）；**§3.2 新表**逐条列 14 键 + zh/en 零差集 + 归属（M4b-1 骨架 / M4b-4 落地）+ 消费点（`pages/Dashboard.tsx`）；**顺带订正** §3 正文 `publish` **57 → 64**（与 §3.1 表对齐）。**零实现改动** |

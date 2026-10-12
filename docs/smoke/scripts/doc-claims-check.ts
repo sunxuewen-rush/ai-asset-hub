@@ -186,7 +186,8 @@ const NUMBERS: { label: string; expected: string; re: RegExp; group?: number; al
       expected: '256',
       re: /长度上限对齐服务端 schema：\d+\/\d+\/(\d+)\//g,
     },
-    { label: '审计动作潜在全集', expected: '9', re: /潜在全集\s*\*{0,2}(\d+)/g },
+    // M4c-3 T11 订正（F314）：M4b-6 期「潜在全集 9 组」⇒ 本批 **10 组**（`oidc` ⇒ `external` + 补 `user`）
+    { label: '审计动作潜在全集', expected: '10', re: /潜在全集\s*\*{0,2}(\d+)/g },
     { label: '列宽数据列合计', expected: '92', re: /数据列[^。\n|]{0,8}?(\d{1,3})\s*%/g },
     // 取「+N 键」形式（避免与「各 534 键」这种绝对值混用同一断言）
     // 2026-09-23 口径订正（F207 轮实测）：原字符类排除 `|` ⇒ 只能命中**头部叙述行**形态

@@ -124,7 +124,7 @@ describe('parseTrustedOrigins：逗号分隔 Origin 白名单', () => {
 });
 
 describe('M4c-3 T2：外部身份源装配（L1 两态 · L2 降级）', () => {
-  test('L2 关态：四个 provider 全未装配 ⇒ sign-in/social 逐个 404 oauth_provider_not_found', async () => {
+  test('L2 关态：四个 provider 全未装配 ⇒ sign-in/social 逐个 404 PROVIDER_NOT_FOUND', async () => {
     await withProviderEnv({}, async () => {
       for (const provider of ['microsoft', 'google', 'github', 'wechat']) {
         const res = await signInSocial(provider);

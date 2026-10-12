@@ -1,6 +1,7 @@
 # M4c 账号与权限治理设计（主 design）
 
 > Date: 2026-10-08
+> Updated: 2026-10-12（**v0.28：M4c-3 实现期就地订正（F303 / F304 / F306）** —— ① **F306**：§2.6 **R13** 形态措辞「表单**下方加分隔线 + 按钮组**」⇒ **「表单下方 provider **文字链一行**（13px 本页链接档 · 常态下划线 · 项间 1×12 竖线 · **无分隔线** · 主按钮↔链接行 16px · 按启用集渲染）」**；连带 **4 处**同口径指针同步（§3 入口指针 · §5.1 小标题与名单 · §10.2 线框） ② **F303**：§2.7 **件面数字**订正 —— M4c-3 行「新增 0 / 改造 3 / 退役 2」⇒ **「新增 2 / 改造 21 / 退役 4」**（实现期再补入 4 件 ⇒ 批 design §3.5 计 **25**）；§2.3 拆批表补**判据指针**（等价完成判据 = 批 design §3.7） ③ **F304**：§6.1 时序侧信道锚点 —— 原 `plugins/ldap-credentials.ts:393` **随自绘端点退役失效** ⇒ 改 `apps/server/src/auth/password-verify.ts:35/63/69`（等价耗时处理已在 M4c-1 迁至该件 · **不随 OIDC 退役而迁移**） ④ 另订正 **F314**（M4b-6 批 design 组清单/键名）与本批实现期口径一致 · 本件契约面**无新增**）
 > Updated: 2026-10-09（**v0.27：M4c-2 批 plan 首稿回填** —— §2.3 行更新：批 plan = `M4c-2-user-governance.md`（**已立 · v0.1 首稿** · T1–T8 · 自检 9.39）；本件契约面**未改**）
 > Updated: 2026-10-09（**v0.26：M4c-2 批 design 定稿回填** —— §2.3「各批预期产出物」行更新：批 design = `2026-10-09-m4c2-user-governance-design.md`（**已立 · 定稿** · 8 维 **9.50** · v0.2 · grilling U1–U5 全定案）；批 plan = `M4c-2-user-governance.md`（待立）。本件 §4 契约面**未改**（M4c-2 实现细则以批 design 为准 · 批内内容迁移规则））
 > Status: **定稿**（**主 design（跨批不变层）** —— 保留里程碑范围 / 认证与身份源契约 / 权限与账号契约 / 路由清单 / 视觉基线归属 / 拆批表 §2.3 / 决策登记 §2.1+§2.6 / 接口变更总览 §8；批内决策另立**批 design**，实现细则落各批 plan）。
@@ -58,7 +59,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 |----|------|---------|-----------|------|
 | **M4c-1** | **认证层统一到官方** | 前端三层改官方 SDK（调用层 / 会话层 / 交互层）+ 基于 SDK 扩展 · 档位适配（官方 role 文本 ↔ 本仓数值档）· 字段适配（官方 `name` ↔ 本仓 `displayName`）· 401 分流口径保留 · 后端：目录用户**凭据委派行** + 官方 `password.verify` 分支 + **不短路的首登建号钩子** + 身份源共享模块 + `accountId` 语义统一 · **退役自绘端点 `signInAih`** | **中**：1 次数据迁移（凭据行补齐 + `accountId` 归一）+ 认证配置面 + 1 处薄层退役 | — |
 | **M4c-2** | **账号与权限治理** | 用户管理页 `/admin/users`（列表 / 筛选 / 分页 · 改角色 · 封禁·解封 · **强制登出** · 管理员建号 · **本地账号自助改密**（R21 · 用户区入口））+ 权限码表扩展 + 侧栏「管理」组条目 + i18n 新组 | **小**：启停列退休（1 次迁移）+ 权限码扩展 + 用户面薄端点（内部委托官方）+ 列表「最后登录」聚合（R22） | M4c-1 |
-| **M4c-3** | **外部身份源接入** | 社交 provider（名单见 §2.6 R10）· **官方件替自绘 OIDC**（内置 Entra ID provider · 退役 `oidc-routes.ts` + `signInAihOidc`）· 账号链接策略统一（经 §3.4 共享模块）· 登录页 provider 入口 | **小–中**：认证配置面 + 1 处薄层退役 + （不采 SSO 插件 ⇒ 无自带模型迁移） | M4c-1 |
+| **M4c-3** | **外部身份源接入** | 社交 provider（名单见 §2.6 R10）· **官方件替自绘 OIDC**（内置 Entra ID provider · 退役 `oidc-routes.ts` + `signInAihOidc`）· 账号链接策略统一（经 §3.4 共享模块）· 登录页 provider 入口（**判据 = 等价完成判据 §3.7** · **批 design** = `2026-10-12-m4c3-external-identity-design.md`（定稿）· **批 plan** = `M4c-3-external-identity.md`） | **小–中**：认证配置面 + 1 处薄层退役 + （不采 SSO 插件 ⇒ 无自带模型迁移） | M4c-1 |
 
 **编排说明**：
 
@@ -138,7 +139,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 | R10 | 社交 provider 首批名单 | **Google + GitHub + WeChat** | §5.1 |
 | R11 | WeChat 无邮箱怎么办 | **接受官方占位邮箱** + 共享模块识别 `.placeholder.invalid` 为"无邮箱身份"（跳过邮箱唯一性判定、保留 `emailVerified:false`、UI 显示「—」） | §3.4 / §5.1 |
 | R12 | **改密拒绝机制** | **拒绝目录账号改密**（自助 / 管理均然）⇒ 明确错误码；**落点 = 入口层按目标账号判定**，`password.hash` 保持本仓 `hashPassword` 不变（原口径「`password.hash` 分支 = 显式拒绝」机制错：全局单参函数拿不到账号 ⇒ 会失效所有设密路径，含 R21；**F280** · 实现归 M4c-2） | §3.2 · §4.8 |
-| R13 | 登录页 provider 入口形态 | 现有右栏表单**下方加分隔线 + 按钮组**（不改页面结构） | §5.1 / §10.2 |
+| R13 | 登录页 provider 入口形态 | 现有右栏表单**下方 provider 文字链一行**（13px 本页链接档 · 常态下划线 offset 4 · 项间 **1×12** 竖线 · **无分隔线** · 主按钮↔链接行 **16px** · **按启用集渲染**，0 项 ⇒ 整行不渲染；不改页面结构）—— **F306 订正（2026-10-12）**：原写「下方加分隔线 + 按钮组」 | §5.1 / §10.2 |
 | R14 | 本地账号登录名口径 | **也用工号**（`username` = 工号，与目录账号统一单入口） | §3.1 / §4.4 |
 | R15 | `accountId` 语义归一载体 | **正式 drizzle 迁移**（幂等）：`credential` 行 `account_id: 工号 → user.id` + 目录账号补标记行 | §3.5 |
 | R16 | M4c-1 等价完成判据 | 三层硬判据：① `hasRole/useAuth` 对外签名不变（调用点 **21 处** · 10 文件；口径见批 design §12）② 401 四分类 + 反向守卫 + `next` 白名单断言全绿 ③ 登录态 7 个 dogfood 全绿 + `signInAih` 调用点归零（grep 断言） | §15 |
@@ -155,9 +156,9 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 |----|-------|-------|-------|------|--------------------|
 | **M4c-1** | 1：身份源共享模块 `apps/server/src/auth/identity.ts` | 9：后端 `auth/better-auth.ts` · `auth/plugins/ldap-credentials.ts` · `auth/errors.ts` · `auth/rbac.ts` · `db/schema/auth.ts`；前端 `auth/AuthProvider.tsx` · `auth/roles.ts` · `auth/next.ts` · `api/client.ts` | 1：端点 `POST /api/auth/sign-in/aih` | **1**：凭据行 `accountId` 归一 + 目录标记行补齐 | 0 / 0 |
 | **M4c-2** | 2：`apps/server/src/http/admin-users.ts` · `apps/web/src/pages/AdminUsers.tsx` | 6：`auth/roles.ts`（权限码）· `audit/actions.ts` · `components/ui/navItems.tsx` · i18n `zh/en` · `db/schema/auth.ts`（删列）· 用户区入口 | 1：`user.status` 列 | **1**：非 `ACTIVE` → `banned` + 删列 | **5** / **5** |
-| **M4c-3** | 0 | 3：`auth/better-auth.ts`（provider 装配）· `pages/Login.tsx` · i18n | 2：`http/oidc-routes.ts` 文件 + 端点 `signInAihOidc` | 0 | 0 / 0 |
+| **M4c-3** | **2**：两个 smoke 脚本（L5 `m4c3-entra-fake-issuer.ts` · L6 `m4c3-login-providers-dogfood.ts`） | **21**：`auth/better-auth.ts`（provider 装配）· `pages/Login.tsx` · i18n · `pages/AdminAudit.tsx` · `pages/AdminUsers.tsx` · `http/admin-users.ts` · `audit/*` · smoke 脚本与门禁件等（**实现期补入 4 件 ⇒ 批 design §3.5 计 25** · 逐件见批 design §3.5） | **4**：`http/oidc-routes.ts` + 其测试 · `auth/oidc.ts` + 其测试（原写 2 = 文件 + 端点） | 0 | 0 / **1**（`external.provisioned`） |
 
-**规模量级（条目级）**：新增件 **3**（1+2+0）· 改造件 **18**（9+6+3）· 退役项 **4**（1+1+2）· 迁移 **2** · 新增薄端点 **5** · 新增审计动作 **5**（各列 = 三批之和）。
+**规模量级（条目级 · 各列以各批 design 为准）**：新增件 **5**（1+2+2）· 改造件 **≥36**（9+6+21 · M4c-3 已按实现期实测订正）· 退役项 **6**（1+1+4）· 迁移 **2** · 新增薄端点 **5** · 新增审计动作 **6**。
 **跨批复用**：控制台组件基建（M4b 已交付）全量复用 · 视觉体系引 M4a §4.4（零新视觉值）· 会话 / CSRF / 限流 / 错误码由官方承担。
 
 ## 3. 认证层统一到官方（M4c-1）
@@ -390,14 +391,14 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 ## 5. 外部身份源接入（M4c-3）
 
-### 5.1 社交 provider
+### 5.1 社交 provider（含企业 IdP：官方内置 Entra ID 见 §5.2）
 
 | 项 | 契约 |
 |----|------|
 | 官方件 | `socialProviders`（官方 **36** 个内置 provider，实现位于 `@better-auth/core/dist/social-providers/`） |
-| 名单 | Google + GitHub + WeChat（§2.6 R10） |
+| 名单 | **Microsoft Entra ID**（官方内置 `microsoft` · 含 `tenantId` · 见 §5.2）+ Google + GitHub + WeChat（§2.6 R10） |
 | 开关范式 | 沿用本仓既有 env 范式（`OIDC_ENABLED` / `LDAP_ENABLED` 同款）：**默认关闭 + 逐 provider 开关**，独立部署不受影响 |
-| 入口 | 登录页 provider 入口形态见 §2.6 R13（表单下方按钮组） |
+| 入口 | 登录页 provider 入口形态见 §2.6 R13（**表单下方 provider 文字链一行** · 按启用集渲染 · F306 订正） |
 | WeChat 特例 | 无邮箱 ⇒ 官方占位邮箱 + `emailVerified:false`（不参与自动链接）；共享模块识别 `.placeholder.invalid`（§2.6 R11） |
 | 降级 | provider 不可达（企业内网常见）须有明确表现（入口禁用或失败提示），不留"点了没反应" |
 
@@ -422,7 +423,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 ### 6.1 时序侧信道
 
-交付前须保留/补足**等价耗时处理**：目录 `bind` 的耗时显著高于本地 scrypt 校验 ⇒ 不能凭响应时间区分"目录账号 / 本地账号 / 账号不存在"。本仓自绘端点已有同款处理（`plugins/ldap-credentials.ts:393` 的固定假哈希校验），认证层统一后**该处理必须跟着迁移**，不得随端点退役而丢失。
+交付前须保留/补足**等价耗时处理**：目录 `bind` 的耗时显著高于本地 scrypt 校验 ⇒ 不能凭响应时间区分"目录账号 / 本地账号 / 账号不存在"。本仓已有同款处理 —— **锚点订正（F304 · 2026-10-12）**：`apps/server/src/auth/password-verify.ts:35`（`DUMMY_PASSWORD_HASH`）与 `:63` / `:69`（目录未启用分支 / 目录分支的等价耗时校验）。原写 `plugins/ldap-credentials.ts:393` 的固定假哈希校验 —— 该**自绘端点已随 M4c-3 退役**；等价耗时处理在 **M4c-1 已迁至 `password-verify.ts`**，**不随 OIDC 退役而迁移**（本批已实测：`plugins/ldap-credentials.ts` 268 → 200 行后该处理仍在位）。
 
 ### 6.2 错误码与防枚举
 
@@ -562,7 +563,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 操作菜单（⋮）：改角色 · 封禁/解封 · 吊销会话      本人行：三项禁用
 ```
 
-**登录页（M4c-3 provider 入口；形态 = 表单下方按钮组，§2.6 R13）**
+**登录页（M4c-3 provider 入口；形态 = 表单下方 **provider 文字链一行**，§2.6 R13）** —— **示意 · 按启用集渲染**（示例为 4 通道全开；1 项 ⇒ 无竖线；0 项 ⇒ 整行不渲染）
 
 ```text
 ┌─ 左：品牌栏 ─────────────┬─ 右：表单栏 ────────────────────┐
@@ -570,8 +571,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 │                          │  账号 [________________]         │
 │                          │  口令 [________________]         │
 │                          │  [        登录        ]          │
-│                          │  ──────── 或 ────────            │
-│                          │  [ G Google ] [ ⌥ GitHub ]        │
+│                          │  Microsoft 账号 │ Google │ GitHub │ 微信 │
 └──────────────────────────┴─────────────────────────────────┘
 ```
 
@@ -612,6 +612,7 @@ M4b-pre 已把认证整车迁到 **better-auth**（官方件）并把 4 档角�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.28 | 2026-10-12 | **M4c-3 实现期就地订正（F303 / F304 / F306 + F314 连带）** —— ① **F306**：R13 形态措辞 ⇒「表单下方 provider 文字链一行」（无分隔线 · 1×12 竖线 · 16px · 按启用集渲染）+ §3 入口指针 / §5.1 小标题与名单 / §10.2 线框 四连同改 ② **F303**：§2.7 M4c-3 件面「0 / 3 / 2」⇒「**2 / 21 / 4**」+ §2.3 补判据与实名指针 ③ **F304**：§6.1 锚点 ⇒ `auth/password-verify.ts:35/63/69`（不随 OIDC 退役迁移）④ 本件契约面无新增 |
 | v0.27 | 2026-10-09 | **M4c-2 批 plan 首稿回填** —— §2.3「各批预期产出物」M4c-2 行：批 plan 占位 → **实名已立** `docs/plans/M4c-2-user-governance.md`（**v0.1 首稿** · T1–T8 · 每 Task 三段 · 门禁 12 步 · 自检 **9.39**）· 本件 §4 契约面未改 |
 | v0.26 | 2026-10-09 | **M4c-2 批 design 定稿回填** —— ① §2.3「各批预期产出物与对齐要点」M4c-2 行：批 design 占位名 → **实名** `2026-10-09-m4c2-user-governance-design.md`（**已立 · 定稿** · 8 维 **9.50** · v0.2 · grilling U1–U5 全定案）· 批 plan → `M4c-2-user-governance.md`（待立）② 本件 §4 契约（启停三件套 / 强制登出 / 建号 / 权限码 / 错误码 / PENDING 清除 / 自助改密）**未改**——实现细则与细化口径以批 design 为准（批内内容迁移规则 · 不双写）|
 | v0.25 | 2026-10-09 | **M4c-1 dogfood 加固收口**（F290 家族 + F293）** —— §15 出口第 ④ 件的 dogfood 工具链：① 新增 `docs/smoke/scripts/dogfood-all.ts` 统一 runner（前置体检 api/web/CDP → 清陈旧 5173 标签 → 6 份造数幂等重播 → 依次跑 7 dogfood → 汇总表 + 非零退出）② `m4b4` / `m4b5` 启动即跑各自种子（`SMOKE_SKIP_SEED=1` 可跳）⇒ 实证「不手工播种单跑」**89/0 · 62/0**（加固前同条件 85/4 · 54/8）③ runner 子集快测 m4b2 = 24/0（清理 7 个陈旧标签） |
