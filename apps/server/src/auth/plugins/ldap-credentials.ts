@@ -1,20 +1,11 @@
-import {
-  APIError,
-  createAuthEndpoint,
-  createAuthMiddleware,
-  formCsrfMiddleware,
-} from 'better-auth/api';
-import { setSessionCookie } from 'better-auth/cookies';
+import { APIError, createAuthMiddleware, formCsrfMiddleware } from 'better-auth/api';
 import { eq } from 'drizzle-orm';
-import { z } from 'zod';
 import { AUDIT_ACTIONS, type AuditWriter, auditMetaFromHeaders } from '../../audit/audit.js';
 import type { Db } from '../../db/client.js';
 import { user } from '../../db/schema/index.js';
-import { type AuthSurfaceCode, httpStatusFor } from '../errors.js';
 import { createIdentityRules } from '../identity.js';
 import type { LdapChannel } from '../ldap.js';
 import { DIRECTORY_CREDENTIAL_PREFIX } from '../password-verify.js';
-import { accountRoleOf } from '../roles.js';
 
 /**
  * 企业目录凭证插件（M4b-pre design §1.4 R12/R13/R15 · §2.2）——本批**唯一自绘件**。
@@ -22,11 +13,10 @@ import { accountRoleOf } from '../roles.js';
  * **为什么必须自绘**：官方零支持「用企业目录（LDAP/AD）bind 结果换官方会话」这一形态——
  * 官方 `emailAndPassword.password.verify({ password, hash })` 钩子**拿不到用户名**，
  * 无法在钩子里做目录 bind（design §1.4）。因此只走官方**文档化扩展点**
- * `createAuthEndpoint`（`docs/plugins.md`：写操作 POST、路径带插件语义前缀）。
+ * `createAuthMiddleware` 钩子（`hooks.before` / `hooks.after` —— 本仓零自绘端点）。
  *
- * **端点（M4c-1 T6 后仅剩 1 个）**：
- * - `POST /api/auth/sign-in/aih-oidc`（**仅服务端可达**）：OIDC 授权码流完成后的会话签发接缝
- *   （R11：编排仍留在 `http/oidc-routes.ts`，本端点只做「外部身份 → 官方会话」）。
+ * **端点**：本插件**已无自绘端点**（原自绘 OIDC 会话接缝端点随 M4c-3 退役删除）——
+ * 现只以官方扩展点挂**钩子**（下述 `hooks.before` / `hooks.after`）。
  *
  * **官方登录端点的两个钩子（M4c-1 T3 / T6）**：
  * - `hooks.before`：CSRF/Origin 平价（官方 `formCsrfMiddleware`）+ 首登建号（不短路）
@@ -36,19 +26,17 @@ import { accountRoleOf } from '../roles.js';
  * `sign-in/username` + T2 的 `password-verify.ts` 分派；目录首登走 `hooks.before`；登录限流交
  * 官方 `rateLimit`（`enabled: isProduction`，内置 `/sign-in*` 规则）——自绘限流实例随之下线。）
  *
- * **服务端唯一性**的判定口径与官方 api-key 插件同源（design X5 实证）：
- * `ctx.request || ctx.headers` 任一存在即视为「客户端可达」⇒ 拒绝。
+ * **服务端唯一性**：原以 `ctx.request || ctx.headers` 判「客户端可达 ⇒ 拒绝」（design X5 口径）的
+ * 自绘端点已随 M4c-3 退役 ⇒ 本插件**现无任何客户端可达面**（纯钩子）。
  *
- * 会话签发一律走官方内部件（`internalAdapter.createSession` + `setSessionCookie`）——
- * cookie 名/签名算法/TTL 全由官方管理，**本文件不实现任何密码学**。密码仍是既有 scrypt，
- * 经 `authOptions().emailAndPassword.password` 注入官方 ⇒ 这里的 verify 验的就是存量哈希（R10 零重置）。
+ * 会话签发一律由官方端点内建完成（cookie 名/签名算法/TTL 全由官方管理），**本文件不实现任何密码学**。
+ * 密码仍是既有 scrypt，经 `authOptions().emailAndPassword.password` 注入官方 ⇒
+ * 这里的 verify 验的就是存量哈希（R10 零重置）。
  *
  * **M4c-1 T3 增补**：本插件另挂官方 `sign-in/username` 的 **before 钩子**（首登建号，**不短路**）——
  * 登录名在本仓无对应用户 ⇒ 目录 bind ⇒ 成功则经共享模块建号 + 补凭据委派行，随后交回官方端点常规流程
  * （官方钩子在端点中间件之前运行 ⇒ 短路会绕过 Origin/CSRF ⇒ 本钩子**绝不返回响应**；主 design §2.5 / **F275**）。
  *
- * 响应契约（登录成功）：`200 { user: { id, displayName, email, role }, session: { id, expiresAt } }`
- * （`role` = 数值档位，与 `GET /api/auth/me` 同口径）；错误一律 `{code, message}`（07 §4）。
  */
 
 /** 本地登录名归一（P7：trim + lowercase；与既有 `users.ts` 语义逐字一致） */
@@ -56,23 +44,12 @@ export function normalizeLoginName(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-/** 端点 ctx（官方端点上下文；`setSessionCookie` 的入参类型即完整面） */
-type AuthEndpointCtx = Parameters<typeof setSessionCookie>[0];
-
 export interface DirectoryCredentialsDeps {
   db: Db;
   /** LDAP 通道（`LDAP_ENABLED=false` → null：纯本地模式仍可登录） */
   ldap: LdapChannel | null;
   audit: AuditWriter;
 }
-
-const oidcBody = z.object({
-  /** 外部身份 subject（OIDC `sub`） */
-  subject: z.string().min(1).max(256),
-  displayName: z.string().trim().min(1).max(128),
-  /** 仅 `email_verified=true` 时由调用方传入（防未验证邮箱冒用） */
-  email: z.string().email().max(256).nullable(),
-});
 
 /**
  * 官方 `sign-in/username` 端点前置校验（真码 `dist/plugins/username/index.mjs`：`minUsernameLength ?? 3` /
@@ -83,65 +60,14 @@ const OFFICIAL_USERNAME_MIN = 3;
 const OFFICIAL_USERNAME_MAX = 30;
 const OFFICIAL_USERNAME_VALIDATOR = /^[a-zA-Z0-9_.]+$/;
 const LDAP_PROVIDER = 'ldap';
-const OIDC_PROVIDER = 'oidc';
 
 export function directoryCredentials(deps: DirectoryCredentialsDeps) {
   const { db, ldap, audit } = deps;
   /** 共享身份规则（M4c-1 §3.4/批 design §5.4：本文件不再自持建号/复用规则） */
   const identity = createIdentityRules({ db });
 
-  /** 我们的结构化错误（07 §4：`{code, message}`；状态码语义见 `httpStatusFor`） */
-  function fail(ctx: AuthEndpointCtx, code: AuthSurfaceCode): never {
-    throw ctx.error(httpStatusFor(code), { message: code, code });
-  }
-
-  /** 官方会话签发（官方内部件）——返回会话摘要供响应体使用 */
-  async function issueSession(
-    ctx: AuthEndpointCtx,
-    userId: string,
-  ): Promise<{ id: string; expiresAt: Date }> {
-    const session = await ctx.context.internalAdapter.createSession(userId, false);
-    const officialUser = await ctx.context.internalAdapter.findUserById(userId);
-    if (!officialUser) {
-      throw new Error('directory credentials: session issued for unknown user');
-    }
-    await setSessionCookie(ctx, { session, user: officialUser });
-    return { id: session.id, expiresAt: session.expiresAt };
-  }
-
   return {
     id: 'aih-directory-credentials',
-    endpoints: {
-      /** 单表单登录（公开）：登录名 + 密码；三路分派（design R15） */
-      signInAihOidc: createAuthEndpoint(
-        '/sign-in/aih-oidc',
-        { method: 'POST', body: oidcBody },
-        async (ctx) => {
-          if (ctx.request || ctx.headers) return fail(ctx, 'auth.forbidden');
-
-          const ensured = await identity.ensureDirectoryUser({
-            provider: OIDC_PROVIDER,
-            subject: ctx.body.subject,
-            displayName: ctx.body.displayName,
-            email: ctx.body.email,
-            userId: `usr_oidc_${crypto.randomUUID()}`,
-          });
-          if (!ensured.ok) return fail(ctx, ensured.code);
-
-          const session = await issueSession(ctx, ensured.account.id);
-          return ctx.json({
-            created: ensured.created,
-            user: {
-              id: ensured.account.id,
-              displayName: ensured.account.displayName,
-              email: ensured.account.email,
-              role: accountRoleOf(ensured.account.role),
-            },
-            session,
-          });
-        },
-      ),
-    },
     /**
      * M4c-1 T3（批 design §5.3 · B4）：官方 `sign-in/username` 的 **before 钩子** —— 首登建号。
      *

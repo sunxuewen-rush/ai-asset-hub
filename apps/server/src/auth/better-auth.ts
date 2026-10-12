@@ -29,7 +29,7 @@ import { generateTokenSecret } from './tokens.js';
  *   ——该算法函数体按 design §4.1 由原 `auth/password.ts` **迁入本文件**（文件已删）
  * - 令牌 → 官方 api-key 插件（R7；**显式关闭官方默认限流**，否则会改掉既有令牌语义）
  * - 设备流 → 官方 device authorization 插件（R8）；设备 token 走 Bearer ⇒ 必须挂 `bearer` 插件
- * - 企业目录登录 / OIDC 会话接缝 → 本批唯一自绘插件 `plugins/ldap-credentials.ts`（官方扩展点）
+ * - 企业目录登录 → 本批唯一自绘插件 `plugins/ldap-credentials.ts`（官方扩展点）
  *
  * 已实测坑（design §2.3 P1-P8）在本文件相关项：
  * - `drizzleAdapter` 的 drizzle 实例**必须带 schema**，否则运行期 `BetterAuthError(SCHEMA_MISMATCH)`

@@ -238,14 +238,14 @@ describe('identity rules §5.4 · 建号/复用', () => {
     const id = newId();
     const subject = newSubject();
     const res = await rules.ensureDirectoryUser({
-      provider: 'oidc',
+      provider: 'external-source',
       subject,
       displayName: '成对',
       email: emailOf(id),
       userId: id,
     });
     if (!res.ok) throw new Error(`建号应成功，实得 ${res.code}`);
-    const acc = await readAccount('oidc', subject);
+    const acc = await readAccount('external-source', subject);
     expect(acc).not.toBeNull();
     expect(acc?.userId).toBe(id);
     expect(acc?.id.startsWith('acc_')).toBe(true);
@@ -305,11 +305,11 @@ describe('identity rules §5.1 · 凭据委派行（M4c-1 T3）', () => {
     expect(pw[0]?.password).toBe(`ldap:${subject}`); // 非空标记（官方空值直接 401）
   });
 
-  it('⑪ 缺省 `delegatedPassword` ⇒ **零额外行**（OIDC 等无口令语义通道零变化）', async () => {
+  it('⑪ 缺省 `delegatedPassword` ⇒ **零额外行**（无口令语义通道零变化）', async () => {
     const id = newId();
     const subject = newSubject();
     const res = await rules.ensureDirectoryUser({
-      provider: 'oidc',
+      provider: 'external-source',
       subject,
       displayName: '无委派',
       email: emailOf(id),
@@ -320,7 +320,7 @@ describe('identity rules §5.1 · 凭据委派行（M4c-1 T3）', () => {
       .select({ providerId: account.providerId })
       .from(account)
       .where(eq(account.userId, id));
-    expect(rows.map((r) => r.providerId)).toEqual(['oidc']);
+    expect(rows.map((r) => r.providerId)).toEqual(['external-source']);
   });
 });
 

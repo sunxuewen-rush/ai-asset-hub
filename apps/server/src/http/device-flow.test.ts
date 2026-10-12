@@ -42,7 +42,6 @@ function makeApp(overrides?: Partial<AppDeps>): Hono {
     audit: createAuditWriter(db),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
-    cookieSecure: false,
     auth,
     ...overrides,
   });

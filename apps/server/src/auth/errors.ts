@@ -12,8 +12,6 @@ export const authErrorCodes = {
   csrfFailed: 'auth.csrf_failed',
   sessionExpired: 'auth.session_expired',
   forbidden: 'auth.forbidden',
-  oidcStateMismatch: 'auth.oidc_state_mismatch',
-  oidcDenied: 'auth.oidc_denied',
 } as const;
 
 /**
@@ -55,8 +53,6 @@ export function httpStatusFor(code: AuthSurfaceCode): AuthErrorStatus {
       return 409;
     case 'auth.csrf_failed':
     case 'auth.forbidden':
-    case 'auth.oidc_state_mismatch':
-    case 'auth.oidc_denied':
       return 403;
     case 'auth.rate_limited':
       return 429;

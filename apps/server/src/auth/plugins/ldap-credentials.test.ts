@@ -61,7 +61,6 @@ function makeApp(depsOverrides?: Partial<AppDeps>): Hono {
     audit: createAuditWriter(db),
     ldap: null,
     storage: createLocalStorage('./storage-test'),
-    cookieSecure: false,
     ...depsOverrides,
   });
 }
@@ -78,7 +77,6 @@ function makeAppWithOriginCheck(ldap: LdapChannel | null): Hono {
     db,
     audit: createAuditWriter(db),
     storage: createLocalStorage('./storage-test'),
-    cookieSecure: false,
     ldap: null,
     auth: createAuth({ ldap, advanced: { disableOriginCheck: false } }),
   });

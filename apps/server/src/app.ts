@@ -19,7 +19,6 @@ import { createAuthRoutes } from './http/auth-routes.js';
 import { createLabelRoutes } from './http/labels.js';
 import { createMeRoutes } from './http/me.js';
 import { createMetaRoutes } from './http/meta.js';
-import { createOidcRoutes } from './http/oidc-routes.js';
 import { trustedOriginGuard } from './http/origin-guard.js';
 import { requestContextMiddleware } from './http/request-context.js';
 import { createReviewRoutes } from './http/reviews.js';
@@ -41,7 +40,7 @@ import type { ObjectStorage } from './storage/types.js';
  *   由 `trustedOriginGuard` 补回**（与官方同源语义、同一白名单：`auth.$context.isTrustedOrigin`）——
  *   `csrfProtection` 删除后业务面 cookie 写请求的防线回归（T3 收尾，用户 2026-09-15 批准）
  * - 装配序：`tokenAuthMiddleware`（Bearer 显式通道）→ `trustedOriginGuard` → `officialSessionMiddleware` → 路由
- * - 官方 catch-all **最后注册**：自留路由（`/me`、`/device/*`、`/oidc/*`）先注册才不被吞
+ * - 官方 catch-all **最后注册**：自留路由（`/me`）先注册才不被吞
  */
 /**
  * 读取设备批准/拒绝请求体里的 `userCode`（审计目标；官方端点契约为 camelCase `userCode`）。
@@ -113,7 +112,6 @@ export interface AppDeps {
   uploadRateLimiter?: RateLimiter;
   ldap: LdapChannel | null;
   storage: ObjectStorage;
-  cookieSecure: boolean;
   /** 官方实例（可选注入；缺省按本 deps 构造——含 LDAP 通道 / 审计） */
   auth?: AihAuth;
 }
@@ -158,17 +156,6 @@ export function createApp(deps: AppDeps): Hono {
   app.route('/api/auth', createAuthRoutes({ db: deps.db }));
   // Device Flow：M4b-pre T5 起**整体交官方**（`deviceAuthorization` 插件：/device/code · /device · /device/approve ·
   // /device/deny · /device/token），自研路由与内存 pending 存储已删除
-  // OIDC 授权码流（T24/T25；authorize/callback 为访客端点——无 requireAuth，走独立 state cookie）
-  app.route(
-    '/api/auth/oidc',
-    createOidcRoutes({
-      auth,
-      db: deps.db,
-      cookieSecure: deps.cookieSecure,
-      audit: deps.audit,
-    }),
-  );
-
   // —— 官方端点（catch-all：登录/登出/注册/会话/设备流/令牌签发等）——
   // 审计由本包装层补记（官方端点无业务钩子；统一「先读必要上下文 → 官方处理 → 成功即补审计」，
   // 行为确定可测）：

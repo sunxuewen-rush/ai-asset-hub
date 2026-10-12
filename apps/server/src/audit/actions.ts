@@ -49,10 +49,6 @@ export const AUDIT_ACTION_GROUPS: ReadonlyArray<{ prefix: string; actions: reado
     actions: ['ldap.provisioned'],
   },
   {
-    prefix: 'oidc',
-    actions: ['oidc.provisioned'],
-  },
-  {
     // M4c-3 外部身份源（四通道共用一枚动作；写入点 = 官方 account.create.after 钩子，见 better-auth.ts）
     prefix: 'external',
     actions: ['external.provisioned'],

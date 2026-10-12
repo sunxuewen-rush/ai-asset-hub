@@ -116,8 +116,9 @@ const ANCHORS: { file: string; line: number; keyword: string; why: string }[] = 
     // M4c-1 T6 删登录限流链（`AppDeps.rateLimiter` 与 `createAuth` 传参）⇒ 217 → 215；
     // M4c-2 T2 挂用户治理面（import + 注释 + `app.route('/api/admin', createAdminUserRoutes(…))`）⇒ 215 → 216；
     // M4c-3 T5 插外部通道登录补记（回调会话反查 helper + 包装层分支，约 52 行）⇒ 216 → 268；
+    // M4c-3 T6 退役自绘 OIDC 全链（删 import + `/api/auth/oidc` 挂载块 11 行 + `AppDeps.cookieSecure`）⇒ 268 → 255；
     // 断言意图不变 = 「改动 1–3 的 admin 路由已挂载」）
-    line: 268,
+    line: 255,
     keyword: 'createAdminRoutes',
     why: '改动 1–3 挂载点',
   },

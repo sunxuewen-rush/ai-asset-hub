@@ -1,10 +1,10 @@
 # M4c-3 外部身份源接入 · 批设计（社交 provider + 官方内置 Entra ID + 账号链接统一 + 登录页入口）
 
 > Date: 2026-10-12
+> Updated: 2026-10-12（**v0.9：实现期 T6 轮 —— 判据① 口径写明（F308）+ 键账订正（F310）+ 落点归位（F309）** —— ① **F308**：§3.7① 原写「全仓 `grep` ⇒ 零命中」**字面不可执行**（构建产物 / 早于本批的历史文档 / 本批 design·plan 自身必然命中）⇒ **范围写明**（非放宽）：**代码面**（`apps/*/src` + `packages/*/src`，排除构建产物）+ **活文档**（`docs/00` · `docs/README`）**零命中**，历史文档与本批 design/plan **豁免** ⇒ **T6 出口 = 服务端面** · **全代码面 = T7 复核** · **批级 = T11 收口** ② **F310**：`admin` 组为**改名**（`audit.group.oidc` ⇒ `audit.group.external`）= **净 0** ⇒ 批末全仓 **699**（原写 698；**T6 后中间值恰为 698**）③ **F309**：i18n `errors` 组 **−3 键归 T6**（生产点同批删）④ T6 落地：**删件 4 + 改件 26**（生产 14 · 测试 8 · 文档与门禁 4）· 服务端全量 **674 pass / 0 skip / 0 fail**（57 文件）· 门禁 **275/141/3/50/37/0** · 18 维 **9.51**）
 > Updated: 2026-10-12（**v0.8：实现期 T5 轮 —— 设计缺口补写（写入点定案）+ 件面 23 → 24** —— §3.6 原未定「建号信号来源」⇒ 实测官方 `databaseHooks.account.create.after`（`Account.providerId` 原生在场）+ `with-hooks.mjs` 全模型通用 ⇒ 定案 **钩子记建号（providerId ∈ 四通道 且 该用户无其他 account 行）/ 包装层记登录成功（响应 Set-Cookie→token 查库）**；备选（`createdAt` 近因启发式 · `validateUserInfo` 校验缝）**未采**并写明理由；**删除面（oidc 组 / 2 错误码）归 T6**（消费点 `oidc-routes.ts:134/149/189` 同批删）· **件面 23 → 24**：`docs/smoke/scripts/doc-claims-check.ts` 的 `app.ts` 行锚随本轮插入漂移 `216 → 268`（同 F224/M23 先例）· 8 维 **9.69 不变**）
 > Updated: 2026-10-12（**v0.7：实现期 T4 轮订正（件面 22 → 23）** —— ① **件面 +1**：`http/admin-users.test.ts` 补入（T4 轮的「占位邮箱出参归一」用例落点）⇒ **改造 23 件**（Scope / §1 ⑥ / §3.5 表 #23 / F303 两处同步；F303 的「含测试 N」改为**枚举式**测试件 5）② 同轮实现见批 plan v0.6（T4）· 8 维 **9.69 不变**（计数订正不改设计实质））
-> Updated: 2026-10-12（**v0.6：实现期 T2 轮订正（F307 + 件面 22）** —— ① **登记 F307**：官方「provider 未装配」404 的 `code` **实测 = `PROVIDER_NOT_FOUND`**（原写 `oauth_provider_not_found` · **正反双证**：真服务 body ＋ 官方源 `error/codes.mjs:14`，旧串在 dist 内**零命中**）⇒ §3.6 / §3.7④ / §6 L2 / §6 L7③ **四处订正**；⚠ **无行为影响**（前端不按官方码分支，失败态走 `login.providerFailed`）② **件面 21 → 22**（补 `auth/better-auth.test.ts`：**L1/L2 单测落点** · §3.5 表 #22 · Scope / §1 ⑥ / F303 同步）③ 8 维 **9.69 不变**（本轮为**纠错**，设计实质未变；偏差已由 F307 承接））
-> Status: **定稿**（2026-10-12 · grilling **G1–G12** + **UI 逐条评审 P1–P13** + **v0.5 入口形态翻转 P14–P17** 全部定案 · 8 维 **9.69**（标准 9.72 · 深度 9.65 · §11.6）· **v0.6–v0.8 实现期订正（F307 · 件面 21 → 23 · §3.6 写入点定案）** · **门 ≥9 ✓** · 实现细则落批 plan）
+> Status: **定稿**（2026-10-12 · grilling **G1–G12** + **UI 逐条评审 P1–P13** + **v0.5 入口形态翻转 P14–P17** 全部定案 · 8 维 **9.69**（标准 9.72 · 深度 9.65 · §11.6）· **v0.6–v0.9 实现期订正（F307 · 件面 21 → 24 · §3.6 写入点定案 · §3.7 判据范围 · 键账 699）** · **门 ≥9 ✓** · 实现细则落批 plan）
 > Scope: env 契约（**+13 / −5** 键）· `auth/better-auth.ts` 装配 4 provider（`microsoft` / `google` / `github` / `wechat`）· 只读启用集端点 `GET /api/meta/auth-providers` · 占位邮箱识别（`.placeholder.invalid`）· 登录页 provider 文字链一行（**无「或」分隔线**）+ 降级 · 自绘 OIDC 全链退役（**删件 4 · 改造 24 · 新建 2**）· 登出落点确定化（**F298** 关账）
 
 ## 1. 目标与非目标
@@ -191,6 +191,12 @@ socialProviders: {
 | ③ | **占位邮箱口径** | WeChat 无邮箱身份：跳过邮箱唯一性 · `emailVerified:false` · 不参与自动链接（L3 单测 + UI 显「—」） |
 | ④ | **入口与降级** | 启用集驱动渲染（**0 启用 ⇒ 无链接行**）· 未装配 provider ⇒ **404 `PROVIDER_NOT_FOUND`**（L4 + L6 · **F307 订正**） |
 
+
+> **判据① 实测范围（F308 订正 · 2026-10-12）**：原文「全仓 `grep` … ⇒ 零命中」**字面不可执行** —— 构建产物（`apps/*/dist` · `.turbo/`）、早于本批的**历史文档**（实测 ≥12 份 plan/design）与**本批 design / plan**（必须引用待删符号）依定义必然命中。范围写明为：
+> · **代码面**（`apps/*/src` + `packages/*/src`，排除构建产物）= **零命中** ⇒ **T6 出口 = 服务端面（`apps/server/src` + `packages`）零命中**（余 `apps/web/src/pages/Login.tsx` 头部注释 2 行属 **T7 件** ⇒ 全代码面由 **T7 出口复核**）；
+> · **活文档**（`docs/00` · `docs/README`）= **零命中** ⇒ **T11 收口实测**；
+> · **豁免**：早于本批的历史设计 / 计划 / 证据文档（不可改写）· 本批 design 与 plan（必须引用）。
+
 ## 4. 前端设计
 
 ### 4.1 登录页入口形态（`apps/web/src/pages/Login.tsx` · **236 行**实测）
@@ -254,11 +260,12 @@ socialProviders: {
 |------|----|:--:|
 | **退役** | `login.oidcLink` · `login.oidcHint` · `login.oidcOpen` · `login.backToForm` | **−4** |
 | **退役** | `errors` 组：`auth.oidc_denied` · `auth.oidc_state_mismatch` · `oidc.not_configured` | **−3** |
-| **退役** | `admin` 组：`audit.group.oidc`（审计分组标签，随 `oidc` 动作组删除） | **−1** |
+| **退役 + 新增** | `admin` 组：`audit.group.oidc` **退役** · **新增** `audit.group.external`（「外部身份源」/「External」，随 `external` 动作组）—— **净 0**（**F310**：原表只记 −1，与批 plan T9「改名」口径冲突） | **±0** |
 | **新增** | ~~`login.orDivider`~~（**v0.5 去分隔线 ⇒ 不新增**）· `login.providerMicrosoft`（**`Microsoft 账号`** / `Microsoft account` · v0.5 改名）· `login.providerGoogle`（`Google`）· `login.providerGitHub`（`GitHub`）· `login.providerWechat`（`微信` / `WeChat`）· `login.providerFailed`（G6 定值 · 失败提示） | **+5** |
 | **改值（键数不变）** | `login.subtitle`：`使用企业目录账号登录` ⇒ **`使用企业账号登录`** · `login.feature3`：`企业目录账号直连（LDAP / OIDC）` ⇒ **`企业目录账号直连（LDAP / Entra ID）`**（G6 甲 · 最小改：只把退役的 OIDC 换成正主） | 0 |
 
-⇒ `login` 组 **16 → 17**（−4 +5 · v0.5 去 `orDivider`）；全仓 **701 → 698**（−4 −3 −1 +5 = **−1**）。
+⇒ `login` 组 **16 → 17**（−4 +5 · v0.5 去 `orDivider`）；**批末全仓 701 → 699**（−4 −3 ±0 +5 = **−2** · **F310**）。⚠ **T6 后中间值 = 698**（仅 `errors` −3 已落、`login` 组与 `admin` 组归 T7 / T9）—— 与原文误值 698 **数值巧合、口径不同**，勿混。
+**归 Task**：`errors` 组 **−3 键 → T6**（生产点随自绘端点同批删 · **F309**）· `login` 组 → **T7** · `admin` 组 → **T9**。
 **同批同步**：`docs/07` §3.3 注记 + 修订行（**并订正 §3 正文两处过期值** → F305）。
 
 ### 4.5 边界与状态
@@ -518,6 +525,7 @@ socialProviders: {
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v0.9 | 2026-10-12 | **实现期 T6 轮 —— 判据口径 + 键账 + 落点（F308 / F309 / F310）** —— ① **F308** §3.7①「全仓零命中」字面不可执行 ⇒ **范围写明**（代码面 + 活文档零命中；历史文档与本批 design/plan 豁免）· T6 = 服务端面 / T7 = 全代码面 / T11 = 批级 ② **F309** i18n `errors` **−3 键归 T6**（生产点同批删）③ **F310** `admin` 组为改名 ⇒ **净 0** · 批末全仓 **699**（T6 后中间值 698）④ T6 落地：**删件 4 + 改件 26**（生产 14 · 测试 8 · 文档与门禁 4）· 服务端全量 **674/0/0**（57 文件）· 门禁 **275/141/3/50/37/0** · 18 维 **9.51** |
 | v0.8 | 2026-10-12 | **实现期 T5 轮 · 设计缺口补写（写入点定案）+ 件面 23 → 24** —— §3.6 未定「建号信号来源」⇒ 定案：**官方 `account.create.after` 钩子**（`providerId` 原生在场 · 与 `with-hooks.mjs` 全模型分派一致）+ 判据「该用户无其他 account 行」（链接 ≠ 建号）· `auth.login.success` 走**包装层**（响应 `Set-Cookie` → token 查库，复用 device/token 手法）· 备选（`createdAt` 启发式 / `validateUserInfo` 校验缝）**未采 + 写明理由** · **删除面（oidc 组 / 2 错误码 / i18n 2 键）明确归 T6** · **件面 23 → 24**（`doc-claims-check.ts` 行锚 `216 → 268` · 同 F224/M23 先例）· 8 维 **9.69 不变** |
 | v0.7 | 2026-10-12 | **实现期 T4 轮订正（件面 22 → 23）** —— `apps/server/src/http/admin-users.test.ts` 补入件面（T4 的「占位邮箱出参归一」用例落点 · §3.5 表 #23）⇒ Scope / §1 ⑥ / §3.5 标题 / F303 两处同步；F303 的测试件计数改**枚举式**（5 件，可逐条回读）· 8 维 **9.69 不变** |
 | v0.6 | 2026-10-12 | **实现期 T2 轮订正（F307 + 件面 22）** —— ① **F307**：官方 404 `code` 真值 = **`PROVIDER_NOT_FOUND`**（原 `oauth_provider_not_found`）⇒ §3.6 / §3.7④ / §6 L2 / §6 L7③ 四处订正（**正反双证**：真服务 `curl` + 官方源 `error/codes.mjs:14`；旧串 dist 内零命中）· 前端不依赖该串 ⇒ 零行为影响 ② **件面 21 → 22**：补 `apps/server/src/auth/better-auth.test.ts`（L1/L2 单测 · §3.5 表 #22）⇒ Scope / §1 ⑥ / §3.5 标题 / F303 两处同步 ③ 8 维 **9.69 不变**（纠错轮 · 设计实质未变） |
@@ -537,6 +545,9 @@ socialProviders: {
 | **F305** | `docs/07` §3 键账过期 | §3 正文写 `users`（用户管理 · 已落地 **63 键**）与 `account`（自助改密 · 已落地 **13 键**）；**实测**（逐键枚举）`users` = **65** · `account` = **12**（zh / en 双向一致）—— 前者落后头部/§3.3 的 65，后者多算 1 | 本批**同批订正**（§3 正文两处数字改实测值 + §3.3 注记 + 修订行），因本批本就要动 `docs/07`（`login` 组键账） |
 | **F306** | 主 design 形态措辞过期 | 主 design **§2.6 R13** 写「现有右栏表单下方**加分隔线 + 按钮组**」，另有 **3 处**同口径指针（§3 入口指针 · §5.1 小标题 · §10.2 线框）—— **v0.5 已改为「provider 文字链一行 · 无分隔线」** ⇒ 主 design **4 处**与本批 design 冲突（R13 的「**不改页面结构**」仍守） | **本批承载真值**（§4.1 件与档 · §4.6 P14–P17 · §9 线框）+ **主 design 4 处就地订正**随实现批文档笔（同 **F303/F304 · G8** 口径）；**同步面**：README §6.1 号段（本次已同步）· 证据 §5 与 `docs/00` §5 子行随实现批 / 收口批补（与 F303–F305 同口径） |
 | **F307** | 设计 ⇄ 真码（官方错误码） | 批 design 四处（§3.6 / §3.7 ④ / §6 L2 / §6 L7 ③）把「provider 未装配」的官方 404 `code` 写作 **`oauth_provider_not_found`**；**实测**（T2 靶测试 + 真服务 `curl`）真值 = **`PROVIDER_NOT_FOUND`**（body `{"message":"Provider not found","code":"PROVIDER_NOT_FOUND"}`），且官方源 `@better-auth/core@1.7.5` `dist` 内 **`oauth_provider_not_found` 零命中**、`PROVIDER_NOT_FOUND` 见 `error/codes.mjs:14` / `codes.d.mts:27`（**正反双证**） | **本批同批订正**（design 4 处 + plan 3 处 + 测试期望改 `PROVIDER_NOT_FOUND`）· ⚠ **无行为影响**：前端**不按官方码分支**（失败态统一走本仓 `login.providerFailed` 文案 · §4.1 交互第 3 步）⇒ 纯文档口径纠错；**同步面**：README §6.1 号段（本次已同步）· 证据 §5 与 `docs/00` 随实现批 / 收口批补 |
+| **F308** | 判据① 口径不可执行 | §3.7① 写「全仓 `grep` … ⇒ 零命中」；**实测**字面范围内必然命中三类：① **构建产物**（`apps/server/dist/**` · `apps/web/dist/**` · `.turbo/`，gitignore 但磁盘在场）② 早于本批的**历史文档**（≥12 份：`docs/plans/{M1-phase2,M2-assets,M4b-2,M4c-1}.md` · `docs/designs/2026-09-08/09-10/09-15/09-16/10-08/10-09*`）③ **本批 design 与 plan 自身**（必须引用待删符号）；活文档 `docs/00` §5 的 M4c-3 子行亦命中（**正反双证**：`grep -rnE` 实测 175 条 / 排除产物与豁免后代码面 2 条） | **口径写明（非放宽）**：代码面（`apps/*/src` + `packages/*/src`，排除产物）+ 活文档（`docs/00` · `docs/README`）**零命中**；历史文档与本批 design/plan **豁免** ⇒ **T6 出口 = 服务端面零命中**（实测 `apps/server/src` + `packages` = **0**）· 全代码面 = **T7 出口复核**（余 2 行 = `Login.tsx` 头部注释，属 T7 件）· 批级 = **T11 收口实测** |
+| **F309** | 落点漏项（i18n） | 批 plan T6 的步骤与落点**未含 i18n**，但其出口「判据① 归零」在 `apps/` 内必然扫到 `errors` 组 3 键（`auth.oidc_denied` · `auth.oidc_state_mismatch` · `oidc.not_configured`，zh / en 各 3）—— 三键的**生产点全在本 Task 删除**（`errors.ts` 2 码 + 自绘端点 404 体） | **归 T6 同批删**（design §3.6 已明写「随自绘端点一并退役」· 同「删面跟着消费面走」原则）⇒ T6 落点 **+`i18n/{zh,en}.ts`**（件面已在 24 内）；**实测**：`errors` 组 **69 → 66** · 全仓 **701 → 698**（T6 后中间值） |
+| **F310** | 键账算术偏差 | §4.4 把 `admin` 组记作**退役 −1**，但批 plan T9 步骤 2 明写 `audit.group.oidc` ⇒ **改名** `audit.group.external`（T9 断言要求「审计页有『外部身份源』组」⇒ 新键必需）⇒ 实际**净 0** ⇒ 批末全仓应为 **699**（原写 698）· **双证**：① 真实 `import` `zh.ts` / `en.ts` 实测基线 **701 键 / 16 组**、`audit.group.external` **缺失** ② 算术 `701 − 4 − 3 ± 0 + 5 = 699` | **本批同批订正**：§4.4 admin 行改「退役 + 新增 · 净 0」+ 终值 **698 → 699**；批 plan T7 步骤 7 同改（**同步面**：README §6.1 号段 · 证据 §5 · `docs/00` 随收口批补） |
 
 ## 14. grilling 轮定案（G1–G12 · 两轮全采 · 2026-10-12 · 用户「按推荐来」）
 

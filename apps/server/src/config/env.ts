@@ -63,16 +63,8 @@ const envSchema = z.object({
   // label 定义总数上限（M3 D1：skillhub label.max-definitions:100 同构——env 可配 C7）
   LABEL_MAX_DEFINITIONS: z.coerce.number().int().positive().default(100),
 
-  // 对外基址（OIDC 回调推导；并作为官方 baseURL ⇒ 设备流 verification_uri / 回调地址以此为准）
+  // 对外基址（作为官方 baseURL ⇒ 设备流 verification_uri / 回调地址以此为准）
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
-
-  // OIDC 授权码流（05 §3/§5：单 Provider 配置化，R6；默认关闭独立部署不受影响）
-  OIDC_ENABLED: boolFromString.default('false'),
-  OIDC_DISCOVERY_URL: z.string().default(''),
-  OIDC_CLIENT_ID: z.string().default(''),
-  OIDC_CLIENT_SECRET: z.string().default(''),
-  /** 可选：缺省运行时以 PUBLIC_BASE_URL 推导 /api/auth/oidc/callback */
-  OIDC_REDIRECT_URL: z.string().url().optional(),
 
   // 外部身份源（M4c-3 §3.1：企业 IdP + 社交三通道；默认全关 ⇒ 独立部署零影响）
   // 企业 IdP = 官方内置 `microsoft`（Microsoft Entra ID，原 Azure AD）
@@ -137,22 +129,7 @@ export function parseEnv(source: Record<string, string | undefined> = process.en
   if (env.STORAGE_DRIVER !== 'local') {
     throw new Error(`STORAGE_DRIVER=${env.STORAGE_DRIVER} is not implemented in M1 (only 'local')`);
   }
-  // OIDC 启用但缺必填 → 拒绝（05 §3.1 配置完整性，同 LDAP 模式）
-  if (
-    env.OIDC_ENABLED &&
-    (env.OIDC_DISCOVERY_URL.trim() === '' || env.OIDC_CLIENT_ID.trim() === '')
-  ) {
-    throw new Error('OIDC_ENABLED=true requires OIDC_DISCOVERY_URL and OIDC_CLIENT_ID');
-  }
-  // OIDC discovery 仅接受 https（localhost 开发例外）——防降级窃听（P6）
-  if (env.OIDC_DISCOVERY_URL.trim() !== '') {
-    const url = new URL(env.OIDC_DISCOVERY_URL);
-    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-    if (url.protocol !== 'https:' && !isLocalhost) {
-      throw new Error('OIDC_DISCOVERY_URL must use https (localhost allowed for development)');
-    }
-  }
-  // 外部身份源启用但缺凭据 → 拒绝（M4c-3 §3.1 fail-fast；同 LDAP / OIDC 既有模式）
+  // 外部身份源启用但缺凭据 → 拒绝（M4c-3 §3.1 fail-fast；同 LDAP 既有模式）
   const externalChannels: ReadonlyArray<readonly [string, boolean, string, string]> = [
     ['ENTRA', env.ENTRA_ENABLED, env.ENTRA_CLIENT_ID, env.ENTRA_CLIENT_SECRET],
     [

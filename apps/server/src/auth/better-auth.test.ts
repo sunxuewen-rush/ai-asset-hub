@@ -199,7 +199,7 @@ async function countExternalProvisions(): Promise<number> {
 describe('M4c-3 T5 · 外部通道建号审计（external.provisioned）', () => {
   test('纯函数判据：四通道 × account 数 1 ⇒ true；非四通道 或 计数 ≠ 1 ⇒ false', () => {
     for (const p of EXTERNAL_PROVIDER_IDS) expect(shouldRecordExternalProvision(p, 1)).toBe(true);
-    for (const p of ['credential', 'oidc', 'ldap', 'wechatx', '']) {
+    for (const p of ['credential', 'ldap', 'wechatx', '']) {
       expect(shouldRecordExternalProvision(p, 1)).toBe(false);
     }
     for (const p of EXTERNAL_PROVIDER_IDS) {

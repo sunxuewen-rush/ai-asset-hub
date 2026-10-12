@@ -30,7 +30,6 @@ const app = createApp({
   audit,
   storage,
   ldap,
-  cookieSecure: env.NODE_ENV === 'production',
 });
 
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {

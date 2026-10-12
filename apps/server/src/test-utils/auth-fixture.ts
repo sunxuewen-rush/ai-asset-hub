@@ -67,7 +67,7 @@ export interface TestUserOptions {
   /** 登录名（缺省 = `loginNameOf(id)` —— 归一为官方校验器口径） */
   username?: string;
   password?: string;
-  /** 身份通道（'credential' 缺省；'ldap'/'oidc' 用于目录建号断言——不建口令行） */
+  /** 身份通道（'credential' 缺省；'ldap' 用于目录建号断言——不建口令行） */
   providerId?: string;
   /** M4c-2 T3：官方封禁列（启停真值）—— 缺省 false */
   banned?: boolean;

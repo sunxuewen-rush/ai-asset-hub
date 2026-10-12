@@ -36,7 +36,7 @@ import { requireRole } from './auth-middleware.js';
 
 export interface AdminUserRoutesDeps {
   db: Db;
-  /** 官方实例（薄层直呼其 admin 插件端点 —— 先例 `http/oidc-routes.ts`） */
+  /** 官方实例（薄层直呼其 admin 插件端点 —— 先例 `auth/api-keys.ts` 直呼 `api.createApiKey`） */
   auth: AihAuth;
   audit?: AuditWriter;
 }
@@ -55,7 +55,7 @@ interface OfficialUser {
 
 /**
  * 官方 admin 插件端点面（`Auth` 类型不含插件端点 ⇒ **局部窄化**，
- * 先例 = `http/oidc-routes.ts` 的 `deps.auth.api as unknown as OidcSignInApi`）。
+ * 先例 = `auth/api-keys.ts:26/61` 的 `auth.api as unknown as ApiKeyEndpoints`）。
  * 官方入参与真码一一对应：`list-users`(`routes.mjs:322`) · `set-role`(`:43`) · `ban-user`(`:506`) ·
  * `unban-user`(`:447`) · `create-user`(`:133`) · `revoke-user-sessions`(`:710`)。
  */
