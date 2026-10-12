@@ -109,6 +109,51 @@ export function authOptions(deps: AuthRuntimeDeps = {}): BetterAuthOptions {
     /** R9：官方 Origin 校验白名单（空 = 仅同源；dev 填 web 源，生产留空靠反代同源） */
     trustedOrigins: parseTrustedOrigins(env.AUTH_TRUSTED_ORIGINS),
 
+    /**
+     * 外部身份源（M4c-3 §3.2）：**官方内置**四个 provider，逐 provider 由 env 条件装配
+     * （默认全关 ⇒ 独立部署零影响）。
+     * - 键名逐字照官方（`@better-auth/core@1.7.5` `dist/social-providers/index.d.mts:1875`），
+     *   与 `POST /api/auth/sign-in/social` 的 `provider` 入参**同值** ⇒ 前端零映射表
+     * - `microsoft`（Entra ID）传 `tenantId`：`parseEnv` 已强制非空（G1）⇒ 只有本租户能进
+     * - 未装配的 provider ⇒ 官方 **404 `oauth_provider_not_found`**（前端渲染期已按启用集裁剪）
+     * - **不采**官方 SSO 插件 / `genericOAuth`（主 design §2.6 R4）
+     */
+    socialProviders: {
+      ...(env.ENTRA_ENABLED
+        ? {
+            microsoft: {
+              clientId: env.ENTRA_CLIENT_ID,
+              clientSecret: env.ENTRA_CLIENT_SECRET,
+              tenantId: env.ENTRA_TENANT_ID,
+            },
+          }
+        : {}),
+      ...(env.SOCIAL_GOOGLE_ENABLED
+        ? {
+            google: {
+              clientId: env.SOCIAL_GOOGLE_CLIENT_ID,
+              clientSecret: env.SOCIAL_GOOGLE_CLIENT_SECRET,
+            },
+          }
+        : {}),
+      ...(env.SOCIAL_GITHUB_ENABLED
+        ? {
+            github: {
+              clientId: env.SOCIAL_GITHUB_CLIENT_ID,
+              clientSecret: env.SOCIAL_GITHUB_CLIENT_SECRET,
+            },
+          }
+        : {}),
+      ...(env.SOCIAL_WECHAT_ENABLED
+        ? {
+            wechat: {
+              clientId: env.SOCIAL_WECHAT_CLIENT_ID,
+              clientSecret: env.SOCIAL_WECHAT_CLIENT_SECRET,
+            },
+          }
+        : {}),
+    },
+
     user: {
       /**
        * M4c-2 T3：原 `additionalFields.status`（本仓三态单值列）**随列退休删除** ——

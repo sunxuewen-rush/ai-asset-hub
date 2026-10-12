@@ -1,13 +1,85 @@
 import { describe, expect, test } from 'bun:test';
-import { parseTrustedOrigins } from './better-auth.js';
+import { Hono } from 'hono';
+import { resetEnvCache } from '../config/env.js';
+import { createAuth, parseTrustedOrigins } from './better-auth.js';
 
 /**
- * Origin 白名单解析（design §4.3 R9 · §2.1 R9）。
+ * `better-auth` 装配面测试（两组）。
  *
- * 语义：env 里是**逗号分隔串**（空 = 仅同源）；解析必须容忍书写噪声（空格/空段/尾逗号），
- * 且**不得**把空段变成 `''` 白名单项——一个空字符串进白名单等于放行任意同形 origin（安全面）。
- * 注：本文件只 import 模块级纯函数，导入期不构造实例（因此不解析 env）。
+ * ① **Origin 白名单解析**（design §4.3 R9 · §2.1 R9）：env 里是**逗号分隔串**（空 = 仅同源）；
+ *   解析必须容忍书写噪声（空格/空段/尾逗号），且**不得**把空段变成 `''` 白名单项
+ *   ——一个空字符串进白名单等于放行任意同形 origin（安全面）。
+ * ② **M4c-3 T2 外部身份源装配**（批 design §3.2 · 测试层 **L1 / L2**）：`ENTRA_*` / `SOCIAL_*`
+ *   由 env **条件装配** ⇒ 关态「未装配 ⇒ 404 `PROVIDER_NOT_FOUND`」· 开态「装配且
+ *   `tenantId` 接入授权 URL」。断言走**官方端点行为**（不读内部结构）。
+ *
+ * 注：② 需构造实例 ⇒ 本文件设 `DATABASE_URL` / `SESSION_SECRET`（同 `app.test.ts` 范式），
+ * 用例内用 `resetEnvCache()` 切换 env（实例构造惰性：不建连接 / 不触网）。
  */
+
+process.env.DATABASE_URL ??= 'postgres://aih:***@localhost:5433/ai_asset_hub_test';
+process.env.SESSION_SECRET ??= 'x'.repeat(40);
+
+/** 本批涉及的全部 provider env 键（用例前后逐键复位，互不串味） */
+const PROVIDER_ENV_KEYS = [
+  'ENTRA_ENABLED',
+  'ENTRA_CLIENT_ID',
+  'ENTRA_CLIENT_SECRET',
+  'ENTRA_TENANT_ID',
+  'SOCIAL_GOOGLE_ENABLED',
+  'SOCIAL_GOOGLE_CLIENT_ID',
+  'SOCIAL_GOOGLE_CLIENT_SECRET',
+  'SOCIAL_GITHUB_ENABLED',
+  'SOCIAL_GITHUB_CLIENT_ID',
+  'SOCIAL_GITHUB_CLIENT_SECRET',
+  'SOCIAL_WECHAT_ENABLED',
+  'SOCIAL_WECHAT_CLIENT_ID',
+  'SOCIAL_WECHAT_CLIENT_SECRET',
+] as const;
+
+/** 以给定 provider env 跑一段断言，随后**逐键复位**（新增键一并删除 ⇒ 不污染其他用例） */
+async function withProviderEnv(
+  vars: Record<string, string>,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const prev = new Map(PROVIDER_ENV_KEYS.map((k) => [k, process.env[k]] as const));
+  try {
+    for (const k of PROVIDER_ENV_KEYS) delete process.env[k];
+    for (const [k, v] of Object.entries(vars)) process.env[k] = v;
+    resetEnvCache();
+    await fn();
+  } finally {
+    for (const [k, v] of prev) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    resetEnvCache();
+  }
+}
+
+/** 只挂官方 handler 于 `/api/auth/*`（同 `app.ts:147` 的挂法；不引入整个 app） */
+function minimalAuthApp(): Hono {
+  const auth = createAuth({});
+  const app = new Hono();
+  app.all('/api/auth/*', (c) => auth.handler(c.req.raw));
+  return app;
+}
+
+/** `POST /api/auth/sign-in/social`（官方社交通道；成功 = 200 `{ url, redirect: true }`） */
+async function signInSocial(
+  provider: string,
+): Promise<{ status: number; body: { url?: string; code?: string } }> {
+  const res = await minimalAuthApp().request('/api/auth/sign-in/social', {
+    method: 'POST',
+    headers: {
+      host: 'localhost:3000',
+      origin: 'http://localhost:3000',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ provider, callbackURL: '/' }),
+  });
+  return { status: res.status, body: (await res.json()) as { url?: string; code?: string } };
+}
 
 describe('parseTrustedOrigins：逗号分隔 Origin 白名单', () => {
   test('空串 ⇒ 空数组（= 仅同源，安全默认）', () => {
@@ -38,5 +110,62 @@ describe('parseTrustedOrigins：逗号分隔 Origin 白名单', () => {
 
   test('通配形态（官方 trustedOrigins 支持）原样透传，不做本地改写', () => {
     expect(parseTrustedOrigins('*.example.test')).toEqual(['*.example.test']);
+  });
+});
+
+describe('M4c-3 T2：外部身份源装配（L1 两态 · L2 降级）', () => {
+  test('L2 关态：四个 provider 全未装配 ⇒ sign-in/social 逐个 404 oauth_provider_not_found', async () => {
+    await withProviderEnv({}, async () => {
+      for (const provider of ['microsoft', 'google', 'github', 'wechat']) {
+        const res = await signInSocial(provider);
+        expect(res.status).toBe(404);
+        expect(res.body.code).toBe('PROVIDER_NOT_FOUND');
+      }
+    });
+  });
+
+  test('L1 开态：Entra 装配 ⇒ 200 且 tenantId 接入授权 URL（本租户段实锤）', async () => {
+    const TENANT = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    await withProviderEnv(
+      {
+        ENTRA_ENABLED: 'true',
+        ENTRA_CLIENT_ID: 'api://aih-test',
+        ENTRA_CLIENT_SECRET: 's3cret',
+        ENTRA_TENANT_ID: TENANT,
+      },
+      async () => {
+        const res = await signInSocial('microsoft');
+        expect(res.status).toBe(200);
+        expect(res.body.url).toContain(`login.microsoftonline.com/${TENANT}/`);
+        expect(res.body.url).toContain('oauth2/v2.0/authorize');
+        // 启用集隔离：未启用的社交通道不受影响
+        expect((await signInSocial('google')).status).toBe(404);
+      },
+    );
+  });
+
+  test('L1 开态：社交三通道各自装配（授权 URL 指向各自官方端点）', async () => {
+    await withProviderEnv(
+      {
+        SOCIAL_GOOGLE_ENABLED: 'true',
+        SOCIAL_GOOGLE_CLIENT_ID: 'g-id',
+        SOCIAL_GOOGLE_CLIENT_SECRET: 'g-s',
+        SOCIAL_GITHUB_ENABLED: 'true',
+        SOCIAL_GITHUB_CLIENT_ID: 'h-id',
+        SOCIAL_GITHUB_CLIENT_SECRET: 'h-s',
+        SOCIAL_WECHAT_ENABLED: 'true',
+        SOCIAL_WECHAT_CLIENT_ID: 'w-id',
+        SOCIAL_WECHAT_CLIENT_SECRET: 'w-s',
+      },
+      async () => {
+        expect((await signInSocial('google')).body.url).toContain('accounts.google.com');
+        expect((await signInSocial('github')).body.url).toContain(
+          'github.com/login/oauth/authorize',
+        );
+        expect((await signInSocial('wechat')).body.url).toContain('open.weixin.qq.com');
+        // Entra 未启用 ⇒ 仍 404
+        expect((await signInSocial('microsoft')).status).toBe(404);
+      },
+    );
   });
 });
